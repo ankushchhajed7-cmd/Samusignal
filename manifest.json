@@ -1,0 +1,42 @@
+{
+  "name": "SamuSignal – Forex & Crypto Signals",
+  "short_name": "SamuSignal",
+  "description": "AI-Powered Forex & Crypto Signal App with real-time analysis, trade tracker, and alerts.",
+  "start_url": "./Samusignal.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0a0e1a",
+  "background_color": "#060912",
+  "lang": "en",
+  "categories": ["finance", "trading", "utilities"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "View Signals",
+      "short_name": "Signals",
+      "url": "./Samusignal.html#signals",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Trades",
+      "short_name": "Trades",
+      "url": "./Samusignal.html#trades",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
