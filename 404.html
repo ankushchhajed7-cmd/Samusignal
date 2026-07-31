@@ -415,6 +415,22 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   </div>
   <p class="hint" style="margin-bottom:14px">Free plan pe 800 credits/day. Cap 700 rakho taaki buffer rahe. Har open pair ka 1 credit lagta hai — 5 pairs + 5 minute refresh = ~60 credits/ghanta.</p>
 
+  <p class="ttl">SL / TP Method</p>
+  <div style="margin-bottom:10px"><label>Default method</label><select id="setMode">
+    <option value="DOLLAR">Fixed dollar (har pair pe same $)</option>
+    <option value="ATR">ATR based (volatility ke hisaab se)</option>
+  </select></div>
+  <div class="grid3" style="margin-bottom:6px">
+    <div><label>SL = ATR ×</label><input class="mono" id="setAtrSL" type="number" step="0.1" value="1.5"></div>
+    <div><label>TP = SL ×</label><input class="mono" id="setAtrRR" type="number" step="0.1" value="2"></div>
+    <div><label>Risk ($)</label><input class="mono" id="setRisk" type="number" step="0.25" value="1.75"></div>
+  </div>
+  <div class="sw" id="swAutoLot" onclick="toggleSw(this,'autoLot')">
+    <div class="tg"></div>
+    <div>ATR mode me lot auto<small>Risk $ fix rahega, lot size khud adjust hoga</small></div>
+  </div>
+  <p class="hint" style="margin-bottom:16px">ATR mode me SL market ki chaal ke hisaab se lagti hai — gold pe chaudi, EURUSD pe patli. Dollar value trade lete waqt dikh jayegi.</p>
+
   <p class="ttl">Default Trade Size</p>
   <div class="grid3" style="margin-bottom:6px">
     <div><label>TP ($)</label><input class="mono" id="setTp" type="number" step="0.5" value="1"></div>
@@ -469,7 +485,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '2.11.0';
+const VERSION = '2.12.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -547,6 +563,38 @@ function dollarsToDist(sym, price, lots, dollars){
 function distToDollars(sym, price, lots, dist){
   return Math.abs(dist) * usdPerPoint(sym, price, lots);
 }
+/* risk$ se lot nikalo */
+function lotsForRisk(sym, price, slDist, risk){
+  const perUnit = slDist * usdPerPoint(sym, price, 1);
+  if(perUnit <= 0) return 0.01;
+  return Math.round(risk / perUnit * 100) / 100;   /* 0.01 se kam bhi ho sakta hai */
+}
+/* ek jagah se SL/TP distance — dono mode ke liye */
+function calcLevels(sym, price, lots, atr, opt){
+  const o = opt || {};
+  const mode = o.mode || S.slMode;
+  let slDist, tpDist, L = lots, clamped = 0;
+  if(mode === 'ATR' && atr > 0){
+    slDist = (o.atrSL !== undefined ? o.atrSL : S.atrSL) * atr;
+    tpDist = slDist * (o.atrRR !== undefined ? o.atrRR : S.atrRR);
+    if(o.autoLot !== undefined ? o.autoLot : S.autoLot){
+      const want = lotsForRisk(sym, price, slDist, o.riskUsd !== undefined ? o.riskUsd : S.riskUsd);
+      L = Math.max(0.01, want);
+      if(want < 0.01) clamped = want;   /* broker minimum se neeche — risk badh jayega */
+    }
+  } else {
+    slDist = dollarsToDist(sym, price, L, o.slD !== undefined ? o.slD : S.dSl);
+    tpDist = dollarsToDist(sym, price, L, o.tpD !== undefined ? o.tpD : S.dTp);
+  }
+  return {
+    lots: L, slDist, tpDist, clamped,
+    slD: +distToDollars(sym, price, L, slDist).toFixed(2),
+    tpD: +distToDollars(sym, price, L, tpDist).toFixed(2),
+    slPips: +(slDist / SPECS[sym].pip).toFixed(1),
+    tpPips: +(tpDist / SPECS[sym].pip).toFixed(1)
+  };
+}
+
 const fmt = (sym,v) => Number(v).toFixed(SPECS[sym] ? SPECS[sym].d : 4);
 const money = v => (v<0?'-$':'$') + Math.abs(v).toFixed(2);
 
@@ -560,6 +608,11 @@ let S = {
   tgTok: LS.get('tgTok',''),
   tgId:  LS.get('tgId',''),
   tgAuto:LS.get('tgAuto',true),
+  slMode: LS.get('slMode','DOLLAR'),   /* DOLLAR | ATR */
+  atrSL: LS.get('atrSL',1.5),
+  atrRR: LS.get('atrRR',2),
+  autoLot: LS.get('autoLot',false),
+  riskUsd: LS.get('riskUsd',1.75),
   dTp:   LS.get('dTp',1),
   dSl:   LS.get('dSl',2.5),
   fbUrl: LS.get('fbUrl',''),
@@ -580,7 +633,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -925,15 +978,15 @@ async function runAnalyze(){
     const grade = q>=80?'A+':q>=70?'A':q>=60?'B':q>=45?'C':'D';
 
     /* --- levels from default $ risk --- */
-    const lots = +$('inLots').value || S.dLot;
-    const slDist = dollarsToDist(sym, live, lots, S.dSl);
-    const tpDist = dollarsToDist(sym, live, lots, S.dTp);
-    const sl = dir==='BUY' ? live - slDist : live + slDist;
-    const tp = dir==='BUY' ? live + tpDist : live - tpDist;
+    const L0 = +$('inLots').value || S.dLot;
+    const lv = calcLevels(sym, live, L0, base.atr);
+    const lots = lv.lots;
+    const sl = dir==='BUY' ? live - lv.slDist : live + lv.slDist;
+    const tp = dir==='BUY' ? live + lv.tpDist : live - lv.tpDist;
 
     lastSignal = {
       sym, dir, q, grade, live, sl, tp, lots,
-      slD:S.dSl, tpD:S.dTp, htfOk, tf:S.tf,
+      slD:lv.slD, tpD:lv.tpD, slPips:lv.slPips, tpPips:lv.tpPips, mode:S.slMode, htfOk, tf:S.tf,
       atr: base.atr, rsi: base.rsi,
       tfs: TFS.filter(t=>res[t.id]).map(t=>({l:t.l, b:res[t.id].bias})),
       at: Date.now()
@@ -976,13 +1029,13 @@ function renderSignal(){
       </div>
       <div class="lvls">
         <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(s.sym,s.live)}</b></div>
-        <div class="lvl sl"><span>SL · $${s.slD}</span><b class="mono">${fmt(s.sym,s.sl)}</b></div>
-        <div class="lvl tp"><span>TP · $${s.tpD}</span><b class="mono">${fmt(s.sym,s.tp)}</b></div>
+        <div class="lvl sl"><span>SL · $${s.slD}</span><b class="mono">${fmt(s.sym,s.sl)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.slPips} pips</small></div>
+        <div class="lvl tp"><span>TP · $${s.tpD}</span><b class="mono">${fmt(s.sym,s.tp)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.tpPips} pips</small></div>
       </div>
       <div class="tfrow">
         ${s.tfs.map(t=>`<div class="tfp ${t.b==='BUY'?'up':t.b==='SELL'?'dn':'nu'}"><span>${t.l}</span><b>${t.b==='NEUTRAL'?'—':t.b}</b></div>`).join('')}
       </div>
-      <p class="hint">Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)}</p>
+      <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)}</p>
       ${warn}
       <div class="acts">
         <button class="btn ${s.dir==='SELL'?'r':'g'} sm" style="flex:2" onclick="openQuick()">Maine Ye Trade Liya</button>
@@ -1127,67 +1180,140 @@ function openQuick(){
   const s = lastSignal;
   if(!s || s.dir==='NEUTRAL'){ toast('Pehle ek valid signal analyze karo'); return }
   $('qtTitle').textContent = `Maine Ye Trade Liya — ${s.sym}`;
-  drawQuick(s.dir, s.live, +$('inLots').value || S.dLot, S.dTp, S.dSl);
+  qtState = {
+    dir: s.dir, entry: s.live, lots: +$('inLots').value || S.dLot,
+    mode: S.slMode, slD: S.dSl, tpD: S.dTp,
+    atrSL: S.atrSL, atrRR: S.atrRR, autoLot: S.autoLot, riskUsd: S.riskUsd
+  };
+  drawQuick();
   openSheet('qtSheet');
 }
-function drawQuick(dir, entry, lots, tpD, slD){
-  const sym = lastSignal.sym;
-  const slDist = dollarsToDist(sym, entry, lots, slD);
-  const tpDist = dollarsToDist(sym, entry, lots, tpD);
-  const sl = dir==='BUY' ? entry-slDist : entry+slDist;
-  const tp = dir==='BUY' ? entry+tpDist : entry-tpDist;
-  const pipSL = (slDist / SPECS[sym].pip).toFixed(1);
-  const pipTP = (tpDist / SPECS[sym].pip).toFixed(1);
+
+let qtState = null;
+
+function qtCalc(){
+  const q = qtState, sym = lastSignal.sym;
+  const lv = calcLevels(sym, q.entry, q.lots, lastSignal.atr, q);
+  const sl = q.dir==='BUY' ? q.entry - lv.slDist : q.entry + lv.slDist;
+  const tp = q.dir==='BUY' ? q.entry + lv.tpDist : q.entry - lv.tpDist;
+  return {lv, sl, tp};
+}
+
+function drawQuick(){
+  const q = qtState, sym = lastSignal.sym;
+  const {lv, sl, tp} = qtCalc();
+  const atrOn = q.mode === 'ATR';
+  const risk = q.lots !== lv.lots ? lv.lots : q.lots;
+
   $('qtBody').innerHTML = `
     <div class="chips" style="margin-bottom:12px">
-      <button class="chip ${dir==='BUY'?'on':''}" onclick="qtSet('BUY')">BUY</button>
-      <button class="chip ${dir==='SELL'?'on':''}" onclick="qtSet('SELL')">SELL</button>
+      <button class="chip ${q.dir==='BUY'?'on':''}" onclick="qtSet('dir','BUY')">BUY</button>
+      <button class="chip ${q.dir==='SELL'?'on':''}" onclick="qtSet('dir','SELL')">SELL</button>
     </div>
-    <div class="grid3" style="margin-bottom:10px">
-      <div><label>TP ($)</label><input class="mono" id="qTp" type="number" step="0.5" value="${tpD}" oninput="qtRefresh()"></div>
-      <div><label>SL ($)</label><input class="mono" id="qSl" type="number" step="0.5" value="${slD}" oninput="qtRefresh()"></div>
-      <div><label>Lots</label><input class="mono" id="qLot" type="number" step="0.01" value="${lots}" oninput="qtRefresh()"></div>
+
+    <label>SL / TP kaise nikale</label>
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip ${!atrOn?'on gold':''}" onclick="qtSet('mode','DOLLAR')">Fixed $</button>
+      <button class="chip ${atrOn?'on gold':''}" onclick="qtSet('mode','ATR')">ATR based</button>
     </div>
-    <div><label>Entry Price (live — manually badal sakte ho)</label>
-      <input class="mono" id="qEntry" type="number" step="0.00001" value="${fmt(sym,entry)}" oninput="qtRefresh()"></div>
-    <div class="lvls" style="margin:12px 0">
-      <div class="lvl"><span>ENTRY</span><b class="mono" id="qvE">${fmt(sym,entry)}</b></div>
-      <div class="lvl sl"><span>STOP LOSS</span><b class="mono" id="qvS">${fmt(sym,sl)}</b></div>
-      <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono" id="qvT">${fmt(sym,tp)}</b></div>
+
+    ${atrOn ? `
+      <div class="grid3" style="margin-bottom:10px">
+        <div><label>SL = ATR ×</label><input class="mono" id="qA" type="number" step="0.1" value="${q.atrSL}" oninput="qtSet('atrSL',+this.value,1)"></div>
+        <div><label>TP = SL ×</label><input class="mono" id="qR" type="number" step="0.1" value="${q.atrRR}" oninput="qtSet('atrRR',+this.value,1)"></div>
+        <div><label>Lots</label><input class="mono" id="qLot" type="number" step="0.01" value="${lv.lots}" ${q.autoLot?'disabled style="opacity:.5"':''} oninput="qtSet('lots',+this.value,1)"></div>
+      </div>
+      <div class="sw ${q.autoLot?'on':''}" onclick="qtSet('autoLot',!qtState.autoLot)">
+        <div class="tg"></div>
+        <div>Lot auto nikalo<small>Risk $${q.riskUsd} ke hisaab se lot size khud set hoga</small></div>
+      </div>
+      ${q.autoLot ? `<div style="margin:8px 0 10px"><label>Risk per trade ($)</label><input class="mono" id="qRisk" type="number" step="0.25" value="${q.riskUsd}" oninput="qtSet('riskUsd',+this.value,1)"></div>` : ''}
+    ` : `
+      <div class="grid3" style="margin-bottom:10px">
+        <div><label>TP ($)</label><input class="mono" id="qTp" type="number" step="0.5" value="${q.tpD}" oninput="qtSet('tpD',+this.value,1)"></div>
+        <div><label>SL ($)</label><input class="mono" id="qSl" type="number" step="0.5" value="${q.slD}" oninput="qtSet('slD',+this.value,1)"></div>
+        <div><label>Lots</label><input class="mono" id="qLot" type="number" step="0.01" value="${q.lots}" oninput="qtSet('lots',+this.value,1)"></div>
+      </div>
+    `}
+
+    <div><label>Entry price (manually badal sakte ho)</label>
+      <input class="mono" id="qEntry" type="number" step="0.00001" value="${fmt(sym,q.entry)}" oninput="qtSet('entry',+this.value,1)"></div>
+
+    <div class="lvls" style="margin:14px 0 4px">
+      <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(sym,q.entry)}</b>
+        <small style="display:block;font-size:9px;color:var(--mut)">${lv.lots} lot</small></div>
+      <div class="lvl sl"><span>STOP LOSS</span><b class="mono">${fmt(sym,sl)}</b>
+        <small style="display:block;font-size:10px;color:var(--dn);font-weight:700">−$${lv.slD}</small>
+        <small style="display:block;font-size:9px;color:var(--mut)">${lv.slPips} pips</small></div>
+      <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono">${fmt(sym,tp)}</b>
+        <small style="display:block;font-size:10px;color:var(--up);font-weight:700">+$${lv.tpD}</small>
+        <small style="display:block;font-size:9px;color:var(--mut)">${lv.tpPips} pips</small></div>
     </div>
-    <p class="hint" id="qInfo">SL ${pipSL} pips · TP ${pipTP} pips · R:R 1:${(tpD/slD).toFixed(2)} · $${usdPerPip(sym,entry,lots).toFixed(3)} per pip</p>
-    <p class="hint" style="margin:10px 0 0">Ye sirf app ke journal me record hoga. MT5 pe lagane ke liye 🚀 button use karo.</p>
-    <div class="grid2" style="margin:10px 0 8px">
+
+    ${lv.clamped ? `<div style="border:1px solid var(--dn);background:rgba(242,84,91,.08);border-radius:10px;padding:11px;margin-bottom:10px">
+      <b style="color:var(--dn);font-size:12px">⚠ Risk target se bahar</b>
+      <p class="hint" style="color:var(--dn);margin:5px 0 0">Is SL ke liye <b>${lv.clamped.toFixed(3)} lot</b> chahiye tha, par broker ka minimum <b>0.01</b> hai.
+      Asli risk <b>$${lv.slD}</b> ho jayega, target $${q.riskUsd} nahi.
+      SL chhoti karo (ATR × kam), ya ye pair skip karo.</p></div>` : ''}
+    <p class="hint">R:R 1:${(lv.tpD/(lv.slD||1)).toFixed(2)} · barabar rehne ko ${(100/(1+lv.tpD/(lv.slD||1))).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${atrOn?` · ATR ${fmt(sym,lastSignal.atr)}`:''}</p>
+
+    <div class="grid2" style="margin:14px 0 8px">
       <button class="btn ghost sm" onclick="qtReset()">↺ Reset to Default</button>
       <button class="btn ghost sm" onclick="qtLive()">⟳ Live Price Lo</button>
     </div>
-    <button class="btn ${dir==='SELL'?'r':'g'}" onclick="confirmTrade()">Trade Lagao</button>`;
-  $('qtBody').dataset.dir = dir;
+    <p class="hint" style="margin:0 0 10px">Ye sirf app ke journal me record hoga. MT5 pe lagane ke liye 🚀 button use karo.</p>
+    <button class="btn ${q.dir==='SELL'?'r':'g'}" onclick="confirmTrade()">Trade Lagao</button>`;
 }
-function qtSet(d){ const e=+$('qEntry').value; drawQuick(d, e, +$('qLot').value, +$('qTp').value, +$('qSl').value) }
-function qtRefresh(){
-  const sym = lastSignal.sym, dir = $('qtBody').dataset.dir;
-  const entry = +$('qEntry').value, lots = +$('qLot').value || 0.01;
-  const tpD = +$('qTp').value || 0, slD = +$('qSl').value || 0;
-  const slDist = dollarsToDist(sym, entry, lots, slD), tpDist = dollarsToDist(sym, entry, lots, tpD);
-  const sl = dir==='BUY'?entry-slDist:entry+slDist, tp = dir==='BUY'?entry+tpDist:entry-tpDist;
-  $('qvE').textContent = fmt(sym,entry); $('qvS').textContent = fmt(sym,sl); $('qvT').textContent = fmt(sym,tp);
-  $('qInfo').textContent = `SL ${(slDist/SPECS[sym].pip).toFixed(1)} pips · TP ${(tpDist/SPECS[sym].pip).toFixed(1)} pips · R:R 1:${(tpD/(slD||1)).toFixed(2)} · $${usdPerPip(sym,entry,lots).toFixed(3)} per pip`;
+
+function qtSet(k, v, keepFocus){
+  qtState[k] = v;
+  if(keepFocus){
+    /* input me type karte waqt poora redraw na ho — sirf levels update */
+    const {lv, sl, tp} = qtCalc();
+    const sym = lastSignal.sym;
+    const box = $('qtBody').querySelector('.lvls');
+    if(box){
+      box.innerHTML = `
+        <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(sym,qtState.entry)}</b>
+          <small style="display:block;font-size:9px;color:var(--mut)">${lv.lots} lot</small></div>
+        <div class="lvl sl"><span>STOP LOSS</span><b class="mono">${fmt(sym,sl)}</b>
+          <small style="display:block;font-size:10px;color:var(--dn);font-weight:700">−$${lv.slD}</small>
+          <small style="display:block;font-size:9px;color:var(--mut)">${lv.slPips} pips</small></div>
+        <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono">${fmt(sym,tp)}</b>
+          <small style="display:block;font-size:10px;color:var(--up);font-weight:700">+$${lv.tpD}</small>
+          <small style="display:block;font-size:9px;color:var(--mut)">${lv.tpPips} pips</small></div>`;
+      const h = box.nextElementSibling;
+      if(h) h.textContent = `R:R 1:${(lv.tpD/(lv.slD||1)).toFixed(2)} · barabar rehne ko ${(100/(1+lv.tpD/(lv.slD||1))).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,qtState.entry,lv.lots).toFixed(3)} per pip`;
+    }
+    return;
+  }
+  drawQuick();
 }
-function qtReset(){ drawQuick($('qtBody').dataset.dir, lastSignal.live, S.dLot, S.dTp, S.dSl); toast('Default values wapas aa gayi') }
+
+function qtReset(){
+  qtState = Object.assign({}, qtState, {
+    entry: lastSignal.live, lots: S.dLot, mode: S.slMode,
+    slD: S.dSl, tpD: S.dTp, atrSL: S.atrSL, atrRR: S.atrRR,
+    autoLot: S.autoLot, riskUsd: S.riskUsd
+  });
+  drawQuick(); toast('Default values wapas aa gayi');
+}
+
 async function qtLive(){
   const p = await getPrice(lastSignal.sym);
-  if(p){ $('qEntry').value = fmt(lastSignal.sym,p); qtRefresh(); toast('Live price update ho gaya') }
+  if(p){ qtState.entry = p; drawQuick(); toast('Live price update ho gaya') }
 }
+
 function confirmTrade(){
-  const sym = lastSignal.sym, dir = $('qtBody').dataset.dir;
-  const entry = +$('qEntry').value, lots = +$('qLot').value || 0.01;
-  const tpD = +$('qTp').value, slD = +$('qSl').value;
-  if(!entry || !lots || !tpD || !slD){ toast('Sab values bharo') ; return }
-  const slDist = dollarsToDist(sym, entry, lots, slD), tpDist = dollarsToDist(sym, entry, lots, tpD);
-  const sl = dir==='BUY' ? entry-slDist : entry+slDist;
-  const tp = dir==='BUY' ? entry+tpDist : entry-tpDist;
-  addTrade({ sym, dir, lots, entry, sl, tp, slD, tpD, q: lastSignal.q, grade: lastSignal.grade });
+  const sym = lastSignal.sym, q = qtState;
+  if(!q.entry || !q.lots){ toast('Entry aur lots bharo'); return }
+  const {lv, sl, tp} = qtCalc();
+  if(!lv.slD || !lv.tpD){ toast('SL/TP zero hai — values check karo'); return }
+  if(lv.clamped && !confirm(`Is trade ka risk $${lv.slD} hai, tumhara target $${q.riskUsd} tha.\n\nMinimum lot 0.01 ki wajah se risk badh gaya hai.\n\nPhir bhi lagana hai?`)) return;
+  addTrade({
+    sym, dir: q.dir, lots: lv.lots, entry: q.entry, sl, tp,
+    slD: lv.slD, tpD: lv.tpD, q: lastSignal.q, grade: lastSignal.grade
+  });
   closeSheet('qtSheet');
 }
 
@@ -1209,7 +1335,7 @@ function mtCalc(){
   if(!entry){ $('mtCalc').textContent='Entry price daalo'; return }
   const sd=dollarsToDist(sym,entry,lots,slD), td_=dollarsToDist(sym,entry,lots,tpD);
   const sl=dir==='BUY'?entry-sd:entry+sd, tp=dir==='BUY'?entry+td_:entry-td_;
-  $('mtCalc').innerHTML = `SL <b class="mono dn">${fmt(sym,sl)}</b> · TP <b class="mono up">${fmt(sym,tp)}</b> · $${usdPerPip(sym,entry,lots).toFixed(3)} per pip`;
+  $('mtCalc').innerHTML = `SL <b class="mono dn">${fmt(sym,sl)}</b> (−$${slD}, ${(sd/SPECS[sym].pip).toFixed(1)} pips) · TP <b class="mono up">${fmt(sym,tp)}</b> (+$${tpD}, ${(td_/SPECS[sym].pip).toFixed(1)} pips) · R:R 1:${(tpD/(slD||1)).toFixed(2)}`;
 }
 function saveManual(){
   const sym=$('mtPair').value, dir=$('mtDir').value, entry=+$('mtEntry').value, lots=+$('mtLots').value||0.01;
@@ -1922,6 +2048,10 @@ function saveSettings(){
   S.dSl = +$('setSl').value || 2.5;
   S.dLot = +$('setLot').value || 0.01;
   S.cap  = Math.max(50, +$('setCap').value || 700);
+  S.slMode = $('setMode').value;
+  S.atrSL = Math.max(0.1, +$('setAtrSL').value || 1.5);
+  S.atrRR = Math.max(0.1, +$('setAtrRR').value || 2);
+  S.riskUsd = Math.max(0.1, +$('setRisk').value || 1.75);
   S.fbUrl = $('setFb').value.trim();
   S.fbAuth = $('setFbAuth').value.trim();
   S.mt5Type = $('setMtype').value;
@@ -2018,6 +2148,9 @@ function boot(){
   $('swHtf').classList.toggle('on', S.htf);
   $('swTgAuto').classList.toggle('on', S.tgAuto);
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
+  $('setMode').value = S.slMode; $('setAtrSL').value = S.atrSL;
+  $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
+  $('swAutoLot').classList.toggle('on', S.autoLot);
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
   $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode();
   if($('verMode')) $('verMode').textContent = S.mt5Type;
