@@ -35,18 +35,18 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 /* ---------- header ---------- */
 header{
   position:sticky;top:0;z-index:40;background:var(--bg);
-  padding:calc(10px + env(safe-area-inset-top)) 12px 10px;
+  padding:calc(7px + env(safe-area-inset-top)) 12px 7px;
 }
-.hbox{max-width:600px;margin:0 auto;text-align:center;padding:14px 12px;
+.hbox{max-width:600px;margin:0 auto;text-align:center;padding:9px 10px;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
-.hbox h1{margin:0 0 5px;font-size:21px;color:var(--gold);letter-spacing:3px;font-weight:700}
-.hbox p{margin:0;font-size:10px;color:var(--mut);letter-spacing:1.5px}
-.hrow{display:flex;gap:6px;margin-top:11px;justify-content:center}
-.ib{padding:7px 11px;background:var(--bg);border:1px solid var(--line);border-radius:6px;
-  color:var(--mut);font-size:11px;font-weight:700;letter-spacing:.5px}
+.hbox h1{margin:0 0 2px;font-size:16px;color:var(--gold);letter-spacing:2.5px;font-weight:700}
+.hbox p{margin:0;font-size:8.5px;color:var(--dim);letter-spacing:1.2px;white-space:nowrap}
+.hrow{display:flex;gap:5px;margin-top:8px;justify-content:center;align-items:center}
+.ib{padding:5px 8px;background:var(--bg);border:1px solid var(--line);border-radius:5px;
+  color:var(--mut);font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap;line-height:1.4}
 .ib:active{border-color:var(--gold);color:var(--gold)}
-.clock{padding:7px 10px;font-size:10px;color:var(--mut);line-height:1.35;text-align:left}
-.clock b{display:block;color:var(--gold);font-size:12px;letter-spacing:.5px}
+.clock{padding:4px 7px;font-size:8.5px;color:var(--dim);line-height:1.3;text-align:left;white-space:nowrap}
+.clock b{display:block;color:var(--gold);font-size:11px;letter-spacing:.5px}
 
 /* ---------- ticker ---------- */
 .tickwrap{max-width:600px;margin:0 auto 14px;padding:0 12px}
@@ -492,7 +492,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '3.0.0';
+const VERSION = '3.0.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -671,8 +671,8 @@ function t12s(d){ return new Date(d).toLocaleTimeString('en-IN',{hour:'numeric',
 function dt12(d){ return new Date(d).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true}); }
 function tickClock(){
   const n=new Date();
-  $('clkT').textContent = t12(n);
-  $('clkD').textContent = n.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+  $('clkT').textContent = t12(n).toUpperCase().replace(/\s+/g,' ');
+  $('clkD').textContent = n.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
 }
 setInterval(tickClock,1000); tickClock();
 </script>
