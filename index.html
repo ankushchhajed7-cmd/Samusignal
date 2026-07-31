@@ -271,6 +271,14 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <button class="btn ghost sm" style="margin-top:12px" onclick="loadMarket()">Refresh Karo</button>
   </div>
   <div class="card">
+    <p class="ttl">Correlation <span class="sp" id="corrT">estimate</span></p>
+    <label>Kis pair ke against dekhna hai</label>
+    <select id="corrPair" style="margin-bottom:12px"></select>
+    <div id="corrBox"></div>
+    <p class="hint">+1 ke paas = dono saath chalte hain (hedge ke liye ulti direction lo). −1 ke paas = ulta chalte hain (wahi direction lo).</p>
+  </div>
+
+  <div class="card">
     <p class="ttl">Pip &amp; Dollar Value Reference</p>
     <table><thead><tr><th>Pair</th><th style="text-align:right">1 Pip</th><th style="text-align:right">$/pip @ 0.01 lot</th></tr></thead>
     <tbody id="pipBody"></tbody></table>
@@ -382,6 +390,11 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 <div class="ov" id="qtSheet"><div class="sheet">
   <div class="sh-h"><h3 id="qtTitle">Maine Ye Trade Liya</h3><button onclick="closeSheet('qtSheet')">×</button></div>
   <div id="qtBody"></div>
+</div></div>
+
+<div class="ov" id="hgSheet"><div class="sheet">
+  <div class="sh-h"><h3 id="hgTitle">Against Trade</h3><button onclick="closeSheet('hgSheet')">×</button></div>
+  <div id="hgBody"></div>
 </div></div>
 
 <div class="ov" id="mtSheet"><div class="sheet">
@@ -506,13 +519,14 @@ let S = {
   cap:   LS.get('cap',700),
   autoM: LS.get('autoM',5),
   day:   LS.get('day',{d:'',used:0,blocked:false}),
+  corr:  LS.get('corr',{d:'',m:{}}),
   bad:   LS.get('bad',[]),
   px:    LS.get('px',{}),
   open:  LS.get('open',[]),
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','cap','autoM','day','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 let lastSignal = null;
 let mktLoaded = false;
@@ -1264,9 +1278,10 @@ function renderTrades(){
       </div>
       <p class="hint" style="margin:0 0 9px">${dt12(t.at)} · Quality ${t.q||0}% ${t.grade?'· '+t.grade:''}</p>
       <div class="acts">
-        <button class="btn ghost sm" onclick="editTrade('${t.id}')">SL/TP Badlo</button>
-        <button class="btn ghost sm" onclick="shareTradeWa('${t.id}')">WhatsApp</button>
-        <button class="btn r sm" onclick="closeManualBtn('${t.id}')">Close Karo</button>
+        <button class="btn ghost sm" onclick="editTrade('${t.id}')">SL/TP</button>
+        <button class="btn ${pl<0?'gold':'ghost'} sm" onclick="openHedge('${t.id}')">⚖ Against</button>
+        <button class="btn ghost sm" onclick="shareTradeWa('${t.id}')">WA</button>
+        <button class="btn r sm" onclick="closeManualBtn('${t.id}')">Close</button>
       </div>
     </div>`;
   }).join('') : '<div class="empty"><div>💼</div>Koi open trade nahi.<br>Signal analyze karke "Maine Ye Trade Liya" dabao.</div>';
@@ -1300,6 +1315,181 @@ function editTrade(id){
   save(); renderTrades(); toast('SL/TP update ho gaya');
 }
 function clearHistory(){ if(confirm('Poori history delete kar dein?')){ S.hist=[]; save(); renderTrades(); toast('History clear') } }
+
+/* ================= CORRELATION / HEDGE ================= */
+
+/* structural estimate — bilkul free, koi API call nahi */
+function structCorr(a, b){
+  if(a === b) return 1;
+  const A = SPECS[a].ccy, B = SPECS[b].ccy;
+  let c = 0;
+  if(A[0] === B[0]) c += 0.50;   /* dono ka base same  -> halka positive */
+  if(A[1] === B[1]) c += 0.75;   /* dono ka quote same -> strong positive */
+  if(A[0] === B[1]) c -= 0.75;   /* ulta position      -> negative */
+  if(A[1] === B[0]) c -= 0.75;
+  /* metals aur crypto forex se kam judte hain */
+  const odd = x => ['XAU','BTC','ETH'].includes(SPECS[x].ccy[0]);
+  if(odd(a) || odd(b)) c *= 0.5;
+  return Math.max(-0.98, Math.min(0.98, +c.toFixed(2)));
+}
+
+const ckey = (a,b) => [a,b].sort().join('|');
+function getCorr(a, b){
+  if(a === b) return {v:1, live:false};
+  if(S.corr.d === utcDay() && S.corr.m[ckey(a,b)] !== undefined)
+    return {v: S.corr.m[ckey(a,b)], live:true};
+  return {v: structCorr(a,b), live:false};
+}
+
+function pearson(x, y){
+  const n = Math.min(x.length, y.length); if(n < 10) return 0;
+  const xs = x.slice(-n), ys = y.slice(-n);
+  const mx = xs.reduce((p,c)=>p+c,0)/n, my = ys.reduce((p,c)=>p+c,0)/n;
+  let sxy=0, sxx=0, syy=0;
+  for(let i=0;i<n;i++){ const dx=xs[i]-mx, dy=ys[i]-my; sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy }
+  return (sxx && syy) ? +(sxy/Math.sqrt(sxx*syy)).toFixed(2) : 0;
+}
+const rets = bars => bars.slice(1).map((b,i)=>Math.log(b.c / bars[i].c));
+
+/* live correlation — basket ke har pair ka 1 credit, din me ek baar */
+async function liveCorr(basket, onNote){
+  const series = {};
+  for(const sym of basket){
+    const b = await getSeries(sym, '4h', 120, onNote);
+    series[sym] = rets(b);
+  }
+  const m = (S.corr.d === utcDay()) ? Object.assign({}, S.corr.m) : {};
+  for(let i=0;i<basket.length;i++)
+    for(let j=i+1;j<basket.length;j++)
+      m[ckey(basket[i], basket[j])] = pearson(series[basket[i]], series[basket[j]]);
+  S.corr = {d: utcDay(), m}; save();
+  return m;
+}
+
+/* ---- ek trade ke against kaunsa pair ---- */
+const flip = d => d === 'BUY' ? 'SELL' : 'BUY';
+
+function hedgeList(t, limit){
+  const px = sym => (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p) || refPrice(sym);
+  const mine = usdPerPip(t.sym, px(t.sym), t.lots);
+  return PAIRS
+    .filter(q => q !== t.sym && !isBad(q))
+    .map(q => {
+      const c = getCorr(t.sym, q);
+      const dir = c.v > 0 ? flip(t.dir) : t.dir;
+      const theirs = usdPerPip(q, px(q), 0.01);
+      const lots = theirs > 0 ? (mine / theirs) * 0.01 / Math.max(0.35, Math.abs(c.v)) : 0.01;
+      return {sym:q, corr:c.v, live:c.live, dir, lots: Math.max(0.01, +lots.toFixed(2))};
+    })
+    .filter(r => Math.abs(r.corr) >= 0.45)
+    .sort((a,b) => Math.abs(b.corr) - Math.abs(a.corr))
+    .slice(0, limit || 8);
+}
+
+let hedgeFor = null;
+function openHedge(id){
+  const t = S.open.find(x => x.id === id); if(!t) return;
+  hedgeFor = t;
+  renderHedge();
+  openSheet('hgSheet');
+}
+
+function renderHedge(){
+  const t = hedgeFor; if(!t) return;
+  const rows = hedgeList(t, 8);
+  const anyLive = rows.some(r => r.live);
+  const pl = t.pl || 0;
+  $('hgTitle').textContent = `${t.sym} ke against`;
+  $('hgBody').innerHTML = `
+    <div class="tr ${t.dir.toLowerCase()}" style="margin-bottom:14px">
+      <div class="tr-h">
+        <b class="mono">${t.sym}</b>
+        <span class="tag ${t.dir.toLowerCase()}">${t.dir}</span>
+        <span class="mu" style="font-size:11px">${t.lots} lot</span>
+        <span class="pl mono ${pl>=0?'up':'dn'}">${money(pl)}</span>
+      </div>
+      <p class="hint" style="margin:0">Entry ${fmt(t.sym,t.entry)} · Now ${fmt(t.sym,t.cur||t.entry)}</p>
+    </div>
+
+    <p class="ttl">Direct Hedge</p>
+    <div class="hist" style="border:none;padding:4px 0 12px">
+      <div class="ic ${t.dir==='BUY'?'l':'w'}">↔</div>
+      <div class="in"><b class="mono">${t.sym} ${flip(t.dir)} · ${t.lots} lot</b>
+        <small>100% offset — loss wahin ruk jayega, aage na badhega na ghatega</small></div>
+    </div>
+
+    <p class="ttl">Correlation Se ${anyLive?'<span class="sp" style="color:var(--up)">live data</span>':'<span class="sp">estimate</span>'}</p>
+    ${rows.map(r => `
+      <div class="hist">
+        <div class="ic ${r.corr>0?'w':'l'}" style="font-size:10px">${r.corr>0?'+':''}${r.corr}</div>
+        <div class="in">
+          <b class="mono">${r.sym} <span class="${r.dir==='BUY'?'up':'dn'}" style="font-size:11px">${r.dir}</span></b>
+          <small>${r.lots} lot · ${r.corr>0?'saath chalta hai':'ulta chalta hai'}${r.live?'':' · anuman'}</small>
+        </div>
+        <button class="btn ghost sm" style="width:auto;padding:7px 11px;font-size:11px"
+          onclick="takeHedge('${r.sym}','${r.dir}',${r.lots})">Lagao</button>
+      </div>`).join('') || '<p class="hint">Is pair ka koi strong correlation nahi mila.</p>'}
+
+    <button class="btn ghost sm" style="margin-top:14px" onclick="runLiveCorr()">
+      ⟳ Live Correlation Nikalo (${Math.min(8, rows.length+1)} credits)</button>
+
+    <p class="hint" style="margin-top:12px">
+      Correlation +1 ke paas = dono pair saath chalte hain, −1 ke paas = ulta.
+      Lot size pip-value ke hisaab se adjust kiya hai, volatility ka farak nahi joda.
+      <br><br><b style="color:var(--gold)">Dhyan rakho:</b> hedge se loss rukta hai, khatam nahi hota —
+      aur do trades ka spread/swap dono taraf lagta hai. News ke waqt correlation toot bhi jaati hai.
+    </p>`;
+}
+
+function renderCorrBrowser(){
+  const base = $('corrPair').value;
+  const rows = PAIRS.filter(q => q !== base && !isBad(q))
+    .map(q => Object.assign({sym:q}, getCorr(base, q)))
+    .sort((a,b) => b.v - a.v);
+  let live = false;
+  $('corrBox').innerHTML = rows.map(r => {
+    if(r.live) live = true;
+    const pct = Math.round((r.v + 1) / 2 * 100);
+    const col = r.v >= 0.6 ? 'var(--up)' : r.v <= -0.6 ? 'var(--dn)' : 'var(--gold)';
+    return `<div class="strrow">
+      <b class="mono" style="width:66px;font-size:11px">${SPECS[r.sym].n}</b>
+      <div class="t"><i style="width:${pct}%;background:${col}"></i></div>
+      <span class="mono" style="width:44px">${r.v>0?'+':''}${r.v}</span>
+    </div>`;
+  }).join('');
+  $('corrT').innerHTML = live
+    ? '<span style="color:var(--up)">live data</span>'
+    : 'estimate — hedge sheet me live nikal sakte ho';
+}
+
+async function runLiveCorr(){
+  if(needKey()) return;
+  const t = hedgeFor; if(!t) return;
+  const basket = [t.sym, ...hedgeList(t, 7).map(r => r.sym)];
+  const btn = event && event.target;
+  if(btn) btn.innerHTML = '<span class="spin"></span> chal raha hai...';
+  try{
+    await liveCorr(basket, sec => { if(btn) btn.textContent = `limit — ${sec}s` });
+    renderHedge();
+    toast('Live correlation aa gayi');
+  }catch(e){
+    toast(e.message);
+    if(btn) btn.textContent = '⟳ Live Correlation Nikalo';
+  }
+}
+
+function takeHedge(sym, dir, lots){
+  const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p);
+  if(!px){ toast('Pehle is pair ka rate lao — Market page se'); return }
+  const sd = dollarsToDist(sym, px, lots, S.dSl), td_ = dollarsToDist(sym, px, lots, S.dTp);
+  addTrade({
+    sym, dir, lots, entry: px,
+    sl: dir==='BUY' ? px-sd : px+sd,
+    tp: dir==='BUY' ? px+td_ : px-td_,
+    slD: S.dSl, tpD: S.dTp, q: 0, grade: 'HDG'
+  });
+  closeSheet('hgSheet');
+}
 
 /* ---------------- messages ---------------- */
 function signalText(s){
@@ -1465,6 +1655,10 @@ function boot(){
     $('tfChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
     $('tfChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('gold', c===b));
   };
+
+  $('corrPair').innerHTML = PAIRS.map(p=>`<option ${p===S.pair?'selected':''}>${p}</option>`).join('');
+  $('corrPair').onchange = renderCorrBrowser;
+  renderCorrBrowser();
 
   $('mktChips').innerHTML = Object.keys(GROUPS).map(g=>
     `<button class="chip ${g===S.mktG?'on':''}" data-g="${g}">${g}</button>`).join('');
