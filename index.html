@@ -380,6 +380,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div style="margin-bottom:10px"><label>Limit offset (pips)</label>
     <input class="mono" id="setLim" type="number" step="1" value="5"></div>
   <p class="hint" style="margin-bottom:10px">Limit mode me entry live price se itne pips door lagegi (BUY neeche, SELL upar). SL aur TP bhi utne hi shift honge, to dollar risk exactly wahi rahega.</p>
+  <p class="hint" id="modeNow" style="margin-bottom:10px"></p>
   <button class="btn ghost sm" style="margin-bottom:6px" onclick="testBridge()">🔌 Bridge Test Karo</button>
   <div id="fbOut" class="mono hide" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto;margin-bottom:10px"></div>
   <button class="btn ghost sm" style="margin-bottom:6px" onclick="lastOrderShow()">📄 Aakhri Bheja Order Dekho</button>
@@ -563,6 +564,7 @@ let S = {
 };
 function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
+if(!LS.get('mig28', false)){ S.mt5Type = 'LIMIT'; LS.set('mt5Type','LIMIT'); LS.set('mig28', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
 
 let lastSignal = null;
@@ -619,6 +621,13 @@ function dayReset(quiet){
 }
 function dayUse(n){ dayCheck(); S.day.used += n; LS.set('day', S.day); }
 function dayBlock(){ dayCheck(); S.day.blocked = true; S.day.used = Math.max(S.day.used, S.cap); LS.set('day', S.day); renderBanner(); }
+function showMode(){
+  const el = $('modeNow'); if(!el) return;
+  el.innerHTML = S.mt5Type === 'LIMIT'
+    ? `✅ Abhi <b style="color:var(--up)">LIMIT</b> mode hai — app BUYLIMIT/SELLLIMIT bhejegi, tumhara EA yahi samajhta hai.`
+    : `⚠ Abhi <b style="color:var(--dn)">MARKET</b> mode hai — tumhara EA isse "Unknown order type" bolega. Limit pe badlo.`;
+}
+
 function renderBanner(){
   const el = $('dayBar'); if(!el) return;
   dayCheck();
@@ -1527,7 +1536,7 @@ function lastOrderShow(){
   box.scrollIntoView({behavior:'smooth', block:'center'});
   const o = LS.get('lastOrder', null);
   box.textContent = o
-    ? `App ne aakhri baar ye bheja tha:\n\n${JSON.stringify(o.body, null, 1)}\n\nWaqt: ${dt12(o.t)}\nResult: ${o.ok ? '✅ Firebase ne accept kiya' : '❌ ' + o.err}`
+    ? `Mode: ${S.mt5Type}\n\nApp ne aakhri baar ye bheja tha:\n\n${JSON.stringify(o.body, null, 1)}\n\nWaqt: ${dt12(o.t)}\nResult: ${o.ok ? '✅ Firebase ne accept kiya' : '❌ ' + o.err}`
     : 'App ne abhi tak koi order nahi bheja.\n\nSignal card ya trade card pe 🚀 dabao.';
 }
 
@@ -1808,6 +1817,7 @@ function saveSettings(){
   S.fbAuth = $('setFbAuth').value.trim();
   S.mt5Type = $('setMtype').value;
   S.limPips = Math.max(1, +$('setLim').value || 5);
+  showMode();
   S.mt5Auto = $('setMauto').value === '1';
   S.autoM = +$('setAuto').value;
   $('inLots').value = S.dLot; S.lots = S.dLot;
@@ -1901,7 +1911,7 @@ function boot(){
   $('swTgAuto').classList.toggle('on', S.tgAuto);
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
-  $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; $('setMauto').value = S.mt5Auto ? '1' : '0';
+  $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode(); $('setMauto').value = S.mt5Auto ? '1' : '0';
   renderBanner();
   $('setKey').value = S.key; $('setTp').value = S.dTp; $('setSl').value = S.dSl; $('setLot').value = S.dLot;
   $('tgTok').value = S.tgTok; $('tgId').value = S.tgId;
