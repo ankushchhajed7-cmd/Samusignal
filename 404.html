@@ -230,6 +230,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 
 <!-- ============ SIGNALS ============ -->
 <section id="pgSignals">
+  <div class="card" id="dayBar"></div>
   <div class="card">
     <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
     <div class="grid2" style="margin-bottom:10px">
@@ -349,6 +350,18 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div class="sh-h"><h3>Settings</h3><button onclick="closeSheet('setSheet')">×</button></div>
   <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
   <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
+  <p class="ttl">API Budget</p>
+  <div class="grid2" style="margin-bottom:6px">
+    <div><label>Daily cap</label><input class="mono" id="setCap" type="number" step="50" value="700"></div>
+    <div><label>Auto refresh</label><select id="setAuto">
+      <option value="0">Band (sirf manual)</option>
+      <option value="2">2 minute</option>
+      <option value="5">5 minute</option>
+      <option value="15">15 minute</option>
+    </select></div>
+  </div>
+  <p class="hint" style="margin-bottom:14px">Free plan pe 800 credits/day. Cap 700 rakho taaki buffer rahe. Har open pair ka 1 credit lagta hai — 5 pairs + 5 minute refresh = ~60 credits/ghanta.</p>
+
   <p class="ttl">Default Trade Size</p>
   <div class="grid3" style="margin-bottom:6px">
     <div><label>TP ($)</label><input class="mono" id="setTp" type="number" step="0.5" value="5"></div>
@@ -490,13 +503,16 @@ let S = {
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
   mktG:  LS.get('mktG','Majors'),
+  cap:   LS.get('cap',700),
+  autoM: LS.get('autoM',5),
+  day:   LS.get('day',{d:'',used:0,blocked:false}),
   bad:   LS.get('bad',[]),
   px:    LS.get('px',{}),
   open:  LS.get('open',[]),
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','cap','autoM','day','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 let lastSignal = null;
 let mktLoaded = false;
@@ -538,7 +554,35 @@ setInterval(tickClock,1000); tickClock();
 const API = 'https://api.twelvedata.com';
 function needKey(){ if(!S.key){ toast('Pehle Settings me API key daalo'); openSheet('setSheet'); return true } return false }
 
-/* ---- credit throttle: free plan = 8 credits per minute ---- */
+/* ---- daily budget: free plan = 800 credits/day, UTC midnight pe reset ---- */
+const utcDay = () => new Date().toISOString().slice(0,10);
+function dayCheck(){
+  if(S.day.d !== utcDay()){ S.day = {d:utcDay(), used:0, blocked:false}; LS.set('day', S.day); }
+}
+function dayLeft(){ dayCheck(); return Math.max(0, S.cap - S.day.used) }
+function dayUse(n){ dayCheck(); S.day.used += n; LS.set('day', S.day); }
+function dayBlock(){ dayCheck(); S.day.blocked = true; S.day.used = Math.max(S.day.used, S.cap); LS.set('day', S.day); renderBanner(); }
+function renderBanner(){
+  const el = $('dayBar'); if(!el) return;
+  dayCheck();
+  if(S.day.blocked){
+    el.className = 'card';
+    el.style.cssText = 'border-color:var(--dn);background:rgba(242,84,91,.08)';
+    el.innerHTML = `<p class="ttl" style="color:var(--dn)">Aaj ke credits khatam</p>
+      <p class="hint" style="color:var(--dn)">TwelveData ka daily limit (800) pura ho gaya. Naye credits <b>kal subah 5:30 baje (IST)</b> milenge. Tab tak koi rate ya analysis nahi aayega.</p>`;
+    return;
+  }
+  const pct = Math.min(100, Math.round(S.day.used / S.cap * 100));
+  const col = pct > 85 ? 'var(--dn)' : pct > 60 ? 'var(--gold)' : 'var(--up)';
+  el.className = 'card'; el.style.cssText = '';
+  el.innerHTML = `<div class="meter" style="margin:0">
+      <div class="lbl"><span>Aaj ka API budget</span><b class="mono">${S.day.used} / ${S.cap}</b></div>
+      <div class="segs">${Array.from({length:20},(_,i)=>`<i class="${i<Math.round(pct/5)?'f':''}" style="${i<Math.round(pct/5)?'background:'+col:''}"></i>`).join('')}</div>
+    </div>`;
+}
+setInterval(renderBanner, 20000);
+
+/* ---- per-minute throttle: free plan = 8 credits per minute ---- */
 const LIMIT = 8, WIN = 62000;
 let credits = [];
 function creditsLeft(){ const t=Date.now(); credits = credits.filter(x=>t-x<WIN); return LIMIT - credits.length }
@@ -553,11 +597,14 @@ function waitFor(n){
 function showCredits(){
   const l = creditsLeft();
   const el = $('apiState');
-  if(el && S.key) el.textContent = `API · ${l}/${LIMIT} calls bache`;
+  if(el && S.key) el.textContent = `${l}/${LIMIT} min · ${dayLeft()} aaj`;
 }
 setInterval(showCredits, 3000);
 
 async function spend(n, note){
+  dayCheck();
+  if(S.day.blocked) throw apiErr(429, 'DAY');
+  if(dayLeft() < n) throw apiErr(429, 'CAP');
   const w = waitFor(n);
   if(w > 0){
     const sec = Math.ceil(w/1000);
@@ -566,14 +613,21 @@ async function spend(n, note){
   }
   const t = Date.now();
   for(let i=0;i<n;i++) credits.push(t);
-  showCredits();
+  dayUse(n); showCredits(); renderBanner();
 }
 
 function apiErr(code, msg, sym){
   let m = msg || ('API error ' + code);
   if(code === 401 || code === 403) m = 'API key galat ya expire — Settings me check karo';
   else if(code === 404) m = `${sym||'Ye symbol'} tumhare TwelveData plan me available nahi hai`;
-  else if(code === 429) m = 'API limit khatam — free plan pe 8 call/minute. 1 minute ruko';
+  else if(code === 429){
+    if(msg === 'DAY' || /for the day/i.test(msg)){
+      dayBlock();
+      m = 'Aaj ke 800 API credits khatam. Kal subah 5:30 (IST) pe reset honge';
+    } else if(msg === 'CAP'){
+      m = `Tumhara daily cap (${S.cap}) pura ho gaya. Settings me badha sakte ho`;
+    } else m = 'Ek minute me 8 call ki limit — thoda ruko';
+  }
   const e = new Error(m); e.code = code; e.sym = sym;
   return e;
 }
@@ -948,6 +1002,7 @@ function buildTicker(){
 let tickBusy = false;
 async function refreshTicker(force){
   if(tickBusy || !S.key) return;
+  if(S.day.blocked) return;
   const syms = TICKER.filter(x=>!isBad(x));
   const oldest = Math.min(...syms.map(x => (S.px[x] && S.px[x].t) || 0));
   const stale  = Date.now() - oldest > 120000;
@@ -1120,7 +1175,9 @@ async function refreshOpen(force){
   if(!force){
     if(document.hidden) return;                       /* app background me hai */
     if($('pgTrades').classList.contains('hide')) return;  /* Trades page pe nahi ho */
-    const gap = Math.max(60000, syms.length * 9000);  /* jitne pairs, utna gap */
+    if(!S.autoM) return;                              /* auto band hai */
+    if(S.day.blocked) return;
+    const gap = Math.max(S.autoM * 60000, syms.length * 9000);
     if(Date.now() - lastOpenSync < gap) return;
     if(creditsLeft() < syms.length) { syncStatus(); return; }
   }
@@ -1342,6 +1399,8 @@ function saveSettings(){
   S.dTp = +$('setTp').value || 5;
   S.dSl = +$('setSl').value || 2.5;
   S.dLot = +$('setLot').value || 0.01;
+  S.cap  = Math.max(50, +$('setCap').value || 700);
+  S.autoM = +$('setAuto').value;
   $('inLots').value = S.dLot; S.lots = S.dLot;
   save(); closeSheet('setSheet');
   $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
@@ -1426,6 +1485,8 @@ function boot(){
 
   $('swHtf').classList.toggle('on', S.htf);
   $('swTgAuto').classList.toggle('on', S.tgAuto);
+  $('setCap').value = S.cap; $('setAuto').value = S.autoM;
+  renderBanner();
   $('setKey').value = S.key; $('setTp').value = S.dTp; $('setSl').value = S.dSl; $('setLot').value = S.dLot;
   $('tgTok').value = S.tgTok; $('tgId').value = S.tgId;
   $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
