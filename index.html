@@ -369,15 +369,20 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <input id="setFbAuth" type="password" placeholder="rules open hain to khaali chhodo"></div>
   <div class="grid2" style="margin-bottom:10px">
     <div><label>Order type</label><select id="setMtype">
-      <option value="MARKET">Market (turant)</option>
-      <option value="LIMIT">Limit (entry pe)</option>
+      <option value="LIMIT">Limit (pullback pe)</option>
+      <option value="MARKET">Market (EA patch chahiye)</option>
     </select></div>
     <div><label>Quick trade</label><select id="setMauto">
       <option value="1">MT5 pe bhi bhejo</option>
       <option value="0">Sirf app me record</option>
     </select></div>
   </div>
+  <div style="margin-bottom:10px"><label>Limit offset (pips)</label>
+    <input class="mono" id="setLim" type="number" step="1" value="5"></div>
+  <p class="hint" style="margin-bottom:10px">Limit mode me entry live price se itne pips door lagegi (BUY neeche, SELL upar). SL aur TP bhi utne hi shift honge, to dollar risk exactly wahi rahega.</p>
   <button class="btn ghost sm" style="margin-bottom:6px" onclick="testBridge()">🔌 Bridge Test Karo</button>
+  <div id="fbOut" class="mono hide" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto;margin-bottom:10px"></div>
+  <button class="btn ghost sm" style="margin-bottom:6px" onclick="lastOrderShow()">📄 Aakhri Bheja Order Dekho</button>
   <p class="hint" style="margin-bottom:16px">FXBridgeEA wahi <code>fxbridge/order.json</code> padhta hai. EA khud broker suffix (Exness = "m") lagata hai, isliye yahan sirf XAUUSD bhejo.</p>
 
   <p class="ttl">API Budget</p>
@@ -540,7 +545,8 @@ let S = {
   dSl:   LS.get('dSl',2.5),
   fbUrl: LS.get('fbUrl',''),
   fbAuth:LS.get('fbAuth',''),
-  mt5Type: LS.get('mt5Type','MARKET'),
+  mt5Type: LS.get('mt5Type','LIMIT'),
+  limPips: LS.get('limPips',5),
   mt5Auto: LS.get('mt5Auto',true),
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
@@ -555,7 +561,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','fbUrl','fbAuth','mt5Type','mt5Auto','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
 
@@ -1157,7 +1163,7 @@ function confirmTrade(){
   const toMt5 = $('qtMt5').classList.contains('on');
   addTrade({ sym, dir, lots, entry, sl, tp, slD, tpD, q: lastSignal.q, grade: lastSignal.grade });
   closeSheet('qtSheet');
-  if(toMt5) sendMT5(sym, dir, lots, entry, sl, tp, 'MARKET');
+  if(toMt5) sendMT5(sym, dir, lots, entry, sl, tp);
 }
 
 /* ---------------- manual trade ---------------- */
@@ -1434,18 +1440,30 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
     if(!silent){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet') }
     return false;
   }
-  const body = mt5Payload(sym, dir, lots, entry, sl, tp, kind);
+  const mode = kind || S.mt5Type;
+  /* LIMIT: entry ko live price se thoda door karo, warna MT5 reject karega.
+     SL/TP bhi utna hi shift hote hain, isliye $ risk bilkul same rehta hai. */
+  if(mode === 'LIMIT'){
+    const off = (S.limPips || 5) * SPECS[sym].pip;
+    const sh = dir === 'BUY' ? -off : off;
+    entry += sh; sl += sh; tp += sh;
+  }
+  const body = mt5Payload(sym, dir, lots, entry, sl, tp, mode);
   try{
     const r = await fetch(url, {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(body)
     });
     if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
+    LS.set('lastOrder', {t:Date.now(), body, ok:true});
     logAdd(`MT5 bhej diya: ${body.type} ${body.pair} ${body.lots} @ ${body.entry} (id ${body.id})`);
-    if(!silent) toast(`MT5 pe bhej diya — ${body.type} ${body.pair}`);
+    if(!silent) toast(body.type.includes('LIMIT')
+      ? `Pending ${body.type} lagi @ ${body.entry}`
+      : `MT5 pe bhej diya — ${body.type} ${body.pair}`);
     if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → MT5</b>\n\n<b>${body.pair} ${body.type}</b>\nLots: ${body.lots}\nEntry: <code>${body.entry}</code>\nSL: <code>${body.sl}</code>\nTP: <code>${body.tp}</code>\n⏰ ${t12(Date.now())}`, true);
     return true;
   }catch(e){
+    LS.set('lastOrder', {t:Date.now(), body, ok:false, err:e.message});
     logAdd('MT5 fail: ' + e.message);
     if(!silent) toast('MT5 bridge fail — ' + e.message);
     return false;
@@ -1465,22 +1483,52 @@ async function sendSignalMT5(){
 /* kisi bhi open trade ko dobara MT5 pe bhejo */
 async function resendMT5(id){
   const t = S.open.find(x => x.id === id); if(!t) return;
-  await sendMT5(t.sym, t.dir, t.lots, t.entry, t.sl, t.tp, 'MARKET');
+  await sendMT5(t.sym, t.dir, t.lots, t.entry, t.sl, t.tp);
 }
 
 async function testBridge(){
-  S.fbUrl = $('setFb').value.trim(); S.fbAuth = $('setFbAuth').value.trim(); save();
+  const box = $('fbOut');
+  const btn = event && event.target;
+  box.classList.remove('hide');
+  box.scrollIntoView({behavior:'smooth', block:'center'});
+
+  S.fbUrl = $('setFb').value.trim();
+  S.fbAuth = $('setFbAuth').value.trim();
+  save();
+
   const url = fbEndpoint();
-  const box = $('apiOut'); box.classList.remove('hide');
-  if(!url){ box.textContent = 'Firebase URL khaali hai'; return }
-  box.textContent = 'Bridge test chal raha hai...';
+  if(!url){
+    box.textContent = '❌ Firebase URL khaali hai.\n\nUpar wale box me apna URL daalo, format:\nhttps://xxx-default-rtdb.firebaseio.com';
+    return;
+  }
+  if(btn) btn.innerHTML = '<span class="spin"></span> test...';
+  box.textContent = 'Connect ho raha hai...';
   try{
     const r = await fetch(url);
     const txt = await r.text();
-    box.textContent = `GET ${url.split('?')[0]}\nHTTP ${r.status}\n\nAbhi ka order node:\n${txt.slice(0,500)}\n\n` +
-      (r.ok ? '✅ Firebase se connection theek hai. Ab koi signal "🚀 MT5" se bhej ke dekho — ye node badal jayega aur EA use uthayega.'
-            : '❌ Firebase ne mana kar diya. Database rules check karo (read/write true hone chahiye) ya auth secret daalo.');
-  }catch(e){ box.textContent = 'Connection fail: ' + e.message + '\n\nURL sahi hai? Format: https://xxx-default-rtdb.firebaseio.com' }
+    let pretty = txt;
+    try { pretty = JSON.stringify(JSON.parse(txt), null, 1) } catch(e){}
+    box.textContent =
+      `GET ${url.split('?')[0]}\nHTTP ${r.status}\n\n--- abhi ka order node ---\n${(pretty||'null').slice(0,700)}\n\n` +
+      (r.ok
+        ? (txt && txt !== 'null'
+            ? '✅ Firebase connected. Upar wala order node dikh raha hai — ab app se 🚀 dabao aur phir se test karo, id badalni chahiye.'
+            : '✅ Firebase connected, par node abhi khaali hai (null). App se 🚀 dabao, phir yahan order dikhega.')
+        : '❌ Firebase ne mana kiya. Database Rules me read/write true karo, ya auth secret daalo.');
+  }catch(e){
+    box.textContent = `❌ Connect nahi hua: ${e.message}\n\nCheck karo:\n• URL sahi hai? https://xxx-default-rtdb.firebaseio.com\n• Internet chal raha hai?\n• Firebase project region sahi hai?`;
+  }
+  if(btn) btn.textContent = '🔌 Bridge Test Karo';
+}
+
+/* app ne aakhri baar kya bheja — bina internet ke bhi dikhega */
+function lastOrderShow(){
+  const box = $('fbOut'); box.classList.remove('hide');
+  box.scrollIntoView({behavior:'smooth', block:'center'});
+  const o = LS.get('lastOrder', null);
+  box.textContent = o
+    ? `App ne aakhri baar ye bheja tha:\n\n${JSON.stringify(o.body, null, 1)}\n\nWaqt: ${dt12(o.t)}\nResult: ${o.ok ? '✅ Firebase ne accept kiya' : '❌ ' + o.err}`
+    : 'App ne abhi tak koi order nahi bheja.\n\nSignal card ya trade card pe 🚀 dabao.';
 }
 
 /* ================= CORRELATION / HEDGE ================= */
@@ -1652,7 +1700,7 @@ function takeHedge(sym, dir, lots){
   const sl = dir==='BUY' ? px-sd : px+sd, tp = dir==='BUY' ? px+td_ : px-td_;
   addTrade({ sym, dir, lots, entry: px, sl, tp, slD: S.dSl, tpD: S.dTp, q: 0, grade: 'HDG' });
   closeSheet('hgSheet');
-  if(S.mt5Auto) sendMT5(sym, dir, lots, px, sl, tp, 'MARKET');
+  if(S.mt5Auto) sendMT5(sym, dir, lots, px, sl, tp);
 }
 
 /* ---------------- messages ---------------- */
@@ -1759,6 +1807,7 @@ function saveSettings(){
   S.fbUrl = $('setFb').value.trim();
   S.fbAuth = $('setFbAuth').value.trim();
   S.mt5Type = $('setMtype').value;
+  S.limPips = Math.max(1, +$('setLim').value || 5);
   S.mt5Auto = $('setMauto').value === '1';
   S.autoM = +$('setAuto').value;
   $('inLots').value = S.dLot; S.lots = S.dLot;
@@ -1788,6 +1837,7 @@ function fillPairs(){
 }
 async function apiTest(){
   const box = $('apiOut'); box.classList.remove('hide');
+  box.scrollIntoView({behavior:'smooth', block:'center'});
   const key = ($('setKey').value || S.key || '').trim();
   if(!key){ box.textContent = 'API key khaali hai'; return }
   box.textContent = 'Test chal raha hai...';
@@ -1851,7 +1901,7 @@ function boot(){
   $('swTgAuto').classList.toggle('on', S.tgAuto);
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
-  $('setMtype').value = S.mt5Type; $('setMauto').value = S.mt5Auto ? '1' : '0';
+  $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; $('setMauto').value = S.mt5Auto ? '1' : '0';
   renderBanner();
   $('setKey').value = S.key; $('setTp').value = S.dTp; $('setSl').value = S.dSl; $('setLot').value = S.dLot;
   $('tgTok').value = S.tgTok; $('tgId').value = S.tgId;
