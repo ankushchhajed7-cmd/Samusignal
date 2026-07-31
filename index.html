@@ -287,7 +287,12 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 
   <div class="card">
     <p class="ttl">Open Trades <span class="sp" id="openT">0 open</span></p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <button class="btn gold sm" style="flex:1" onclick="refreshOpen(true)">⟳ Rates Refresh Karo</button>
+      <span class="mono" id="syncT" style="font-size:11px;color:var(--mut);min-width:96px;text-align:right">—</span>
+    </div>
     <div id="openBox"></div>
+    <p class="hint" id="creditWarn"></p>
     <button class="btn ghost sm" style="margin-top:6px" onclick="openManual()">+ Manual Trade Add Karo</button>
   </div>
 
@@ -506,7 +511,7 @@ function go(pg,btn){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
-  if(pg==='Trades') renderTrades();
+  if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
   if(pg==='Alerts') renderLog();
 }
 function toggleSw(el,key){ S[key]=!S[key]; el.classList.toggle('on',S[key]); save(); }
@@ -600,12 +605,13 @@ async function getSeries(sym, interval, n, note){
 }
 
 const QCACHE = {};
-async function getQuotes(syms, note){
+async function getQuotes(syms, note, ttl){
   syms = syms.filter(x => !isBad(x));
   if(!syms.length) return {};
   /* 60 sec cache — credits bachane ke liye */
   const now = Date.now(), fresh = {}, need = [];
-  syms.forEach(x => { const c = QCACHE[x]; (c && now-c.t < 60000) ? fresh[x] = c.d : need.push(x); });
+  const maxAge = ttl === undefined ? 60000 : ttl;
+  syms.forEach(x => { const c = QCACHE[x]; (c && now-c.t < maxAge) ? fresh[x] = c.d : need.push(x); });
   if(!need.length) return fresh;
   const j = await td(`/quote?symbol=${encodeURIComponent(need.join(','))}`, need.length, need.join(','), note);
   const out = Object.assign({}, fresh);
@@ -1093,13 +1099,25 @@ function closeTrade(id, reason){
 }
 function closeManualBtn(id){ if(confirm('Ye trade band karna hai?')) closeTrade(id,'MANUAL') }
 
-async function refreshOpen(){
+let lastOpenSync = 0, syncBusy = false;
+
+async function refreshOpen(force){
+  if(syncBusy) return;
   if(!S.open.length || !S.key) return;
-  if(creditsLeft() < 3) return;   /* manual analysis ke liye credits bachao */
   const syms = [...new Set(S.open.map(t=>t.sym))].filter(x=>!isBad(x));
   if(!syms.length) return;
+
+  if(!force){
+    if(document.hidden) return;                       /* app background me hai */
+    if($('pgTrades').classList.contains('hide')) return;  /* Trades page pe nahi ho */
+    const gap = Math.max(60000, syms.length * 9000);  /* jitne pairs, utna gap */
+    if(Date.now() - lastOpenSync < gap) return;
+    if(creditsLeft() < syms.length) { syncStatus(); return; }
+  }
+
+  syncBusy = true; syncStatus('sync');
   try{
-    const q = await getQuotes(syms);
+    const q = await getQuotes(syms, sec => syncStatus('wait', sec), 10000);
     Object.assign(prices, q);
     const hits = [];
     S.open.forEach(t=>{
@@ -1111,11 +1129,27 @@ async function refreshOpen(){
         if(d.p <= t.tp) hits.push([t.id,'TP']); else if(d.p >= t.sl) hits.push([t.id,'SL']);
       }
     });
+    lastOpenSync = Date.now();
     save(); renderTrades();
     hits.forEach(([id,r])=>closeTrade(id,r));
-  }catch(e){}
+  }catch(e){
+    if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
+    if(force) toast(e.message);
+  }
+  syncBusy = false; syncStatus();
 }
-setInterval(refreshOpen, 45000);
+
+function syncStatus(mode, sec){
+  const el = $('syncT'); if(!el) return;
+  const n = [...new Set(S.open.map(t=>t.sym))].length;
+  if(mode === 'sync'){ el.innerHTML = '<span class="spin"></span>'; return }
+  if(mode === 'wait'){ el.textContent = `limit — ${sec}s`; return }
+  if(!S.open.length){ el.textContent = '—'; return }
+  if(!lastOpenSync){ el.textContent = `${n} pairs · ${n} credits`; return }
+  el.textContent = `⟳ ${t12(lastOpenSync)} · ${n} credits`;
+}
+setInterval(()=>refreshOpen(false), 20000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refreshOpen(false) });
 
 function renderTrades(){
   /* stats */
@@ -1128,6 +1162,11 @@ function renderTrades(){
   $('stClosed').className = 'mono ' + (closed>=0?'up':'dn');
   $('stWr').textContent = S.hist.length ? Math.round(wins/S.hist.length*100)+'%' : '0%';
   $('openT').textContent = S.open.length + ' open';
+  const uniq = [...new Set(S.open.map(t=>t.sym))].length;
+  $('creditWarn').innerHTML = uniq > 5
+    ? `⚠ ${uniq} alag pairs open hain — har refresh pe ${uniq} API credits lagte hain, aur free plan pe minute me sirf 8 milte hain. Auto-refresh isliye dheema hai. Ek hi pair ke trades rakho ya manual refresh use karo.`
+    : '';
+  syncStatus();
 
   /* open */
   $('openBox').innerHTML = S.open.length ? S.open.map(t=>{
@@ -1359,7 +1398,7 @@ function boot(){
   renderTrades();
   renderLog();
   showCredits();
-  if(S.key){ refreshOpen(); setTimeout(()=>refreshTicker(false), 1200); }
+  if(S.key){ refreshOpen(true); setTimeout(()=>refreshTicker(false), 1200); }
 }
 boot();
 
