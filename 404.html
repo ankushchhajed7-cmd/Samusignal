@@ -214,7 +214,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <div class="logo">📡</div>
     <div class="brand">
       <h1>SamuSignal</h1>
-      <p>Forex &amp; Gold Signals</p>
+      <p>Forex &amp; Gold · <span id="verTag">v—</span></p>
     </div>
     <div class="hbtns">
       <div class="clock"><b id="clkT">--:--</b><span id="clkD">--</span></div>
@@ -360,6 +360,13 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 <!-- ============ SHEETS ============ -->
 <div class="ov" id="setSheet"><div class="sheet">
   <div class="sh-h"><h3>Settings</h3><button onclick="closeSheet('setSheet')">×</button></div>
+  <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+    <div style="flex:1">
+      <b class="mono" id="verBig" style="font-size:14px">v—</b>
+      <small style="display:block;color:var(--mut);font-size:11px">MT5 order type: <span class="mono" id="verMode">—</span></small>
+    </div>
+    <button class="btn gold sm" style="width:auto;padding:9px 13px" onclick="forceUpdate()">🔄 Update</button>
+  </div>
   <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
   <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
   <p class="ttl">MT5 Bridge</p>
@@ -453,6 +460,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
+const VERSION = '2.9.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1381,6 +1389,22 @@ function editTrade(id){
 }
 function clearHistory(){ if(confirm('Poori history delete kar dein?')){ S.hist=[]; save(); renderTrades(); toast('History clear') } }
 
+/* ---- purana service worker + cache zabardasti hatao ---- */
+async function forceUpdate(){
+  toast('Purana version hata raha hoon...');
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for(const r of regs) await r.unregister();
+    }
+    if(window.caches){
+      const keys = await caches.keys();
+      for(const k of keys) await caches.delete(k);
+    }
+  }catch(e){}
+  location.replace(location.pathname + '?v=' + Date.now());
+}
+
 /* ---- global manual refresh: ticker + open trades ek saath ---- */
 let refBusy = false;
 async function refreshAll(){
@@ -1823,7 +1847,7 @@ function saveSettings(){
   S.fbAuth = $('setFbAuth').value.trim();
   S.mt5Type = $('setMtype').value;
   S.limPips = Math.max(1, +$('setLim').value || 5);
-  showMode();
+  showMode(); if($('verMode')) $('verMode').textContent = S.mt5Type;
   S.mt5Auto = $('setMauto').value === '1';
   S.autoM = +$('setAuto').value;
   $('inLots').value = S.dLot; S.lots = S.dLot;
@@ -1917,12 +1941,16 @@ function boot(){
   $('swTgAuto').classList.toggle('on', S.tgAuto);
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
-  $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode(); $('setMauto').value = S.mt5Auto ? '1' : '0';
+  $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode();
+  if($('verMode')) $('verMode').textContent = S.mt5Type; $('setMauto').value = S.mt5Auto ? '1' : '0';
   renderBanner();
   $('setKey').value = S.key; $('setTp').value = S.dTp; $('setSl').value = S.dSl; $('setLot').value = S.dLot;
   $('tgTok').value = S.tgTok; $('tgId').value = S.tgId;
   $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
 
+  $('verTag').textContent = 'v' + VERSION;
+  $('verBig').textContent = 'SamuSignal v' + VERSION;
+  $('verMode').textContent = S.mt5Type;
   setChart(S.pair);
   buildPipTable();
   buildTicker();
