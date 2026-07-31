@@ -492,7 +492,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '3.0.1';
+const VERSION = '3.0.2';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -837,7 +837,8 @@ async function getQuotes(syms, note, ttl){
   stamp();
   if(failed.length) logAdd('Rate nahi mila: ' + failed.join(', '));
   if(!Object.keys(out).length) throw new Error('API ne koi rate nahi bheja — ' + (failed[0] || 'reason unknown'));
-  out.__failed = failed;
+  /* diagnostics — chhupi hui key, taaki koi loop isse pair na samjhe */
+  Object.defineProperty(out, '__failed', {value: failed, enumerable: false});
   return out;
 }
 
@@ -1075,12 +1076,14 @@ async function loadStrength(){
     Object.assign(prices, q);
     const acc = {}, cnt = {};
     for(const sym in q){
+      if(!SPECS[sym] || !q[sym] || !q[sym].p) continue;
       const [b,t] = SPECS[sym].ccy;
       const c = q[sym].chg || 0;
       acc[b]=(acc[b]||0)+c; cnt[b]=(cnt[b]||0)+1;
       acc[t]=(acc[t]||0)-c; cnt[t]=(cnt[t]||0)+1;
     }
     const rows = Object.keys(acc).map(k=>({k, v: acc[k]/cnt[k]}));
+    if(!rows.length) throw new Error('Kisi bhi pair ka rate nahi mila — thodi der baad try karo');
     const mx = Math.max(...rows.map(r=>Math.abs(r.v))) || 1;
     rows.forEach(r => r.pct = Math.round(50 + (r.v/mx)*50));
     rows.sort((a,b)=>b.pct-a.pct);
