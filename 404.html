@@ -150,6 +150,14 @@ tr:last-child td{border-bottom:none}
 .st span{display:block;font-size:9px;color:var(--mut);letter-spacing:1px;font-weight:700;margin-bottom:4px}
 .st b{font-size:17px}
 
+.perf{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.pb{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:12px 6px;text-align:center}
+.pb b{display:block;font-size:19px;line-height:1.1;font-family:ui-monospace,Menlo,monospace}
+.pb span{display:block;font-size:8.5px;color:var(--mut);letter-spacing:1.3px;font-weight:700;margin-top:5px}
+.ptot{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:15px;text-align:center}
+.ptot b{display:block;font-size:27px;font-family:ui-monospace,Menlo,monospace;line-height:1}
+.ptot span{display:block;font-size:9px;color:var(--mut);letter-spacing:1.6px;font-weight:700;margin-top:6px}
+
 .empty{text-align:center;padding:28px 14px;color:var(--mut);font-size:13px}
 .empty div{font-size:32px;margin-bottom:8px;opacity:.5}
 
@@ -310,6 +318,11 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   </div>
 
   <div class="card">
+    <p class="ttl">Performance <span class="sp" id="perfN">—</span></p>
+    <div id="perfBox"></div>
+  </div>
+
+  <div class="card">
     <p class="ttl">History <span class="sp"><button id="btnClearHist" style="color:var(--dn);font-size:11px;font-weight:700" onclick="clearHistory()">Clear</button></span></p>
     <div id="histBox"></div>
   </div>
@@ -456,7 +469,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '2.10.0';
+const VERSION = '2.11.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1313,6 +1326,7 @@ function renderTrades(){
   $('stWr').textContent = S.hist.length ? Math.round(wins/S.hist.length*100)+'%' : '0%';
   $('openT').textContent = S.open.length + ' open';
   const uniq = [...new Set(S.open.map(t=>t.sym))].length;
+  renderPerf();
   $('creditWarn').innerHTML = uniq > 5
     ? `⚠ ${uniq} alag pairs open hain — har refresh pe ${uniq} API credits lagte hain, aur free plan pe minute me sirf 8 milte hain. Auto-refresh isliye dheema hai. Ek hi pair ke trades rakho ya manual refresh use karo.`
     : '';
@@ -1363,6 +1377,81 @@ function renderTrades(){
       <div class="amt mono ${t.pl>=0?'up':'dn'}">${money(t.pl)}</div>
     </div>`;
   }).join('') : '<div class="empty"><div>📜</div>History khaali hai.</div>';
+}
+
+function renderPerf(){
+  const H = S.hist;
+  const tp = H.filter(t => t.reason === 'TP').length;
+  const sl = H.filter(t => t.reason === 'SL').length;
+  const mn = H.filter(t => t.reason === 'MANUAL').length;
+  const decided = tp + sl;
+  const acc = decided ? (tp / decided * 100) : 0;
+  const total = H.reduce((a,t) => a + t.pl, 0);
+
+  /* expectancy R me: har trade ka P/L uske apne risk se bhaag */
+  const Rs = H.map(t => (t.slD > 0 ? t.pl / t.slD : 0));
+  const exp = Rs.length ? Rs.reduce((a,b) => a+b, 0) / Rs.length : 0;
+
+  /* abhi ke TP/SL pe kitna win rate chahiye sirf barabar rehne ko */
+  const rr = S.dTp / S.dSl;
+  const beWR = 100 / (1 + rr);
+
+  const wins = H.filter(t => t.pl > 0);
+  const loss = H.filter(t => t.pl < 0);
+  const avgW = wins.length ? wins.reduce((a,t)=>a+t.pl,0) / wins.length : 0;
+  const avgL = loss.length ? loss.reduce((a,t)=>a+t.pl,0) / loss.length : 0;
+
+  $('perfN').textContent = H.length ? `${H.length} closed` : '—';
+
+  if(!H.length){
+    $('perfBox').innerHTML = '<div class="empty"><div>📈</div>Abhi koi closed trade nahi.<br>Trade band hone par yahan stats aayenge.</div>';
+    return;
+  }
+
+  const accCol = acc >= beWR ? 'var(--up)' : 'var(--dn)';
+  const warn = decided >= 5 && acc < beWR
+    ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Abhi TP $${S.dTp} / SL $${S.dSl} hai — sirf barabar rehne ke liye <b>${beWR.toFixed(1)}%</b> win rate chahiye, aur tumhara <b>${acc.toFixed(1)}%</b> hai. Ek SL ${(1/rr).toFixed(1)} TP kha jaata hai.</p>`
+    : '';
+
+  /* pair-wise table */
+  const byPair = {};
+  H.forEach(t => {
+    const k = t.sym;
+    if(!byPair[k]) byPair[k] = {n:0, w:0, pl:0};
+    byPair[k].n++; if(t.pl > 0) byPair[k].w++; byPair[k].pl += t.pl;
+  });
+  const rows = Object.entries(byPair).sort((a,b) => b[1].pl - a[1].pl);
+
+  $('perfBox').innerHTML = `
+    <div class="perf">
+      <div class="pb"><b>${H.length}</b><span>CLOSED</span></div>
+      <div class="pb"><b style="color:${accCol}">${acc.toFixed(0)}%</b><span>ACCURACY</span></div>
+      <div class="pb"><b style="color:${exp>=0?'var(--up)':'var(--dn)'}">${exp>=0?'+':''}${exp.toFixed(2)}R</b><span>EXPECTANCY</span></div>
+    </div>
+    <div class="perf">
+      <div class="pb"><b class="up">${tp}</b><span>TP HIT</span></div>
+      <div class="pb"><b class="dn">${sl}</b><span>SL HIT</span></div>
+      <div class="pb"><b style="color:var(--gold)">${S.open.length}</b><span>PENDING</span></div>
+    </div>
+    <div class="perf">
+      <div class="pb"><b class="up" style="font-size:15px">${money(avgW)}</b><span>AVG WIN</span></div>
+      <div class="pb"><b class="dn" style="font-size:15px">${money(avgL)}</b><span>AVG LOSS</span></div>
+      <div class="pb"><b style="font-size:15px">${beWR.toFixed(0)}%</b><span>BREAKEVEN WR</span></div>
+    </div>
+    <div class="ptot">
+      <b style="color:${total>=0?'var(--up)':'var(--dn)'}">${total>=0?'+':''}${money(total)}</b>
+      <span>TOTAL P/L</span>
+    </div>
+    ${warn}
+    <p class="ttl" style="margin:16px 0 8px">Pair Wise</p>
+    <table><thead><tr><th>Pair</th><th style="text-align:right">Trades</th><th style="text-align:right">Win%</th><th style="text-align:right">P/L</th></tr></thead>
+    <tbody>${rows.map(([k,v]) => `<tr>
+      <td class="mono"><b>${SPECS[k] ? SPECS[k].n : k}</b></td>
+      <td class="mono" style="text-align:right">${v.n}</td>
+      <td class="mono" style="text-align:right">${Math.round(v.w/v.n*100)}%</td>
+      <td class="mono ${v.pl>=0?'up':'dn'}" style="text-align:right">${money(v.pl)}</td>
+    </tr>`).join('')}</tbody></table>
+    ${mn ? `<p class="hint">${mn} trade manually band kiye gaye — wo accuracy me count nahi hote.</p>` : ''}`;
 }
 
 function editTrade(id){
