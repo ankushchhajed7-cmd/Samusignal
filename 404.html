@@ -358,6 +358,24 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div class="sh-h"><h3>Settings</h3><button onclick="closeSheet('setSheet')">×</button></div>
   <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
   <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
+  <p class="ttl">MT5 Bridge</p>
+  <div style="margin-bottom:10px"><label>Firebase URL</label>
+    <input id="setFb" placeholder="https://xxx-default-rtdb.firebaseio.com"></div>
+  <div style="margin-bottom:10px"><label>Auth secret (optional)</label>
+    <input id="setFbAuth" type="password" placeholder="rules open hain to khaali chhodo"></div>
+  <div class="grid2" style="margin-bottom:10px">
+    <div><label>Order type</label><select id="setMtype">
+      <option value="MARKET">Market (turant)</option>
+      <option value="LIMIT">Limit (entry pe)</option>
+    </select></div>
+    <div><label>Quick trade</label><select id="setMauto">
+      <option value="1">MT5 pe bhi bhejo</option>
+      <option value="0">Sirf app me record</option>
+    </select></div>
+  </div>
+  <button class="btn ghost sm" style="margin-bottom:6px" onclick="testBridge()">🔌 Bridge Test Karo</button>
+  <p class="hint" style="margin-bottom:16px">FXBridgeEA wahi <code>fxbridge/order.json</code> padhta hai. EA khud broker suffix (Exness = "m") lagata hai, isliye yahan sirf XAUUSD bhejo.</p>
+
   <p class="ttl">API Budget</p>
   <div class="grid2" style="margin-bottom:6px">
     <div><label>Daily cap</label><input class="mono" id="setCap" type="number" step="50" value="700"></div>
@@ -372,7 +390,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 
   <p class="ttl">Default Trade Size</p>
   <div class="grid3" style="margin-bottom:6px">
-    <div><label>TP ($)</label><input class="mono" id="setTp" type="number" step="0.5" value="5"></div>
+    <div><label>TP ($)</label><input class="mono" id="setTp" type="number" step="0.5" value="1"></div>
     <div><label>SL ($)</label><input class="mono" id="setSl" type="number" step="0.5" value="2.5"></div>
     <div><label>Lots</label><input class="mono" id="setLot" type="number" step="0.01" value="0.01"></div>
   </div>
@@ -408,7 +426,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <div><label>Entry Price</label><input class="mono" id="mtEntry" type="number" step="0.00001"></div>
   </div>
   <div class="grid2" style="margin-bottom:10px">
-    <div><label>TP ($)</label><input class="mono" id="mtTp" type="number" step="0.5" value="5"></div>
+    <div><label>TP ($)</label><input class="mono" id="mtTp" type="number" step="0.5" value="1"></div>
     <div><label>SL ($)</label><input class="mono" id="mtSl" type="number" step="0.5" value="2.5"></div>
   </div>
   <p class="hint" id="mtCalc" style="margin-bottom:12px">—</p>
@@ -511,8 +529,12 @@ let S = {
   tgTok: LS.get('tgTok',''),
   tgId:  LS.get('tgId',''),
   tgAuto:LS.get('tgAuto',true),
-  dTp:   LS.get('dTp',5),
+  dTp:   LS.get('dTp',1),
   dSl:   LS.get('dSl',2.5),
+  fbUrl: LS.get('fbUrl',''),
+  fbAuth:LS.get('fbAuth',''),
+  mt5Type: LS.get('mt5Type','MARKET'),
+  mt5Auto: LS.get('mt5Auto',true),
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
   mktG:  LS.get('mktG','Majors'),
@@ -526,7 +548,9 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','fbUrl','fbAuth','mt5Type','mt5Auto','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+
+if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
 
 let lastSignal = null;
 let mktLoaded = false;
@@ -910,7 +934,10 @@ function renderSignal(){
       <p class="hint">Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)}</p>
       ${warn}
       <div class="acts">
-        <button class="btn ${s.dir==='SELL'?'r':'g'} sm" onclick="openQuick()">Maine Ye Trade Liya</button>
+        <button class="btn ${s.dir==='SELL'?'r':'g'} sm" style="flex:2" onclick="openQuick()">Maine Ye Trade Liya</button>
+        <button class="btn gold sm" onclick="sendSignalMT5()">🚀 MT5</button>
+      </div>
+      <div class="acts" style="margin-top:7px">
         <button class="btn ghost sm" onclick="shareWa()">WhatsApp</button>
         <button class="btn ghost sm" onclick="tgSend(signalText(lastSignal))">Telegram</button>
       </div>
@@ -1078,7 +1105,11 @@ function drawQuick(dir, entry, lots, tpD, slD){
       <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono" id="qvT">${fmt(sym,tp)}</b></div>
     </div>
     <p class="hint" id="qInfo">SL ${pipSL} pips · TP ${pipTP} pips · R:R 1:${(tpD/slD).toFixed(2)} · $${usdPerPip(sym,entry,lots).toFixed(3)} per pip</p>
-    <div class="grid2" style="margin:14px 0 8px">
+    <div class="sw ${S.mt5Auto?'on':''}" id="qtMt5" onclick="this.classList.toggle('on')">
+      <div class="tg"></div>
+      <div>MT5 pe bhi lagao<small>FXBridgeEA turant order place karega</small></div>
+    </div>
+    <div class="grid2" style="margin:10px 0 8px">
       <button class="btn ghost sm" onclick="qtReset()">↺ Reset to Default</button>
       <button class="btn ghost sm" onclick="qtLive()">⟳ Live Price Lo</button>
     </div>
@@ -1106,13 +1137,12 @@ function confirmTrade(){
   const tpD = +$('qTp').value, slD = +$('qSl').value;
   if(!entry || !lots || !tpD || !slD){ toast('Sab values bharo') ; return }
   const slDist = dollarsToDist(sym, entry, lots, slD), tpDist = dollarsToDist(sym, entry, lots, tpD);
-  addTrade({
-    sym, dir, lots, entry,
-    sl: dir==='BUY'?entry-slDist:entry+slDist,
-    tp: dir==='BUY' ? entry+tpDist : entry-tpDist,
-    slD, tpD, q: lastSignal.q, grade: lastSignal.grade
-  });
+  const sl = dir==='BUY' ? entry-slDist : entry+slDist;
+  const tp = dir==='BUY' ? entry+tpDist : entry-tpDist;
+  const toMt5 = $('qtMt5').classList.contains('on');
+  addTrade({ sym, dir, lots, entry, sl, tp, slD, tpD, q: lastSignal.q, grade: lastSignal.grade });
   closeSheet('qtSheet');
+  if(toMt5) sendMT5(sym, dir, lots, entry, sl, tp, 'MARKET');
 }
 
 /* ---------------- manual trade ---------------- */
@@ -1280,6 +1310,7 @@ function renderTrades(){
       <div class="acts">
         <button class="btn ghost sm" onclick="editTrade('${t.id}')">SL/TP</button>
         <button class="btn ${pl<0?'gold':'ghost'} sm" onclick="openHedge('${t.id}')">⚖ Against</button>
+        <button class="btn ghost sm" onclick="resendMT5('${t.id}')">🚀</button>
         <button class="btn ghost sm" onclick="shareTradeWa('${t.id}')">WA</button>
         <button class="btn r sm" onclick="closeManualBtn('${t.id}')">Close</button>
       </div>
@@ -1315,6 +1346,86 @@ function editTrade(id){
   save(); renderTrades(); toast('SL/TP update ho gaya');
 }
 function clearHistory(){ if(confirm('Poori history delete kar dein?')){ S.hist=[]; save(); renderTrades(); toast('History clear') } }
+
+/* ================= MT5 BRIDGE (Firebase -> FXBridgeEA) ================= */
+/* EA ye path padhta hai:  <FirebaseURL>/fxbridge/order.json
+   Format: {"id":..,"pair":"XAUUSD","type":"BUYLIMIT","lots":..,"entry":..,"sl":..,"tp":..} */
+
+function fbEndpoint(){
+  let u = (S.fbUrl || '').trim().replace(/\/+$/, '');
+  if(!u) return '';
+  if(!/^https?:\/\//.test(u)) u = 'https://' + u;
+  return u + '/fxbridge/order.json' + (S.fbAuth ? '?auth=' + encodeURIComponent(S.fbAuth) : '');
+}
+
+function mt5Payload(sym, dir, lots, entry, sl, tp, kind){
+  const d = SPECS[sym].d;
+  const market = (kind || S.mt5Type) === 'MARKET';
+  return {
+    id: Date.now(),
+    pair: SPECS[sym].n,                       /* EA khud suffix "m" lagata hai */
+    type: market ? dir : dir + 'LIMIT',       /* BUY / SELL / BUYLIMIT / SELLLIMIT */
+    lots: +Number(lots).toFixed(2),
+    entry: +Number(entry).toFixed(d),
+    sl: +Number(sl).toFixed(d),
+    tp: +Number(tp).toFixed(d)
+  };
+}
+
+async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
+  const url = fbEndpoint();
+  if(!url){
+    if(!silent){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet') }
+    return false;
+  }
+  const body = mt5Payload(sym, dir, lots, entry, sl, tp, kind);
+  try{
+    const r = await fetch(url, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
+    logAdd(`MT5 bhej diya: ${body.type} ${body.pair} ${body.lots} @ ${body.entry} (id ${body.id})`);
+    if(!silent) toast(`MT5 pe bhej diya — ${body.type} ${body.pair}`);
+    if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → MT5</b>\n\n<b>${body.pair} ${body.type}</b>\nLots: ${body.lots}\nEntry: <code>${body.entry}</code>\nSL: <code>${body.sl}</code>\nTP: <code>${body.tp}</code>\n⏰ ${t12(Date.now())}`, true);
+    return true;
+  }catch(e){
+    logAdd('MT5 fail: ' + e.message);
+    if(!silent) toast('MT5 bridge fail — ' + e.message);
+    return false;
+  }
+}
+
+/* signal card ka button */
+async function sendSignalMT5(){
+  const s = lastSignal;
+  if(!s || s.dir === 'NEUTRAL'){ toast('Pehle valid signal analyze karo'); return }
+  const btn = event && event.target;
+  if(btn) btn.innerHTML = '<span class="spin"></span>';
+  await sendMT5(s.sym, s.dir, s.lots, s.live, s.sl, s.tp);
+  if(btn) btn.textContent = '🚀 MT5';
+}
+
+/* kisi bhi open trade ko dobara MT5 pe bhejo */
+async function resendMT5(id){
+  const t = S.open.find(x => x.id === id); if(!t) return;
+  await sendMT5(t.sym, t.dir, t.lots, t.entry, t.sl, t.tp, 'MARKET');
+}
+
+async function testBridge(){
+  S.fbUrl = $('setFb').value.trim(); S.fbAuth = $('setFbAuth').value.trim(); save();
+  const url = fbEndpoint();
+  const box = $('apiOut'); box.classList.remove('hide');
+  if(!url){ box.textContent = 'Firebase URL khaali hai'; return }
+  box.textContent = 'Bridge test chal raha hai...';
+  try{
+    const r = await fetch(url);
+    const txt = await r.text();
+    box.textContent = `GET ${url.split('?')[0]}\nHTTP ${r.status}\n\nAbhi ka order node:\n${txt.slice(0,500)}\n\n` +
+      (r.ok ? '✅ Firebase se connection theek hai. Ab koi signal "🚀 MT5" se bhej ke dekho — ye node badal jayega aur EA use uthayega.'
+            : '❌ Firebase ne mana kar diya. Database rules check karo (read/write true hone chahiye) ya auth secret daalo.');
+  }catch(e){ box.textContent = 'Connection fail: ' + e.message + '\n\nURL sahi hai? Format: https://xxx-default-rtdb.firebaseio.com' }
+}
 
 /* ================= CORRELATION / HEDGE ================= */
 
@@ -1482,13 +1593,10 @@ function takeHedge(sym, dir, lots){
   const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p);
   if(!px){ toast('Pehle is pair ka rate lao — Market page se'); return }
   const sd = dollarsToDist(sym, px, lots, S.dSl), td_ = dollarsToDist(sym, px, lots, S.dTp);
-  addTrade({
-    sym, dir, lots, entry: px,
-    sl: dir==='BUY' ? px-sd : px+sd,
-    tp: dir==='BUY' ? px+td_ : px-td_,
-    slD: S.dSl, tpD: S.dTp, q: 0, grade: 'HDG'
-  });
+  const sl = dir==='BUY' ? px-sd : px+sd, tp = dir==='BUY' ? px+td_ : px-td_;
+  addTrade({ sym, dir, lots, entry: px, sl, tp, slD: S.dSl, tpD: S.dTp, q: 0, grade: 'HDG' });
   closeSheet('hgSheet');
+  if(S.mt5Auto) sendMT5(sym, dir, lots, px, sl, tp, 'MARKET');
 }
 
 /* ---------------- messages ---------------- */
@@ -1590,6 +1698,10 @@ function saveSettings(){
   S.dSl = +$('setSl').value || 2.5;
   S.dLot = +$('setLot').value || 0.01;
   S.cap  = Math.max(50, +$('setCap').value || 700);
+  S.fbUrl = $('setFb').value.trim();
+  S.fbAuth = $('setFbAuth').value.trim();
+  S.mt5Type = $('setMtype').value;
+  S.mt5Auto = $('setMauto').value === '1';
   S.autoM = +$('setAuto').value;
   $('inLots').value = S.dLot; S.lots = S.dLot;
   save(); closeSheet('setSheet');
@@ -1598,8 +1710,8 @@ function saveSettings(){
   buildPipTable();
 }
 function resetCalc(){
-  S.dTp = 5; S.dSl = 2.5; S.dLot = 0.01;
-  $('setTp').value = 5; $('setSl').value = 2.5; $('setLot').value = 0.01;
+  S.dTp = 1; S.dSl = 2.5; S.dLot = 0.01;
+  $('setTp').value = 1; $('setSl').value = 2.5; $('setLot').value = 0.01;
   $('inLots').value = 0.01; S.lots = 0.01;
   save(); if(lastSignal) renderSignal();
   toast('Calculator default pe reset');
@@ -1680,6 +1792,8 @@ function boot(){
   $('swHtf').classList.toggle('on', S.htf);
   $('swTgAuto').classList.toggle('on', S.tgAuto);
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
+  $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
+  $('setMtype').value = S.mt5Type; $('setMauto').value = S.mt5Auto ? '1' : '0';
   renderBanner();
   $('setKey').value = S.key; $('setTp').value = S.dTp; $('setSl').value = S.dSl; $('setLot').value = S.dLot;
   $('tgTok').value = S.tgTok; $('tgId').value = S.tgId;
