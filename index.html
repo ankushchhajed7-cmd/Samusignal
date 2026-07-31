@@ -199,7 +199,11 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   max-width:88vw;text-align:center}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(-6px)}
 
-.tvbox{border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--bg);height:340px}
+.tvbox{border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--bg);height:520px}
+.tvbox.big{position:fixed;inset:0;z-index:150;height:100vh;border-radius:0;border:none}
+.tvx{position:fixed;top:calc(12px + env(safe-area-inset-top));right:12px;z-index:160;
+  background:var(--panel);border:1px solid var(--gold);color:var(--gold);border-radius:6px;
+  padding:9px 13px;font-size:11px;font-weight:700;letter-spacing:1px}
 .tvbox iframe{width:100%;height:100%;border:0;display:block}
 
 .spin{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--gold);
@@ -268,15 +272,22 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div class="card" id="cardSignal"></div>
 
   <div class="card">
-    <p class="ttl">Currency Strength <span class="sp" id="strT">—</span></p>
-    <div id="strBox"><p class="hint">8 major pairs ke 8 API calls lagte hain. Zarurat ho tabhi chalao.</p></div>
-    <button class="btn ghost sm" style="margin-top:10px" onclick="loadStrength()">Strength Nikalo</button>
+    <p class="ttl">News Filter <span class="sp" id="newsT">—</span></p>
+    <div class="chips" id="newsChips" style="margin-bottom:12px"></div>
+    <div id="newsBox"><p class="hint">Aaj ki high-impact news yahan aayegi.</p></div>
+    <div class="sw" id="swNews" onclick="toggleSw(this,'newsOn')">
+      <div class="tg"></div>
+      <div>News ke aas-paas warning<small>Signal pe laal chetavni aayegi agar news paas hai</small></div>
+    </div>
+    <button class="btn ghost sm" onclick="loadNews(true)">⟳ News Refresh</button>
   </div>
 
   <div class="card">
     <p class="ttl">Chart <span class="sp" id="chartSym">—</span></p>
     <div class="chips" id="chartTf" style="margin-bottom:10px"></div>
-    <div class="tvbox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
+    <div class="tvbox" id="tvBox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="chartBig()">⛶ Full Screen</button>
+    <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
   </div>
 </section>
 
@@ -422,6 +433,17 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   </div>
   <p class="hint" style="margin-bottom:14px">Free plan pe 800 credits/day. Cap 700 rakho taaki buffer rahe. Har open pair ka 1 credit lagta hai — 5 pairs + 5 minute refresh = ~60 credits/ghanta.</p>
 
+  <p class="ttl">News Filter</p>
+  <div class="grid2" style="margin-bottom:6px">
+    <div><label>Warning window (min)</label><input class="mono" id="setNewsMin" type="number" step="5" value="30"></div>
+    <div><label>Impact</label><select id="setNewsImp">
+      <option value="High">Sirf High</option>
+      <option value="Med">High + Medium</option>
+      <option value="All">Sab</option>
+    </select></div>
+  </div>
+  <p class="hint" style="margin-bottom:16px">News se itne minute pehle aur baad tak signal pe laal warning aayegi. News din me ek baar apne aap aati hai.</p>
+
   <p class="ttl">SL / TP Method</p>
   <div style="margin-bottom:10px"><label>Default method</label><select id="setMode">
     <option value="DOLLAR">Fixed dollar (har pair pe same $)</option>
@@ -492,7 +514,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '3.0.2';
+const VERSION = '3.1.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -634,13 +656,17 @@ let S = {
   autoM: LS.get('autoM',5),
   day:   LS.get('day',{d:'',used:0,blocked:false}),
   corr:  LS.get('corr',{d:'',m:{}}),
+  news:  LS.get('news',{d:'',list:[]}),
+  newsMin: LS.get('newsMin',30),
+  newsOn: LS.get('newsOn',true),
+  newsImp: LS.get('newsImp','High'),
   bad:   LS.get('bad',[]),
   px:    LS.get('px',{}),
   open:  LS.get('open',[]),
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -1027,6 +1053,15 @@ function renderSignal(){
   }).join('');
   const tierCol = tier==='STRONG' ? dirCol : tier==='MEDIUM' ? 'var(--gold)' : 'var(--dim)';
   const rr = (s.tpD/s.slD).toFixed(2);
+  const nr = newsRisk(s.sym);
+  const nx = nr ? null : nextNews(s.sym);
+  const newsBox = nr
+    ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.1);border-radius:6px;padding:10px;margin-top:9px">
+        <b style="color:var(--dn);font-size:11px;letter-spacing:1px">⚠ NEWS ALERT</b>
+        <p class="hint" style="color:var(--dn);margin:4px 0 0">${nr.c} · ${nr.t} — ${t12(nr.d)}. Is waqt spread chaudi aur move jhatke wala hota hai. Trade rok do ya SL bada rakho.</p></div>`
+    : (nx && (nx.d - Date.now()) < 3*3600000
+        ? `<p class="hint" style="color:var(--gold);margin-top:8px">🗓 ${nx.c} ${nx.t} — ${t12(nx.d)} (${Math.round((nx.d-Date.now())/60000)} min me)</p>`
+        : '');
   const weak = s.q < 70 ? `<p class="hint" style="color:var(--gold);margin-top:8px">Ye ${tier} signal hai (${s.q}%). Tum sirf strong lete ho — 70%+ ka intezaar karo.</p>` : '';
   const warn = !s.htfOk ? `<p class="hint" style="color:var(--gold);margin-top:8px">⚠ HTF filter ON hai aur 4H/1D bias match nahi kar raha. Ye trade skip karna behtar.</p>` : '';
   $('cardSignal').innerHTML = `
@@ -1053,7 +1088,7 @@ function renderSignal(){
         ${s.tfs.map(t=>`<div class="tfp ${t.b==='BUY'?'up':t.b==='SELL'?'dn':'nu'}"><span>${t.l}</span><b>${t.b==='NEUTRAL'?'—':t.b}</b></div>`).join('')}
       </div>
       <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)}</p>
-      ${weak}${warn}
+      ${newsBox}${weak}${warn}
       <div class="acts">
         <button class="btn ${s.dir==='SELL'?'r':'g'} sm" style="flex:2" onclick="openQuick('APP')">Maine Ye Trade Liya</button>
         <button class="btn gold sm" onclick="sendSignalMT5()">🚀 MT5 pe Lagao</button>
@@ -1066,34 +1101,127 @@ function renderSignal(){
   setChart(s.sym);
 }
 
-/* ---------------- currency strength ---------------- */
-async function loadStrength(){
-  if(needKey()) return;
-  $('strT').innerHTML = '<span class="spin"></span>';
-  try{
-    const q = await getQuotes(MAJORS.filter(x=>!isBad(x)), sec => $('strT').textContent = sec+'s');
-    if(!Object.keys(q).length) throw new Error('Koi data nahi mila');
-    Object.assign(prices, q);
-    const acc = {}, cnt = {};
-    for(const sym in q){
-      if(!SPECS[sym] || !q[sym] || !q[sym].p) continue;
-      const [b,t] = SPECS[sym].ccy;
-      const c = q[sym].chg || 0;
-      acc[b]=(acc[b]||0)+c; cnt[b]=(cnt[b]||0)+1;
-      acc[t]=(acc[t]||0)-c; cnt[t]=(cnt[t]||0)+1;
+/* ---------------- NEWS (ForexFactory weekly feed) ---------------- */
+/* Feed 5 min me sirf 2 baar milta hai — isliye din me ek baar laakar cache karo */
+const FEEDS = [
+  'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+  'https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json'
+];
+const PROXIES = [
+  u => u,
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?' + encodeURIComponent(u)
+];
+
+async function fetchNews(){
+  let lastErr = '';
+  for(const feed of FEEDS){
+    for(const wrap of PROXIES){
+      try{
+        const r = await fetch(wrap(feed), {cache:'no-store'});
+        if(!r.ok){ lastErr = 'HTTP ' + r.status; continue }
+        const j = await r.json();
+        if(Array.isArray(j) && j.length) return j;
+        lastErr = 'khaali jawab';
+      }catch(e){ lastErr = e.message }
     }
-    const rows = Object.keys(acc).map(k=>({k, v: acc[k]/cnt[k]}));
-    if(!rows.length) throw new Error('Kisi bhi pair ka rate nahi mila — thodi der baad try karo');
-    const mx = Math.max(...rows.map(r=>Math.abs(r.v))) || 1;
-    rows.forEach(r => r.pct = Math.round(50 + (r.v/mx)*50));
-    rows.sort((a,b)=>b.pct-a.pct);
-    $('strT').textContent = t12(Date.now());
-    $('strBox').innerHTML = rows.map(r=>{
-      const col = r.pct>=60?'var(--up)':r.pct<=40?'var(--dn)':'var(--gold)';
-      return `<div class="strrow"><b class="mono">${r.k}</b><div class="t"><i style="width:${r.pct}%;background:${col}"></i></div><span class="mono">${r.pct}%</span></div>`;
-    }).join('') + `<p class="hint">Sabse strong ${rows[0].k} · sabse weak ${rows[rows.length-1].k} → best pair <b>${rows[0].k}/${rows[rows.length-1].k}</b></p>`;
-  }catch(e){ $('strT').textContent='—'; $('strBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}</p>` }
+  }
+  throw new Error('News nahi mili — ' + lastErr);
 }
+
+async function loadNews(force){
+  const fresh = S.news.d === utcDay() && S.news.list.length;
+  if(fresh && !force){ renderNews(); return }
+  $('newsT').innerHTML = '<span class="spin"></span>';
+  try{
+    const raw = await fetchNews();
+    S.news = {
+      d: utcDay(),
+      list: raw.map(e => ({
+        t: e.title, c: e.country, i: e.impact,
+        d: new Date(e.date).getTime(),
+        f: e.forecast || '', p: e.previous || ''
+      })).filter(e => isFinite(e.d))
+    };
+    save(); renderNews(); if(force) toast(`${S.news.list.length} events aa gaye`);
+  }catch(e){
+    $('newsT').textContent = 'fail';
+    $('newsBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}<br><br>ForexFactory 5 minute me sirf 2 download deta hai. Thodi der baad try karo.</p>`;
+  }
+}
+
+function newsFor(day){
+  const now = Date.now();
+  const start = new Date(); start.setHours(0,0,0,0);
+  const from = start.getTime() + (day||0) * 86400000;
+  const to = from + 86400000;
+  const imp = S.newsImp;
+  return S.news.list
+    .filter(e => e.d >= from && e.d < to)
+    .filter(e => imp === 'All' ? true : imp === 'High' ? e.i === 'High' : (e.i === 'High' || e.i === 'Medium'))
+    .sort((a,b) => a.d - b.d);
+}
+
+/* kya is pair pe abhi news ka khatra hai */
+function newsRisk(sym){
+  if(!S.newsOn || !SPECS[sym]) return null;
+  const ccy = SPECS[sym].ccy;
+  const now = Date.now(), w = (S.newsMin || 30) * 60000;
+  return S.news.list.find(e =>
+    e.i === 'High' && ccy.includes(e.c) && now >= e.d - w && now <= e.d + w
+  ) || null;
+}
+function nextNews(sym){
+  const ccy = sym && SPECS[sym] ? SPECS[sym].ccy : null;
+  const now = Date.now();
+  return S.news.list
+    .filter(e => e.i === 'High' && e.d > now && (!ccy || ccy.includes(e.c)))
+    .sort((a,b) => a.d - b.d)[0] || null;
+}
+
+let newsDay = 0;
+function renderNews(){
+  $('newsChips').innerHTML =
+    [['High','High only'],['Med','High + Med'],['All','Sab']].map(([v,l]) =>
+      `<button class="chip ${S.newsImp===v?'on gold':''}" onclick="S.newsImp='${v}';save();renderNews()">${l}</button>`).join('') +
+    [[0,'Aaj'],[1,'Kal']].map(([v,l]) =>
+      `<button class="chip ${newsDay===v?'on':''}" onclick="newsDay=${v};renderNews()">${l}</button>`).join('');
+
+  const list = newsFor(newsDay);
+  const nx = nextNews(null);
+  $('newsT').textContent = nx
+    ? `agla ${t12(nx.d)} · ${nx.c}`
+    : (S.news.list.length ? 'aage koi high nahi' : '—');
+
+  if(!S.news.list.length){
+    $('newsBox').innerHTML = '<p class="hint">News abhi load nahi hui. Neeche Refresh dabao.</p>';
+    return;
+  }
+  if(!list.length){
+    $('newsBox').innerHTML = `<div class="empty"><div>🗓</div>${newsDay?'Kal':'Aaj'} koi ${S.newsImp==='High'?'high-impact ':''}news nahi.</div>`;
+    return;
+  }
+
+  const now = Date.now();
+  $('newsBox').innerHTML = list.map(e => {
+    const past = e.d < now;
+    const soon = !past && (e.d - now) < 60*60000;
+    const col = e.i==='High' ? 'var(--dn)' : e.i==='Medium' ? 'var(--gold)' : 'var(--mut)';
+    const mins = Math.round((e.d - now)/60000);
+    const when = past ? 'ho chuki'
+      : mins < 60 ? `${mins} min me`
+      : `${Math.round(mins/60)} ghante me`;
+    return `<div class="hist" style="${past?'opacity:.4':''}">
+      <div class="ic" style="background:transparent;border:1px solid ${col};color:${col};font-size:9px">${e.c}</div>
+      <div class="in">
+        <b style="font-size:12px">${e.t}</b>
+        <small>${t12(e.d)} · ${when}${e.f?` · forecast ${e.f}`:''}${e.p?` · prev ${e.p}`:''}</small>
+      </div>
+      ${soon ? '<span class="tag sell" style="font-size:9px">SOON</span>' : ''}
+    </div>`;
+  }).join('') + `<p class="hint">Waqt tumhare phone ke timezone me hai. Source: ForexFactory.</p>`;
+}
+
 
 /* ---------------- market ---------------- */
 async function loadMarket(){
@@ -1191,6 +1319,13 @@ function setChart(sym){
   const s = SPECS[sym]; if(!s) return;
   $('chartSym').textContent = s.n + ' · ' + (TFS.find(t=>t.tv===S.chartTf)||{l:''}).l;
   $('tvFrame').src = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(s.tv)}&interval=${S.chartTf}&theme=dark&style=1&timezone=Asia/Kolkata&hidesidetoolbar=1&hidetoptoolbar=0&withdateranges=0&saveimage=0&studies=STD%3BSupertrend&locale=en`;
+}
+
+function chartBig(){
+  const b = $('tvBox'), x = $('tvClose');
+  const on = b.classList.toggle('big');
+  x.classList.toggle('hide', !on);
+  document.body.style.overflow = on ? 'hidden' : '';
 }
 
 /* ---------------- quick trade ---------------- */
@@ -1297,6 +1432,10 @@ function drawQuick(){
     <div><label>Entry price (manually badal sakte ho)</label>
       <input class="mono" type="number" step="0.00001" value="${fmt(sym,q.entry)}" oninput="qtSet('entry',+this.value,1)"></div>
 
+    ${(() => { const n = newsRisk(sym); return n
+      ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.1);border-radius:6px;padding:10px;margin:12px 0">
+          <b style="color:var(--dn);font-size:11px;letter-spacing:1px">⚠ NEWS ${t12(n.d)}</b>
+          <p class="hint" style="color:var(--dn);margin:4px 0 0">${n.c} · ${n.t}. News ke waqt SL slip ho sakti hai.</p></div>` : '' })()}
     <div class="lvls" id="qtLv" style="margin:14px 0 4px"></div>
     <p class="hint" id="qtInfo"></p>
 
@@ -2112,6 +2251,8 @@ function saveSettings(){
   S.dSl = +$('setSl').value || 2.5;
   S.dLot = +$('setLot').value || 0.01;
   S.cap  = Math.max(50, +$('setCap').value || 700);
+  S.newsMin = Math.max(0, +$('setNewsMin').value || 30);
+  S.newsImp = $('setNewsImp').value;
   S.slMode = $('setMode').value;
   S.atrSL = Math.max(0.1, +$('setAtrSL').value || 1.5);
   S.atrRR = Math.max(0.1, +$('setAtrRR').value || 2);
@@ -2191,6 +2332,7 @@ function boot(){
   $('corrPair').innerHTML = PAIRS.map(p=>`<option ${p===S.pair?'selected':''}>${p}</option>`).join('');
   $('corrPair').onchange = renderCorrBrowser;
   renderCorrBrowser();
+  renderNews();
 
   $('mktChips').innerHTML = Object.keys(GROUPS).map(g=>
     `<button class="chip ${g===S.mktG?'on':''}" data-g="${g}">${g}</button>`).join('');
@@ -2210,8 +2352,10 @@ function boot(){
   };
 
   $('swHtf').classList.toggle('on', S.htf);
+  $('swNews').classList.toggle('on', S.newsOn);
   $('swTgAuto').classList.toggle('on', S.tgAuto);
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
+  $('setNewsMin').value = S.newsMin; $('setNewsImp').value = S.newsImp;
   $('setMode').value = S.slMode; $('setAtrSL').value = S.atrSL;
   $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
   $('swAutoLot').classList.toggle('on', S.autoLot);
@@ -2233,6 +2377,7 @@ function boot(){
   renderTrades();
   renderLog();
   showCredits();
+  setTimeout(() => loadNews(false), 900);   /* din me ek baar, API credits nahi lagte */
   if(S.key){ refreshOpen(true); setTimeout(()=>refreshTicker(false), 1200); }
 }
 boot();
