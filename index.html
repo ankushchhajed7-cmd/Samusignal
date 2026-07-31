@@ -249,7 +249,8 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 
   <div class="card">
     <p class="ttl">Currency Strength <span class="sp" id="strT">—</span></p>
-    <div id="strBox"><p class="hint">Analyze dabao — strength meter yahan aayega.</p></div>
+    <div id="strBox"><p class="hint">8 major pairs ke 8 API calls lagte hain. Zarurat ho tabhi chalao.</p></div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="loadStrength()">Strength Nikalo</button>
   </div>
 
   <div class="card">
@@ -353,6 +354,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <button class="btn sm" onclick="saveSettings()">Save Karo</button>
     <button class="btn ghost sm" onclick="resetCalc()">↺ Reset to Default</button>
   </div>
+  <button class="btn ghost sm" style="margin-bottom:8px" onclick="unlockAll()">🔓 Locked Pairs Reset Karo</button>
   <button class="btn ghost sm" onclick="wipeAll()" style="color:var(--dn)">Sab Data Delete Karo</button>
 </div></div>
 
@@ -463,11 +465,12 @@ let S = {
   dSl:   LS.get('dSl',2.5),
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
+  bad:   LS.get('bad',[]),
   open:  LS.get('open',[]),
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','bad','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 let lastSignal = null;
 let prices = {};   // sym -> {p, chg}
@@ -508,18 +511,67 @@ setInterval(tickClock,1000); tickClock();
 const API = 'https://api.twelvedata.com';
 function needKey(){ if(!S.key){ toast('Pehle Settings me API key daalo'); openSheet('setSheet'); return true } return false }
 
-async function td(path){
+/* ---- credit throttle: free plan = 8 credits per minute ---- */
+const LIMIT = 8, WIN = 62000;
+let credits = [];
+function creditsLeft(){ const t=Date.now(); credits = credits.filter(x=>t-x<WIN); return LIMIT - credits.length }
+function waitFor(n){
+  const t = Date.now();
+  credits = credits.filter(x => t-x < WIN);
+  if(credits.length + n <= LIMIT) return 0;
+  const need = credits.length + n - LIMIT;
+  const sorted = [...credits].sort((a,b)=>a-b);
+  return Math.max(0, WIN - (t - sorted[need-1])) + 300;
+}
+function showCredits(){
+  const l = creditsLeft();
+  const el = $('apiState');
+  if(el && S.key) el.textContent = `API · ${l}/${LIMIT} calls bache`;
+}
+setInterval(showCredits, 3000);
+
+async function spend(n, note){
+  const w = waitFor(n);
+  if(w > 0){
+    const sec = Math.ceil(w/1000);
+    if(note) note(sec); else toast(`API limit — ${sec} sec ruk raha hoon`);
+    await new Promise(r => setTimeout(r, w));
+  }
+  const t = Date.now();
+  for(let i=0;i<n;i++) credits.push(t);
+  showCredits();
+}
+
+function apiErr(code, msg, sym){
+  let m = msg || ('API error ' + code);
+  if(code === 401 || code === 403) m = 'API key galat ya expire — Settings me check karo';
+  else if(code === 404) m = `${sym||'Ye symbol'} tumhare TwelveData plan me available nahi hai`;
+  else if(code === 429) m = 'API limit khatam — free plan pe 8 call/minute. 1 minute ruko';
+  const e = new Error(m); e.code = code; e.sym = sym;
+  return e;
+}
+
+async function td(path, cost, sym, note){
+  await spend(cost || 1, note);
   const url = API + path + (path.includes('?')?'&':'?') + 'apikey=' + encodeURIComponent(S.key);
-  const r = await fetch(url);
-  if(!r.ok) throw new Error('Network ' + r.status);
-  const j = await r.json();
-  if(j.status === 'error') throw new Error(j.message || 'API error');
-  if(j.code && j.code >= 400) throw new Error(j.message || ('API ' + j.code));
+  let r, j;
+  try { r = await fetch(url); }
+  catch(e){ throw new Error('Internet nahi mil raha'); }
+  try { j = await r.json(); }
+  catch(e){ throw apiErr(r.status, '', sym); }
+  const code = j.code || (r.ok ? 0 : r.status);
+  if(j.status === 'error' || (code && code >= 400)) throw apiErr(code, j.message, sym);
   return j;
 }
 
-async function getSeries(sym, interval, n){
-  const j = await td(`/time_series?symbol=${encodeURIComponent(sym)}&interval=${interval}&outputsize=${n||120}&order=ASC`);
+/* symbol jo plan me nahi hai use yaad rakho */
+function markBad(sym){
+  if(sym && !S.bad.includes(sym)){ S.bad.push(sym); save(); fillPairs(); }
+}
+function isBad(sym){ return S.bad.includes(sym) }
+
+async function getSeries(sym, interval, n, note){
+  const j = await td(`/time_series?symbol=${encodeURIComponent(sym)}&interval=${interval}&outputsize=${n||120}&order=ASC`, 1, sym, note);
   if(!j.values || !j.values.length) throw new Error('Data nahi mila: ' + sym);
   return j.values.map(v => ({
     t: v.datetime,
@@ -527,21 +579,29 @@ async function getSeries(sym, interval, n){
   })).filter(b => isFinite(b.c));
 }
 
-async function getQuotes(syms){
-  const j = await td(`/quote?symbol=${encodeURIComponent(syms.join(','))}`);
-  const out = {};
-  const rows = (syms.length === 1) ? {[syms[0]]: j} : j;
+const QCACHE = {};
+async function getQuotes(syms, note){
+  syms = syms.filter(x => !isBad(x));
+  if(!syms.length) return {};
+  /* 60 sec cache — credits bachane ke liye */
+  const now = Date.now(), fresh = {}, need = [];
+  syms.forEach(x => { const c = QCACHE[x]; (c && now-c.t < 60000) ? fresh[x] = c.d : need.push(x); });
+  if(!need.length) return fresh;
+  const j = await td(`/quote?symbol=${encodeURIComponent(need.join(','))}`, need.length, need.join(','), note);
+  const out = Object.assign({}, fresh);
+  const rows = (need.length === 1) ? {[need[0]]: j} : j;
   for(const k in rows){
     const q = rows[k];
     if(!q || !q.close) continue;
     out[k] = { p: +q.close, chg: +(q.percent_change || 0), hi:+q.high, lo:+q.low, o:+q.open };
+    QCACHE[k] = { t: now, d: out[k] };
   }
   return out;
 }
 
 async function getPrice(sym){
   try{
-    const j = await td(`/price?symbol=${encodeURIComponent(sym)}`);
+    const j = await td(`/price?symbol=${encodeURIComponent(sym)}`, 1, sym);
     const p = +j.price;
     if(isFinite(p) && p>0){ prices[sym] = Object.assign(prices[sym]||{}, {p}); return p }
   }catch(e){}
@@ -641,18 +701,23 @@ async function runAnalyze(){
   const btn = $('btnAnalyze');
   btn.innerHTML = '<span class="spin"></span> Analyze ho raha hai...';
   const sym = S.pair;
+  const note = sec => { btn.innerHTML = `<span class="spin"></span> API limit — ${sec}s ruko`; };
   try{
-    const wanted = ['15min','1h','4h','1day'];
+    if(isBad(sym)) throw apiErr(404, '', sym);
+    const wanted = S.htf ? ['15min','1h','4h','1day'] : ['1h','4h'];
     if(!wanted.includes(S.tf)) wanted.unshift(S.tf);
     const res = {};
+    let done = 0;
     for(const tf of wanted){
-      res[tf] = tfBias(await getSeries(sym, tf, 120));
-      await new Promise(r=>setTimeout(r,220));   // free tier: 8 calls/min
+      res[tf] = tfBias(await getSeries(sym, tf, 120, note));
+      done++;
+      btn.innerHTML = `<span class="spin"></span> ${done}/${wanted.length} timeframe`;
     }
-    const live = await getPrice(sym) || res[S.tf].price;
+    const base0 = res[S.tf] || res[wanted[0]];
+    const live = base0.price;                 /* last close use karo — 1 credit bachta hai */
     prices[sym] = Object.assign(prices[sym]||{}, {p:live});
 
-    const base = res[S.tf] || res['15min'];
+    const base = base0;
     const h4 = res['4h'], d1 = res['1day'], h1 = res['1h'];
 
     /* --- quality score 0-100 --- */
@@ -690,10 +755,13 @@ async function runAnalyze(){
       at: Date.now()
     };
     renderSignal();
-    loadStrength();
     if(S.tgAuto && dir!=='NEUTRAL' && htfOk) tgSend(signalText(lastSignal), true);
   }catch(e){
-    $('cardSignal').innerHTML = `<p class="ttl">Signal</p><p class="hint" style="color:var(--dn)">${e.message}<br>Key sahi hai? Free plan pe 8 call/minute ki limit hai — 1 minute ruk ke dobara try karo.</p>`;
+    if(e.code === 404){ markBad(sym); }
+    const tip = e.code === 404
+      ? `<br><br>Ye pair list me ab <b>(locked)</b> dikhega. Free plan pe XAG/USD, XAU/USD jaise metals aksar band hote hain — koi major pair (EUR/USD, GBP/USD, USD/JPY) try karo.`
+      : e.code === 429 ? `<br><br>Thoda ruk ke dobara Analyze dabao.` : '';
+    $('cardSignal').innerHTML = `<p class="ttl">Signal</p><p class="hint" style="color:var(--dn)">${e.message}${tip}</p>`;
   }
   btn.textContent = 'Analyze Karo';
   busy = false;
@@ -743,8 +811,11 @@ function renderSignal(){
 
 /* ---------------- currency strength ---------------- */
 async function loadStrength(){
+  if(needKey()) return;
+  $('strT').innerHTML = '<span class="spin"></span>';
   try{
-    const q = await getQuotes(MAJORS);
+    const q = await getQuotes(MAJORS.filter(x=>!isBad(x)), sec => $('strT').textContent = sec+'s');
+    if(!Object.keys(q).length) throw new Error('Koi data nahi mila');
     Object.assign(prices, q);
     const acc = {}, cnt = {};
     for(const sym in q){
@@ -762,7 +833,7 @@ async function loadStrength(){
       const col = r.pct>=60?'var(--up)':r.pct<=40?'var(--dn)':'var(--gold)';
       return `<div class="strrow"><b class="mono">${r.k}</b><div class="t"><i style="width:${r.pct}%;background:${col}"></i></div><span class="mono">${r.pct}%</span></div>`;
     }).join('') + `<p class="hint">Sabse strong ${rows[0].k} · sabse weak ${rows[rows.length-1].k} → best pair <b>${rows[0].k}/${rows[rows.length-1].k}</b></p>`;
-  }catch(e){ $('strBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}</p>` }
+  }catch(e){ $('strT').textContent='—'; $('strBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}</p>` }
 }
 
 /* ---------------- market ---------------- */
@@ -770,10 +841,12 @@ async function loadMarket(){
   if(needKey()) return;
   $('mktT').innerHTML = '<span class="spin"></span>';
   try{
-    const q = await getQuotes(PAIRS.slice(0,12));
+    const list = MAJORS.filter(x=>!isBad(x));
+    const q = await getQuotes(list, sec => $('mktT').textContent = sec+'s');
     Object.assign(prices, q);
-    $('mktBody').innerHTML = PAIRS.slice(0,12).map(sym=>{
+    $('mktBody').innerHTML = PAIRS.map(sym=>{
       const d = q[sym];
+      if(isBad(sym)) return `<tr><td class="mono">${sym}</td><td colspan="3" class="mu" style="text-align:right">plan me nahi</td></tr>`;
       if(!d) return `<tr><td class="mono">${sym}</td><td colspan="3" class="mu" style="text-align:right">—</td></tr>`;
       const up = d.chg >= 0;
       return `<tr>
@@ -895,7 +968,7 @@ function confirmTrade(){
 
 /* ---------------- manual trade ---------------- */
 function openManual(){
-  $('mtPair').innerHTML = PAIRS.map(p=>`<option ${p===S.pair?'selected':''}>${p}</option>`).join('');
+  fillPairs();
   $('mtLots').value = S.dLot; $('mtTp').value = S.dTp; $('mtSl').value = S.dSl;
   const px = (prices[S.pair]&&prices[S.pair].p) || (lastSignal&&lastSignal.live) || refPrice(S.pair);
   $('mtEntry').value = fmt(S.pair, px);
@@ -958,7 +1031,9 @@ function closeManualBtn(id){ if(confirm('Ye trade band karna hai?')) closeTrade(
 
 async function refreshOpen(){
   if(!S.open.length || !S.key) return;
-  const syms = [...new Set(S.open.map(t=>t.sym))];
+  if(creditsLeft() < 3) return;   /* manual analysis ke liye credits bachao */
+  const syms = [...new Set(S.open.map(t=>t.sym))].filter(x=>!isBad(x));
+  if(!syms.length) return;
   try{
     const q = await getQuotes(syms);
     Object.assign(prices, q);
@@ -1168,8 +1243,16 @@ function wipeAll(){
 }
 
 /* ---------------- boot ---------------- */
+function fillPairs(){
+  const opt = p => `<option value="${p}" ${p===S.pair?'selected':''}>${p}${isBad(p)?'  (locked)':''}</option>`;
+  $('selPair').innerHTML = PAIRS.map(opt).join('');
+  if($('mtPair')) $('mtPair').innerHTML = PAIRS.filter(p=>!isBad(p)).map(opt).join('');
+}
+function unlockAll(){
+  S.bad = []; save(); fillPairs(); toast('Locked pairs reset ho gaye — dobara try karo');
+}
 function boot(){
-  $('selPair').innerHTML = PAIRS.map(p=>`<option ${p===S.pair?'selected':''}>${p}</option>`).join('');
+  fillPairs();
   $('selPair').onchange = e => { S.pair = e.target.value; save(); setChart(S.pair); lastSignal=null; renderSignal(); };
   $('inLots').value = S.lots;
   $('inLots').onchange = e => { S.lots = +e.target.value||0.01; save() };
@@ -1202,7 +1285,8 @@ function boot(){
   renderSignal();
   renderTrades();
   renderLog();
-  if(S.key){ loadMarket().then(buildPipTable); refreshOpen(); }
+  showCredits();
+  if(S.key) refreshOpen();
 }
 boot();
 
