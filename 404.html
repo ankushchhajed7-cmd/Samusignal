@@ -360,6 +360,8 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <button class="btn sm" onclick="saveSettings()">Save Karo</button>
     <button class="btn ghost sm" onclick="resetCalc()">↺ Reset to Default</button>
   </div>
+  <button class="btn ghost sm" style="margin-bottom:8px" onclick="apiTest()">🔍 API Test Karo</button>
+  <div id="apiOut" class="mono hide" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;margin-bottom:10px"></div>
   <button class="btn ghost sm" style="margin-bottom:8px" onclick="unlockAll()">🔓 Locked Pairs Reset Karo</button>
   <button class="btn ghost sm" onclick="wipeAll()" style="color:var(--dn)">Sab Data Delete Karo</button>
 </div></div>
@@ -617,14 +619,22 @@ async function getQuotes(syms, note, ttl){
   const out = Object.assign({}, fresh);
   const stamp = () => { LS.set('px', S.px); };
   const rows = (need.length === 1) ? {[need[0]]: j} : j;
+  const failed = [];
   for(const k in rows){
     const q = rows[k];
-    if(!q || !q.close) continue;
+    if(!q || !q.close){
+      failed.push(k + (q && q.message ? ' (' + q.message + ')' : ''));
+      if(q && (q.code === 404 || q.code === 403)) markBad(k);
+      continue;
+    }
     out[k] = { p: +q.close, chg: +(q.percent_change || 0), hi:+q.high, lo:+q.low, o:+q.open };
     QCACHE[k] = { t: now, d: out[k] };
     S.px[k] = { p: out[k].p, chg: out[k].chg, t: now };
   }
   stamp();
+  if(failed.length) logAdd('Rate nahi mila: ' + failed.join(', '));
+  if(!Object.keys(out).length) throw new Error('API ne koi rate nahi bheja — ' + (failed[0] || 'reason unknown'));
+  out.__failed = failed;
   return out;
 }
 
@@ -1120,8 +1130,10 @@ async function refreshOpen(force){
     const q = await getQuotes(syms, sec => syncStatus('wait', sec), 10000);
     Object.assign(prices, q);
     const hits = [];
+    let okCount = 0;
     S.open.forEach(t=>{
-      const d = q[t.sym]; if(!d) return;
+      const d = q[t.sym]; if(!d || !d.p) return;
+      okCount++;
       t.cur = d.p; t.pl = tradePL(t, d.p);
       if(t.dir==='BUY'){
         if(d.p >= t.tp) hits.push([t.id,'TP']); else if(d.p <= t.sl) hits.push([t.id,'SL']);
@@ -1131,6 +1143,10 @@ async function refreshOpen(force){
     });
     lastOpenSync = Date.now();
     save(); renderTrades();
+    if(force){
+      const bad = (q.__failed||[]).length;
+      toast(bad ? `${okCount} update, ${bad} fail — Alerts me log dekho` : `${okCount} trades ka rate update ho gaya`);
+    }
     hits.forEach(([id,r])=>closeTrade(id,r));
   }catch(e){
     if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
@@ -1351,6 +1367,29 @@ function fillPairs(){
   $('selPair').innerHTML = PAIRS.map(opt).join('');
   if($('mtPair')) $('mtPair').innerHTML = PAIRS.filter(p=>!isBad(p)).map(opt).join('');
 }
+async function apiTest(){
+  const box = $('apiOut'); box.classList.remove('hide');
+  const key = ($('setKey').value || S.key || '').trim();
+  if(!key){ box.textContent = 'API key khaali hai'; return }
+  box.textContent = 'Test chal raha hai...';
+  const syms = [...new Set(S.open.map(t=>t.sym))].slice(0,3);
+  const one = syms[0] || 'EUR/USD';
+  let out = `Credits bache: ${creditsLeft()}/${LIMIT}\n\n`;
+  try{
+    const r1 = await fetch(`${API}/quote?symbol=${encodeURIComponent(one)}&apikey=${encodeURIComponent(key)}`);
+    const j1 = await r1.json();
+    out += `[1] SINGLE ${one}\nHTTP ${r1.status}\n${JSON.stringify(j1).slice(0,400)}\n\n`;
+  }catch(e){ out += `[1] fail: ${e.message}\n\n` }
+  if(syms.length > 1){
+    try{
+      const r2 = await fetch(`${API}/quote?symbol=${encodeURIComponent(syms.join(','))}&apikey=${encodeURIComponent(key)}`);
+      const j2 = await r2.json();
+      out += `[2] BATCH ${syms.join(',')}\nHTTP ${r2.status}\n${JSON.stringify(j2).slice(0,600)}`;
+    }catch(e){ out += `[2] fail: ${e.message}` }
+  }
+  box.textContent = out;
+}
+
 function unlockAll(){
   S.bad = []; save(); fillPairs(); toast('Locked pairs reset ho gaye — dobara try karo');
 }
