@@ -218,6 +218,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     </div>
     <div class="hbtns">
       <div class="clock"><b id="clkT">--:--</b><span id="clkD">--</span></div>
+      <button class="ib" id="btnRef" onclick="refreshAll()" title="Refresh">⟳</button>
       <button class="ib" id="btnInstall" title="Install">⬇</button>
       <button class="ib" onclick="openSheet('setSheet')" title="Settings">⚙</button>
     </div>
@@ -243,7 +244,10 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
       <div class="tg"></div>
       <div>HTF Confluence Filter<small>Sirf 4H + 1D bias se match karne wale signal</small></div>
     </div>
-    <button class="btn gold" id="btnAnalyze" onclick="runAnalyze()">Analyze Karo</button>
+    <div class="grid2">
+      <button class="btn gold" id="btnAnalyze" onclick="runAnalyze()">Analyze Karo</button>
+      <button class="btn ghost" onclick="refreshAll()">⟳ Rates Refresh</button>
+    </div>
   </div>
 
   <div class="card" id="cardSignal"></div>
@@ -399,7 +403,10 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <button class="btn sm" onclick="saveSettings()">Save Karo</button>
     <button class="btn ghost sm" onclick="resetCalc()">↺ Reset to Default</button>
   </div>
-  <button class="btn ghost sm" style="margin-bottom:8px" onclick="apiTest()">🔍 API Test Karo</button>
+  <div class="grid2" style="margin-bottom:8px">
+    <button class="btn ghost sm" onclick="apiTest()">🔍 API Test</button>
+    <button class="btn ghost sm" onclick="dayReset()">↺ Budget Reset</button>
+  </div>
   <div id="apiOut" class="mono hide" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;margin-bottom:10px"></div>
   <button class="btn ghost sm" style="margin-bottom:8px" onclick="unlockAll()">🔓 Locked Pairs Reset Karo</button>
   <button class="btn ghost sm" onclick="wipeAll()" style="color:var(--dn)">Sab Data Delete Karo</button>
@@ -598,6 +605,12 @@ function dayCheck(){
   if(S.day.d !== utcDay()){ S.day = {d:utcDay(), used:0, blocked:false}; LS.set('day', S.day); }
 }
 function dayLeft(){ dayCheck(); return Math.max(0, S.cap - S.day.used) }
+function dayReset(quiet){
+  S.day = {d:utcDay(), used:0, blocked:false};
+  LS.set('day', S.day); credits = [];
+  renderBanner(); showCredits();
+  if(!quiet) toast('Budget counter reset — ab dobara try karo');
+}
 function dayUse(n){ dayCheck(); S.day.used += n; LS.set('day', S.day); }
 function dayBlock(){ dayCheck(); S.day.blocked = true; S.day.used = Math.max(S.day.used, S.cap); LS.set('day', S.day); renderBanner(); }
 function renderBanner(){
@@ -607,7 +620,8 @@ function renderBanner(){
     el.className = 'card';
     el.style.cssText = 'border-color:var(--dn);background:rgba(242,84,91,.08)';
     el.innerHTML = `<p class="ttl" style="color:var(--dn)">Aaj ke credits khatam</p>
-      <p class="hint" style="color:var(--dn)">TwelveData ka daily limit (800) pura ho gaya. Naye credits <b>kal subah 5:30 baje (IST)</b> milenge. Tab tak koi rate ya analysis nahi aayega.</p>`;
+      <p class="hint" style="color:var(--dn)">TwelveData ka daily limit (800) pura ho gaya. Naye credits <b>kal subah 5:30 baje (IST)</b> milenge.</p>
+      <button class="btn ghost sm" style="margin-top:10px" onclick="dayReset()">↺ Counter Reset Karo (naya key daala ho to)</button>`;
     return;
   }
   const pct = Math.min(100, Math.round(S.day.used / S.cap * 100));
@@ -680,6 +694,7 @@ async function td(path, cost, sym, note){
   catch(e){ throw apiErr(r.status, '', sym); }
   const code = j.code || (r.ok ? 0 : r.status);
   if(j.status === 'error' || (code && code >= 400)) throw apiErr(code, j.message, sym);
+  if(S.day.blocked){ S.day.blocked = false; LS.set('day', S.day); renderBanner(); }
   return j;
 }
 
@@ -1347,6 +1362,47 @@ function editTrade(id){
 }
 function clearHistory(){ if(confirm('Poori history delete kar dein?')){ S.hist=[]; save(); renderTrades(); toast('History clear') } }
 
+/* ---- global manual refresh: ticker + open trades ek saath ---- */
+let refBusy = false;
+async function refreshAll(){
+  if(needKey()) return;
+  if(refBusy) return;
+  refBusy = true;
+  const b = $('btnRef');
+  b.innerHTML = '<span class="spin"></span>';
+  b.style.transform = 'none';
+  try{
+    const openSyms = [...new Set(S.open.map(t=>t.sym))].filter(x=>!isBad(x));
+    const tickSyms = TICKER.filter(x=>!isBad(x));
+    const all = [...new Set([...openSyms, ...tickSyms])];
+    if(!all.length){ toast('Refresh karne ko kuch nahi hai'); }
+    else{
+      const q = await getQuotes(all, sec => { b.textContent = sec+'s' }, 0);  /* cache bypass */
+      Object.assign(prices, q);
+      const hits = [];
+      S.open.forEach(t=>{
+        const d = q[t.sym]; if(!d || !d.p) return;
+        t.cur = d.p; t.pl = tradePL(t, d.p);
+        if(t.dir==='BUY'){
+          if(d.p >= t.tp) hits.push([t.id,'TP']); else if(d.p <= t.sl) hits.push([t.id,'SL']);
+        } else {
+          if(d.p <= t.tp) hits.push([t.id,'TP']); else if(d.p >= t.sl) hits.push([t.id,'SL']);
+        }
+      });
+      lastOpenSync = Date.now();
+      save(); buildTicker(); renderTrades(); buildPipTable();
+      const bad = (q.__failed||[]).length;
+      toast(bad ? `${all.length-bad} update, ${bad} fail` : `${all.length} pairs ka rate aa gaya`);
+      hits.forEach(([id,r])=>closeTrade(id,r));
+    }
+  }catch(e){
+    if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
+    toast(e.message);
+  }
+  b.textContent = '⟳';
+  refBusy = false;
+}
+
 /* ================= MT5 BRIDGE (Firebase -> FXBridgeEA) ================= */
 /* EA ye path padhta hai:  <FirebaseURL>/fxbridge/order.json
    Format: {"id":..,"pair":"XAUUSD","type":"BUYLIMIT","lots":..,"entry":..,"sl":..,"tp":..} */
@@ -1693,7 +1749,9 @@ fileIn.addEventListener('change', e=>{
 
 /* ---------------- settings ---------------- */
 function saveSettings(){
+  const oldKey = S.key;
   S.key = $('setKey').value.trim();
+  if(S.key !== oldKey) dayReset(true);   /* naya key = naya quota */
   S.dTp = +$('setTp').value || 5;
   S.dSl = +$('setSl').value || 2.5;
   S.dLot = +$('setLot').value || 0.01;
