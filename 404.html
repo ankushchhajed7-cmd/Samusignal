@@ -369,8 +369,9 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <input id="setFbAuth" type="password" placeholder="rules open hain to khaali chhodo"></div>
   <div class="grid2" style="margin-bottom:10px">
     <div><label>Order type</label><select id="setMtype">
+      <option value="MARKET">Market (turant)</option>
       <option value="LIMIT">Limit (pullback pe)</option>
-      <option value="MARKET">Market (EA patch chahiye)</option>
+      <option value="STOP">Stop (breakout pe)</option>
     </select></div>
     <div><label>Quick trade</label><select id="setMauto">
       <option value="1">MT5 pe bhi bhejo</option>
@@ -546,7 +547,7 @@ let S = {
   dSl:   LS.get('dSl',2.5),
   fbUrl: LS.get('fbUrl',''),
   fbAuth:LS.get('fbAuth',''),
-  mt5Type: LS.get('mt5Type','LIMIT'),
+  mt5Type: LS.get('mt5Type','MARKET'),
   limPips: LS.get('limPips',5),
   mt5Auto: LS.get('mt5Auto',true),
   dLot:  LS.get('dLot',0.01),
@@ -564,7 +565,7 @@ let S = {
 };
 function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
-if(!LS.get('mig28', false)){ S.mt5Type = 'LIMIT'; LS.set('mt5Type','LIMIT'); LS.set('mig28', true); }
+if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
 
 let lastSignal = null;
@@ -623,9 +624,12 @@ function dayUse(n){ dayCheck(); S.day.used += n; LS.set('day', S.day); }
 function dayBlock(){ dayCheck(); S.day.blocked = true; S.day.used = Math.max(S.day.used, S.cap); LS.set('day', S.day); renderBanner(); }
 function showMode(){
   const el = $('modeNow'); if(!el) return;
-  el.innerHTML = S.mt5Type === 'LIMIT'
-    ? `✅ Abhi <b style="color:var(--up)">LIMIT</b> mode hai — app BUYLIMIT/SELLLIMIT bhejegi, tumhara EA yahi samajhta hai.`
-    : `⚠ Abhi <b style="color:var(--dn)">MARKET</b> mode hai — tumhara EA isse "Unknown order type" bolega. Limit pe badlo.`;
+  const txt = {
+    MARKET:'app <b style="color:var(--up)">BUYMARKET/SELLMARKET</b> bhejegi — order turant fill hoga.',
+    LIMIT :'app <b style="color:var(--gold)">BUYLIMIT/SELLLIMIT</b> bhejegi — ' + S.limPips + ' pips pullback pe fill hoga.',
+    STOP  :'app <b style="color:var(--gold)">BUYSTOP/SELLSTOP</b> bhejegi — ' + S.limPips + ' pips breakout pe fill hoga.'
+  };
+  el.innerHTML = '✅ ' + (txt[S.mt5Type] || '');
 }
 
 function renderBanner(){
@@ -1431,11 +1435,11 @@ function fbEndpoint(){
 
 function mt5Payload(sym, dir, lots, entry, sl, tp, kind){
   const d = SPECS[sym].d;
-  const market = (kind || S.mt5Type) === 'MARKET';
+  const mode = kind || S.mt5Type;             /* MARKET | LIMIT | STOP */
   return {
     id: Date.now(),
     pair: SPECS[sym].n,                       /* EA khud suffix "m" lagata hai */
-    type: market ? dir : dir + 'LIMIT',       /* BUY / SELL / BUYLIMIT / SELLLIMIT */
+    type: dir + mode,                         /* BUYMARKET / SELLLIMIT / BUYSTOP ... */
     lots: +Number(lots).toFixed(2),
     entry: +Number(entry).toFixed(d),
     sl: +Number(sl).toFixed(d),
@@ -1452,9 +1456,11 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
   const mode = kind || S.mt5Type;
   /* LIMIT: entry ko live price se thoda door karo, warna MT5 reject karega.
      SL/TP bhi utna hi shift hote hain, isliye $ risk bilkul same rehta hai. */
-  if(mode === 'LIMIT'){
+  if(mode === 'LIMIT' || mode === 'STOP'){
     const off = (S.limPips || 5) * SPECS[sym].pip;
-    const sh = dir === 'BUY' ? -off : off;
+    /* LIMIT: BUY neeche, SELL upar | STOP: BUY upar, SELL neeche */
+    const sign = (mode === 'LIMIT') ? -1 : 1;
+    const sh = (dir === 'BUY' ? sign : -sign) * off;
     entry += sh; sl += sh; tp += sh;
   }
   const body = mt5Payload(sym, dir, lots, entry, sl, tp, mode);
@@ -1466,9 +1472,9 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
     if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
     LS.set('lastOrder', {t:Date.now(), body, ok:true});
     logAdd(`MT5 bhej diya: ${body.type} ${body.pair} ${body.lots} @ ${body.entry} (id ${body.id})`);
-    if(!silent) toast(body.type.includes('LIMIT')
-      ? `Pending ${body.type} lagi @ ${body.entry}`
-      : `MT5 pe bhej diya — ${body.type} ${body.pair}`);
+    if(!silent) toast(body.type.includes('MARKET')
+      ? `${body.pair} ${dir} MT5 pe laga diya`
+      : `Pending ${body.type} lagi @ ${body.entry}`);
     if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → MT5</b>\n\n<b>${body.pair} ${body.type}</b>\nLots: ${body.lots}\nEntry: <code>${body.entry}</code>\nSL: <code>${body.sl}</code>\nTP: <code>${body.tp}</code>\n⏰ ${t12(Date.now())}`, true);
     return true;
   }catch(e){
