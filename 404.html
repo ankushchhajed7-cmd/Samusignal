@@ -486,7 +486,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '2.13.0';
+const VERSION = '2.15.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1009,12 +1009,18 @@ function renderSignal(){
   const s = lastSignal;
   if(!s){ $('cardSignal').innerHTML = '<p class="ttl">Signal</p><p class="hint">Pair chuno aur Analyze dabao.</p>'; return }
   const cls = s.dir==='BUY'?'buy':s.dir==='SELL'?'sell':'';
+  /* rang = direction (BUY hara, SELL laal), bharaav = quality */
+  const dirCol = s.dir==='BUY' ? 'var(--up)' : s.dir==='SELL' ? 'var(--dn)' : 'var(--mut)';
+  const tier = s.q>=70 ? 'STRONG' : s.q>=50 ? 'MEDIUM' : 'WEAK';
+  const segCol = tier==='STRONG' ? dirCol : tier==='MEDIUM' ? dirCol : 'var(--dim)';
+  const segOp  = tier==='STRONG' ? 1 : tier==='MEDIUM' ? .45 : .35;
   const segs = Array.from({length:20},(_,i)=>{
     const on = i < Math.round(s.q/5);
-    const c = s.q>=70?'':s.q>=45?'w':'b';
-    return `<i class="${on?'f '+c:''}"></i>`;
+    return `<i style="${on?`background:${segCol};opacity:${segOp}`:''}"></i>`;
   }).join('');
+  const tierCol = tier==='STRONG' ? dirCol : tier==='MEDIUM' ? 'var(--gold)' : 'var(--dim)';
   const rr = (s.tpD/s.slD).toFixed(2);
+  const weak = s.q < 70 ? `<p class="hint" style="color:var(--gold);margin-top:8px">Ye ${tier} signal hai (${s.q}%). Tum sirf strong lete ho — 70%+ ka intezaar karo.</p>` : '';
   const warn = !s.htfOk ? `<p class="hint" style="color:var(--gold);margin-top:8px">⚠ HTF filter ON hai aur 4H/1D bias match nahi kar raha. Ye trade skip karna behtar.</p>` : '';
   $('cardSignal').innerHTML = `
     <p class="ttl">Signal <span class="sp">${t12(s.at)}</span></p>
@@ -1025,7 +1031,10 @@ function renderSignal(){
         <span class="gr">${s.grade}</span>
       </div>
       <div class="meter">
-        <div class="lbl"><span>Signal Quality</span><b>${s.q}%</b></div>
+        <div class="lbl">
+          <span style="color:${tierCol}">${tier} ${s.dir}</span>
+          <b style="color:${tierCol}">${s.q}%</b>
+        </div>
         <div class="segs">${segs}</div>
       </div>
       <div class="lvls">
@@ -1037,9 +1046,9 @@ function renderSignal(){
         ${s.tfs.map(t=>`<div class="tfp ${t.b==='BUY'?'up':t.b==='SELL'?'dn':'nu'}"><span>${t.l}</span><b>${t.b==='NEUTRAL'?'—':t.b}</b></div>`).join('')}
       </div>
       <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)}</p>
-      ${warn}
+      ${weak}${warn}
       <div class="acts">
-        <button class="btn ${s.dir==='SELL'?'r':'g'} sm" style="flex:2" onclick="openQuick()">Maine Ye Trade Liya</button>
+        <button class="btn ${s.dir==='SELL'?'r':'g'} sm" style="flex:2" onclick="openQuick('APP')">Maine Ye Trade Liya</button>
         <button class="btn gold sm" onclick="sendSignalMT5()">🚀 MT5 pe Lagao</button>
       </div>
       <div class="acts" style="margin-top:7px">
@@ -1177,143 +1186,191 @@ function setChart(sym){
 }
 
 /* ---------------- quick trade ---------------- */
-function openQuick(){
-  const s = lastSignal;
-  if(!s || s.dir==='NEUTRAL'){ toast('Pehle ek valid signal analyze karo'); return }
-  $('qtTitle').textContent = `Maine Ye Trade Liya — ${s.sym}`;
-  qtState = {
-    dir: s.dir, entry: s.live, lots: +$('inLots').value || S.dLot,
-    mode: S.slMode, slD: S.dSl, tpD: S.dTp,
-    atrSL: S.atrSL, atrRR: S.atrRR, autoLot: S.autoLot, riskUsd: S.riskUsd
-  };
-  drawQuick();
-  openSheet('qtSheet');
-}
-
 let qtState = null;
 
+/* signal se — target 'APP' (journal) ya 'MT5' */
+function openQuick(target){
+  const s = lastSignal;
+  if(!s || s.dir==='NEUTRAL'){ toast('Pehle ek valid signal analyze karo'); return }
+  qtState = {
+    target: target || 'APP',
+    sym: s.sym, dir: s.dir, entry: s.live, lots: +$('inLots').value || S.dLot,
+    atr: s.atr, grade: s.grade, qual: s.q,
+    mode: S.slMode, slD: S.dSl, tpD: S.dTp,
+    atrSL: S.atrSL, atrRR: S.atrRR, autoLot: S.autoLot, riskUsd: S.riskUsd,
+    ordType: S.mt5Type
+  };
+  drawQuick(); openSheet('qtSheet');
+}
+
+/* kisi open trade ko MT5 pe bhejna — wahi confirm sheet */
+function openMt5FromTrade(id){
+  const t = S.open.find(x => x.id === id); if(!t) return;
+  const atr = (lastSignal && lastSignal.sym === t.sym) ? lastSignal.atr : 0;
+  qtState = {
+    target: 'MT5',
+    sym: t.sym, dir: t.dir, entry: t.cur || t.entry, lots: t.lots,
+    atr, grade: t.grade || '—', qual: t.q || 0,
+    mode: atr > 0 ? S.slMode : 'DOLLAR', slD: t.slD, tpD: t.tpD,
+    atrSL: S.atrSL, atrRR: S.atrRR, autoLot: false, riskUsd: S.riskUsd,
+    ordType: S.mt5Type
+  };
+  drawQuick(); openSheet('qtSheet');
+}
+
 function qtCalc(){
-  const q = qtState, sym = lastSignal.sym;
-  const lv = calcLevels(sym, q.entry, q.lots, lastSignal.atr, q);
+  const q = qtState;
+  const lv = calcLevels(q.sym, q.entry, q.lots, q.atr, q);
   const sl = q.dir==='BUY' ? q.entry - lv.slDist : q.entry + lv.slDist;
   const tp = q.dir==='BUY' ? q.entry + lv.tpDist : q.entry - lv.tpDist;
   return {lv, sl, tp};
 }
 
+/* MT5 pe jo entry sach me jayegi (limit/stop offset ke baad) */
+function qtSendPrice(){
+  const q = qtState;
+  if(q.ordType === 'MARKET') return q.entry;
+  const off = (S.limPips || 5) * SPECS[q.sym].pip;
+  const sign = (q.ordType === 'LIMIT') ? -1 : 1;
+  return q.entry + (q.dir === 'BUY' ? sign : -sign) * off;
+}
+
 function drawQuick(){
-  const q = qtState, sym = lastSignal.sym;
+  const q = qtState, sym = q.sym;
   const {lv, sl, tp} = qtCalc();
   const atrOn = q.mode === 'ATR';
-  const risk = q.lots !== lv.lots ? lv.lots : q.lots;
+  const isMt5 = q.target === 'MT5';
+  const dc = q.dir==='BUY' ? 'var(--up)' : 'var(--dn)';
+
+  $('qtTitle').textContent = isMt5 ? `MT5 pe Bhejo — ${sym}` : `Maine Ye Trade Liya — ${sym}`;
 
   $('qtBody').innerHTML = `
-    <div class="chips" style="margin-bottom:12px">
-      <button class="chip ${q.dir==='BUY'?'on':''}" onclick="qtSet('dir','BUY')">BUY</button>
-      <button class="chip ${q.dir==='SELL'?'on':''}" onclick="qtSet('dir','SELL')">SELL</button>
+    <div style="display:flex;align-items:center;gap:10px;background:${q.dir==='BUY'?'rgba(18,201,138,.10)':'rgba(242,84,91,.10)'};
+         border:1px solid ${dc};border-radius:11px;padding:11px 13px;margin-bottom:14px">
+      <b style="font-size:17px;color:${dc};letter-spacing:.5px">${q.dir}</b>
+      <span class="mono" style="font-size:14px">${sym}</span>
+      <span class="gr" style="margin-left:auto">${q.grade}${q.qual?` · ${q.qual}%`:''}</span>
     </div>
+
+    ${isMt5 ? `
+      <label>MT5 order type</label>
+      <div class="chips" style="margin-bottom:12px">
+        <button class="chip ${q.ordType==='MARKET'?'on gold':''}" onclick="qtSet('ordType','MARKET')">Market</button>
+        <button class="chip ${q.ordType==='LIMIT'?'on gold':''}" onclick="qtSet('ordType','LIMIT')">Limit</button>
+        <button class="chip ${q.ordType==='STOP'?'on gold':''}" onclick="qtSet('ordType','STOP')">Stop</button>
+      </div>` : ''}
 
     <label>SL / TP kaise nikale</label>
     <div class="chips" style="margin-bottom:12px">
       <button class="chip ${!atrOn?'on gold':''}" onclick="qtSet('mode','DOLLAR')">Fixed $</button>
-      <button class="chip ${atrOn?'on gold':''}" onclick="qtSet('mode','ATR')">ATR based</button>
+      <button class="chip ${atrOn?'on gold':''}" onclick="qtSet('mode','ATR')" ${q.atr>0?'':'disabled style="opacity:.4"'}>ATR based</button>
     </div>
+    ${q.atr>0 ? '' : '<p class="hint" style="margin:-6px 0 12px">ATR mode ke liye pehle is pair ko Analyze karo.</p>'}
 
     ${atrOn ? `
       <div class="grid3" style="margin-bottom:10px">
-        <div><label>SL = ATR ×</label><input class="mono" id="qA" type="number" step="0.1" value="${q.atrSL}" oninput="qtSet('atrSL',+this.value,1)"></div>
-        <div><label>TP = SL ×</label><input class="mono" id="qR" type="number" step="0.1" value="${q.atrRR}" oninput="qtSet('atrRR',+this.value,1)"></div>
-        <div><label>Lots</label><input class="mono" id="qLot" type="number" step="0.01" value="${lv.lots}" ${q.autoLot?'disabled style="opacity:.5"':''} oninput="qtSet('lots',+this.value,1)"></div>
+        <div><label>SL = ATR ×</label><input class="mono" type="number" step="0.1" value="${q.atrSL}" oninput="qtSet('atrSL',+this.value,1)"></div>
+        <div><label>TP = SL ×</label><input class="mono" type="number" step="0.1" value="${q.atrRR}" oninput="qtSet('atrRR',+this.value,1)"></div>
+        <div><label>Lots</label><input class="mono" type="number" step="0.01" value="${lv.lots}" ${q.autoLot?'disabled style="opacity:.5"':''} oninput="qtSet('lots',+this.value,1)"></div>
       </div>
       <div class="sw ${q.autoLot?'on':''}" onclick="qtSet('autoLot',!qtState.autoLot)">
         <div class="tg"></div>
         <div>Lot auto nikalo<small>Risk $${q.riskUsd} ke hisaab se lot size khud set hoga</small></div>
       </div>
-      ${q.autoLot ? `<div style="margin:8px 0 10px"><label>Risk per trade ($)</label><input class="mono" id="qRisk" type="number" step="0.25" value="${q.riskUsd}" oninput="qtSet('riskUsd',+this.value,1)"></div>` : ''}
+      ${q.autoLot ? `<div style="margin:8px 0 10px"><label>Risk per trade ($)</label><input class="mono" type="number" step="0.25" value="${q.riskUsd}" oninput="qtSet('riskUsd',+this.value,1)"></div>` : ''}
     ` : `
       <div class="grid3" style="margin-bottom:10px">
-        <div><label>TP ($)</label><input class="mono" id="qTp" type="number" step="0.5" value="${q.tpD}" oninput="qtSet('tpD',+this.value,1)"></div>
-        <div><label>SL ($)</label><input class="mono" id="qSl" type="number" step="0.5" value="${q.slD}" oninput="qtSet('slD',+this.value,1)"></div>
-        <div><label>Lots</label><input class="mono" id="qLot" type="number" step="0.01" value="${q.lots}" oninput="qtSet('lots',+this.value,1)"></div>
+        <div><label>TP ($)</label><input class="mono" type="number" step="0.5" value="${q.tpD}" oninput="qtSet('tpD',+this.value,1)"></div>
+        <div><label>SL ($)</label><input class="mono" type="number" step="0.5" value="${q.slD}" oninput="qtSet('slD',+this.value,1)"></div>
+        <div><label>Lots</label><input class="mono" type="number" step="0.01" value="${q.lots}" oninput="qtSet('lots',+this.value,1)"></div>
       </div>
     `}
 
     <div><label>Entry price (manually badal sakte ho)</label>
-      <input class="mono" id="qEntry" type="number" step="0.00001" value="${fmt(sym,q.entry)}" oninput="qtSet('entry',+this.value,1)"></div>
+      <input class="mono" type="number" step="0.00001" value="${fmt(sym,q.entry)}" oninput="qtSet('entry',+this.value,1)"></div>
 
-    <div class="lvls" style="margin:14px 0 4px">
-      <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(sym,q.entry)}</b>
-        <small style="display:block;font-size:9px;color:var(--mut)">${lv.lots} lot</small></div>
-      <div class="lvl sl"><span>STOP LOSS</span><b class="mono">${fmt(sym,sl)}</b>
-        <small style="display:block;font-size:10px;color:var(--dn);font-weight:700">−$${lv.slD}</small>
-        <small style="display:block;font-size:9px;color:var(--mut)">${lv.slPips} pips</small></div>
-      <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono">${fmt(sym,tp)}</b>
-        <small style="display:block;font-size:10px;color:var(--up);font-weight:700">+$${lv.tpD}</small>
-        <small style="display:block;font-size:9px;color:var(--mut)">${lv.tpPips} pips</small></div>
-    </div>
+    <div class="lvls" id="qtLv" style="margin:14px 0 4px"></div>
+    <p class="hint" id="qtInfo"></p>
 
-    ${lv.clamped ? `<div style="border:1px solid var(--dn);background:rgba(242,84,91,.08);border-radius:10px;padding:11px;margin-bottom:10px">
+    ${lv.clamped ? `<div style="border:1px solid var(--dn);background:rgba(242,84,91,.08);border-radius:10px;padding:11px;margin:10px 0">
       <b style="color:var(--dn);font-size:12px">⚠ Risk target se bahar</b>
       <p class="hint" style="color:var(--dn);margin:5px 0 0">Is SL ke liye <b>${lv.clamped.toFixed(3)} lot</b> chahiye tha, par broker ka minimum <b>0.01</b> hai.
-      Asli risk <b>$${lv.slD}</b> ho jayega, target $${q.riskUsd} nahi.
-      SL chhoti karo (ATR × kam), ya ye pair skip karo.</p></div>` : ''}
-    <p class="hint">R:R 1:${(lv.tpD/(lv.slD||1)).toFixed(2)} · barabar rehne ko ${(100/(1+lv.tpD/(lv.slD||1))).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${atrOn?` · ATR ${fmt(sym,lastSignal.atr)}`:''}</p>
+      Asli risk <b>$${lv.slD}</b> ho jayega, target $${q.riskUsd} nahi.</p></div>` : ''}
 
     <div class="grid2" style="margin:14px 0 8px">
       <button class="btn ghost sm" onclick="qtReset()">↺ Reset to Default</button>
       <button class="btn ghost sm" onclick="qtLive()">⟳ Live Price Lo</button>
     </div>
-    <p class="hint" style="margin:0 0 10px">Ye sirf app ke journal me record hoga. MT5 pe lagane ke liye 🚀 button use karo.</p>
-    <button class="btn ${q.dir==='SELL'?'r':'g'}" onclick="confirmTrade()">Trade Lagao</button>`;
+
+    ${isMt5
+      ? `<p class="hint" style="margin:0 0 10px">Confirm karte hi FXBridgeEA MT5 pe order daal dega. App ke journal me nahi jayega.</p>
+         <button class="btn gold" onclick="confirmTrade()">🚀 MT5 pe Confirm Karo</button>`
+      : `<p class="hint" style="margin:0 0 10px">Ye sirf app ke journal me record hoga. MT5 pe lagane ke liye 🚀 button use karo.</p>
+         <button class="btn ${q.dir==='SELL'?'r':'g'}" onclick="confirmTrade()">Trade Lagao</button>`}`;
+
+  qtLevels();
+}
+
+/* sirf levels dobara likho — input me typing todke redraw na ho */
+function qtLevels(){
+  const q = qtState, sym = q.sym;
+  const {lv, sl, tp} = qtCalc();
+  const isMt5 = q.target === 'MT5';
+  const sendPx = isMt5 ? qtSendPrice() : q.entry;
+  const shift = sendPx - q.entry;
+
+  $('qtLv').innerHTML = `
+    <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(sym, sendPx)}</b>
+      <small style="display:block;font-size:9px;color:var(--mut)">${lv.lots} lot</small></div>
+    <div class="lvl sl"><span>STOP LOSS</span><b class="mono">${fmt(sym, sl + shift)}</b>
+      <small style="display:block;font-size:10px;color:var(--dn);font-weight:700">−$${lv.slD}</small>
+      <small style="display:block;font-size:9px;color:var(--mut)">${lv.slPips} pips</small></div>
+    <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono">${fmt(sym, tp + shift)}</b>
+      <small style="display:block;font-size:10px;color:var(--up);font-weight:700">+$${lv.tpD}</small>
+      <small style="display:block;font-size:9px;color:var(--mut)">${lv.tpPips} pips</small></div>`;
+
+  const rr = lv.tpD / (lv.slD || 1);
+  const typeTxt = isMt5 && q.ordType !== 'MARKET'
+    ? ` · ${q.dir}${q.ordType} live se ${S.limPips} pips ${q.ordType==='LIMIT'?'door':'aage'}`
+    : '';
+  $('qtInfo').textContent = `R:R 1:${rr.toFixed(2)} · barabar rehne ko ${(100/(1+rr)).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${q.mode==='ATR'?` · ATR ${fmt(sym,q.atr)}`:''}${typeTxt}`;
 }
 
 function qtSet(k, v, keepFocus){
   qtState[k] = v;
-  if(keepFocus){
-    /* input me type karte waqt poora redraw na ho — sirf levels update */
-    const {lv, sl, tp} = qtCalc();
-    const sym = lastSignal.sym;
-    const box = $('qtBody').querySelector('.lvls');
-    if(box){
-      box.innerHTML = `
-        <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(sym,qtState.entry)}</b>
-          <small style="display:block;font-size:9px;color:var(--mut)">${lv.lots} lot</small></div>
-        <div class="lvl sl"><span>STOP LOSS</span><b class="mono">${fmt(sym,sl)}</b>
-          <small style="display:block;font-size:10px;color:var(--dn);font-weight:700">−$${lv.slD}</small>
-          <small style="display:block;font-size:9px;color:var(--mut)">${lv.slPips} pips</small></div>
-        <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono">${fmt(sym,tp)}</b>
-          <small style="display:block;font-size:10px;color:var(--up);font-weight:700">+$${lv.tpD}</small>
-          <small style="display:block;font-size:9px;color:var(--mut)">${lv.tpPips} pips</small></div>`;
-      const h = box.nextElementSibling;
-      if(h) h.textContent = `R:R 1:${(lv.tpD/(lv.slD||1)).toFixed(2)} · barabar rehne ko ${(100/(1+lv.tpD/(lv.slD||1))).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,qtState.entry,lv.lots).toFixed(3)} per pip`;
-    }
-    return;
-  }
-  drawQuick();
+  keepFocus ? qtLevels() : drawQuick();
 }
 
 function qtReset(){
-  qtState = Object.assign({}, qtState, {
-    entry: lastSignal.live, lots: S.dLot, mode: S.slMode,
+  Object.assign(qtState, {
+    lots: S.dLot, mode: qtState.atr > 0 ? S.slMode : 'DOLLAR',
     slD: S.dSl, tpD: S.dTp, atrSL: S.atrSL, atrRR: S.atrRR,
-    autoLot: S.autoLot, riskUsd: S.riskUsd
+    autoLot: S.autoLot, riskUsd: S.riskUsd, ordType: S.mt5Type
   });
+  if(lastSignal && lastSignal.sym === qtState.sym) qtState.entry = lastSignal.live;
   drawQuick(); toast('Default values wapas aa gayi');
 }
 
 async function qtLive(){
-  const p = await getPrice(lastSignal.sym);
+  const p = await getPrice(qtState.sym);
   if(p){ qtState.entry = p; drawQuick(); toast('Live price update ho gaya') }
 }
 
-function confirmTrade(){
-  const sym = lastSignal.sym, q = qtState;
+async function confirmTrade(){
+  const q = qtState, sym = q.sym;
   if(!q.entry || !q.lots){ toast('Entry aur lots bharo'); return }
   const {lv, sl, tp} = qtCalc();
   if(!lv.slD || !lv.tpD){ toast('SL/TP zero hai — values check karo'); return }
-  if(lv.clamped && !confirm(`Is trade ka risk $${lv.slD} hai, tumhara target $${q.riskUsd} tha.\n\nMinimum lot 0.01 ki wajah se risk badh gaya hai.\n\nPhir bhi lagana hai?`)) return;
+  if(lv.clamped && !confirm(`Is trade ka risk $${lv.slD} hai, target $${q.riskUsd} tha.\n\nMinimum lot 0.01 ki wajah se risk badh gaya.\n\nPhir bhi lagana hai?`)) return;
+
+  if(q.target === 'MT5'){
+    closeSheet('qtSheet');
+    await sendMT5(sym, q.dir, lv.lots, q.entry, sl, tp, q.ordType);
+    return;
+  }
   addTrade({
     sym, dir: q.dir, lots: lv.lots, entry: q.entry, sl, tp,
-    slD: lv.slD, tpD: lv.tpD, q: lastSignal.q, grade: lastSignal.grade
+    slD: lv.slD, tpD: lv.tpD, q: q.qual, grade: q.grade
   });
   closeSheet('qtSheet');
 }
@@ -1725,20 +1782,10 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
 }
 
 /* signal card ka button */
-async function sendSignalMT5(){
-  const s = lastSignal;
-  if(!s || s.dir === 'NEUTRAL'){ toast('Pehle valid signal analyze karo'); return }
-  const btn = event && event.target;
-  if(btn) btn.innerHTML = '<span class="spin"></span>';
-  await sendMT5(s.sym, s.dir, s.lots, s.live, s.sl, s.tp);
-  if(btn) btn.textContent = '🚀 MT5';
-}
+function sendSignalMT5(){ openQuick('MT5'); }
 
 /* kisi bhi open trade ko dobara MT5 pe bhejo */
-async function resendMT5(id){
-  const t = S.open.find(x => x.id === id); if(!t) return;
-  await sendMT5(t.sym, t.dir, t.lots, t.entry, t.sl, t.tp);
-}
+function resendMT5(id){ openMt5FromTrade(id); }
 
 async function testBridge(){
   const box = $('fbOut');
