@@ -154,6 +154,7 @@ tr:last-child td{border-bottom:none}
 .pb{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:12px 6px;text-align:center}
 .pb b{display:block;font-size:19px;line-height:1.1;font-family:ui-monospace,Menlo,monospace}
 .pb span{display:block;font-size:8.5px;color:var(--mut);letter-spacing:1.3px;font-weight:700;margin-top:5px}
+.pb em{display:block;font-style:normal;font-size:8.5px;color:var(--dim);margin-top:3px;letter-spacing:.2px}
 .ptot{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:15px;text-align:center}
 .ptot b{display:block;font-size:27px;font-family:ui-monospace,Menlo,monospace;line-height:1}
 .ptot span{display:block;font-size:9px;color:var(--mut);letter-spacing:1.6px;font-weight:700;margin-top:6px}
@@ -485,7 +486,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '2.12.0';
+const VERSION = '2.13.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1507,25 +1508,31 @@ function renderTrades(){
 
 function renderPerf(){
   const H = S.hist;
-  const tp = H.filter(t => t.reason === 'TP').length;
-  const sl = H.filter(t => t.reason === 'SL').length;
-  const mn = H.filter(t => t.reason === 'MANUAL').length;
-  const decided = tp + sl;
-  const acc = decided ? (tp / decided * 100) : 0;
+
+  /* nateeje ke hisaab se ginti — manual close bhi win/loss me jaata hai */
+  const win  = H.filter(t => t.pl > 0);
+  const loss = H.filter(t => t.pl < 0);
+  const flat = H.filter(t => t.pl === 0);
+
+  const tpHit = H.filter(t => t.reason === 'TP').length;
+  const slHit = H.filter(t => t.reason === 'SL').length;
+  const mWin  = win.filter(t => t.reason === 'MANUAL').length;
+  const mLoss = loss.filter(t => t.reason === 'MANUAL').length;
+
+  const decided = win.length + loss.length;
+  const acc = decided ? (win.length / decided * 100) : 0;
   const total = H.reduce((a,t) => a + t.pl, 0);
 
-  /* expectancy R me: har trade ka P/L uske apne risk se bhaag */
   const Rs = H.map(t => (t.slD > 0 ? t.pl / t.slD : 0));
   const exp = Rs.length ? Rs.reduce((a,b) => a+b, 0) / Rs.length : 0;
 
-  /* abhi ke TP/SL pe kitna win rate chahiye sirf barabar rehne ko */
-  const rr = S.dTp / S.dSl;
-  const beWR = 100 / (1 + rr);
-
-  const wins = H.filter(t => t.pl > 0);
-  const loss = H.filter(t => t.pl < 0);
-  const avgW = wins.length ? wins.reduce((a,t)=>a+t.pl,0) / wins.length : 0;
+  const avgW = win.length  ? win.reduce((a,t)=>a+t.pl,0)  / win.length  : 0;
   const avgL = loss.length ? loss.reduce((a,t)=>a+t.pl,0) / loss.length : 0;
+
+  /* breakeven WR asli avg win/loss se — sirf setting se nahi */
+  const beWR = (avgW > 0 && avgL < 0)
+    ? (100 * Math.abs(avgL) / (avgW + Math.abs(avgL)))
+    : (100 / (1 + S.dTp / S.dSl));
 
   $('perfN').textContent = H.length ? `${H.length} closed` : '—';
 
@@ -1536,10 +1543,9 @@ function renderPerf(){
 
   const accCol = acc >= beWR ? 'var(--up)' : 'var(--dn)';
   const warn = decided >= 5 && acc < beWR
-    ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Abhi TP $${S.dTp} / SL $${S.dSl} hai — sirf barabar rehne ke liye <b>${beWR.toFixed(1)}%</b> win rate chahiye, aur tumhara <b>${acc.toFixed(1)}%</b> hai. Ek SL ${(1/rr).toFixed(1)} TP kha jaata hai.</p>`
+    ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Avg win $${avgW.toFixed(2)} aur avg loss ${money(avgL)} pe barabar rehne ke liye <b>${beWR.toFixed(0)}%</b> win rate chahiye, tumhara <b>${acc.toFixed(0)}%</b> hai. Ya TP bada karo, ya SL chhoti.</p>`
     : '';
 
-  /* pair-wise table */
   const byPair = {};
   H.forEach(t => {
     const k = t.sym;
@@ -1555,9 +1561,12 @@ function renderPerf(){
       <div class="pb"><b style="color:${exp>=0?'var(--up)':'var(--dn)'}">${exp>=0?'+':''}${exp.toFixed(2)}R</b><span>EXPECTANCY</span></div>
     </div>
     <div class="perf">
-      <div class="pb"><b class="up">${tp}</b><span>TP HIT</span></div>
-      <div class="pb"><b class="dn">${sl}</b><span>SL HIT</span></div>
-      <div class="pb"><b style="color:var(--gold)">${S.open.length}</b><span>PENDING</span></div>
+      <div class="pb"><b class="up">${win.length}</b><span>WIN</span>
+        <em>${tpHit} TP${mWin?` + ${mWin} manual`:''}</em></div>
+      <div class="pb"><b class="dn">${loss.length}</b><span>LOSS</span>
+        <em>${slHit} SL${mLoss?` + ${mLoss} manual`:''}</em></div>
+      <div class="pb"><b style="color:var(--mut)">${flat.length}</b><span>BREAKEVEN</span>
+        <em>0.00 pe band</em></div>
     </div>
     <div class="perf">
       <div class="pb"><b class="up" style="font-size:15px">${money(avgW)}</b><span>AVG WIN</span></div>
@@ -1568,6 +1577,7 @@ function renderPerf(){
       <b style="color:${total>=0?'var(--up)':'var(--dn)'}">${total>=0?'+':''}${money(total)}</b>
       <span>TOTAL P/L</span>
     </div>
+    <p class="hint" style="margin-top:9px">${win.length} + ${loss.length}${flat.length?` + ${flat.length}`:''} = ${H.length} closed · abhi ${S.open.length} open hain (inka hisaab upar Live P&amp;L me hai)</p>
     ${warn}
     <p class="ttl" style="margin:16px 0 8px">Pair Wise</p>
     <table><thead><tr><th>Pair</th><th style="text-align:right">Trades</th><th style="text-align:right">Win%</th><th style="text-align:right">P/L</th></tr></thead>
@@ -1576,8 +1586,7 @@ function renderPerf(){
       <td class="mono" style="text-align:right">${v.n}</td>
       <td class="mono" style="text-align:right">${Math.round(v.w/v.n*100)}%</td>
       <td class="mono ${v.pl>=0?'up':'dn'}" style="text-align:right">${money(v.pl)}</td>
-    </tr>`).join('')}</tbody></table>
-    ${mn ? `<p class="hint">${mn} trade manually band kiye gaye — wo accuracy me count nahi hote.</p>` : ''}`;
+    </tr>`).join('')}</tbody></table>`;
 }
 
 function editTrade(id){
