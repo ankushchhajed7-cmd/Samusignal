@@ -264,6 +264,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 <section id="pgMarket" class="hide">
   <div class="card">
     <p class="ttl">Market Overview <span class="sp" id="mktT">—</span></p>
+    <div class="chips" id="mktChips" style="margin-bottom:12px"></div>
     <table><thead><tr><th>Pair</th><th style="text-align:right">Price</th><th style="text-align:right">Change</th><th style="text-align:right">Bias</th></tr></thead>
     <tbody id="mktBody"><tr><td colspan="4" class="mu" style="text-align:center;padding:20px">Refresh dabao</td></tr></tbody></table>
     <button class="btn ghost sm" style="margin-top:12px" onclick="loadMarket()">Refresh Karo</button>
@@ -272,7 +273,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <p class="ttl">Pip &amp; Dollar Value Reference</p>
     <table><thead><tr><th>Pair</th><th style="text-align:right">1 Pip</th><th style="text-align:right">$/pip @ 0.01 lot</th></tr></thead>
     <tbody id="pipBody"></tbody></table>
-    <p class="hint">Exness micro accounts: XAUUSDm = 100 oz/lot, majors = 100,000 units/lot.</p>
+    <p class="hint">Exness micro: XAUUSDm = 100 oz/lot, forex = 100,000 units/lot. "~" matlab live rate abhi aaya nahi, approx value hai.</p>
   </div>
 </section>
 
@@ -399,24 +400,40 @@ const LS = {
    quoteUSD = true agar quote currency USD hai
    pip      = 1 pip ka price move
 ------------------------------------------------------------------- */
+const FX = [
+  'EUR/USD','GBP/USD','USD/JPY','USD/CHF','USD/CAD','AUD/USD','NZD/USD',
+  'EUR/JPY','EUR/GBP','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD',
+  'GBP/JPY','GBP/CHF','GBP/CAD','GBP/AUD','GBP/NZD',
+  'AUD/JPY','AUD/CHF','AUD/CAD','AUD/NZD',
+  'NZD/JPY','NZD/CHF','NZD/CAD',
+  'CAD/CHF','CAD/JPY','CHF/JPY'
+];
 const SPECS = {
-  'XAU/USD':{n:'XAUUSD', d:2, pip:0.10, contract:100,    quoteUSD:true,  tv:'OANDA:XAUUSD', ccy:['XAU','USD']},
-  'XAG/USD':{n:'XAGUSD', d:3, pip:0.01, contract:5000,   quoteUSD:true,  tv:'OANDA:XAGUSD', ccy:['XAG','USD']},
-  'EUR/USD':{n:'EURUSD', d:5, pip:0.0001,contract:100000,quoteUSD:true,  tv:'FX:EURUSD',   ccy:['EUR','USD']},
-  'GBP/USD':{n:'GBPUSD', d:5, pip:0.0001,contract:100000,quoteUSD:true,  tv:'FX:GBPUSD',   ccy:['GBP','USD']},
-  'AUD/USD':{n:'AUDUSD', d:5, pip:0.0001,contract:100000,quoteUSD:true,  tv:'FX:AUDUSD',   ccy:['AUD','USD']},
-  'NZD/USD':{n:'NZDUSD', d:5, pip:0.0001,contract:100000,quoteUSD:true,  tv:'FX:NZDUSD',   ccy:['NZD','USD']},
-  'USD/JPY':{n:'USDJPY', d:3, pip:0.01,  contract:100000,quoteUSD:false, tv:'FX:USDJPY',   ccy:['USD','JPY']},
-  'USD/CHF':{n:'USDCHF', d:5, pip:0.0001,contract:100000,quoteUSD:false, tv:'FX:USDCHF',   ccy:['USD','CHF']},
-  'USD/CAD':{n:'USDCAD', d:5, pip:0.0001,contract:100000,quoteUSD:false, tv:'FX:USDCAD',   ccy:['USD','CAD']},
-  'EUR/JPY':{n:'EURJPY', d:3, pip:0.01,  contract:100000,quoteUSD:false, tv:'FX:EURJPY',   ccy:['EUR','JPY']},
-  'GBP/JPY':{n:'GBPJPY', d:3, pip:0.01,  contract:100000,quoteUSD:false, tv:'FX:GBPJPY',   ccy:['GBP','JPY']},
-  'EUR/GBP':{n:'EURGBP', d:5, pip:0.0001,contract:100000,quoteUSD:false, tv:'FX:EURGBP',   ccy:['EUR','GBP']},
-  'BTC/USD':{n:'BTCUSD', d:2, pip:1,     contract:1,     quoteUSD:true,  tv:'BITSTAMP:BTCUSD', ccy:['BTC','USD']},
-  'ETH/USD':{n:'ETHUSD', d:2, pip:0.1,   contract:1,     quoteUSD:true,  tv:'BITSTAMP:ETHUSD', ccy:['ETH','USD']}
+  'XAU/USD':{n:'XAUUSD', d:2, pip:0.10, contract:100, tv:'OANDA:XAUUSD', ccy:['XAU','USD']}
 };
+FX.forEach(pr => {
+  const [b,q] = pr.split('/');
+  const jpy = (q === 'JPY');
+  SPECS[pr] = {
+    n: b+q, d: jpy?3:5, pip: jpy?0.01:0.0001,
+    contract: 100000, tv: 'OANDA:'+b+q, ccy: [b,q]
+  };
+});
+SPECS['BTC/USD'] = {n:'BTCUSD', d:2, pip:1,   contract:1, tv:'BITSTAMP:BTCUSD', ccy:['BTC','USD']};
+SPECS['ETH/USD'] = {n:'ETHUSD', d:2, pip:0.1, contract:1, tv:'BITSTAMP:ETHUSD', ccy:['ETH','USD']};
+
 const PAIRS = Object.keys(SPECS);
 const MAJORS = ['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','XAU/USD'];
+
+/* Market page ke groups — har group max 8 symbol = max 8 credits */
+const GROUPS = {
+  'Majors':    ['XAU/USD','EUR/USD','GBP/USD','USD/JPY','USD/CHF','USD/CAD','AUD/USD','NZD/USD'],
+  'EUR Cross': ['EUR/JPY','EUR/GBP','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD'],
+  'GBP Cross': ['GBP/JPY','GBP/CHF','GBP/CAD','GBP/AUD','GBP/NZD'],
+  'AUD / NZD': ['AUD/JPY','AUD/CHF','AUD/CAD','AUD/NZD','NZD/JPY','NZD/CHF','NZD/CAD'],
+  'CAD / CHF': ['CAD/CHF','CAD/JPY','CHF/JPY'],
+  'Crypto':    ['BTC/USD','ETH/USD']
+};
 
 /* 1 unit of quote-currency = kitne USD */
 function quoteToUsd(ccy){
@@ -465,14 +482,17 @@ let S = {
   dSl:   LS.get('dSl',2.5),
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
+  mktG:  LS.get('mktG','Majors'),
   bad:   LS.get('bad',[]),
+  px:    LS.get('px',{}),
   open:  LS.get('open',[]),
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','bad','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','chartTf','mktG','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 let lastSignal = null;
+let mktLoaded = false;
 let prices = {};   // sym -> {p, chg}
 
 /* ---------- ui helpers ---------- */
@@ -485,7 +505,7 @@ function go(pg,btn){
   ['Signals','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
-  if(pg==='Market') loadMarket();
+  if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades') renderTrades();
   if(pg==='Alerts') renderLog();
 }
@@ -589,13 +609,16 @@ async function getQuotes(syms, note){
   if(!need.length) return fresh;
   const j = await td(`/quote?symbol=${encodeURIComponent(need.join(','))}`, need.length, need.join(','), note);
   const out = Object.assign({}, fresh);
+  const stamp = () => { LS.set('px', S.px); };
   const rows = (need.length === 1) ? {[need[0]]: j} : j;
   for(const k in rows){
     const q = rows[k];
     if(!q || !q.close) continue;
     out[k] = { p: +q.close, chg: +(q.percent_change || 0), hi:+q.high, lo:+q.low, o:+q.open };
     QCACHE[k] = { t: now, d: out[k] };
+    S.px[k] = { p: out[k].p, chg: out[k].chg, t: now };
   }
+  stamp();
   return out;
 }
 
@@ -716,6 +739,8 @@ async function runAnalyze(){
     const base0 = res[S.tf] || res[wanted[0]];
     const live = base0.price;                 /* last close use karo — 1 credit bachta hai */
     prices[sym] = Object.assign(prices[sym]||{}, {p:live});
+    S.px[sym] = Object.assign({}, S.px[sym]||{}, {p:live, t:Date.now()});
+    LS.set('px', S.px); buildTicker();
 
     const base = base0;
     const h4 = res['4h'], d1 = res['1day'], h1 = res['1h'];
@@ -759,7 +784,7 @@ async function runAnalyze(){
   }catch(e){
     if(e.code === 404){ markBad(sym); }
     const tip = e.code === 404
-      ? `<br><br>Ye pair list me ab <b>(locked)</b> dikhega. Free plan pe XAG/USD, XAU/USD jaise metals aksar band hote hain — koi major pair (EUR/USD, GBP/USD, USD/JPY) try karo.`
+      ? `<br><br>Ye pair list me ab <b>(locked)</b> dikhega. Free plan pe metals aur kuch exotic crosses band hote hain — koi major pair (EUR/USD, GBP/USD, USD/JPY) try karo.`
       : e.code === 429 ? `<br><br>Thoda ruk ke dobara Analyze dabao.` : '';
     $('cardSignal').innerHTML = `<p class="ttl">Signal</p><p class="hint" style="color:var(--dn)">${e.message}${tip}</p>`;
   }
@@ -839,12 +864,12 @@ async function loadStrength(){
 /* ---------------- market ---------------- */
 async function loadMarket(){
   if(needKey()) return;
+  const list = (GROUPS[S.mktG] || GROUPS['Majors']).filter(x=>!isBad(x));
   $('mktT').innerHTML = '<span class="spin"></span>';
   try{
-    const list = MAJORS.filter(x=>!isBad(x));
     const q = await getQuotes(list, sec => $('mktT').textContent = sec+'s');
     Object.assign(prices, q);
-    $('mktBody').innerHTML = PAIRS.map(sym=>{
+    $('mktBody').innerHTML = (GROUPS[S.mktG]||[]).map(sym=>{
       const d = q[sym];
       if(isBad(sym)) return `<tr><td class="mono">${sym}</td><td colspan="3" class="mu" style="text-align:right">plan me nahi</td></tr>`;
       if(!d) return `<tr><td class="mono">${sym}</td><td colspan="3" class="mu" style="text-align:right">—</td></tr>`;
@@ -857,36 +882,75 @@ async function loadMarket(){
       </tr>`;
     }).join('');
     $('mktT').textContent = t12(Date.now());
-    buildTicker();
-  }catch(e){ $('mktT').textContent='error'; toast(e.message) }
+    buildTicker(); buildPipTable();
+  }catch(e){
+    $('mktT').textContent='error';
+    if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
+    toast(e.message);
+  }
 }
 
 function buildPipTable(){
   $('pipBody').innerHTML = PAIRS.map(sym=>{
-    const s = SPECS[sym];
-    const px = (prices[sym] && prices[sym].p) || refPrice(sym);
+    const sp = SPECS[sym];
+    const live = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p);
+    const px = live || refPrice(sym);
     const v = usdPerPip(sym, px, 0.01);
-    return `<tr><td class="mono"><b>${s.n}</b></td>
-      <td class="mono" style="text-align:right">${s.pip}</td>
-      <td class="mono up" style="text-align:right">$${v.toFixed(3)}</td></tr>`;
+    const approx = live ? '' : '~';
+    return `<tr><td class="mono"><b>${sp.n}</b>${isBad(sym)?' <span class="mu" style="font-size:10px">locked</span>':''}</td>
+      <td class="mono" style="text-align:right">${sp.pip}</td>
+      <td class="mono up" style="text-align:right">${approx}$${v.toFixed(3)}</td></tr>`;
   }).join('');
 }
 /* fallback reference prices sirf pip-table ke liye */
 function refPrice(sym){
-  return {'XAU/USD':3300,'XAG/USD':38,'EUR/USD':1.09,'GBP/USD':1.27,'AUD/USD':0.66,'NZD/USD':0.60,
-    'USD/JPY':150,'USD/CHF':0.88,'USD/CAD':1.36,'EUR/JPY':163,'GBP/JPY':190,'EUR/GBP':0.85,
-    'BTC/USD':95000,'ETH/USD':3200}[sym] || 1;
+  return {'XAU/USD':3300,'EUR/USD':1.09,'GBP/USD':1.27,'AUD/USD':0.66,'NZD/USD':0.60,
+    'USD/JPY':150,'USD/CHF':0.88,'USD/CAD':1.36,'BTC/USD':95000,'ETH/USD':3200}[sym] || 1;
 }
 
+/* ticker sirf 5 symbols = 5 credits */
+const TICKER = ['XAU/USD','EUR/USD','GBP/USD','USD/JPY','BTC/USD'];
+
 function buildTicker(){
-  const list = MAJORS.map(sym=>{
-    const d = prices[sym];
-    if(!d) return `<span>${sym} <b class="mono">—</b></span>`;
-    const up = (d.chg||0) >= 0;
-    return `<span>${sym} <b class="mono" style="color:${up?'var(--up)':'var(--dn)'}">${up?'▲':'▼'} ${fmt(sym,d.p)}</b></span>`;
+  let newest = 0;
+  const list = TICKER.filter(x=>!isBad(x)).map(sym=>{
+    const d = S.px[sym] || prices[sym];
+    if(!d || !d.p) return `<span>${sym} <b class="mono" style="color:var(--dim)">—</b></span>`;
+    if(d.t && d.t > newest) newest = d.t;
+    const c = d.chg || 0, up = c >= 0;
+    const col = c === 0 ? 'var(--txt)' : up ? 'var(--up)' : 'var(--dn)';
+    const ar  = c === 0 ? '' : (up ? '▲' : '▼');
+    return `<span>${sym} <b class="mono" style="color:${col}">${ar} ${fmt(sym,d.p)}</b></span>`;
   }).join('');
-  $('tick').innerHTML = list + list;
+  const age = newest
+    ? `<span style="color:var(--dim)">⟳ ${t12(newest)} · tap to refresh</span>`
+    : `<span style="color:var(--gold)">⟳ tap karke rate lao</span>`;
+  const full = list + age;
+  $('tick').innerHTML = full + full;
 }
+
+let tickBusy = false;
+async function refreshTicker(force){
+  if(tickBusy || !S.key) return;
+  const syms = TICKER.filter(x=>!isBad(x));
+  const oldest = Math.min(...syms.map(x => (S.px[x] && S.px[x].t) || 0));
+  const stale  = Date.now() - oldest > 120000;
+  if(!force && !stale) return;
+  if(!force && creditsLeft() < syms.length + 2) return;   /* analysis ke liye credits bachao */
+  tickBusy = true;
+  $('tick').style.opacity = '.5';
+  try{
+    const q = await getQuotes(syms, sec => toast(`API limit — ${sec} sec me rate aayega`));
+    Object.assign(prices, q);
+    buildTicker();
+  }catch(e){
+    if(e.code === 404 && e.sym) e.sym.split(',').forEach(markBad);
+    toast(e.message);
+  }
+  $('tick').style.opacity = '1';
+  tickBusy = false;
+}
+document.querySelector('.tickwrap').addEventListener('click', () => refreshTicker(true));
 
 /* ---------------- chart ---------------- */
 function setChart(sym){
@@ -1265,6 +1329,15 @@ function boot(){
     $('tfChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('gold', c===b));
   };
 
+  $('mktChips').innerHTML = Object.keys(GROUPS).map(g=>
+    `<button class="chip ${g===S.mktG?'on':''}" data-g="${g}">${g}</button>`).join('');
+  $('mktChips').onclick = e => {
+    const b = e.target.closest('[data-g]'); if(!b) return;
+    S.mktG = b.dataset.g; save();
+    $('mktChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
+    loadMarket();
+  };
+
   $('chartTf').innerHTML = TFS.map(t=>`<button class="chip ${t.tv===S.chartTf?'on':''}" data-ctf="${t.tv}">${t.l}</button>`).join('');
   $('chartTf').onclick = e => {
     const b = e.target.closest('[data-ctf]'); if(!b) return;
@@ -1286,7 +1359,7 @@ function boot(){
   renderTrades();
   renderLog();
   showCredits();
-  if(S.key) refreshOpen();
+  if(S.key){ refreshOpen(); setTimeout(()=>refreshTicker(false), 1200); }
 }
 boot();
 
