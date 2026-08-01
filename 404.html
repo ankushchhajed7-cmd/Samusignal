@@ -187,15 +187,32 @@ tr:last-child td{border-bottom:none}
 .ptot b{display:block;font-size:27px;line-height:1}
 .ptot span{display:block;font-size:9px;color:var(--dim);letter-spacing:1.6px;font-weight:700;margin-top:6px}
 
+.vbar{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin:12px 0 8px}
+.vbar i{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
+  color:#0d0d0d;font-style:normal;letter-spacing:.5px;transition:width .5s}
+.vote3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.vc{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:13px 5px;text-align:center}
+.vc b{display:block;font-size:24px;line-height:1}
+.vc span{display:block;font-size:9px;color:var(--dim);letter-spacing:1.4px;font-weight:700;margin-top:5px}
+.vc.b{border-color:rgba(0,255,150,.45)} .vc.s{border-color:rgba(255,68,68,.45)}
+.ag{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #1a1a1a;font-size:11px}
+.ag:last-child{border:none}
+.ag .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag .gp{font-size:8.5px;color:var(--dim);letter-spacing:.5px}
+.ag .vt{width:44px;text-align:center;padding:3px 0;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px}
+.ag .vt.b{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.35)}
+.ag .vt.s{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.35)}
+.ag .vt.h{background:rgba(119,119,119,.12);color:var(--mut);border:1px solid var(--line)}
+
 .empty{text-align:center;padding:26px 12px;color:var(--mut);font-size:12px}
 .empty div{font-size:30px;margin-bottom:8px;opacity:.4}
 
 /* ---------- nav ---------- */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);
   border-top:1px solid var(--line);display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px;
-  font-size:9px;font-weight:700;letter-spacing:1px;color:var(--dim)}
-nav button i{font-style:normal;font-size:17px;filter:grayscale(1);opacity:.45}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 1px;
+  font-size:8px;font-weight:700;letter-spacing:.6px;color:var(--dim)}
+nav button i{font-style:normal;font-size:16px;filter:grayscale(1);opacity:.45}
 nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 .badge{position:absolute;top:2px;margin-left:20px;background:var(--dn);color:#000;font-size:8px;
   min-width:15px;height:15px;border-radius:99px;display:grid;place-items:center;padding:0 3px}
@@ -311,6 +328,19 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   </div>
 </section>
 
+<!-- ============ VOTES ============ -->
+<section id="pgVotes" class="hide">
+  <div class="card">
+    <p class="ttl">AI Agent Voting <span class="sp" id="voteT">—</span></p>
+    <div id="voteBox"></div>
+  </div>
+  <div class="card" id="voteListCard">
+    <p class="ttl">50 Agents <span class="sp" id="voteFilt">sab</span></p>
+    <div class="chips" id="voteChips" style="margin-bottom:12px"></div>
+    <div id="voteList"></div>
+  </div>
+</section>
+
 <!-- ============ MARKET ============ -->
 <section id="pgMarket" class="hide">
   <div class="card">
@@ -328,12 +358,6 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
     <p class="hint">+1 ke paas = dono saath chalte hain (hedge ke liye ulti direction lo). −1 ke paas = ulta chalte hain (wahi direction lo).</p>
   </div>
 
-  <div class="card">
-    <p class="ttl">Pip &amp; Dollar Value Reference</p>
-    <table><thead><tr><th>Pair</th><th style="text-align:right">1 Pip</th><th style="text-align:right">$/pip @ 0.01 lot</th></tr></thead>
-    <tbody id="pipBody"></tbody></table>
-    <p class="hint">Exness micro: XAUUSDm = 100 oz/lot, forex = 100,000 units/lot. "~" matlab live rate abhi aaya nahi, approx value hai.</p>
-  </div>
 </section>
 
 <!-- ============ TRADES ============ -->
@@ -403,6 +427,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 
 <nav>
   <button class="on" data-pg="Signals" onclick="go('Signals',this)"><i>📡</i>SIGNALS</button>
+  <button data-pg="Votes" onclick="go('Votes',this)"><i>🗳</i>VOTES</button>
   <button data-pg="Market" onclick="go('Market',this)"><i>📊</i>MARKET</button>
   <button data-pg="Trades" onclick="go('Trades',this)"><i>💼</i>TRADES</button>
   <button data-pg="Alerts" onclick="go('Alerts',this)"><i>🔔</i>ALERTS</button>
@@ -540,7 +565,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '3.2.0';
+const VERSION = '3.3.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -698,6 +723,7 @@ if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); L
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
 
 let lastSignal = null;
+let lastVotes = null;
 let mktLoaded = false;
 let prices = {};   // sym -> {p, chg}
 
@@ -708,9 +734,10 @@ function openSheet(id){ $(id).classList.add('on') }
 function closeSheet(id){ $(id).classList.remove('on') }
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('on') }));
 function go(pg,btn){
-  ['Signals','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
+  ['Signals','Votes','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
+  if(pg==='Votes') renderVotes();
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
   if(pg==='Alerts') renderLog();
@@ -955,6 +982,42 @@ function macdH(c){
   return m.map((v,i)=>v-sig[i]);
 }
 const last = a => a[a.length-1];
+const sma = (a,n) => a.map((_,i) => i<n-1 ? a[i] : a.slice(i-n+1,i+1).reduce((x,y)=>x+y,0)/n);
+const hh = (b,n) => Math.max(...b.slice(-n).map(x=>x.h));
+const ll = (b,n) => Math.min(...b.slice(-n).map(x=>x.l));
+function stdev(a,n){
+  const s2 = a.slice(-n), m = s2.reduce((x,y)=>x+y,0)/n;
+  return Math.sqrt(s2.reduce((x,y)=>x+(y-m)*(y-m),0)/n);
+}
+function stoch(b,n){
+  const h = hh(b,n), l = ll(b,n), c = last(b).c;
+  return h===l ? 50 : (c-l)/(h-l)*100;
+}
+function cci(b,n){
+  const tp = b.map(x=>(x.h+x.l+x.c)/3);
+  const m = tp.slice(-n).reduce((x,y)=>x+y,0)/n;
+  const md = tp.slice(-n).reduce((x,y)=>x+Math.abs(y-m),0)/n;
+  return md===0 ? 0 : (last(tp)-m)/(0.015*md);
+}
+function adx(b,n){
+  let pdm=0, ndm=0, tr=0;
+  for(let i=b.length-n;i<b.length;i++){
+    if(i<1) continue;
+    const up = b[i].h-b[i-1].h, dn = b[i-1].l-b[i].l;
+    if(up>dn && up>0) pdm+=up;
+    if(dn>up && dn>0) ndm+=dn;
+    tr += Math.max(b[i].h-b[i].l, Math.abs(b[i].h-b[i-1].c), Math.abs(b[i].l-b[i-1].c));
+  }
+  if(!tr) return {adx:0,pdi:0,ndi:0};
+  const pdi = pdm/tr*100, ndi = ndm/tr*100;
+  const dx = (pdi+ndi)===0 ? 0 : Math.abs(pdi-ndi)/(pdi+ndi)*100;
+  return {adx:dx, pdi, ndi};
+}
+function psarUp(b){
+  /* halka parabolic-SAR approximation */
+  const c = b.map(x=>x.c), e = ema(c,5), e2 = ema(c,13);
+  return last(e) > last(e2);
+}
 
 /* ---------------- analyse one timeframe ---------------- */
 function tfBias(bars){
@@ -987,6 +1050,126 @@ const TFS = [
   {id:'1day', l:'1D',  tv:'D'}
 ];
 
+/* ================= 50 STRATEGY AGENTS =================
+   Har agent ek alag technical niyam hai. Ye LLM nahi hain —
+   ye 50 rule-based strategies hain jo apna-apna vote deti hain. */
+const B='BUY', SE='SELL', H='HOLD';
+const AGENTS = [
+ /* --- TREND (1-14) --- */
+ {n:'EMA 9/21 Cross',      g:'Trend', f:d=>{const a=last(ema(d.c,9)),b=last(ema(d.c,21)); return a>b*1.0002?B:a<b*0.9998?SE:H}},
+ {n:'EMA 20/50 Cross',     g:'Trend', f:d=>{const a=last(ema(d.c,20)),b=last(ema(d.c,50)); return a>b?B:a<b?SE:H}},
+ {n:'EMA 50/200 Cross',    g:'Trend', f:d=>{const a=last(ema(d.c,50)),b=last(ema(d.c,Math.min(200,d.c.length-1))); return a>b?B:a<b?SE:H}},
+ {n:'SMA 10/30 Cross',     g:'Trend', f:d=>{const a=last(sma(d.c,10)),b=last(sma(d.c,30)); return a>b?B:a<b?SE:H}},
+ {n:'Price vs EMA 50',     g:'Trend', f:d=>{const e=last(ema(d.c,50)); return d.p>e*1.0005?B:d.p<e*0.9995?SE:H}},
+ {n:'Price vs EMA 200',    g:'Trend', f:d=>{const e=last(ema(d.c,Math.min(200,d.c.length-1))); return d.p>e?B:d.p<e?SE:H}},
+ {n:'Supertrend 10/3',     g:'Trend', f:d=>d.st===1?B:SE},
+ {n:'Supertrend 7/2',      g:'Trend', f:d=>{const x=supertrend(d.b,7,2); return last(x.dir)===1?B:SE}},
+ {n:'Supertrend 14/4',     g:'Trend', f:d=>{const x=supertrend(d.b,14,4); return last(x.dir)===1?B:SE}},
+ {n:'MACD Histogram',      g:'Trend', f:d=>{const h=last(macdH(d.c)); return h>0?B:h<0?SE:H}},
+ {n:'MACD Momentum',       g:'Trend', f:d=>{const h=macdH(d.c); return last(h)>h[h.length-2]?B:SE}},
+ {n:'ADX Direction',       g:'Trend', f:d=>{const a=adx(d.b,14); if(a.adx<20)return H; return a.pdi>a.ndi?B:SE}},
+ {n:'ADX Strength',        g:'Trend', f:d=>{const a=adx(d.b,14); if(a.adx<25)return H; return a.pdi>a.ndi?B:SE}},
+ {n:'PSAR Proxy',          g:'Trend', f:d=>psarUp(d.b)?B:SE},
+
+ /* --- MOMENTUM (15-26) --- */
+ {n:'RSI 14 Zones',        g:'Momentum', f:d=>d.r>55?B:d.r<45?SE:H},
+ {n:'RSI Overbought/sold', g:'Momentum', f:d=>d.r<30?B:d.r>70?SE:H},
+ {n:'RSI 7 Fast',          g:'Momentum', f:d=>{const r=last(rsi(d.c,7)); return r>60?B:r<40?SE:H}},
+ {n:'RSI 21 Slow',         g:'Momentum', f:d=>{const r=last(rsi(d.c,21)); return r>52?B:r<48?SE:H}},
+ {n:'RSI Divergence',      g:'Momentum', f:d=>{const r=rsi(d.c,14),n=d.c.length-1;
+    const pUp=d.c[n]>d.c[n-5], rUp=r[n]>r[n-5];
+    return pUp&&!rUp?SE:!pUp&&rUp?B:H}},
+ {n:'Stochastic 14',       g:'Momentum', f:d=>{const k=stoch(d.b,14); return k<20?B:k>80?SE:H}},
+ {n:'Stochastic 5 Fast',   g:'Momentum', f:d=>{const k=stoch(d.b,5); return k>60?B:k<40?SE:H}},
+ {n:'CCI 20',              g:'Momentum', f:d=>{const c=cci(d.b,20); return c>100?B:c<-100?SE:H}},
+ {n:'CCI Zero Cross',      g:'Momentum', f:d=>{const c=cci(d.b,20); return c>0?B:SE}},
+ {n:'Williams %R',         g:'Momentum', f:d=>{const h=hh(d.b,14),l=ll(d.b,14);
+    const w=h===l?-50:(h-d.p)/(h-l)*-100; return w<-80?B:w>-20?SE:H}},
+ {n:'ROC 10',              g:'Momentum', f:d=>{const n=d.c.length-1,r=(d.c[n]-d.c[n-10])/d.c[n-10]*100;
+    return r>0.15?B:r<-0.15?SE:H}},
+ {n:'Momentum 20',         g:'Momentum', f:d=>{const n=d.c.length-1; return d.c[n]>d.c[n-20]?B:SE}},
+
+ /* --- VOLATILITY / CHANNEL (27-36) --- */
+ {n:'Bollinger 20/2',      g:'Volatility', f:d=>{const m=last(sma(d.c,20)),sd=stdev(d.c,20);
+    return d.p<m-2*sd?B:d.p>m+2*sd?SE:H}},
+ {n:'Bollinger Mid',       g:'Volatility', f:d=>{const m=last(sma(d.c,20)); return d.p>m?B:SE}},
+ {n:'BB Squeeze Break',    g:'Volatility', f:d=>{const sd=stdev(d.c,20),m=last(sma(d.c,20));
+    if(sd/m<0.0015) return H; return d.p>m?B:SE}},
+ {n:'Keltner Channel',     g:'Volatility', f:d=>{const m=last(ema(d.c,20));
+    return d.p>m+1.5*d.a?B:d.p<m-1.5*d.a?SE:H}},
+ {n:'Donchian 20',         g:'Volatility', f:d=>{const h=hh(d.b,20),l=ll(d.b,20);
+    return d.p>=h*0.999?B:d.p<=l*1.001?SE:H}},
+ {n:'Donchian 55',         g:'Volatility', f:d=>{const n=Math.min(55,d.b.length);
+    const h=hh(d.b,n),l=ll(d.b,n); return d.p>=h*0.999?B:d.p<=l*1.001?SE:H}},
+ {n:'ATR Expansion',       g:'Volatility', f:d=>{const t=atr(d.b,14),n=t.length-1;
+    if(t[n]<t[n-5]) return H; return d.p>d.c[d.c.length-2]?B:SE}},
+ {n:'Range Position',      g:'Volatility', f:d=>{const h=hh(d.b,30),l=ll(d.b,30);
+    const pos=h===l?.5:(d.p-l)/(h-l); return pos<0.25?B:pos>0.75?SE:H}},
+ {n:'Volatility Filter',   g:'Volatility', f:d=>{const pct=d.a/d.p*100;
+    if(pct<0.03||pct>2) return H; return d.p>last(ema(d.c,20))?B:SE}},
+ {n:'Std Dev Break',       g:'Volatility', f:d=>{const sd=stdev(d.c,20),m=last(sma(d.c,20));
+    return d.p>m+sd?B:d.p<m-sd?SE:H}},
+
+ /* --- PRICE ACTION (37-46) --- */
+ {n:'Higher Highs/Lows',   g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
+    const hi=b[n].h>b[n-2].h,lo=b[n].l>b[n-2].l;
+    return hi&&lo?B:!hi&&!lo?SE:H}},
+ {n:'Engulfing Candle',    g:'Price Action', f:d=>{const b=d.b,n=b.length-1,a=b[n],pv=b[n-1];
+    if(a.c>a.o&&pv.c<pv.o&&a.c>pv.o&&a.o<pv.c) return B;
+    if(a.c<a.o&&pv.c>pv.o&&a.c<pv.o&&a.o>pv.c) return SE; return H}},
+ {n:'Pin Bar',             g:'Price Action', f:d=>{const a=last(d.b),rg=a.h-a.l;
+    if(!rg) return H;
+    const lw=Math.min(a.o,a.c)-a.l, uw=a.h-Math.max(a.o,a.c);
+    return lw/rg>0.55?B:uw/rg>0.55?SE:H}},
+ {n:'Inside Bar Break',    g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
+    if(b[n-1].h<b[n-2].h&&b[n-1].l>b[n-2].l) return b[n].c>b[n-1].h?B:b[n].c<b[n-1].l?SE:H;
+    return H}},
+ {n:'3 Candle Trend',      g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
+    const up=[0,1,2].every(i=>b[n-i].c>b[n-i].o), dn=[0,1,2].every(i=>b[n-i].c<b[n-i].o);
+    return up?B:dn?SE:H}},
+ {n:'Body Strength',       g:'Price Action', f:d=>{const a=last(d.b),rg=a.h-a.l;
+    if(!rg) return H; const bd=(a.c-a.o)/rg; return bd>0.5?B:bd<-0.5?SE:H}},
+ {n:'Gap Direction',       g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
+    return b[n].o>b[n-1].c*1.0003?B:b[n].o<b[n-1].c*0.9997?SE:H}},
+ {n:'Close vs Open 5',     g:'Price Action', f:d=>{const b=d.b.slice(-5);
+    const up=b.filter(x=>x.c>x.o).length; return up>=4?B:up<=1?SE:H}},
+ {n:'Day High/Low Test',   g:'Price Action', f:d=>{const h=hh(d.b,24),l=ll(d.b,24),rg=h-l;
+    if(!rg) return H;
+    return (d.p-l)/rg<0.2?B:(h-d.p)/rg<0.2?SE:H}},
+ {n:'Pivot Point',         g:'Price Action', f:d=>{const b=d.b[d.b.length-2];
+    const pp=(b.h+b.l+b.c)/3; return d.p>pp?B:SE}},
+
+ /* --- MULTI TIMEFRAME (47-50) --- */
+ {n:'1H Trend Bias',       g:'Higher TF', f:d=>d.htf['1h']||H},
+ {n:'4H Trend Bias',       g:'Higher TF', f:d=>d.htf['4h']||H},
+ {n:'1D Trend Bias',       g:'Higher TF', f:d=>d.htf['1day']||H},
+ {n:'HTF Alignment',       g:'Higher TF', f:d=>{const v=['1h','4h','1day'].map(k=>d.htf[k]).filter(Boolean);
+    if(v.length<2) return H;
+    return v.every(x=>x===B)?B:v.every(x=>x===SE)?SE:H}}
+];
+
+function runAgents(bars, htfBias, price){
+  const c = bars.map(x=>x.c);
+  const st = supertrend(bars,10,3);
+  const d = {
+    b:bars, c, p:price || last(c),
+    r:last(rsi(c,14)), a:last(st.atr), st:last(st.dir),
+    htf: htfBias || {}
+  };
+  const out = AGENTS.map(ag => {
+    let v = H;
+    try{ v = ag.f(d) || H }catch(e){ v = H }
+    return {n:ag.n, g:ag.g, v};
+  });
+  const buy = out.filter(x=>x.v===B).length;
+  const sell = out.filter(x=>x.v===SE).length;
+  const hold = out.filter(x=>x.v===H).length;
+  const win = buy>sell ? B : sell>buy ? SE : H;
+  const lead = Math.max(buy,sell);
+  const conf = Math.round(lead / AGENTS.length * 100);
+  return {list:out, buy, sell, hold, verdict:win, conf};
+}
+
 /* ---------------- main analysis ---------------- */
 let busy = false;
 async function runAnalyze(){
@@ -1002,9 +1185,11 @@ async function runAnalyze(){
     const wanted = S.htf ? ['15min','1h','4h','1day'] : ['1h','4h'];
     if(!wanted.includes(S.tf)) wanted.unshift(S.tf);
     const res = {};
-    let done = 0;
+    let barsBase = null, done = 0;
     for(const tf of wanted){
-      res[tf] = tfBias(await getSeries(sym, tf, 120, note));
+      const bars = await getSeries(sym, tf, 120, note);
+      if(tf === S.tf || wanted[0] === tf) barsBase = barsBase || bars;
+      res[tf] = tfBias(bars);
       done++;
       btn.innerHTML = `<span class="spin"></span> ${done}/${wanted.length} timeframe`;
     }
@@ -1015,6 +1200,10 @@ async function runAnalyze(){
     LS.set('px', S.px); buildTicker();
 
     const base = base0;
+    const htfB = {};
+    ['1h','4h','1day'].forEach(k => { if(res[k]) htfB[k] = res[k].bias === 'NEUTRAL' ? 'HOLD' : res[k].bias });
+    lastVotes = runAgents(barsBase, htfB, live);
+    lastVotes.sym = sym; lastVotes.at = Date.now(); lastVotes.tf = S.tf;
     const h4 = res['4h'], d1 = res['1day'], h1 = res['1h'];
 
     /* --- quality score 0-100 --- */
@@ -1115,6 +1304,14 @@ function renderSignal(){
       </div>
       <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)}</p>
       ${newsBox}${weak}${warn}
+      ${lastVotes && lastVotes.sym===s.sym ? `<div style="display:flex;align-items:center;gap:8px;background:var(--panel);
+        border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-top:10px" onclick="go('Votes',document.querySelector('nav button[data-pg=Votes]'))">
+        <span style="font-size:10px;color:var(--mut);letter-spacing:1px">50 AGENTS</span>
+        <span class="mono up" style="font-size:12px">${lastVotes.buy}B</span>
+        <span class="mono mu" style="font-size:12px">${lastVotes.hold}H</span>
+        <span class="mono dn" style="font-size:12px">${lastVotes.sell}S</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--gold)">DEKHO ›</span>
+      </div>` : ''}
       <div class="acts">
         <button class="btn ${s.dir==='SELL'?'r':'g'} sm" style="flex:2" onclick="openQuick('APP')">Maine Ye Trade Liya</button>
         <button class="btn gold sm" onclick="sendSignalMT5()">🚀 MT5 pe Lagao</button>
@@ -1125,6 +1322,74 @@ function renderSignal(){
       </div>
     </div>`;
   setChart(s.sym);
+}
+
+/* ---------------- votes render ---------------- */
+let voteFilter = 'All';
+
+function renderVotes(){
+  const v = lastVotes;
+  if(!v){
+    $('voteT').textContent = '—';
+    $('voteBox').innerHTML = '<div class="empty"><div>🗳</div>Pehle Signals page pe koi pair Analyze karo.<br>50 agents apna vote yahan denge.</div>';
+    $('voteListCard').classList.add('hide');
+    return;
+  }
+  $('voteListCard').classList.remove('hide');
+  $('voteT').textContent = `${SPECS[v.sym].n} · ${v.tf} · ${t12(v.at)}`;
+
+  const T = AGENTS.length;
+  const bp = v.buy/T*100, sp = v.sell/T*100, hp = v.hold/T*100;
+  const vc = v.verdict==='BUY' ? 'var(--up)' : v.verdict==='SELL' ? 'var(--dn)' : 'var(--mut)';
+  const strength = v.conf>=70 ? 'STRONG' : v.conf>=50 ? 'MEDIUM' : 'WEAK';
+
+  $('voteBox').innerHTML = `
+    <div style="text-align:center;padding:6px 0 2px">
+      <b style="font-size:26px;color:${vc};letter-spacing:3px">${strength} ${v.verdict}</b>
+      <p class="hint" style="margin-top:4px">${Math.max(v.buy,v.sell)} / ${T} agents ek taraf · ${v.conf}% consensus</p>
+    </div>
+    <div class="vbar">
+      ${bp?`<i style="width:${bp}%;background:var(--up)">${v.buy}</i>`:''}
+      ${hp?`<i style="width:${hp}%;background:#3a3a3a;color:var(--mut)">${v.hold}</i>`:''}
+      ${sp?`<i style="width:${sp}%;background:var(--dn)">${v.sell}</i>`:''}
+    </div>
+    <div class="vote3">
+      <div class="vc b"><b class="up">${v.buy}</b><span>BUY VOTE</span></div>
+      <div class="vc"><b class="mu">${v.hold}</b><span>HOLD VOTE</span></div>
+      <div class="vc s"><b class="dn">${v.sell}</b><span>SELL VOTE</span></div>
+    </div>
+    ${lastSignal && lastSignal.sym===v.sym && lastSignal.dir!==v.verdict && v.verdict!=='HOLD'
+      ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Signal card <b>${lastSignal.dir}</b> keh raha hai, par agents <b>${v.verdict}</b> bol rahe hain. Aisa ho to ruk jaana behtar.</p>` : ''}
+    ${v.conf < 50 ? '<p class="hint" style="color:var(--gold);margin-top:8px">Agents ka mat bata hua hai — market shayad range me hai. Wait karna theek rahega.</p>' : ''}
+    <div class="grid2" style="margin-top:12px">
+      <button class="btn ghost sm" onclick="shareVotesWa()">WhatsApp</button>
+      <button class="btn ghost sm" onclick="tgSend(voteText())">Telegram</button>
+    </div>`;
+
+  const groups = ['All', ...new Set(AGENTS.map(a=>a.g))];
+  $('voteChips').innerHTML = groups.map(g =>
+    `<button class="chip ${voteFilter===g?'on':''}" onclick="voteFilter='${g}';renderVotes()">${g}</button>`).join('');
+  $('voteFilt').textContent = voteFilter === 'All' ? 'sab' : voteFilter;
+
+  const rows = v.list.filter(a => voteFilter==='All' || a.g===voteFilter);
+  const rank = {BUY:0, SELL:1, HOLD:2};
+  rows.sort((a,b) => rank[a.v]-rank[b.v]);
+  $('voteList').innerHTML = rows.map(a => `
+    <div class="ag">
+      <div class="nm">${a.n}<span class="gp"> · ${a.g}</span></div>
+      <div class="vt ${a.v==='BUY'?'b':a.v==='SELL'?'s':'h'}">${a.v}</div>
+    </div>`).join('');
+}
+
+function voteText(){
+  const v = lastVotes; if(!v) return '';
+  return `🗳 <b>SamuSignal — Agent Vote</b>\n\n<b>${SPECS[v.sym].n}</b> · ${v.tf}\n` +
+    `Verdict: <b>${v.verdict}</b> (${v.conf}% consensus)\n\n` +
+    `BUY: ${v.buy}\nHOLD: ${v.hold}\nSELL: ${v.sell}\n\n⏰ ${t12(v.at)}`;
+}
+function shareVotesWa(){
+  if(!lastVotes){ toast('Pehle analyze karo'); return }
+  window.open('https://wa.me/?text=' + encodeURIComponent(strip(voteText())), '_blank');
 }
 
 /* ---------------- NEWS (ForexFactory weekly feed) ---------------- */
@@ -1270,26 +1535,13 @@ async function loadMarket(){
       </tr>`;
     }).join('');
     $('mktT').textContent = t12(Date.now());
-    buildTicker(); buildPipTable();
-  }catch(e){
+    buildTicker();   }catch(e){
     $('mktT').textContent='error';
     if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
     toast(e.message);
   }
 }
 
-function buildPipTable(){
-  $('pipBody').innerHTML = PAIRS.map(sym=>{
-    const sp = SPECS[sym];
-    const live = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p);
-    const px = live || refPrice(sym);
-    const v = usdPerPip(sym, px, 0.01);
-    const approx = live ? '' : '~';
-    return `<tr><td class="mono"><b>${sp.n}</b>${isBad(sym)?' <span class="mu" style="font-size:10px">locked</span>':''}</td>
-      <td class="mono" style="text-align:right">${sp.pip}</td>
-      <td class="mono up" style="text-align:right">${approx}$${v.toFixed(3)}</td></tr>`;
-  }).join('');
-}
 /* fallback reference prices sirf pip-table ke liye */
 function refPrice(sym){
   return {'XAU/USD':3300,'EUR/USD':1.09,'GBP/USD':1.27,'AUD/USD':0.66,'NZD/USD':0.60,
@@ -1879,8 +2131,7 @@ async function refreshAll(){
         }
       });
       lastOpenSync = Date.now();
-      save(); buildTicker(); renderTrades(); buildPipTable();
-      const bad = (q.__failed||[]).length;
+      save(); buildTicker(); renderTrades();       const bad = (q.__failed||[]).length;
       toast(bad ? `${all.length-bad} update, ${bad} fail` : `${all.length} pairs ka rate aa gaya`);
       hits.forEach(([id,r])=>closeTrade(id,r));
     }
@@ -2294,8 +2545,7 @@ function saveSettings(){
   save(); closeSheet('setSheet');
   $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
   toast('Settings save ho gayi');
-  buildPipTable();
-}
+  }
 function resetCalc(){
   S.dTp = 1; S.dSl = 2.5; S.dLot = 0.01;
   $('setTp').value = 1; $('setSl').value = 2.5; $('setLot').value = 0.01;
@@ -2451,8 +2701,7 @@ function boot(){
   $('verBig').textContent = 'SamuSignal v' + VERSION;
   $('verMode').textContent = S.mt5Type;
   setChart(S.pair);
-  buildPipTable();
-  buildTicker();
+    buildTicker();
   renderSignal();
   renderTrades();
   renderLog();
