@@ -82,6 +82,26 @@ input:focus,select:focus{border-color:var(--gold)}
 .btn.ghost{background:var(--bg);color:var(--mut);border-color:var(--line)}
 .btn.sm{padding:9px 6px;font-size:11px;letter-spacing:.5px}
 
+/* custom pair picker — native dropdown ki jagah */
+.pick{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+  padding:10px 11px;color:var(--txt);text-align:left;display:flex;align-items:center;
+  font-size:13px;font-weight:700;letter-spacing:.5px}
+.pick:active{border-color:var(--blue)}
+.pick i{margin-left:auto;font-style:normal;color:var(--mut);font-size:11px}
+.pick.lock{color:var(--dim)}
+
+.plist{max-height:58vh;overflow-y:auto;margin:0 -14px;padding:0 14px}
+.pgrp{font-size:9px;color:var(--gold);letter-spacing:2px;font-weight:700;
+  padding:14px 2px 7px;position:sticky;top:0;background:var(--panel)}
+.prow{width:100%;display:flex;align-items:center;gap:10px;padding:12px 11px;margin-bottom:6px;
+  background:var(--bg);border:1px solid var(--line);border-radius:6px;
+  font-size:13px;font-weight:700;letter-spacing:1px;color:var(--txt);text-align:left}
+.prow.on{border-color:var(--blue);background:rgba(0,204,255,.1);color:var(--blue)}
+.prow.off{opacity:.4}
+.prow .px{margin-left:auto;font-size:11px;font-weight:400;color:var(--mut);letter-spacing:0}
+.prow .dot{width:15px;height:15px;border-radius:50%;border:1px solid var(--line);flex:0 0 auto}
+.prow.on .dot{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--bg),inset 0 0 0 9px var(--blue)}
+
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;padding:8px 13px;border-radius:6px;background:var(--panel);
@@ -254,7 +274,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div class="card">
     <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
     <div class="grid2" style="margin-bottom:10px">
-      <div><label>Pair</label><select id="selPair"></select></div>
+      <div><label>Pair</label><button class="pick" id="selPair" onclick="openPick('main')"></button></div>
       <div><label>Lots</label><input class="mono" id="inLots" type="number" step="0.01" value="0.01"></div>
     </div>
     <label>Timeframe</label>
@@ -303,7 +323,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div class="card">
     <p class="ttl">Correlation <span class="sp" id="corrT">estimate</span></p>
     <label>Kis pair ke against dekhna hai</label>
-    <select id="corrPair" style="margin-bottom:12px"></select>
+    <button class="pick" id="corrPair" style="margin-bottom:12px" onclick="openPick('corr')"></button>
     <div id="corrBox"></div>
     <p class="hint">+1 ke paas = dono saath chalte hain (hedge ke liye ulti direction lo). −1 ke paas = ulta chalte hain (wahi direction lo).</p>
   </div>
@@ -490,10 +510,16 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div id="hgBody"></div>
 </div></div>
 
+<div class="ov" id="pickSheet"><div class="sheet">
+  <div class="sh-h"><h3 id="pickTitle">Pair Chuno</h3><button onclick="closeSheet('pickSheet')">×</button></div>
+  <input id="pickSearch" placeholder="Search — eur, jpy, gold..." oninput="drawPick()" style="margin-bottom:10px">
+  <div class="plist" id="pickList"></div>
+</div></div>
+
 <div class="ov" id="mtSheet"><div class="sheet">
   <div class="sh-h"><h3>Manual Trade</h3><button onclick="closeSheet('mtSheet')">×</button></div>
   <div class="grid2" style="margin-bottom:10px">
-    <div><label>Pair</label><select id="mtPair"></select></div>
+    <div><label>Pair</label><button class="pick" id="mtPair" onclick="openPick('manual')"></button></div>
     <div><label>Direction</label><select id="mtDir"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
   </div>
   <div class="grid2" style="margin-bottom:10px">
@@ -514,7 +540,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '3.1.0';
+const VERSION = '3.2.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1524,18 +1550,19 @@ async function confirmTrade(){
 
 /* ---------------- manual trade ---------------- */
 function openManual(){
+  pickVal.manual = S.pair;
   fillPairs();
   $('mtLots').value = S.dLot; $('mtTp').value = S.dTp; $('mtSl').value = S.dSl;
-  const px = (prices[S.pair]&&prices[S.pair].p) || (lastSignal&&lastSignal.live) || refPrice(S.pair);
+  const px = (S.px[S.pair]&&S.px[S.pair].p) || (prices[S.pair]&&prices[S.pair].p) || (lastSignal&&lastSignal.live) || refPrice(S.pair);
   $('mtEntry').value = fmt(S.pair, px);
   mtCalc(); openSheet('mtSheet');
 }
-const MT_IDS = ['mtPair','mtDir','mtLots','mtEntry','mtTp','mtSl'];
+const MT_IDS = ['mtDir','mtLots','mtEntry','mtTp','mtSl'];
 ['input','change'].forEach(ev =>
   document.addEventListener(ev, e => { if(MT_IDS.includes(e.target.id)) mtCalc() })
 );
 function mtCalc(){
-  const sym=$('mtPair').value, dir=$('mtDir').value, entry=+$('mtEntry').value, lots=+$('mtLots').value||0.01;
+  const sym=pickVal.manual || S.pair, dir=$('mtDir').value, entry=+$('mtEntry').value, lots=+$('mtLots').value||0.01;
   const slD=+$('mtSl').value||0, tpD=+$('mtTp').value||0;
   if(!entry){ $('mtCalc').textContent='Entry price daalo'; return }
   const sd=dollarsToDist(sym,entry,lots,slD), td_=dollarsToDist(sym,entry,lots,tpD);
@@ -1543,7 +1570,7 @@ function mtCalc(){
   $('mtCalc').innerHTML = `SL <b class="mono dn">${fmt(sym,sl)}</b> (−$${slD}, ${(sd/SPECS[sym].pip).toFixed(1)} pips) · TP <b class="mono up">${fmt(sym,tp)}</b> (+$${tpD}, ${(td_/SPECS[sym].pip).toFixed(1)} pips) · R:R 1:${(tpD/(slD||1)).toFixed(2)}`;
 }
 function saveManual(){
-  const sym=$('mtPair').value, dir=$('mtDir').value, entry=+$('mtEntry').value, lots=+$('mtLots').value||0.01;
+  const sym=pickVal.manual || S.pair, dir=$('mtDir').value, entry=+$('mtEntry').value, lots=+$('mtLots').value||0.01;
   const slD=+$('mtSl').value, tpD=+$('mtTp').value;
   if(!entry||!slD||!tpD){ toast('Sab values bharo'); return }
   const sd=dollarsToDist(sym,entry,lots,slD), td_=dollarsToDist(sym,entry,lots,tpD);
@@ -2105,7 +2132,7 @@ function renderHedge(){
 }
 
 function renderCorrBrowser(){
-  const base = $('corrPair').value;
+  const base = pickVal.corr || S.pair;
   const rows = PAIRS.filter(q => q !== base && !isBad(q))
     .map(q => Object.assign({sym:q}, getCorr(base, q)))
     .sort((a,b) => b.v - a.v);
@@ -2283,10 +2310,66 @@ function wipeAll(){
 }
 
 /* ---------------- boot ---------------- */
+/* ---- custom pair picker ---- */
+let pickCtx = 'main';
+const pickVal = {main:null, manual:null, corr:null};
+
+function pickLabel(el, sym){
+  if(!el) return;
+  el.innerHTML = `<span>${sym}</span>${isBad(sym)?' <span style="font-size:9px;color:var(--dim);margin-left:6px">LOCKED</span>':''}<i>▼ CHANGE</i>`;
+  el.classList.toggle('lock', isBad(sym));
+}
 function fillPairs(){
-  const opt = p => `<option value="${p}" ${p===S.pair?'selected':''}>${p}${isBad(p)?'  (locked)':''}</option>`;
-  $('selPair').innerHTML = PAIRS.map(opt).join('');
-  if($('mtPair')) $('mtPair').innerHTML = PAIRS.filter(p=>!isBad(p)).map(opt).join('');
+  pickVal.main = pickVal.main || S.pair;
+  pickVal.manual = pickVal.manual || S.pair;
+  pickVal.corr = pickVal.corr || S.pair;
+  pickLabel($('selPair'), pickVal.main);
+  pickLabel($('mtPair'), pickVal.manual);
+  pickLabel($('corrPair'), pickVal.corr);
+}
+
+function openPick(ctx){
+  pickCtx = ctx;
+  $('pickTitle').textContent = ctx==='manual' ? 'Manual Trade — Pair' : ctx==='corr' ? 'Correlation — Base Pair' : 'Pair Chuno';
+  $('pickSearch').value = '';
+  drawPick();
+  openSheet('pickSheet');
+  setTimeout(() => { const a = $('pickList').querySelector('.prow.on'); if(a) a.scrollIntoView({block:'center'}) }, 60);
+}
+
+function drawPick(){
+  const q = ($('pickSearch').value || '').trim().toUpperCase().replace(/[^A-Z]/g,'');
+  const cur = pickVal[pickCtx];
+  let html = '';
+  for(const g in GROUPS){
+    const list = GROUPS[g].filter(p => !q || SPECS[p].n.includes(q) || (q==='GOLD' && p==='XAU/USD'));
+    if(!list.length) continue;
+    html += `<div class="pgrp">${g.toUpperCase()}</div>`;
+    html += list.map(p => {
+      const d = S.px[p] || prices[p];
+      return `<button class="prow ${p===cur?'on':''} ${isBad(p)?'off':''}" onclick="choosePick('${p}')">
+        <span class="dot"></span>${p}
+        <span class="px">${isBad(p) ? 'locked' : (d && d.p ? fmt(p,d.p) : '')}</span>
+      </button>`;
+    }).join('');
+  }
+  $('pickList').innerHTML = html || '<p class="hint" style="padding:20px 0;text-align:center">Koi pair nahi mila.</p>';
+}
+
+function choosePick(sym){
+  pickVal[pickCtx] = sym;
+  closeSheet('pickSheet');
+  if(pickCtx === 'main'){
+    S.pair = sym; save(); pickLabel($('selPair'), sym);
+    setChart(sym); lastSignal = null; renderSignal();
+  } else if(pickCtx === 'manual'){
+    pickLabel($('mtPair'), sym);
+    const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p) || refPrice(sym);
+    $('mtEntry').value = fmt(sym, px);
+    mtCalc();
+  } else {
+    pickLabel($('corrPair'), sym); renderCorrBrowser();
+  }
 }
 async function apiTest(){
   const box = $('apiOut'); box.classList.remove('hide');
@@ -2317,7 +2400,6 @@ function unlockAll(){
 }
 function boot(){
   fillPairs();
-  $('selPair').onchange = e => { S.pair = e.target.value; save(); setChart(S.pair); lastSignal=null; renderSignal(); };
   $('inLots').value = S.lots;
   $('inLots').onchange = e => { S.lots = +e.target.value||0.01; save() };
 
@@ -2329,8 +2411,6 @@ function boot(){
     $('tfChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('gold', c===b));
   };
 
-  $('corrPair').innerHTML = PAIRS.map(p=>`<option ${p===S.pair?'selected':''}>${p}</option>`).join('');
-  $('corrPair').onchange = renderCorrBrowser;
   renderCorrBrowser();
   renderNews();
 
