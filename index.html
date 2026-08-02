@@ -565,7 +565,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '3.3.0';
+const VERSION = '3.5.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1241,7 +1241,7 @@ async function runAnalyze(){
       at: Date.now()
     };
     renderSignal();
-    if(S.tgAuto && dir!=='NEUTRAL' && htfOk) tgSend(signalText(lastSignal), true);
+    if(S.tgAuto && dir!=='NEUTRAL' && htfOk) tgSend(fullReport(true), true);
   }catch(e){
     if(e.code === 404){ markBad(sym); }
     const tip = e.code === 404
@@ -1318,7 +1318,7 @@ function renderSignal(){
       </div>
       <div class="acts" style="margin-top:7px">
         <button class="btn ghost sm" onclick="shareWa()">WhatsApp</button>
-        <button class="btn ghost sm" onclick="tgSend(signalText(lastSignal))">Telegram</button>
+        <button class="btn ghost sm" onclick="tgSend(fullReport(true))">Telegram</button>
       </div>
     </div>`;
   setChart(s.sym);
@@ -1362,8 +1362,8 @@ function renderVotes(){
       ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Signal card <b>${lastSignal.dir}</b> keh raha hai, par agents <b>${v.verdict}</b> bol rahe hain. Aisa ho to ruk jaana behtar.</p>` : ''}
     ${v.conf < 50 ? '<p class="hint" style="color:var(--gold);margin-top:8px">Agents ka mat bata hua hai — market shayad range me hai. Wait karna theek rahega.</p>' : ''}
     <div class="grid2" style="margin-top:12px">
-      <button class="btn ghost sm" onclick="shareVotesWa()">WhatsApp</button>
-      <button class="btn ghost sm" onclick="tgSend(voteText())">Telegram</button>
+      <button class="btn ghost sm" onclick="shareWa()">WhatsApp</button>
+      <button class="btn ghost sm" onclick="tgSend(fullReport(true))">Telegram</button>
     </div>`;
 
   const groups = ['All', ...new Set(AGENTS.map(a=>a.g))];
@@ -1381,16 +1381,6 @@ function renderVotes(){
     </div>`).join('');
 }
 
-function voteText(){
-  const v = lastVotes; if(!v) return '';
-  return `🗳 <b>SamuSignal — Agent Vote</b>\n\n<b>${SPECS[v.sym].n}</b> · ${v.tf}\n` +
-    `Verdict: <b>${v.verdict}</b> (${v.conf}% consensus)\n\n` +
-    `BUY: ${v.buy}\nHOLD: ${v.hold}\nSELL: ${v.sell}\n\n⏰ ${t12(v.at)}`;
-}
-function shareVotesWa(){
-  if(!lastVotes){ toast('Pehle analyze karo'); return }
-  window.open('https://wa.me/?text=' + encodeURIComponent(strip(voteText())), '_blank');
-}
 
 /* ---------------- NEWS (ForexFactory weekly feed) ---------------- */
 /* Feed 5 min me sirf 2 baar milta hai — isliye din me ek baar laakar cache karo */
@@ -1969,6 +1959,7 @@ function renderTrades(){
         <button class="btn ${pl<0?'gold':'ghost'} sm" onclick="openHedge('${t.id}')">⚖ Against</button>
         <button class="btn gold sm" onclick="resendMT5('${t.id}')">🚀 MT5</button>
         <button class="btn ghost sm" onclick="shareTradeWa('${t.id}')">WA</button>
+        <button class="btn ghost sm" onclick="shareTradeTg('${t.id}')">TG</button>
         <button class="btn r sm" onclick="closeManualBtn('${t.id}')">Close</button>
       </div>
     </div>`;
@@ -2429,19 +2420,58 @@ function takeHedge(sym, dir, lots){
 }
 
 /* ---------------- messages ---------------- */
-function signalText(s){
+/* poora report — signal + agents + news, ek hi message me */
+function fullReport(html){
+  const s = lastSignal;
   if(!s) return '';
-  return `📡 <b>SamuSignal</b>\n\n`+
-    `<b>${s.sym}</b> — <b>${s.dir}</b>  (${s.grade})\n`+
-    `Quality: <b>${s.q}%</b>\n`+
-    `Timeframe: ${s.tf}\n\n`+
-    `Entry: <code>${fmt(s.sym,s.live)}</code>\n`+
-    `SL: <code>${fmt(s.sym,s.sl)}</code>  ($${s.slD})\n`+
-    `TP: <code>${fmt(s.sym,s.tp)}</code>  ($${s.tpD})\n`+
-    `Lots: ${s.lots}  ·  R:R 1:${(s.tpD/s.slD).toFixed(2)}\n\n`+
-    `HTF: ${s.tfs.map(t=>t.l+' '+t.b).join(' | ')}\n`+
-    `⏰ ${t12(s.at)}`;
+  const b = html ? t => `<b>${t}</b>` : t => t;
+  const c = html ? t => `<code>${t}</code>` : t => t;
+  const L = [];
+
+  L.push(`📡 ${b('SAMUSIGNAL')}`);
+  L.push('');
+  L.push(`${b(s.sym)}  —  ${b(s.dir)}   (${s.grade})`);
+  L.push(`Quality: ${b(s.q + '%')}   ${s.q>=70?'STRONG':s.q>=50?'MEDIUM':'WEAK'}`);
+  L.push(`Timeframe: ${s.tf}`);
+  L.push('');
+  L.push('━━━ LEVELS ━━━');
+  L.push(`Entry : ${c(fmt(s.sym, s.live))}`);
+  L.push(`SL    : ${c(fmt(s.sym, s.sl))}   −$${s.slD}  (${s.slPips} pips)`);
+  L.push(`TP    : ${c(fmt(s.sym, s.tp))}   +$${s.tpD}  (${s.tpPips} pips)`);
+  L.push(`Lots  : ${s.lots}    R:R 1:${(s.tpD/s.slD).toFixed(2)}`);
+
+  if(lastVotes && lastVotes.sym === s.sym){
+    const v = lastVotes;
+    L.push('');
+    L.push('━━━ AGENT VOTE (50) ━━━');
+    L.push(`BUY   : ${v.buy}`);
+    L.push(`HOLD  : ${v.hold}`);
+    L.push(`SELL  : ${v.sell}`);
+    L.push(`Verdict: ${b(v.verdict)}  (${v.conf}% consensus)`);
+    if(v.verdict !== s.dir && v.verdict !== 'HOLD')
+      L.push(`⚠ Signal ${s.dir} hai par agents ${v.verdict} bol rahe hain`);
+  }
+
+  L.push('');
+  L.push('━━━ HTF BIAS ━━━');
+  s.tfs.forEach(t => L.push(`${t.l.padEnd(4)} : ${t.b}`));
+  if(!s.htfOk) L.push('⚠ 4H/1D bias match nahi kar raha');
+
+  const nr = newsRisk(s.sym) || nextNews(s.sym);
+  if(nr){
+    L.push('');
+    L.push('━━━ NEWS ━━━');
+    const soon = nr.d - Date.now();
+    L.push(`${nr.c} · ${nr.t}`);
+    L.push(`${t12(nr.d)}${soon>0?`  (${Math.round(soon/60000)} min me)`:'  (ho chuki)'}`);
+  }
+
+  L.push('');
+  L.push(`RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym, s.atr)} · ${s.mode==='ATR'?'ATR mode':'Fixed $'}`);
+  L.push(`⏰ ${t12(s.at)}`);
+  return L.join('\n');
 }
+
 function tradeText(t, kind){
   if(kind==='OPEN'){
     return `✅ <b>SamuSignal — Trade Open</b>\n\n<b>${t.sym} ${t.dir}</b>\nEntry: <code>${fmt(t.sym,t.entry)}</code>\nSL: <code>${fmt(t.sym,t.sl)}</code> ($${t.slD})\nTP: <code>${fmt(t.sym,t.tp)}</code> ($${t.tpD})\nLots: ${t.lots}\n⏰ ${t12(t.at)}`;
@@ -2454,12 +2484,67 @@ const strip = s => s.replace(/<[^>]+>/g,'');
 /* ---------------- WhatsApp ---------------- */
 function shareWa(){
   if(!lastSignal){ toast('Pehle analyze karo'); return }
-  window.open('https://wa.me/?text=' + encodeURIComponent(strip(signalText(lastSignal))), '_blank');
+  window.open('https://wa.me/?text=' + encodeURIComponent(fullReport(false)), '_blank');
+}
+function tradeReport(t, html){
+  const b = html ? x => `<b>${x}</b>` : x => x;
+  const c = html ? x => `<code>${x}</code>` : x => x;
+  const pl = t.pl || 0;
+  const L = [];
+
+  L.push(`📡 ${b('SAMUSIGNAL')} — OPEN TRADE`);
+  L.push('');
+  L.push(`${b(t.sym)}  —  ${b(t.dir)}${t.grade&&t.grade!=='—'?`   (${t.grade})`:''}`);
+  if(t.q) L.push(`Quality: ${b(t.q + '%')}   ${t.q>=70?'STRONG':t.q>=50?'MEDIUM':'WEAK'}`);
+  L.push(`Timeframe: ${lastSignal && lastSignal.sym===t.sym ? lastSignal.tf : S.tf}`);
+  L.push('');
+  L.push('━━━ LEVELS ━━━');
+  L.push(`Entry : ${c(fmt(t.sym,t.entry))}`);
+  L.push(`Now   : ${c(fmt(t.sym,t.cur||t.entry))}`);
+  L.push(`SL    : ${c(fmt(t.sym,t.sl))}   −$${t.slD}`);
+  L.push(`TP    : ${c(fmt(t.sym,t.tp))}   +$${t.tpD}`);
+  L.push(`Lots  : ${t.lots}    R:R 1:${(t.tpD/(t.slD||1)).toFixed(2)}`);
+  L.push(`Live P/L: ${b(money(pl))}`);
+
+  if(lastVotes && lastVotes.sym === t.sym){
+    const v = lastVotes;
+    L.push('');
+    L.push('━━━ AGENT VOTE (50) ━━━');
+    L.push(`BUY   : ${v.buy}`);
+    L.push(`HOLD  : ${v.hold}`);
+    L.push(`SELL  : ${v.sell}`);
+    L.push(`Verdict: ${b(v.verdict)}  (${v.conf}% consensus)`);
+    if(v.verdict !== t.dir && v.verdict !== 'HOLD')
+      L.push(`⚠ Trade ${t.dir} hai par agents ab ${v.verdict} bol rahe hain`);
+  }
+
+  if(lastSignal && lastSignal.sym === t.sym && lastSignal.tfs){
+    L.push('');
+    L.push('━━━ HTF BIAS ━━━');
+    lastSignal.tfs.forEach(x => L.push(`${x.l.padEnd(4)} : ${x.b}`));
+  }
+
+  const nr = newsRisk(t.sym) || nextNews(t.sym);
+  if(nr){
+    L.push('');
+    L.push('━━━ NEWS ━━━');
+    const soon = nr.d - Date.now();
+    L.push(`${nr.c} · ${nr.t}`);
+    L.push(`${t12(nr.d)}${soon>0?`  (${Math.round(soon/60000)} min me)`:'  (ho chuki)'}`);
+  }
+
+  L.push('');
+  L.push(`Opened ${dt12(t.at)}`);
+  L.push(`⏰ ${t12(Date.now())}`);
+  return L.join('\n');
 }
 function shareTradeWa(id){
   const t = S.open.find(x=>x.id===id); if(!t) return;
-  const txt = `📡 SamuSignal\n\n${t.sym} ${t.dir}\nEntry: ${fmt(t.sym,t.entry)}\nNow: ${fmt(t.sym,t.cur||t.entry)}\nSL: ${fmt(t.sym,t.sl)} ($${t.slD})\nTP: ${fmt(t.sym,t.tp)} ($${t.tpD})\nLots: ${t.lots}\nLive P/L: ${money(t.pl||0)}\n⏰ ${t12(Date.now())}`;
-  window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  window.open('https://wa.me/?text=' + encodeURIComponent(tradeReport(t, false)), '_blank');
+}
+function shareTradeTg(id){
+  const t = S.open.find(x=>x.id===id); if(!t) return;
+  tgSend(tradeReport(t, true));
 }
 
 /* ---------------- Telegram ---------------- */
