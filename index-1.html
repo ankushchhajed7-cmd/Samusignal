@@ -1,0 +1,2784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SamuSignal</title>
+<meta name="description" content="SamuSignal - AI-Powered Forex & Gold Signal App">
+<meta name="theme-color" content="#0d0d0d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SamuSignal">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+:root{
+  --bg:#0d0d0d; --panel:#141414; --panel2:#0d0d0d; --line:#2a2a2a;
+  --txt:#e0e0e0; --mut:#777; --dim:#555;
+  --up:#00FF96; --dn:#FF4444; --gold:#FFB800; --blue:#00CCFF;
+  --r:8px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:'Courier New', Courier, monospace;
+  font-size:13px; line-height:1.5;
+  padding-bottom:calc(74px + env(safe-area-inset-bottom));
+  overscroll-behavior-y:none;
+}
+.mono{font-family:'Courier New', Courier, monospace;font-variant-numeric:tabular-nums}
+button,input,select{font-family:'Courier New', Courier, monospace;font-size:13px}
+button{cursor:pointer;border:none;background:none;color:inherit}
+.hide{display:none !important}
+
+/* ---------- header ---------- */
+header{
+  position:sticky;top:0;z-index:40;background:var(--bg);
+  padding:calc(7px + env(safe-area-inset-top)) 12px 7px;
+}
+.hbox{max-width:600px;margin:0 auto;text-align:center;padding:9px 10px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.hbox h1{margin:0 0 2px;font-size:16px;color:var(--gold);letter-spacing:2.5px;font-weight:700}
+.hbox p{margin:0;font-size:8.5px;color:var(--dim);letter-spacing:1.2px;white-space:nowrap}
+.hrow{display:flex;gap:5px;margin-top:8px;justify-content:center;align-items:center}
+.ib{padding:5px 8px;background:var(--bg);border:1px solid var(--line);border-radius:5px;
+  color:var(--mut);font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap;line-height:1.4}
+.ib:active{border-color:var(--gold);color:var(--gold)}
+.clock{padding:4px 7px;font-size:8.5px;color:var(--dim);line-height:1.3;text-align:left;white-space:nowrap}
+.clock b{display:block;color:var(--gold);font-size:11px;letter-spacing:.5px}
+
+/* ---------- ticker ---------- */
+.tickwrap{max-width:600px;margin:0 auto 14px;padding:0 12px}
+.tick{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:9px 12px;font-size:11px;display:flex;gap:18px;white-space:nowrap;overflow:hidden}
+.tick span{color:var(--mut)}
+.tick b{color:var(--txt)}
+
+/* ---------- layout ---------- */
+main{padding:0 12px 20px;max-width:600px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px;margin-bottom:14px}
+.ttl{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);
+  margin:0 0 12px;font-weight:700;display:flex;align-items:center;gap:8px}
+.ttl .sp{margin-left:auto;font-weight:700;letter-spacing:0;text-transform:none;
+  color:var(--dim);font-size:10px}
+label{display:block;font-size:10px;color:var(--mut);letter-spacing:1px;margin-bottom:5px;
+  font-weight:700;text-transform:uppercase}
+input,select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+  padding:10px 11px;color:var(--txt);outline:none}
+input:focus,select:focus{border-color:var(--gold)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* ---------- buttons: outlined terminal style ---------- */
+.btn{display:block;width:100%;padding:12px;border-radius:6px;font-weight:700;text-align:center;
+  letter-spacing:1px;text-transform:uppercase;font-size:12px;
+  background:rgba(0,204,255,.12);color:var(--blue);border:1px solid var(--blue)}
+.btn:active{opacity:.65}
+.btn.g{background:rgba(0,255,150,.12);color:var(--up);border-color:var(--up)}
+.btn.r{background:rgba(255,68,68,.12);color:var(--dn);border-color:var(--dn)}
+.btn.gold{background:rgba(255,184,0,.15);color:var(--gold);border-color:var(--gold)}
+.btn.ghost{background:var(--bg);color:var(--mut);border-color:var(--line)}
+.btn.sm{padding:9px 6px;font-size:11px;letter-spacing:.5px}
+
+/* custom pair picker — native dropdown ki jagah */
+.pick{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+  padding:10px 11px;color:var(--txt);text-align:left;display:flex;align-items:center;
+  font-size:13px;font-weight:700;letter-spacing:.5px}
+.pick:active{border-color:var(--blue)}
+.pick i{margin-left:auto;font-style:normal;color:var(--mut);font-size:11px}
+.pick.lock{color:var(--dim)}
+
+.plist{max-height:58vh;overflow-y:auto;margin:0 -14px;padding:0 14px}
+.pgrp{font-size:9px;color:var(--gold);letter-spacing:2px;font-weight:700;
+  padding:14px 2px 7px;position:sticky;top:0;background:var(--panel)}
+.prow{width:100%;display:flex;align-items:center;gap:10px;padding:12px 11px;margin-bottom:6px;
+  background:var(--bg);border:1px solid var(--line);border-radius:6px;
+  font-size:13px;font-weight:700;letter-spacing:1px;color:var(--txt);text-align:left}
+.prow.on{border-color:var(--blue);background:rgba(0,204,255,.1);color:var(--blue)}
+.prow.off{opacity:.4}
+.prow .px{margin-left:auto;font-size:11px;font-weight:400;color:var(--mut);letter-spacing:0}
+.prow .dot{width:15px;height:15px;border-radius:50%;border:1px solid var(--line);flex:0 0 auto}
+.prow.on .dot{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--bg),inset 0 0 0 9px var(--blue)}
+
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:8px 13px;border-radius:6px;background:var(--panel);
+  border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--mut);letter-spacing:.5px}
+.chip.on{background:rgba(0,204,255,.15);border-color:var(--blue);color:var(--blue)}
+.chip.on.gold{background:rgba(255,184,0,.15);border-color:var(--gold);color:var(--gold)}
+
+.sw{display:flex;align-items:center;gap:10px;padding:10px 0}
+.sw .tg{width:42px;height:23px;border-radius:99px;background:var(--bg);
+  border:1px solid var(--line);position:relative;flex:0 0 auto;transition:.18s}
+.sw .tg::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;
+  border-radius:50%;background:var(--dim);transition:.18s}
+.sw.on .tg{background:rgba(0,255,150,.2);border-color:var(--up)}
+.sw.on .tg::after{transform:translateX(19px);background:var(--up)}
+.sw div{font-size:12px} .sw small{color:var(--dim);font-size:10px;display:block;margin-top:2px}
+
+/* ---------- signal ---------- */
+.sig{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:13px}
+.sig.buy{border-left:3px solid var(--up)} .sig.sell{border-left:3px solid var(--dn)}
+.sig-h{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.sig-h b{font-size:15px;letter-spacing:1px}
+.tag{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1px}
+.tag.buy{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.4)}
+.tag.sell{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.4)}
+.tag.n{background:rgba(119,119,119,.15);color:var(--mut);border:1px solid var(--line)}
+.gr{margin-left:auto;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;
+  background:rgba(255,184,0,.15);color:var(--gold);border:1px solid rgba(255,184,0,.4)}
+
+.meter{margin:12px 0 5px}
+.meter .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);
+  margin-bottom:6px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
+.meter .lbl b{color:var(--txt);font-size:12px}
+.segs{display:flex;gap:2px;height:10px}
+.segs i{flex:1;border-radius:1px;background:#222;transition:background .25s}
+.segs i.f{background:var(--up)} .segs i.f.w{background:var(--gold)} .segs i.f.b{background:var(--dn)}
+
+.lvls{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.lvl{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 4px;text-align:center}
+.lvl>span{display:block;font-size:9px;color:var(--dim);letter-spacing:1px;font-weight:700;margin-bottom:4px}
+.lvl b{font-size:13px;display:block}
+.lvl.sl b{color:var(--dn)} .lvl.tp b{color:var(--up)}
+
+.tfrow{display:flex;gap:5px;margin-top:10px}
+.tfp{flex:1;text-align:center;background:var(--panel);border:1px solid var(--line);
+  border-radius:6px;padding:6px 2px}
+.tfp span{display:block;font-size:9px;color:var(--dim);font-weight:700}
+.tfp b{font-size:11px}
+.tfp.up b{color:var(--up)} .tfp.dn b{color:var(--dn)} .tfp.nu b{color:var(--dim)}
+
+.acts{display:flex;gap:6px;margin-top:11px}
+.acts button{flex:1;padding:9px 4px;border-radius:6px;font-size:10.5px;font-weight:700}
+
+/* ---------- table ---------- */
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;
+  padding:0 0 8px;font-weight:700;border-bottom:1px solid var(--line)}
+td{padding:9px 0;border-bottom:1px solid #1a1a1a}
+tr:last-child td{border-bottom:none}
+.up{color:var(--up)} .dn{color:var(--dn)} .mu{color:var(--mut)}
+
+/* ---------- trades ---------- */
+.tr{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.tr.buy{border-left:3px solid var(--up)} .tr.sell{border-left:3px solid var(--dn)}
+.tr-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tr-h b{font-size:14px;letter-spacing:1px}
+.pl{margin-left:auto;font-size:16px;font-weight:700}
+.tr-g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:11px;margin-bottom:9px}
+.tr-g div span{display:block;color:var(--dim);font-size:9px;letter-spacing:.5px;font-weight:700}
+.bar{height:5px;border-radius:99px;background:#222;overflow:hidden;margin-bottom:9px;display:flex}
+.bar i{display:block;height:100%}
+
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.st{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 5px;text-align:center}
+.st span{display:block;font-size:9px;color:var(--dim);letter-spacing:1.2px;font-weight:700;margin-bottom:5px}
+.st b{font-size:17px}
+
+.perf{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.pb{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px 4px;text-align:center}
+.pb b{display:block;font-size:19px;line-height:1.1}
+.pb span{display:block;font-size:8.5px;color:var(--dim);letter-spacing:1.2px;font-weight:700;margin-top:5px}
+.pb em{display:block;font-style:normal;font-size:8.5px;color:#555;margin-top:3px;letter-spacing:.2px}
+.ptot{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:16px;text-align:center}
+.ptot b{display:block;font-size:27px;line-height:1}
+.ptot span{display:block;font-size:9px;color:var(--dim);letter-spacing:1.6px;font-weight:700;margin-top:6px}
+
+.vbar{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin:12px 0 8px}
+.vbar i{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
+  color:#0d0d0d;font-style:normal;letter-spacing:.5px;transition:width .5s}
+.vote3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.vc{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:13px 5px;text-align:center}
+.vc b{display:block;font-size:24px;line-height:1}
+.vc span{display:block;font-size:9px;color:var(--dim);letter-spacing:1.4px;font-weight:700;margin-top:5px}
+.vc.b{border-color:rgba(0,255,150,.45)} .vc.s{border-color:rgba(255,68,68,.45)}
+.ag{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #1a1a1a;font-size:11px}
+.ag:last-child{border:none}
+.ag .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag .gp{font-size:8.5px;color:var(--dim);letter-spacing:.5px}
+.ag .vt{width:44px;text-align:center;padding:3px 0;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px}
+.ag .vt.b{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.35)}
+.ag .vt.s{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.35)}
+.ag .vt.h{background:rgba(119,119,119,.12);color:var(--mut);border:1px solid var(--line)}
+
+.empty{text-align:center;padding:26px 12px;color:var(--mut);font-size:12px}
+.empty div{font-size:30px;margin-bottom:8px;opacity:.4}
+
+/* ---------- nav ---------- */
+nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);
+  border-top:1px solid var(--line);display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 1px;
+  font-size:8px;font-weight:700;letter-spacing:.6px;color:var(--dim)}
+nav button i{font-style:normal;font-size:16px;filter:grayscale(1);opacity:.45}
+nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
+.badge{position:absolute;top:2px;margin-left:20px;background:var(--dn);color:#000;font-size:8px;
+  min-width:15px;height:15px;border-radius:99px;display:grid;place-items:center;padding:0 3px}
+
+/* ---------- sheet ---------- */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;display:none;align-items:flex-end}
+.ov.on{display:flex}
+.sheet{width:100%;max-height:92vh;overflow-y:auto;background:var(--panel);
+  border-radius:var(--r) var(--r) 0 0;border-top:1px solid var(--gold);
+  padding:16px 14px calc(24px + env(safe-area-inset-bottom));animation:up .2s ease}
+@keyframes up{from{transform:translateY(26px);opacity:.4}to{transform:none;opacity:1}}
+.sh-h{display:flex;align-items:center;margin-bottom:14px}
+.sh-h h3{margin:0;font-size:15px;color:var(--gold);letter-spacing:2px;text-transform:uppercase}
+.sh-h button{margin-left:auto;font-size:22px;color:var(--mut);padding:0 6px}
+.hint{font-size:10px;color:var(--dim);margin:6px 0 0;line-height:1.65}
+.hint a{color:var(--blue)}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;z-index:200;
+  background:var(--panel);border:1px solid var(--gold);color:var(--gold);padding:11px 16px;
+  border-radius:6px;font-size:12px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;
+  max-width:88vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(-6px)}
+
+.tvbox{border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--bg);height:520px}
+.tvbox.big{position:fixed;inset:0;z-index:150;height:100vh;border-radius:0;border:none}
+.tvx{position:fixed;top:calc(12px + env(safe-area-inset-top));right:12px;z-index:160;
+  background:var(--panel);border:1px solid var(--gold);color:var(--gold);border-radius:6px;
+  padding:9px 13px;font-size:11px;font-weight:700;letter-spacing:1px}
+.tvbox iframe{width:100%;height:100%;border:0;display:block}
+
+.spin{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--gold);
+  border-radius:50%;animation:sp .7s linear infinite;display:inline-block;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.strrow{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.strrow b{width:42px;font-size:11px}
+.strrow .t{flex:1;height:7px;background:#222;border-radius:99px;overflow:hidden}
+.strrow .t i{display:block;height:100%;border-radius:99px}
+.strrow span{width:38px;text-align:right;font-size:10px;color:var(--mut)}
+
+.hist{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #1a1a1a}
+.hist:last-child{border:none}
+.hist .ic{width:29px;height:29px;border-radius:6px;display:grid;place-items:center;
+  font-size:11px;font-weight:700;flex:0 0 auto}
+.hist .ic.w{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.4)}
+.hist .ic.l{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.4)}
+.hist .ic.m{background:rgba(119,119,119,.15);color:var(--mut);border:1px solid var(--line)}
+.hist .in{flex:1;min-width:0}
+.hist .in b{font-size:12px;display:block}
+.hist .in small{color:var(--dim);font-size:10px}
+.hist .amt{font-size:13px;font-weight:700}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hbox">
+    <h1>SAMUSIGNAL</h1>
+    <p>FOREX &amp; GOLD SIGNALS · <span id="verTag">v—</span></p>
+    <div class="hrow">
+      <div class="clock"><b id="clkT">--:--</b><span id="clkD">--</span></div>
+      <button class="ib" id="btnRef" onclick="refreshAll()">⟳ REFRESH</button>
+      <button class="ib" id="btnInstall">⬇ INSTALL</button>
+      <button class="ib" onclick="openSheet('setSheet')">⚙ SETTINGS</button>
+    </div>
+  </div>
+</header>
+
+<div class="tickwrap"><div class="tick" id="tick"></div></div>
+
+<main>
+
+<!-- ============ SIGNALS ============ -->
+<section id="pgSignals">
+  <div class="card" id="dayBar"></div>
+  <div class="card">
+    <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
+    <div class="grid2" style="margin-bottom:10px">
+      <div><label>Pair</label><button class="pick" id="selPair" onclick="openPick('main')"></button></div>
+      <div><label>Lots</label><input class="mono" id="inLots" type="number" step="0.01" value="0.01"></div>
+    </div>
+    <label>Timeframe</label>
+    <div class="chips" id="tfChips" style="margin-bottom:12px"></div>
+    <div class="sw" id="swHtf" onclick="toggleSw(this,'htf')">
+      <div class="tg"></div>
+      <div>HTF Confluence Filter<small>Sirf 4H + 1D bias se match karne wale signal</small></div>
+    </div>
+    <div class="grid2">
+      <button class="btn gold" id="btnAnalyze" onclick="runAnalyze()">Analyze Karo</button>
+      <button class="btn ghost" onclick="refreshAll()">⟳ Rates Refresh</button>
+    </div>
+  </div>
+
+  <div class="card" id="cardSignal"></div>
+
+  <div class="card">
+    <p class="ttl">News Filter <span class="sp" id="newsT">—</span></p>
+    <div class="chips" id="newsChips" style="margin-bottom:12px"></div>
+    <div id="newsBox"><p class="hint">Aaj ki high-impact news yahan aayegi.</p></div>
+    <div class="sw" id="swNews" onclick="toggleSw(this,'newsOn')">
+      <div class="tg"></div>
+      <div>News ke aas-paas warning<small>Signal pe laal chetavni aayegi agar news paas hai</small></div>
+    </div>
+    <button class="btn ghost sm" onclick="loadNews(true)">⟳ News Refresh</button>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Chart <span class="sp" id="chartSym">—</span></p>
+    <div class="chips" id="chartTf" style="margin-bottom:10px"></div>
+    <div class="tvbox" id="tvBox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="chartBig()">⛶ Full Screen</button>
+    <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
+  </div>
+</section>
+
+<!-- ============ VOTES ============ -->
+<section id="pgVotes" class="hide">
+  <div class="card">
+    <p class="ttl">AI Agent Voting <span class="sp" id="voteT">—</span></p>
+    <div id="voteBox"></div>
+  </div>
+  <div class="card" id="voteListCard">
+    <p class="ttl">50 Agents <span class="sp" id="voteFilt">sab</span></p>
+    <div class="chips" id="voteChips" style="margin-bottom:12px"></div>
+    <div id="voteList"></div>
+  </div>
+</section>
+
+<!-- ============ MARKET ============ -->
+<section id="pgMarket" class="hide">
+  <div class="card">
+    <p class="ttl">Market Overview <span class="sp" id="mktT">—</span></p>
+    <div class="chips" id="mktChips" style="margin-bottom:12px"></div>
+    <table><thead><tr><th>Pair</th><th style="text-align:right">Price</th><th style="text-align:right">Change</th><th style="text-align:right">Bias</th></tr></thead>
+    <tbody id="mktBody"><tr><td colspan="4" class="mu" style="text-align:center;padding:20px">Refresh dabao</td></tr></tbody></table>
+    <button class="btn ghost sm" style="margin-top:12px" onclick="loadMarket()">Refresh Karo</button>
+  </div>
+  <div class="card">
+    <p class="ttl">Correlation <span class="sp" id="corrT">estimate</span></p>
+    <label>Kis pair ke against dekhna hai</label>
+    <button class="pick" id="corrPair" style="margin-bottom:12px" onclick="openPick('corr')"></button>
+    <div id="corrBox"></div>
+    <p class="hint">+1 ke paas = dono saath chalte hain (hedge ke liye ulti direction lo). −1 ke paas = ulta chalte hain (wahi direction lo).</p>
+  </div>
+
+</section>
+
+<!-- ============ TRADES ============ -->
+<section id="pgTrades" class="hide">
+  <div class="stat3">
+    <div class="st"><span>Live P&amp;L</span><b class="mono" id="stLive">$0.00</b></div>
+    <div class="st"><span>Closed P&amp;L</span><b class="mono" id="stClosed">$0.00</b></div>
+    <div class="st"><span>Win Rate</span><b class="mono" id="stWr">0%</b></div>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Open Trades <span class="sp" id="openT">0 open</span></p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <button class="btn gold sm" style="flex:1" onclick="refreshOpen(true)">⟳ Rates Refresh Karo</button>
+      <span class="mono" id="syncT" style="font-size:11px;color:var(--mut);min-width:96px;text-align:right">—</span>
+    </div>
+    <div id="openBox"></div>
+    <p class="hint" id="creditWarn"></p>
+    <button class="btn ghost sm" style="margin-top:6px" onclick="openManual()">+ Manual Trade Add Karo</button>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Performance <span class="sp" id="perfN">—</span></p>
+    <div id="perfBox"></div>
+  </div>
+
+  <div class="card">
+    <p class="ttl">History <span class="sp"><button id="btnClearHist" style="color:var(--dn);font-size:11px;font-weight:700" onclick="clearHistory()">Clear</button></span></p>
+    <div id="histBox"></div>
+  </div>
+</section>
+
+<!-- ============ ALERTS ============ -->
+<section id="pgAlerts" class="hide">
+  <div class="card">
+    <p class="ttl">Telegram — SamuSignal</p>
+    <div style="margin-bottom:10px"><label>Bot Token</label><input id="tgTok" type="password" placeholder="1234567890:AA..."></div>
+    <div style="margin-bottom:10px"><label>Chat ID</label><input id="tgId" class="mono" placeholder="123456789"></div>
+    <div class="sw" id="swTgAuto" onclick="toggleSw(this,'tgAuto')">
+      <div class="tg"></div>
+      <div>Auto alert<small>Har signal aur trade close Telegram pe jaayega</small></div>
+    </div>
+    <div class="grid2" style="margin-top:8px">
+      <button class="btn sm" onclick="saveTg()">Save Karo</button>
+      <button class="btn ghost sm" onclick="testTg()">Test Bhejo</button>
+    </div>
+    <p class="hint">Token @BotFather se banao. Chat ID ke liye apne bot ko koi message bhejo, phir "Test Bhejo" dabao — nahi aaya to @userinfobot se ID lo.</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Backup &amp; Restore</p>
+    <div class="grid2">
+      <button class="btn ghost sm" onclick="doBackup()">⬇ Backup File</button>
+      <button class="btn ghost sm" onclick="fileIn.click()">⬆ Restore</button>
+    </div>
+    <input type="file" id="fileIn" accept=".json" class="hide">
+    <p class="hint">Backup me settings, open trades, history, Telegram config — sab aata hai.</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Alert Log</p>
+    <div id="logBox"><p class="hint">Abhi koi alert nahi.</p></div>
+  </div>
+</section>
+
+</main>
+
+<nav>
+  <button class="on" data-pg="Signals" onclick="go('Signals',this)"><i>📡</i>SIGNALS</button>
+  <button data-pg="Votes" onclick="go('Votes',this)"><i>🗳</i>VOTES</button>
+  <button data-pg="Market" onclick="go('Market',this)"><i>📊</i>MARKET</button>
+  <button data-pg="Trades" onclick="go('Trades',this)"><i>💼</i>TRADES</button>
+  <button data-pg="Alerts" onclick="go('Alerts',this)"><i>🔔</i>ALERTS</button>
+</nav>
+
+<!-- ============ SHEETS ============ -->
+<div class="ov" id="setSheet"><div class="sheet">
+  <div class="sh-h"><h3>Settings</h3><button onclick="closeSheet('setSheet')">×</button></div>
+  <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+    <div style="flex:1">
+      <b class="mono" id="verBig" style="font-size:14px">v—</b>
+      <small style="display:block;color:var(--mut);font-size:11px">MT5 order type: <span class="mono" id="verMode">—</span></small>
+    </div>
+    <button class="btn gold sm" style="width:auto;padding:9px 13px" onclick="forceUpdate()">🔄 Update</button>
+  </div>
+  <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
+  <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
+  <p class="ttl">MT5 Bridge</p>
+  <div style="margin-bottom:10px"><label>Firebase URL</label>
+    <input id="setFb" placeholder="https://xxx-default-rtdb.firebaseio.com"></div>
+  <div style="margin-bottom:10px"><label>Auth secret (optional)</label>
+    <input id="setFbAuth" type="password" placeholder="rules open hain to khaali chhodo"></div>
+  <div class="grid2" style="margin-bottom:10px">
+    <div style="grid-column:1/-1"><label>Order type</label><select id="setMtype">
+      <option value="MARKET">Market (turant)</option>
+      <option value="LIMIT">Limit (pullback pe)</option>
+      <option value="STOP">Stop (breakout pe)</option>
+    </select></div>
+  </div>
+  <div style="margin-bottom:10px"><label>Limit offset (pips)</label>
+    <input class="mono" id="setLim" type="number" step="1" value="5"></div>
+  <p class="hint" style="margin-bottom:10px">Limit mode me entry live price se itne pips door lagegi (BUY neeche, SELL upar). SL aur TP bhi utne hi shift honge, to dollar risk exactly wahi rahega.</p>
+  <p class="hint" id="modeNow" style="margin-bottom:10px"></p>
+  <button class="btn ghost sm" style="margin-bottom:6px" onclick="testBridge()">🔌 Bridge Test Karo</button>
+  <div id="fbOut" class="mono hide" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto;margin-bottom:10px"></div>
+  <button class="btn ghost sm" style="margin-bottom:6px" onclick="lastOrderShow()">📄 Aakhri Bheja Order Dekho</button>
+  <p class="hint" style="margin-bottom:16px">FXBridgeEA wahi <code>fxbridge/order.json</code> padhta hai. EA khud broker suffix (Exness = "m") lagata hai, isliye yahan sirf XAUUSD bhejo.</p>
+
+  <p class="ttl">API Budget</p>
+  <div class="grid2" style="margin-bottom:6px">
+    <div><label>Daily cap</label><input class="mono" id="setCap" type="number" step="50" value="700"></div>
+    <div><label>Auto refresh</label><select id="setAuto">
+      <option value="0">Band (sirf manual)</option>
+      <option value="2">2 minute</option>
+      <option value="5">5 minute</option>
+      <option value="15">15 minute</option>
+    </select></div>
+  </div>
+  <p class="hint" style="margin-bottom:14px">Free plan pe 800 credits/day. Cap 700 rakho taaki buffer rahe. Har open pair ka 1 credit lagta hai — 5 pairs + 5 minute refresh = ~60 credits/ghanta.</p>
+
+  <p class="ttl">News Filter</p>
+  <div class="grid2" style="margin-bottom:6px">
+    <div><label>Warning window (min)</label><input class="mono" id="setNewsMin" type="number" step="5" value="30"></div>
+    <div><label>Impact</label><select id="setNewsImp">
+      <option value="High">Sirf High</option>
+      <option value="Med">High + Medium</option>
+      <option value="All">Sab</option>
+    </select></div>
+  </div>
+  <p class="hint" style="margin-bottom:16px">News se itne minute pehle aur baad tak signal pe laal warning aayegi. News din me ek baar apne aap aati hai.</p>
+
+  <p class="ttl">SL / TP Method</p>
+  <div style="margin-bottom:10px"><label>Default method</label><select id="setMode">
+    <option value="DOLLAR">Fixed dollar (har pair pe same $)</option>
+    <option value="ATR">ATR based (volatility ke hisaab se)</option>
+  </select></div>
+  <div class="grid3" style="margin-bottom:6px">
+    <div><label>SL = ATR ×</label><input class="mono" id="setAtrSL" type="number" step="0.1" value="1.5"></div>
+    <div><label>TP = SL ×</label><input class="mono" id="setAtrRR" type="number" step="0.1" value="2"></div>
+    <div><label>Risk ($)</label><input class="mono" id="setRisk" type="number" step="0.25" value="1.75"></div>
+  </div>
+  <div class="sw" id="swAutoLot" onclick="toggleSw(this,'autoLot')">
+    <div class="tg"></div>
+    <div>ATR mode me lot auto<small>Risk $ fix rahega, lot size khud adjust hoga</small></div>
+  </div>
+  <p class="hint" style="margin-bottom:16px">ATR mode me SL market ki chaal ke hisaab se lagti hai — gold pe chaudi, EURUSD pe patli. Dollar value trade lete waqt dikh jayegi.</p>
+
+  <p class="ttl">Default Trade Size</p>
+  <div class="grid3" style="margin-bottom:6px">
+    <div><label>TP ($)</label><input class="mono" id="setTp" type="number" step="0.5" value="1"></div>
+    <div><label>SL ($)</label><input class="mono" id="setSl" type="number" step="0.5" value="2.5"></div>
+    <div><label>Lots</label><input class="mono" id="setLot" type="number" step="0.01" value="0.01"></div>
+  </div>
+  <p class="hint" style="margin-bottom:14px">"Maine Ye Trade Liya" button inhi values se trade lagayega.</p>
+  <div class="grid2" style="margin-bottom:8px">
+    <button class="btn sm" onclick="saveSettings()">Save Karo</button>
+    <button class="btn ghost sm" onclick="resetCalc()">↺ Reset to Default</button>
+  </div>
+  <div class="grid2" style="margin-bottom:8px">
+    <button class="btn ghost sm" onclick="apiTest()">🔍 API Test</button>
+    <button class="btn ghost sm" onclick="dayReset()">↺ Budget Reset</button>
+  </div>
+  <div id="apiOut" class="mono hide" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;margin-bottom:10px"></div>
+  <button class="btn ghost sm" style="margin-bottom:8px" onclick="unlockAll()">🔓 Locked Pairs Reset Karo</button>
+  <button class="btn ghost sm" onclick="wipeAll()" style="color:var(--dn)">Sab Data Delete Karo</button>
+</div></div>
+
+<div class="ov" id="qtSheet"><div class="sheet">
+  <div class="sh-h"><h3 id="qtTitle">Maine Ye Trade Liya</h3><button onclick="closeSheet('qtSheet')">×</button></div>
+  <div id="qtBody"></div>
+</div></div>
+
+<div class="ov" id="hgSheet"><div class="sheet">
+  <div class="sh-h"><h3 id="hgTitle">Against Trade</h3><button onclick="closeSheet('hgSheet')">×</button></div>
+  <div id="hgBody"></div>
+</div></div>
+
+<div class="ov" id="pickSheet"><div class="sheet">
+  <div class="sh-h"><h3 id="pickTitle">Pair Chuno</h3><button onclick="closeSheet('pickSheet')">×</button></div>
+  <input id="pickSearch" placeholder="Search — eur, jpy, gold..." oninput="drawPick()" style="margin-bottom:10px">
+  <div class="plist" id="pickList"></div>
+</div></div>
+
+<div class="ov" id="mtSheet"><div class="sheet">
+  <div class="sh-h"><h3>Manual Trade</h3><button onclick="closeSheet('mtSheet')">×</button></div>
+  <div class="grid2" style="margin-bottom:10px">
+    <div><label>Pair</label><button class="pick" id="mtPair" onclick="openPick('manual')"></button></div>
+    <div><label>Direction</label><select id="mtDir"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
+  </div>
+  <div class="grid2" style="margin-bottom:10px">
+    <div><label>Lots</label><input class="mono" id="mtLots" type="number" step="0.01" value="0.01"></div>
+    <div><label>Entry Price</label><input class="mono" id="mtEntry" type="number" step="0.00001"></div>
+  </div>
+  <div class="grid2" style="margin-bottom:10px">
+    <div><label>TP ($)</label><input class="mono" id="mtTp" type="number" step="0.5" value="1"></div>
+    <div><label>SL ($)</label><input class="mono" id="mtSl" type="number" step="0.5" value="2.5"></div>
+  </div>
+  <p class="hint" id="mtCalc" style="margin-bottom:12px">—</p>
+  <button class="btn g" onclick="saveManual()">Trade Save Karo</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==================================================================
+   SamuSignal v2.0
+   ================================================================== */
+const VERSION = '3.4.0';
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
+  set(k,v){ try{ localStorage.setItem('samu_'+k, JSON.stringify(v)); }catch(e){} },
+  del(k){ localStorage.removeItem('samu_'+k) }
+};
+
+/* ---------- instrument specs (yahi 404-ke-baad wali XAUUSD galti ka fix hai) ----------
+   contract = units per 1.00 lot
+   quoteUSD = true agar quote currency USD hai
+   pip      = 1 pip ka price move
+------------------------------------------------------------------- */
+const FX = [
+  'EUR/USD','GBP/USD','USD/JPY','USD/CHF','USD/CAD','AUD/USD','NZD/USD',
+  'EUR/JPY','EUR/GBP','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD',
+  'GBP/JPY','GBP/CHF','GBP/CAD','GBP/AUD','GBP/NZD',
+  'AUD/JPY','AUD/CHF','AUD/CAD','AUD/NZD',
+  'NZD/JPY','NZD/CHF','NZD/CAD',
+  'CAD/CHF','CAD/JPY','CHF/JPY'
+];
+const SPECS = {
+  'XAU/USD':{n:'XAUUSD', d:2, pip:0.10, contract:100, tv:'OANDA:XAUUSD', ccy:['XAU','USD']}
+};
+FX.forEach(pr => {
+  const [b,q] = pr.split('/');
+  const jpy = (q === 'JPY');
+  SPECS[pr] = {
+    n: b+q, d: jpy?3:5, pip: jpy?0.01:0.0001,
+    contract: 100000, tv: 'OANDA:'+b+q, ccy: [b,q]
+  };
+});
+SPECS['BTC/USD'] = {n:'BTCUSD', d:2, pip:1,   contract:1, tv:'BITSTAMP:BTCUSD', ccy:['BTC','USD']};
+SPECS['ETH/USD'] = {n:'ETHUSD', d:2, pip:0.1, contract:1, tv:'BITSTAMP:ETHUSD', ccy:['ETH','USD']};
+
+const PAIRS = Object.keys(SPECS);
+const MAJORS = ['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','XAU/USD'];
+
+/* Market page ke groups — har group max 8 symbol = max 8 credits */
+const GROUPS = {
+  'Majors':    ['XAU/USD','EUR/USD','GBP/USD','USD/JPY','USD/CHF','USD/CAD','AUD/USD','NZD/USD'],
+  'EUR Cross': ['EUR/JPY','EUR/GBP','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD'],
+  'GBP Cross': ['GBP/JPY','GBP/CHF','GBP/CAD','GBP/AUD','GBP/NZD'],
+  'AUD / NZD': ['AUD/JPY','AUD/CHF','AUD/CAD','AUD/NZD','NZD/JPY','NZD/CHF','NZD/CAD'],
+  'CAD / CHF': ['CAD/CHF','CAD/JPY','CHF/JPY'],
+  'Crypto':    ['BTC/USD','ETH/USD']
+};
+
+/* 1 unit of quote-currency = kitne USD */
+function quoteToUsd(ccy){
+  if(ccy === 'USD') return 1;
+  const px = sym => (prices[sym] && prices[sym].p) || refPrice(sym);
+  switch(ccy){
+    case 'JPY': return 1 / px('USD/JPY');
+    case 'CHF': return 1 / px('USD/CHF');
+    case 'CAD': return 1 / px('USD/CAD');
+    case 'GBP': return px('GBP/USD');
+    case 'EUR': return px('EUR/USD');
+    case 'AUD': return px('AUD/USD');
+    case 'NZD': return px('NZD/USD');
+    default:    return 1;
+  }
+}
+/* USD value of a 1.00 price move (cross pairs bhi sahi) */
+function usdPerPoint(sym, price, lots){
+  const s = SPECS[sym]; if(!s) return 0;
+  return s.contract * lots * quoteToUsd(s.ccy[1]);
+}
+function usdPerPip(sym, price, lots){ return usdPerPoint(sym,price,lots) * SPECS[sym].pip; }
+/* Dollar amount -> price distance */
+function dollarsToDist(sym, price, lots, dollars){
+  const v = usdPerPoint(sym, price, lots);
+  return v > 0 ? dollars / v : 0;
+}
+/* Price distance -> dollar amount */
+function distToDollars(sym, price, lots, dist){
+  return Math.abs(dist) * usdPerPoint(sym, price, lots);
+}
+/* risk$ se lot nikalo */
+function lotsForRisk(sym, price, slDist, risk){
+  const perUnit = slDist * usdPerPoint(sym, price, 1);
+  if(perUnit <= 0) return 0.01;
+  return Math.round(risk / perUnit * 100) / 100;   /* 0.01 se kam bhi ho sakta hai */
+}
+/* ek jagah se SL/TP distance — dono mode ke liye */
+function calcLevels(sym, price, lots, atr, opt){
+  const o = opt || {};
+  const mode = o.mode || S.slMode;
+  let slDist, tpDist, L = lots, clamped = 0;
+  if(mode === 'ATR' && atr > 0){
+    slDist = (o.atrSL !== undefined ? o.atrSL : S.atrSL) * atr;
+    tpDist = slDist * (o.atrRR !== undefined ? o.atrRR : S.atrRR);
+    if(o.autoLot !== undefined ? o.autoLot : S.autoLot){
+      const want = lotsForRisk(sym, price, slDist, o.riskUsd !== undefined ? o.riskUsd : S.riskUsd);
+      L = Math.max(0.01, want);
+      if(want < 0.01) clamped = want;   /* broker minimum se neeche — risk badh jayega */
+    }
+  } else {
+    slDist = dollarsToDist(sym, price, L, o.slD !== undefined ? o.slD : S.dSl);
+    tpDist = dollarsToDist(sym, price, L, o.tpD !== undefined ? o.tpD : S.dTp);
+  }
+  return {
+    lots: L, slDist, tpDist, clamped,
+    slD: +distToDollars(sym, price, L, slDist).toFixed(2),
+    tpD: +distToDollars(sym, price, L, tpDist).toFixed(2),
+    slPips: +(slDist / SPECS[sym].pip).toFixed(1),
+    tpPips: +(tpDist / SPECS[sym].pip).toFixed(1)
+  };
+}
+
+const fmt = (sym,v) => Number(v).toFixed(SPECS[sym] ? SPECS[sym].d : 4);
+const money = v => (v<0?'-$':'$') + Math.abs(v).toFixed(2);
+
+/* ---------- state ---------- */
+let S = {
+  key:   LS.get('key',''),
+  tf:    LS.get('tf','15min'),
+  pair:  LS.get('pair','XAU/USD'),
+  lots:  LS.get('lots',0.01),
+  htf:   LS.get('htf',true),
+  tgTok: LS.get('tgTok',''),
+  tgId:  LS.get('tgId',''),
+  tgAuto:LS.get('tgAuto',true),
+  slMode: LS.get('slMode','DOLLAR'),   /* DOLLAR | ATR */
+  atrSL: LS.get('atrSL',1.5),
+  atrRR: LS.get('atrRR',2),
+  autoLot: LS.get('autoLot',false),
+  riskUsd: LS.get('riskUsd',1.75),
+  dTp:   LS.get('dTp',1),
+  dSl:   LS.get('dSl',2.5),
+  fbUrl: LS.get('fbUrl',''),
+  fbAuth:LS.get('fbAuth',''),
+  mt5Type: LS.get('mt5Type','MARKET'),
+  limPips: LS.get('limPips',5),
+  mt5Auto: LS.get('mt5Auto',true),
+  dLot:  LS.get('dLot',0.01),
+  chartTf: LS.get('chartTf','15'),
+  mktG:  LS.get('mktG','Majors'),
+  cap:   LS.get('cap',700),
+  autoM: LS.get('autoM',5),
+  day:   LS.get('day',{d:'',used:0,blocked:false}),
+  corr:  LS.get('corr',{d:'',m:{}}),
+  news:  LS.get('news',{d:'',list:[]}),
+  newsMin: LS.get('newsMin',30),
+  newsOn: LS.get('newsOn',true),
+  newsImp: LS.get('newsImp','High'),
+  bad:   LS.get('bad',[]),
+  px:    LS.get('px',{}),
+  open:  LS.get('open',[]),
+  hist:  LS.get('hist',[]),
+  log:   LS.get('log',[])
+};
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+
+if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
+if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
+
+let lastSignal = null;
+let lastVotes = null;
+let mktLoaded = false;
+let prices = {};   // sym -> {p, chg}
+
+/* ---------- ui helpers ---------- */
+let tmr;
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tmr); tmr=setTimeout(()=>t.classList.remove('on'),2600); }
+function openSheet(id){ $(id).classList.add('on') }
+function closeSheet(id){ $(id).classList.remove('on') }
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('on') }));
+function go(pg,btn){
+  ['Signals','Votes','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
+  window.scrollTo(0,0);
+  if(pg==='Votes') renderVotes();
+  if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
+  if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
+  if(pg==='Alerts') renderLog();
+}
+function toggleSw(el,key){ S[key]=!S[key]; el.classList.toggle('on',S[key]); save(); }
+
+/* ---------- 12-hour clock ---------- */
+function t12(d){ return new Date(d).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}); }
+function t12s(d){ return new Date(d).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}); }
+function dt12(d){ return new Date(d).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true}); }
+function tickClock(){
+  const n=new Date();
+  $('clkT').textContent = t12(n).toUpperCase().replace(/\s+/g,' ');
+  $('clkD').textContent = n.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+}
+setInterval(tickClock,1000); tickClock();
+</script>
+<script>
+/* ==================================================================
+   SamuSignal v2.0 — logic
+   ================================================================== */
+
+/* ---------------- TwelveData API ---------------- */
+const API = 'https://api.twelvedata.com';
+function needKey(){ if(!S.key){ toast('Pehle Settings me API key daalo'); openSheet('setSheet'); return true } return false }
+
+/* ---- daily budget: free plan = 800 credits/day, UTC midnight pe reset ---- */
+const utcDay = () => new Date().toISOString().slice(0,10);
+function dayCheck(){
+  if(S.day.d !== utcDay()){ S.day = {d:utcDay(), used:0, blocked:false}; LS.set('day', S.day); }
+}
+function dayLeft(){ dayCheck(); return Math.max(0, S.cap - S.day.used) }
+function dayReset(quiet){
+  S.day = {d:utcDay(), used:0, blocked:false};
+  LS.set('day', S.day); credits = [];
+  renderBanner(); showCredits();
+  if(!quiet) toast('Budget counter reset — ab dobara try karo');
+}
+function dayUse(n){ dayCheck(); S.day.used += n; LS.set('day', S.day); }
+function dayBlock(){ dayCheck(); S.day.blocked = true; S.day.used = Math.max(S.day.used, S.cap); LS.set('day', S.day); renderBanner(); }
+function showMode(){
+  const el = $('modeNow'); if(!el) return;
+  const txt = {
+    MARKET:'app <b style="color:var(--up)">BUYMARKET/SELLMARKET</b> bhejegi — order turant fill hoga.',
+    LIMIT :'app <b style="color:var(--gold)">BUYLIMIT/SELLLIMIT</b> bhejegi — ' + S.limPips + ' pips pullback pe fill hoga.',
+    STOP  :'app <b style="color:var(--gold)">BUYSTOP/SELLSTOP</b> bhejegi — ' + S.limPips + ' pips breakout pe fill hoga.'
+  };
+  el.innerHTML = '✅ ' + (txt[S.mt5Type] || '');
+}
+
+function renderBanner(){
+  const el = $('dayBar'); if(!el) return;
+  dayCheck();
+  if(S.day.blocked){
+    el.className = 'card';
+    el.style.cssText = 'border-color:var(--dn);background:rgba(242,84,91,.08)';
+    el.innerHTML = `<p class="ttl" style="color:var(--dn)">Aaj ke credits khatam</p>
+      <p class="hint" style="color:var(--dn)">TwelveData ka daily limit (800) pura ho gaya. Naye credits <b>kal subah 5:30 baje (IST)</b> milenge.</p>
+      <button class="btn ghost sm" style="margin-top:10px" onclick="dayReset()">↺ Counter Reset Karo (naya key daala ho to)</button>`;
+    return;
+  }
+  const pct = Math.min(100, Math.round(S.day.used / S.cap * 100));
+  const col = pct > 85 ? 'var(--dn)' : pct > 60 ? 'var(--gold)' : 'var(--up)';
+  el.className = 'card'; el.style.cssText = '';
+  el.innerHTML = `<div class="meter" style="margin:0">
+      <div class="lbl"><span>Aaj ka API budget</span><b class="mono">${S.day.used} / ${S.cap}</b></div>
+      <div class="segs">${Array.from({length:20},(_,i)=>`<i class="${i<Math.round(pct/5)?'f':''}" style="${i<Math.round(pct/5)?'background:'+col:''}"></i>`).join('')}</div>
+    </div>`;
+}
+setInterval(renderBanner, 20000);
+
+/* ---- per-minute throttle: free plan = 8 credits per minute ---- */
+const LIMIT = 8, WIN = 62000;
+let credits = [];
+function creditsLeft(){ const t=Date.now(); credits = credits.filter(x=>t-x<WIN); return LIMIT - credits.length }
+function waitFor(n){
+  const t = Date.now();
+  credits = credits.filter(x => t-x < WIN);
+  if(credits.length + n <= LIMIT) return 0;
+  const need = credits.length + n - LIMIT;
+  const sorted = [...credits].sort((a,b)=>a-b);
+  return Math.max(0, WIN - (t - sorted[need-1])) + 300;
+}
+function showCredits(){
+  const l = creditsLeft();
+  const el = $('apiState');
+  if(el && S.key) el.textContent = `${l}/${LIMIT} min · ${dayLeft()} aaj`;
+}
+setInterval(showCredits, 3000);
+
+async function spend(n, note){
+  dayCheck();
+  if(S.day.blocked) throw apiErr(429, 'DAY');
+  if(dayLeft() < n) throw apiErr(429, 'CAP');
+  const w = waitFor(n);
+  if(w > 0){
+    const sec = Math.ceil(w/1000);
+    if(note) note(sec); else toast(`API limit — ${sec} sec ruk raha hoon`);
+    await new Promise(r => setTimeout(r, w));
+  }
+  const t = Date.now();
+  for(let i=0;i<n;i++) credits.push(t);
+  dayUse(n); showCredits(); renderBanner();
+}
+
+function apiErr(code, msg, sym){
+  let m = msg || ('API error ' + code);
+  if(code === 401 || code === 403) m = 'API key galat ya expire — Settings me check karo';
+  else if(code === 404) m = `${sym||'Ye symbol'} tumhare TwelveData plan me available nahi hai`;
+  else if(code === 429){
+    if(msg === 'DAY' || /for the day/i.test(msg)){
+      dayBlock();
+      m = 'Aaj ke 800 API credits khatam. Kal subah 5:30 (IST) pe reset honge';
+    } else if(msg === 'CAP'){
+      m = `Tumhara daily cap (${S.cap}) pura ho gaya. Settings me badha sakte ho`;
+    } else m = 'Ek minute me 8 call ki limit — thoda ruko';
+  }
+  const e = new Error(m); e.code = code; e.sym = sym;
+  return e;
+}
+
+async function td(path, cost, sym, note){
+  await spend(cost || 1, note);
+  const url = API + path + (path.includes('?')?'&':'?') + 'apikey=' + encodeURIComponent(S.key);
+  let r, j;
+  try { r = await fetch(url); }
+  catch(e){ throw new Error('Internet nahi mil raha'); }
+  try { j = await r.json(); }
+  catch(e){ throw apiErr(r.status, '', sym); }
+  const code = j.code || (r.ok ? 0 : r.status);
+  if(j.status === 'error' || (code && code >= 400)) throw apiErr(code, j.message, sym);
+  if(S.day.blocked){ S.day.blocked = false; LS.set('day', S.day); renderBanner(); }
+  return j;
+}
+
+/* symbol jo plan me nahi hai use yaad rakho */
+function markBad(sym){
+  if(sym && !S.bad.includes(sym)){ S.bad.push(sym); save(); fillPairs(); }
+}
+function isBad(sym){ return S.bad.includes(sym) }
+
+async function getSeries(sym, interval, n, note){
+  const j = await td(`/time_series?symbol=${encodeURIComponent(sym)}&interval=${interval}&outputsize=${n||120}&order=ASC`, 1, sym, note);
+  if(!j.values || !j.values.length) throw new Error('Data nahi mila: ' + sym);
+  return j.values.map(v => ({
+    t: v.datetime,
+    o:+v.open, h:+v.high, l:+v.low, c:+v.close
+  })).filter(b => isFinite(b.c));
+}
+
+const QCACHE = {};
+async function getQuotes(syms, note, ttl){
+  syms = syms.filter(x => !isBad(x));
+  if(!syms.length) return {};
+  /* 60 sec cache — credits bachane ke liye */
+  const now = Date.now(), fresh = {}, need = [];
+  const maxAge = ttl === undefined ? 60000 : ttl;
+  syms.forEach(x => { const c = QCACHE[x]; (c && now-c.t < maxAge) ? fresh[x] = c.d : need.push(x); });
+  if(!need.length) return fresh;
+  const j = await td(`/quote?symbol=${encodeURIComponent(need.join(','))}`, need.length, need.join(','), note);
+  const out = Object.assign({}, fresh);
+  const stamp = () => { LS.set('px', S.px); };
+  const rows = (need.length === 1) ? {[need[0]]: j} : j;
+  const failed = [];
+  for(const k in rows){
+    const q = rows[k];
+    if(!q || !q.close){
+      failed.push(k + (q && q.message ? ' (' + q.message + ')' : ''));
+      if(q && (q.code === 404 || q.code === 403)) markBad(k);
+      continue;
+    }
+    out[k] = { p: +q.close, chg: +(q.percent_change || 0), hi:+q.high, lo:+q.low, o:+q.open };
+    QCACHE[k] = { t: now, d: out[k] };
+    S.px[k] = { p: out[k].p, chg: out[k].chg, t: now };
+  }
+  stamp();
+  if(failed.length) logAdd('Rate nahi mila: ' + failed.join(', '));
+  if(!Object.keys(out).length) throw new Error('API ne koi rate nahi bheja — ' + (failed[0] || 'reason unknown'));
+  /* diagnostics — chhupi hui key, taaki koi loop isse pair na samjhe */
+  Object.defineProperty(out, '__failed', {value: failed, enumerable: false});
+  return out;
+}
+
+async function getPrice(sym){
+  try{
+    const j = await td(`/price?symbol=${encodeURIComponent(sym)}`, 1, sym);
+    const p = +j.price;
+    if(isFinite(p) && p>0){ prices[sym] = Object.assign(prices[sym]||{}, {p}); return p }
+  }catch(e){}
+  return prices[sym] ? prices[sym].p : null;
+}
+
+/* ---------------- indicators ---------------- */
+function ema(arr, len){
+  const k = 2/(len+1); const out=[]; let e = arr[0];
+  for(let i=0;i<arr.length;i++){ e = i===0 ? arr[0] : arr[i]*k + e*(1-k); out.push(e) }
+  return out;
+}
+function rsi(c, len){
+  const out = new Array(c.length).fill(50);
+  let g=0,l=0;
+  for(let i=1;i<=len && i<c.length;i++){ const d=c[i]-c[i-1]; d>=0?g+=d:l-=d }
+  g/=len; l/=len;
+  out[len] = l===0?100:100-100/(1+g/l);
+  for(let i=len+1;i<c.length;i++){
+    const d=c[i]-c[i-1];
+    g=(g*(len-1)+(d>0?d:0))/len;
+    l=(l*(len-1)+(d<0?-d:0))/len;
+    out[i]= l===0?100:100-100/(1+g/l);
+  }
+  return out;
+}
+function atr(b, len){
+  const tr=[]; 
+  for(let i=0;i<b.length;i++){
+    tr.push(i===0 ? b[i].h-b[i].l : Math.max(b[i].h-b[i].l, Math.abs(b[i].h-b[i-1].c), Math.abs(b[i].l-b[i-1].c)));
+  }
+  const out=[]; let a=tr.slice(0,len).reduce((x,y)=>x+y,0)/len;
+  for(let i=0;i<tr.length;i++){ if(i<len){out.push(a)} else { a=(a*(len-1)+tr[i])/len; out.push(a) } }
+  return out;
+}
+function supertrend(b, len, mult){
+  const a = atr(b, len); const dir=[]; const line=[];
+  let up=0, dn=0, d=1;
+  for(let i=0;i<b.length;i++){
+    const mid=(b[i].h+b[i].l)/2;
+    let bu = mid - mult*a[i], bl = mid + mult*a[i];
+    if(i>0){
+      bu = (bu > up || b[i-1].c < up) ? bu : up;
+      bl = (bl < dn || b[i-1].c > dn) ? bl : dn;
+      d = (d===1 && b[i].c < up) ? -1 : (d===-1 && b[i].c > dn) ? 1 : d;
+    } else { d = b[i].c >= mid ? 1 : -1 }
+    up=bu; dn=bl;
+    dir.push(d); line.push(d===1?up:dn);
+  }
+  return {dir, line, atr:a};
+}
+function macdH(c){
+  const f=ema(c,12), s=ema(c,26);
+  const m=c.map((_,i)=>f[i]-s[i]);
+  const sig=ema(m,9);
+  return m.map((v,i)=>v-sig[i]);
+}
+const last = a => a[a.length-1];
+const sma = (a,n) => a.map((_,i) => i<n-1 ? a[i] : a.slice(i-n+1,i+1).reduce((x,y)=>x+y,0)/n);
+const hh = (b,n) => Math.max(...b.slice(-n).map(x=>x.h));
+const ll = (b,n) => Math.min(...b.slice(-n).map(x=>x.l));
+function stdev(a,n){
+  const s2 = a.slice(-n), m = s2.reduce((x,y)=>x+y,0)/n;
+  return Math.sqrt(s2.reduce((x,y)=>x+(y-m)*(y-m),0)/n);
+}
+function stoch(b,n){
+  const h = hh(b,n), l = ll(b,n), c = last(b).c;
+  return h===l ? 50 : (c-l)/(h-l)*100;
+}
+function cci(b,n){
+  const tp = b.map(x=>(x.h+x.l+x.c)/3);
+  const m = tp.slice(-n).reduce((x,y)=>x+y,0)/n;
+  const md = tp.slice(-n).reduce((x,y)=>x+Math.abs(y-m),0)/n;
+  return md===0 ? 0 : (last(tp)-m)/(0.015*md);
+}
+function adx(b,n){
+  let pdm=0, ndm=0, tr=0;
+  for(let i=b.length-n;i<b.length;i++){
+    if(i<1) continue;
+    const up = b[i].h-b[i-1].h, dn = b[i-1].l-b[i].l;
+    if(up>dn && up>0) pdm+=up;
+    if(dn>up && dn>0) ndm+=dn;
+    tr += Math.max(b[i].h-b[i].l, Math.abs(b[i].h-b[i-1].c), Math.abs(b[i].l-b[i-1].c));
+  }
+  if(!tr) return {adx:0,pdi:0,ndi:0};
+  const pdi = pdm/tr*100, ndi = ndm/tr*100;
+  const dx = (pdi+ndi)===0 ? 0 : Math.abs(pdi-ndi)/(pdi+ndi)*100;
+  return {adx:dx, pdi, ndi};
+}
+function psarUp(b){
+  /* halka parabolic-SAR approximation */
+  const c = b.map(x=>x.c), e = ema(c,5), e2 = ema(c,13);
+  return last(e) > last(e2);
+}
+
+/* ---------------- analyse one timeframe ---------------- */
+function tfBias(bars){
+  const c = bars.map(b=>b.c);
+  const e20 = ema(c,20), e50 = ema(c,50);
+  const st = supertrend(bars,10,3);
+  const r = rsi(c,14);
+  const h = macdH(c);
+  const price = last(c);
+  let score = 0;
+  if(last(e20) > last(e50)) score += 2; else score -= 2;
+  if(price > last(e50)) score += 1; else score -= 1;
+  if(last(st.dir) === 1) score += 2; else score -= 2;
+  if(last(r) > 55) score += 1; else if(last(r) < 45) score -= 1;
+  if(last(h) > 0) score += 1; else score -= 1;
+  return {
+    bias: score >= 2 ? 'BUY' : score <= -2 ? 'SELL' : 'NEUTRAL',
+    score, price,
+    rsi: last(r), atr: last(st.atr),
+    stDir: last(st.dir), stLine: last(st.line),
+    e20:last(e20), e50:last(e50), macd:last(h)
+  };
+}
+
+const TFS = [
+  {id:'5min', l:'5m',  tv:'5'},
+  {id:'15min',l:'15m', tv:'15'},
+  {id:'1h',   l:'1H',  tv:'60'},
+  {id:'4h',   l:'4H',  tv:'240'},
+  {id:'1day', l:'1D',  tv:'D'}
+];
+
+/* ================= 50 STRATEGY AGENTS =================
+   Har agent ek alag technical niyam hai. Ye LLM nahi hain —
+   ye 50 rule-based strategies hain jo apna-apna vote deti hain. */
+const B='BUY', SE='SELL', H='HOLD';
+const AGENTS = [
+ /* --- TREND (1-14) --- */
+ {n:'EMA 9/21 Cross',      g:'Trend', f:d=>{const a=last(ema(d.c,9)),b=last(ema(d.c,21)); return a>b*1.0002?B:a<b*0.9998?SE:H}},
+ {n:'EMA 20/50 Cross',     g:'Trend', f:d=>{const a=last(ema(d.c,20)),b=last(ema(d.c,50)); return a>b?B:a<b?SE:H}},
+ {n:'EMA 50/200 Cross',    g:'Trend', f:d=>{const a=last(ema(d.c,50)),b=last(ema(d.c,Math.min(200,d.c.length-1))); return a>b?B:a<b?SE:H}},
+ {n:'SMA 10/30 Cross',     g:'Trend', f:d=>{const a=last(sma(d.c,10)),b=last(sma(d.c,30)); return a>b?B:a<b?SE:H}},
+ {n:'Price vs EMA 50',     g:'Trend', f:d=>{const e=last(ema(d.c,50)); return d.p>e*1.0005?B:d.p<e*0.9995?SE:H}},
+ {n:'Price vs EMA 200',    g:'Trend', f:d=>{const e=last(ema(d.c,Math.min(200,d.c.length-1))); return d.p>e?B:d.p<e?SE:H}},
+ {n:'Supertrend 10/3',     g:'Trend', f:d=>d.st===1?B:SE},
+ {n:'Supertrend 7/2',      g:'Trend', f:d=>{const x=supertrend(d.b,7,2); return last(x.dir)===1?B:SE}},
+ {n:'Supertrend 14/4',     g:'Trend', f:d=>{const x=supertrend(d.b,14,4); return last(x.dir)===1?B:SE}},
+ {n:'MACD Histogram',      g:'Trend', f:d=>{const h=last(macdH(d.c)); return h>0?B:h<0?SE:H}},
+ {n:'MACD Momentum',       g:'Trend', f:d=>{const h=macdH(d.c); return last(h)>h[h.length-2]?B:SE}},
+ {n:'ADX Direction',       g:'Trend', f:d=>{const a=adx(d.b,14); if(a.adx<20)return H; return a.pdi>a.ndi?B:SE}},
+ {n:'ADX Strength',        g:'Trend', f:d=>{const a=adx(d.b,14); if(a.adx<25)return H; return a.pdi>a.ndi?B:SE}},
+ {n:'PSAR Proxy',          g:'Trend', f:d=>psarUp(d.b)?B:SE},
+
+ /* --- MOMENTUM (15-26) --- */
+ {n:'RSI 14 Zones',        g:'Momentum', f:d=>d.r>55?B:d.r<45?SE:H},
+ {n:'RSI Overbought/sold', g:'Momentum', f:d=>d.r<30?B:d.r>70?SE:H},
+ {n:'RSI 7 Fast',          g:'Momentum', f:d=>{const r=last(rsi(d.c,7)); return r>60?B:r<40?SE:H}},
+ {n:'RSI 21 Slow',         g:'Momentum', f:d=>{const r=last(rsi(d.c,21)); return r>52?B:r<48?SE:H}},
+ {n:'RSI Divergence',      g:'Momentum', f:d=>{const r=rsi(d.c,14),n=d.c.length-1;
+    const pUp=d.c[n]>d.c[n-5], rUp=r[n]>r[n-5];
+    return pUp&&!rUp?SE:!pUp&&rUp?B:H}},
+ {n:'Stochastic 14',       g:'Momentum', f:d=>{const k=stoch(d.b,14); return k<20?B:k>80?SE:H}},
+ {n:'Stochastic 5 Fast',   g:'Momentum', f:d=>{const k=stoch(d.b,5); return k>60?B:k<40?SE:H}},
+ {n:'CCI 20',              g:'Momentum', f:d=>{const c=cci(d.b,20); return c>100?B:c<-100?SE:H}},
+ {n:'CCI Zero Cross',      g:'Momentum', f:d=>{const c=cci(d.b,20); return c>0?B:SE}},
+ {n:'Williams %R',         g:'Momentum', f:d=>{const h=hh(d.b,14),l=ll(d.b,14);
+    const w=h===l?-50:(h-d.p)/(h-l)*-100; return w<-80?B:w>-20?SE:H}},
+ {n:'ROC 10',              g:'Momentum', f:d=>{const n=d.c.length-1,r=(d.c[n]-d.c[n-10])/d.c[n-10]*100;
+    return r>0.15?B:r<-0.15?SE:H}},
+ {n:'Momentum 20',         g:'Momentum', f:d=>{const n=d.c.length-1; return d.c[n]>d.c[n-20]?B:SE}},
+
+ /* --- VOLATILITY / CHANNEL (27-36) --- */
+ {n:'Bollinger 20/2',      g:'Volatility', f:d=>{const m=last(sma(d.c,20)),sd=stdev(d.c,20);
+    return d.p<m-2*sd?B:d.p>m+2*sd?SE:H}},
+ {n:'Bollinger Mid',       g:'Volatility', f:d=>{const m=last(sma(d.c,20)); return d.p>m?B:SE}},
+ {n:'BB Squeeze Break',    g:'Volatility', f:d=>{const sd=stdev(d.c,20),m=last(sma(d.c,20));
+    if(sd/m<0.0015) return H; return d.p>m?B:SE}},
+ {n:'Keltner Channel',     g:'Volatility', f:d=>{const m=last(ema(d.c,20));
+    return d.p>m+1.5*d.a?B:d.p<m-1.5*d.a?SE:H}},
+ {n:'Donchian 20',         g:'Volatility', f:d=>{const h=hh(d.b,20),l=ll(d.b,20);
+    return d.p>=h*0.999?B:d.p<=l*1.001?SE:H}},
+ {n:'Donchian 55',         g:'Volatility', f:d=>{const n=Math.min(55,d.b.length);
+    const h=hh(d.b,n),l=ll(d.b,n); return d.p>=h*0.999?B:d.p<=l*1.001?SE:H}},
+ {n:'ATR Expansion',       g:'Volatility', f:d=>{const t=atr(d.b,14),n=t.length-1;
+    if(t[n]<t[n-5]) return H; return d.p>d.c[d.c.length-2]?B:SE}},
+ {n:'Range Position',      g:'Volatility', f:d=>{const h=hh(d.b,30),l=ll(d.b,30);
+    const pos=h===l?.5:(d.p-l)/(h-l); return pos<0.25?B:pos>0.75?SE:H}},
+ {n:'Volatility Filter',   g:'Volatility', f:d=>{const pct=d.a/d.p*100;
+    if(pct<0.03||pct>2) return H; return d.p>last(ema(d.c,20))?B:SE}},
+ {n:'Std Dev Break',       g:'Volatility', f:d=>{const sd=stdev(d.c,20),m=last(sma(d.c,20));
+    return d.p>m+sd?B:d.p<m-sd?SE:H}},
+
+ /* --- PRICE ACTION (37-46) --- */
+ {n:'Higher Highs/Lows',   g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
+    const hi=b[n].h>b[n-2].h,lo=b[n].l>b[n-2].l;
+    return hi&&lo?B:!hi&&!lo?SE:H}},
+ {n:'Engulfing Candle',    g:'Price Action', f:d=>{const b=d.b,n=b.length-1,a=b[n],pv=b[n-1];
+    if(a.c>a.o&&pv.c<pv.o&&a.c>pv.o&&a.o<pv.c) return B;
+    if(a.c<a.o&&pv.c>pv.o&&a.c<pv.o&&a.o>pv.c) return SE; return H}},
+ {n:'Pin Bar',             g:'Price Action', f:d=>{const a=last(d.b),rg=a.h-a.l;
+    if(!rg) return H;
+    const lw=Math.min(a.o,a.c)-a.l, uw=a.h-Math.max(a.o,a.c);
+    return lw/rg>0.55?B:uw/rg>0.55?SE:H}},
+ {n:'Inside Bar Break',    g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
+    if(b[n-1].h<b[n-2].h&&b[n-1].l>b[n-2].l) return b[n].c>b[n-1].h?B:b[n].c<b[n-1].l?SE:H;
+    return H}},
+ {n:'3 Candle Trend',      g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
+    const up=[0,1,2].every(i=>b[n-i].c>b[n-i].o), dn=[0,1,2].every(i=>b[n-i].c<b[n-i].o);
+    return up?B:dn?SE:H}},
+ {n:'Body Strength',       g:'Price Action', f:d=>{const a=last(d.b),rg=a.h-a.l;
+    if(!rg) return H; const bd=(a.c-a.o)/rg; return bd>0.5?B:bd<-0.5?SE:H}},
+ {n:'Gap Direction',       g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
+    return b[n].o>b[n-1].c*1.0003?B:b[n].o<b[n-1].c*0.9997?SE:H}},
+ {n:'Close vs Open 5',     g:'Price Action', f:d=>{const b=d.b.slice(-5);
+    const up=b.filter(x=>x.c>x.o).length; return up>=4?B:up<=1?SE:H}},
+ {n:'Day High/Low Test',   g:'Price Action', f:d=>{const h=hh(d.b,24),l=ll(d.b,24),rg=h-l;
+    if(!rg) return H;
+    return (d.p-l)/rg<0.2?B:(h-d.p)/rg<0.2?SE:H}},
+ {n:'Pivot Point',         g:'Price Action', f:d=>{const b=d.b[d.b.length-2];
+    const pp=(b.h+b.l+b.c)/3; return d.p>pp?B:SE}},
+
+ /* --- MULTI TIMEFRAME (47-50) --- */
+ {n:'1H Trend Bias',       g:'Higher TF', f:d=>d.htf['1h']||H},
+ {n:'4H Trend Bias',       g:'Higher TF', f:d=>d.htf['4h']||H},
+ {n:'1D Trend Bias',       g:'Higher TF', f:d=>d.htf['1day']||H},
+ {n:'HTF Alignment',       g:'Higher TF', f:d=>{const v=['1h','4h','1day'].map(k=>d.htf[k]).filter(Boolean);
+    if(v.length<2) return H;
+    return v.every(x=>x===B)?B:v.every(x=>x===SE)?SE:H}}
+];
+
+function runAgents(bars, htfBias, price){
+  const c = bars.map(x=>x.c);
+  const st = supertrend(bars,10,3);
+  const d = {
+    b:bars, c, p:price || last(c),
+    r:last(rsi(c,14)), a:last(st.atr), st:last(st.dir),
+    htf: htfBias || {}
+  };
+  const out = AGENTS.map(ag => {
+    let v = H;
+    try{ v = ag.f(d) || H }catch(e){ v = H }
+    return {n:ag.n, g:ag.g, v};
+  });
+  const buy = out.filter(x=>x.v===B).length;
+  const sell = out.filter(x=>x.v===SE).length;
+  const hold = out.filter(x=>x.v===H).length;
+  const win = buy>sell ? B : sell>buy ? SE : H;
+  const lead = Math.max(buy,sell);
+  const conf = Math.round(lead / AGENTS.length * 100);
+  return {list:out, buy, sell, hold, verdict:win, conf};
+}
+
+/* ---------------- main analysis ---------------- */
+let busy = false;
+async function runAnalyze(){
+  if(needKey()) return;
+  if(busy) return;
+  busy = true;
+  const btn = $('btnAnalyze');
+  btn.innerHTML = '<span class="spin"></span> Analyze ho raha hai...';
+  const sym = S.pair;
+  const note = sec => { btn.innerHTML = `<span class="spin"></span> API limit — ${sec}s ruko`; };
+  try{
+    if(isBad(sym)) throw apiErr(404, '', sym);
+    const wanted = S.htf ? ['15min','1h','4h','1day'] : ['1h','4h'];
+    if(!wanted.includes(S.tf)) wanted.unshift(S.tf);
+    const res = {};
+    let barsBase = null, done = 0;
+    for(const tf of wanted){
+      const bars = await getSeries(sym, tf, 120, note);
+      if(tf === S.tf || wanted[0] === tf) barsBase = barsBase || bars;
+      res[tf] = tfBias(bars);
+      done++;
+      btn.innerHTML = `<span class="spin"></span> ${done}/${wanted.length} timeframe`;
+    }
+    const base0 = res[S.tf] || res[wanted[0]];
+    const live = base0.price;                 /* last close use karo — 1 credit bachta hai */
+    prices[sym] = Object.assign(prices[sym]||{}, {p:live});
+    S.px[sym] = Object.assign({}, S.px[sym]||{}, {p:live, t:Date.now()});
+    LS.set('px', S.px); buildTicker();
+
+    const base = base0;
+    const htfB = {};
+    ['1h','4h','1day'].forEach(k => { if(res[k]) htfB[k] = res[k].bias === 'NEUTRAL' ? 'HOLD' : res[k].bias });
+    lastVotes = runAgents(barsBase, htfB, live);
+    lastVotes.sym = sym; lastVotes.at = Date.now(); lastVotes.tf = S.tf;
+    const h4 = res['4h'], d1 = res['1day'], h1 = res['1h'];
+
+    /* --- quality score 0-100 --- */
+    let q = 0;
+    const dir = base.bias;
+    if(dir !== 'NEUTRAL'){
+      q += 22;                                                  // base setup exists
+      if(h1 && h1.bias === dir) q += 16;
+      if(h4 && h4.bias === dir) q += 20;
+      if(d1 && d1.bias === dir) q += 18;
+      if(base.stDir === (dir==='BUY'?1:-1)) q += 10;
+      const rv = base.rsi;
+      if(dir==='BUY'  && rv>50 && rv<72) q += 8; else if(dir==='SELL' && rv<50 && rv>28) q += 8;
+      if(dir==='BUY' ? base.macd>0 : base.macd<0) q += 6;
+      const atrPct = base.atr / base.price * 100;
+      if(atrPct > 0.04 && atrPct < 1.6) q += 0; else q -= 10;    // dead / crazy volatility
+    }
+    q = Math.max(0, Math.min(100, Math.round(q)));
+
+    const htfOk = !S.htf || (h4 && d1 && h4.bias===dir && d1.bias===dir);
+    const grade = q>=80?'A+':q>=70?'A':q>=60?'B':q>=45?'C':'D';
+
+    /* --- levels from default $ risk --- */
+    const L0 = +$('inLots').value || S.dLot;
+    const lv = calcLevels(sym, live, L0, base.atr);
+    const lots = lv.lots;
+    const sl = dir==='BUY' ? live - lv.slDist : live + lv.slDist;
+    const tp = dir==='BUY' ? live + lv.tpDist : live - lv.tpDist;
+
+    lastSignal = {
+      sym, dir, q, grade, live, sl, tp, lots,
+      slD:lv.slD, tpD:lv.tpD, slPips:lv.slPips, tpPips:lv.tpPips, mode:S.slMode, htfOk, tf:S.tf,
+      atr: base.atr, rsi: base.rsi,
+      tfs: TFS.filter(t=>res[t.id]).map(t=>({l:t.l, b:res[t.id].bias})),
+      at: Date.now()
+    };
+    renderSignal();
+    if(S.tgAuto && dir!=='NEUTRAL' && htfOk) tgSend(fullReport(true), true);
+  }catch(e){
+    if(e.code === 404){ markBad(sym); }
+    const tip = e.code === 404
+      ? `<br><br>Ye pair list me ab <b>(locked)</b> dikhega. Free plan pe metals aur kuch exotic crosses band hote hain — koi major pair (EUR/USD, GBP/USD, USD/JPY) try karo.`
+      : e.code === 429 ? `<br><br>Thoda ruk ke dobara Analyze dabao.` : '';
+    $('cardSignal').innerHTML = `<p class="ttl">Signal</p><p class="hint" style="color:var(--dn)">${e.message}${tip}</p>`;
+  }
+  btn.textContent = 'Analyze Karo';
+  busy = false;
+}
+
+function renderSignal(){
+  const s = lastSignal;
+  if(!s){ $('cardSignal').innerHTML = '<p class="ttl">Signal</p><p class="hint">Pair chuno aur Analyze dabao.</p>'; return }
+  const cls = s.dir==='BUY'?'buy':s.dir==='SELL'?'sell':'';
+  /* rang = direction (BUY hara, SELL laal), bharaav = quality */
+  const dirCol = s.dir==='BUY' ? 'var(--up)' : s.dir==='SELL' ? 'var(--dn)' : 'var(--mut)';
+  const tier = s.q>=70 ? 'STRONG' : s.q>=50 ? 'MEDIUM' : 'WEAK';
+  const segCol = tier==='STRONG' ? dirCol : tier==='MEDIUM' ? dirCol : 'var(--dim)';
+  const segOp  = tier==='STRONG' ? 1 : tier==='MEDIUM' ? .45 : .35;
+  const segs = Array.from({length:20},(_,i)=>{
+    const on = i < Math.round(s.q/5);
+    return `<i style="${on?`background:${segCol};opacity:${segOp}`:''}"></i>`;
+  }).join('');
+  const tierCol = tier==='STRONG' ? dirCol : tier==='MEDIUM' ? 'var(--gold)' : 'var(--dim)';
+  const rr = (s.tpD/s.slD).toFixed(2);
+  const nr = newsRisk(s.sym);
+  const nx = nr ? null : nextNews(s.sym);
+  const newsBox = nr
+    ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.1);border-radius:6px;padding:10px;margin-top:9px">
+        <b style="color:var(--dn);font-size:11px;letter-spacing:1px">⚠ NEWS ALERT</b>
+        <p class="hint" style="color:var(--dn);margin:4px 0 0">${nr.c} · ${nr.t} — ${t12(nr.d)}. Is waqt spread chaudi aur move jhatke wala hota hai. Trade rok do ya SL bada rakho.</p></div>`
+    : (nx && (nx.d - Date.now()) < 3*3600000
+        ? `<p class="hint" style="color:var(--gold);margin-top:8px">🗓 ${nx.c} ${nx.t} — ${t12(nx.d)} (${Math.round((nx.d-Date.now())/60000)} min me)</p>`
+        : '');
+  const weak = s.q < 70 ? `<p class="hint" style="color:var(--gold);margin-top:8px">Ye ${tier} signal hai (${s.q}%). Tum sirf strong lete ho — 70%+ ka intezaar karo.</p>` : '';
+  const warn = !s.htfOk ? `<p class="hint" style="color:var(--gold);margin-top:8px">⚠ HTF filter ON hai aur 4H/1D bias match nahi kar raha. Ye trade skip karna behtar.</p>` : '';
+  $('cardSignal').innerHTML = `
+    <p class="ttl">Signal <span class="sp">${t12(s.at)}</span></p>
+    <div class="sig ${cls}">
+      <div class="sig-h">
+        <b class="mono">${s.sym}</b>
+        <span class="tag ${cls||'n'}">${s.dir}</span>
+        <span class="gr">${s.grade}</span>
+      </div>
+      <div class="meter">
+        <div class="lbl">
+          <span style="color:${tierCol}">${tier} ${s.dir}</span>
+          <b style="color:${tierCol}">${s.q}%</b>
+        </div>
+        <div class="segs">${segs}</div>
+      </div>
+      <div class="lvls">
+        <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(s.sym,s.live)}</b></div>
+        <div class="lvl sl"><span>SL · $${s.slD}</span><b class="mono">${fmt(s.sym,s.sl)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.slPips} pips</small></div>
+        <div class="lvl tp"><span>TP · $${s.tpD}</span><b class="mono">${fmt(s.sym,s.tp)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.tpPips} pips</small></div>
+      </div>
+      <div class="tfrow">
+        ${s.tfs.map(t=>`<div class="tfp ${t.b==='BUY'?'up':t.b==='SELL'?'dn':'nu'}"><span>${t.l}</span><b>${t.b==='NEUTRAL'?'—':t.b}</b></div>`).join('')}
+      </div>
+      <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)}</p>
+      ${newsBox}${weak}${warn}
+      ${lastVotes && lastVotes.sym===s.sym ? `<div style="display:flex;align-items:center;gap:8px;background:var(--panel);
+        border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-top:10px" onclick="go('Votes',document.querySelector('nav button[data-pg=Votes]'))">
+        <span style="font-size:10px;color:var(--mut);letter-spacing:1px">50 AGENTS</span>
+        <span class="mono up" style="font-size:12px">${lastVotes.buy}B</span>
+        <span class="mono mu" style="font-size:12px">${lastVotes.hold}H</span>
+        <span class="mono dn" style="font-size:12px">${lastVotes.sell}S</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--gold)">DEKHO ›</span>
+      </div>` : ''}
+      <div class="acts">
+        <button class="btn ${s.dir==='SELL'?'r':'g'} sm" style="flex:2" onclick="openQuick('APP')">Maine Ye Trade Liya</button>
+        <button class="btn gold sm" onclick="sendSignalMT5()">🚀 MT5 pe Lagao</button>
+      </div>
+      <div class="acts" style="margin-top:7px">
+        <button class="btn ghost sm" onclick="shareWa()">WhatsApp</button>
+        <button class="btn ghost sm" onclick="tgSend(fullReport(true))">Telegram</button>
+      </div>
+    </div>`;
+  setChart(s.sym);
+}
+
+/* ---------------- votes render ---------------- */
+let voteFilter = 'All';
+
+function renderVotes(){
+  const v = lastVotes;
+  if(!v){
+    $('voteT').textContent = '—';
+    $('voteBox').innerHTML = '<div class="empty"><div>🗳</div>Pehle Signals page pe koi pair Analyze karo.<br>50 agents apna vote yahan denge.</div>';
+    $('voteListCard').classList.add('hide');
+    return;
+  }
+  $('voteListCard').classList.remove('hide');
+  $('voteT').textContent = `${SPECS[v.sym].n} · ${v.tf} · ${t12(v.at)}`;
+
+  const T = AGENTS.length;
+  const bp = v.buy/T*100, sp = v.sell/T*100, hp = v.hold/T*100;
+  const vc = v.verdict==='BUY' ? 'var(--up)' : v.verdict==='SELL' ? 'var(--dn)' : 'var(--mut)';
+  const strength = v.conf>=70 ? 'STRONG' : v.conf>=50 ? 'MEDIUM' : 'WEAK';
+
+  $('voteBox').innerHTML = `
+    <div style="text-align:center;padding:6px 0 2px">
+      <b style="font-size:26px;color:${vc};letter-spacing:3px">${strength} ${v.verdict}</b>
+      <p class="hint" style="margin-top:4px">${Math.max(v.buy,v.sell)} / ${T} agents ek taraf · ${v.conf}% consensus</p>
+    </div>
+    <div class="vbar">
+      ${bp?`<i style="width:${bp}%;background:var(--up)">${v.buy}</i>`:''}
+      ${hp?`<i style="width:${hp}%;background:#3a3a3a;color:var(--mut)">${v.hold}</i>`:''}
+      ${sp?`<i style="width:${sp}%;background:var(--dn)">${v.sell}</i>`:''}
+    </div>
+    <div class="vote3">
+      <div class="vc b"><b class="up">${v.buy}</b><span>BUY VOTE</span></div>
+      <div class="vc"><b class="mu">${v.hold}</b><span>HOLD VOTE</span></div>
+      <div class="vc s"><b class="dn">${v.sell}</b><span>SELL VOTE</span></div>
+    </div>
+    ${lastSignal && lastSignal.sym===v.sym && lastSignal.dir!==v.verdict && v.verdict!=='HOLD'
+      ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Signal card <b>${lastSignal.dir}</b> keh raha hai, par agents <b>${v.verdict}</b> bol rahe hain. Aisa ho to ruk jaana behtar.</p>` : ''}
+    ${v.conf < 50 ? '<p class="hint" style="color:var(--gold);margin-top:8px">Agents ka mat bata hua hai — market shayad range me hai. Wait karna theek rahega.</p>' : ''}
+    <div class="grid2" style="margin-top:12px">
+      <button class="btn ghost sm" onclick="shareWa()">WhatsApp</button>
+      <button class="btn ghost sm" onclick="tgSend(fullReport(true))">Telegram</button>
+    </div>`;
+
+  const groups = ['All', ...new Set(AGENTS.map(a=>a.g))];
+  $('voteChips').innerHTML = groups.map(g =>
+    `<button class="chip ${voteFilter===g?'on':''}" onclick="voteFilter='${g}';renderVotes()">${g}</button>`).join('');
+  $('voteFilt').textContent = voteFilter === 'All' ? 'sab' : voteFilter;
+
+  const rows = v.list.filter(a => voteFilter==='All' || a.g===voteFilter);
+  const rank = {BUY:0, SELL:1, HOLD:2};
+  rows.sort((a,b) => rank[a.v]-rank[b.v]);
+  $('voteList').innerHTML = rows.map(a => `
+    <div class="ag">
+      <div class="nm">${a.n}<span class="gp"> · ${a.g}</span></div>
+      <div class="vt ${a.v==='BUY'?'b':a.v==='SELL'?'s':'h'}">${a.v}</div>
+    </div>`).join('');
+}
+
+function voteText(){
+  const v = lastVotes; if(!v) return '';
+  return `🗳 <b>SamuSignal — Agent Vote</b>\n\n<b>${SPECS[v.sym].n}</b> · ${v.tf}\n` +
+    `Verdict: <b>${v.verdict}</b> (${v.conf}% consensus)\n\n` +
+    `BUY: ${v.buy}\nHOLD: ${v.hold}\nSELL: ${v.sell}\n\n⏰ ${t12(v.at)}`;
+}
+function shareVotesWa(){
+  if(!lastVotes){ toast('Pehle analyze karo'); return }
+  window.open('https://wa.me/?text=' + encodeURIComponent(strip(voteText())), '_blank');
+}
+
+/* ---------------- NEWS (ForexFactory weekly feed) ---------------- */
+/* Feed 5 min me sirf 2 baar milta hai — isliye din me ek baar laakar cache karo */
+const FEEDS = [
+  'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+  'https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json'
+];
+const PROXIES = [
+  u => u,
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?' + encodeURIComponent(u)
+];
+
+async function fetchNews(){
+  let lastErr = '';
+  for(const feed of FEEDS){
+    for(const wrap of PROXIES){
+      try{
+        const r = await fetch(wrap(feed), {cache:'no-store'});
+        if(!r.ok){ lastErr = 'HTTP ' + r.status; continue }
+        const j = await r.json();
+        if(Array.isArray(j) && j.length) return j;
+        lastErr = 'khaali jawab';
+      }catch(e){ lastErr = e.message }
+    }
+  }
+  throw new Error('News nahi mili — ' + lastErr);
+}
+
+async function loadNews(force){
+  const fresh = S.news.d === utcDay() && S.news.list.length;
+  if(fresh && !force){ renderNews(); return }
+  $('newsT').innerHTML = '<span class="spin"></span>';
+  try{
+    const raw = await fetchNews();
+    S.news = {
+      d: utcDay(),
+      list: raw.map(e => ({
+        t: e.title, c: e.country, i: e.impact,
+        d: new Date(e.date).getTime(),
+        f: e.forecast || '', p: e.previous || ''
+      })).filter(e => isFinite(e.d))
+    };
+    save(); renderNews(); if(force) toast(`${S.news.list.length} events aa gaye`);
+  }catch(e){
+    $('newsT').textContent = 'fail';
+    $('newsBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}<br><br>ForexFactory 5 minute me sirf 2 download deta hai. Thodi der baad try karo.</p>`;
+  }
+}
+
+function newsFor(day){
+  const now = Date.now();
+  const start = new Date(); start.setHours(0,0,0,0);
+  const from = start.getTime() + (day||0) * 86400000;
+  const to = from + 86400000;
+  const imp = S.newsImp;
+  return S.news.list
+    .filter(e => e.d >= from && e.d < to)
+    .filter(e => imp === 'All' ? true : imp === 'High' ? e.i === 'High' : (e.i === 'High' || e.i === 'Medium'))
+    .sort((a,b) => a.d - b.d);
+}
+
+/* kya is pair pe abhi news ka khatra hai */
+function newsRisk(sym){
+  if(!S.newsOn || !SPECS[sym]) return null;
+  const ccy = SPECS[sym].ccy;
+  const now = Date.now(), w = (S.newsMin || 30) * 60000;
+  return S.news.list.find(e =>
+    e.i === 'High' && ccy.includes(e.c) && now >= e.d - w && now <= e.d + w
+  ) || null;
+}
+function nextNews(sym){
+  const ccy = sym && SPECS[sym] ? SPECS[sym].ccy : null;
+  const now = Date.now();
+  return S.news.list
+    .filter(e => e.i === 'High' && e.d > now && (!ccy || ccy.includes(e.c)))
+    .sort((a,b) => a.d - b.d)[0] || null;
+}
+
+let newsDay = 0;
+function renderNews(){
+  $('newsChips').innerHTML =
+    [['High','High only'],['Med','High + Med'],['All','Sab']].map(([v,l]) =>
+      `<button class="chip ${S.newsImp===v?'on gold':''}" onclick="S.newsImp='${v}';save();renderNews()">${l}</button>`).join('') +
+    [[0,'Aaj'],[1,'Kal']].map(([v,l]) =>
+      `<button class="chip ${newsDay===v?'on':''}" onclick="newsDay=${v};renderNews()">${l}</button>`).join('');
+
+  const list = newsFor(newsDay);
+  const nx = nextNews(null);
+  $('newsT').textContent = nx
+    ? `agla ${t12(nx.d)} · ${nx.c}`
+    : (S.news.list.length ? 'aage koi high nahi' : '—');
+
+  if(!S.news.list.length){
+    $('newsBox').innerHTML = '<p class="hint">News abhi load nahi hui. Neeche Refresh dabao.</p>';
+    return;
+  }
+  if(!list.length){
+    $('newsBox').innerHTML = `<div class="empty"><div>🗓</div>${newsDay?'Kal':'Aaj'} koi ${S.newsImp==='High'?'high-impact ':''}news nahi.</div>`;
+    return;
+  }
+
+  const now = Date.now();
+  $('newsBox').innerHTML = list.map(e => {
+    const past = e.d < now;
+    const soon = !past && (e.d - now) < 60*60000;
+    const col = e.i==='High' ? 'var(--dn)' : e.i==='Medium' ? 'var(--gold)' : 'var(--mut)';
+    const mins = Math.round((e.d - now)/60000);
+    const when = past ? 'ho chuki'
+      : mins < 60 ? `${mins} min me`
+      : `${Math.round(mins/60)} ghante me`;
+    return `<div class="hist" style="${past?'opacity:.4':''}">
+      <div class="ic" style="background:transparent;border:1px solid ${col};color:${col};font-size:9px">${e.c}</div>
+      <div class="in">
+        <b style="font-size:12px">${e.t}</b>
+        <small>${t12(e.d)} · ${when}${e.f?` · forecast ${e.f}`:''}${e.p?` · prev ${e.p}`:''}</small>
+      </div>
+      ${soon ? '<span class="tag sell" style="font-size:9px">SOON</span>' : ''}
+    </div>`;
+  }).join('') + `<p class="hint">Waqt tumhare phone ke timezone me hai. Source: ForexFactory.</p>`;
+}
+
+
+/* ---------------- market ---------------- */
+async function loadMarket(){
+  if(needKey()) return;
+  const list = (GROUPS[S.mktG] || GROUPS['Majors']).filter(x=>!isBad(x));
+  $('mktT').innerHTML = '<span class="spin"></span>';
+  try{
+    const q = await getQuotes(list, sec => $('mktT').textContent = sec+'s');
+    Object.assign(prices, q);
+    $('mktBody').innerHTML = (GROUPS[S.mktG]||[]).map(sym=>{
+      const d = q[sym];
+      if(isBad(sym)) return `<tr><td class="mono">${sym}</td><td colspan="3" class="mu" style="text-align:right">plan me nahi</td></tr>`;
+      if(!d) return `<tr><td class="mono">${sym}</td><td colspan="3" class="mu" style="text-align:right">—</td></tr>`;
+      const up = d.chg >= 0;
+      return `<tr>
+        <td class="mono"><b>${sym}</b></td>
+        <td class="mono" style="text-align:right">${fmt(sym,d.p)}</td>
+        <td class="mono ${up?'up':'dn'}" style="text-align:right">${up?'+':''}${d.chg.toFixed(2)}%</td>
+        <td style="text-align:right"><span class="tag ${up?'buy':'sell'}">${up?'BULL':'BEAR'}</span></td>
+      </tr>`;
+    }).join('');
+    $('mktT').textContent = t12(Date.now());
+    buildTicker();   }catch(e){
+    $('mktT').textContent='error';
+    if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
+    toast(e.message);
+  }
+}
+
+/* fallback reference prices sirf pip-table ke liye */
+function refPrice(sym){
+  return {'XAU/USD':3300,'EUR/USD':1.09,'GBP/USD':1.27,'AUD/USD':0.66,'NZD/USD':0.60,
+    'USD/JPY':150,'USD/CHF':0.88,'USD/CAD':1.36,'BTC/USD':95000,'ETH/USD':3200}[sym] || 1;
+}
+
+/* ticker sirf 5 symbols = 5 credits */
+const TICKER = ['XAU/USD','EUR/USD','GBP/USD','USD/JPY','BTC/USD'];
+
+function buildTicker(){
+  let newest = 0;
+  const list = TICKER.filter(x=>!isBad(x)).map(sym=>{
+    const d = S.px[sym] || prices[sym];
+    if(!d || !d.p) return `<span>${sym} <b class="mono" style="color:var(--dim)">—</b></span>`;
+    if(d.t && d.t > newest) newest = d.t;
+    const c = d.chg || 0, up = c >= 0;
+    const col = c === 0 ? 'var(--txt)' : up ? 'var(--up)' : 'var(--dn)';
+    const ar  = c === 0 ? '' : (up ? '▲' : '▼');
+    return `<span>${sym} <b class="mono" style="color:${col}">${ar} ${fmt(sym,d.p)}</b></span>`;
+  }).join('');
+  const age = newest
+    ? `<span style="color:var(--dim)">⟳ ${t12(newest)} · tap to refresh</span>`
+    : `<span style="color:var(--gold)">⟳ tap karke rate lao</span>`;
+  $('tick').innerHTML = list + age;
+}
+
+let tickBusy = false;
+async function refreshTicker(force){
+  if(tickBusy || !S.key) return;
+  if(S.day.blocked) return;
+  const syms = TICKER.filter(x=>!isBad(x));
+  const oldest = Math.min(...syms.map(x => (S.px[x] && S.px[x].t) || 0));
+  const stale  = Date.now() - oldest > 120000;
+  if(!force && !stale) return;
+  if(!force && creditsLeft() < syms.length + 2) return;   /* analysis ke liye credits bachao */
+  tickBusy = true;
+  $('tick').style.opacity = '.5';
+  try{
+    const q = await getQuotes(syms, sec => toast(`API limit — ${sec} sec me rate aayega`));
+    Object.assign(prices, q);
+    buildTicker();
+  }catch(e){
+    if(e.code === 404 && e.sym) e.sym.split(',').forEach(markBad);
+    toast(e.message);
+  }
+  $('tick').style.opacity = '1';
+  tickBusy = false;
+}
+document.querySelector('.tickwrap').addEventListener('click', () => refreshTicker(true));
+
+/* ---------------- chart ---------------- */
+function setChart(sym){
+  const s = SPECS[sym]; if(!s) return;
+  $('chartSym').textContent = s.n + ' · ' + (TFS.find(t=>t.tv===S.chartTf)||{l:''}).l;
+  $('tvFrame').src = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(s.tv)}&interval=${S.chartTf}&theme=dark&style=1&timezone=Asia/Kolkata&hidesidetoolbar=1&hidetoptoolbar=0&withdateranges=0&saveimage=0&studies=STD%3BSupertrend&locale=en`;
+}
+
+function chartBig(){
+  const b = $('tvBox'), x = $('tvClose');
+  const on = b.classList.toggle('big');
+  x.classList.toggle('hide', !on);
+  document.body.style.overflow = on ? 'hidden' : '';
+}
+
+/* ---------------- quick trade ---------------- */
+let qtState = null;
+
+/* signal se — target 'APP' (journal) ya 'MT5' */
+function openQuick(target){
+  const s = lastSignal;
+  if(!s || s.dir==='NEUTRAL'){ toast('Pehle ek valid signal analyze karo'); return }
+  qtState = {
+    target: target || 'APP',
+    sym: s.sym, dir: s.dir, entry: s.live, lots: +$('inLots').value || S.dLot,
+    atr: s.atr, grade: s.grade, qual: s.q,
+    mode: S.slMode, slD: S.dSl, tpD: S.dTp,
+    atrSL: S.atrSL, atrRR: S.atrRR, autoLot: S.autoLot, riskUsd: S.riskUsd,
+    ordType: S.mt5Type
+  };
+  drawQuick(); openSheet('qtSheet');
+}
+
+/* kisi open trade ko MT5 pe bhejna — wahi confirm sheet */
+function openMt5FromTrade(id){
+  const t = S.open.find(x => x.id === id); if(!t) return;
+  const atr = (lastSignal && lastSignal.sym === t.sym) ? lastSignal.atr : 0;
+  qtState = {
+    target: 'MT5',
+    sym: t.sym, dir: t.dir, entry: t.cur || t.entry, lots: t.lots,
+    atr, grade: t.grade || '—', qual: t.q || 0,
+    mode: atr > 0 ? S.slMode : 'DOLLAR', slD: t.slD, tpD: t.tpD,
+    atrSL: S.atrSL, atrRR: S.atrRR, autoLot: false, riskUsd: S.riskUsd,
+    ordType: S.mt5Type
+  };
+  drawQuick(); openSheet('qtSheet');
+}
+
+function qtCalc(){
+  const q = qtState;
+  const lv = calcLevels(q.sym, q.entry, q.lots, q.atr, q);
+  const sl = q.dir==='BUY' ? q.entry - lv.slDist : q.entry + lv.slDist;
+  const tp = q.dir==='BUY' ? q.entry + lv.tpDist : q.entry - lv.tpDist;
+  return {lv, sl, tp};
+}
+
+/* MT5 pe jo entry sach me jayegi (limit/stop offset ke baad) */
+function qtSendPrice(){
+  const q = qtState;
+  if(q.ordType === 'MARKET') return q.entry;
+  const off = (S.limPips || 5) * SPECS[q.sym].pip;
+  const sign = (q.ordType === 'LIMIT') ? -1 : 1;
+  return q.entry + (q.dir === 'BUY' ? sign : -sign) * off;
+}
+
+function drawQuick(){
+  const q = qtState, sym = q.sym;
+  const {lv, sl, tp} = qtCalc();
+  const atrOn = q.mode === 'ATR';
+  const isMt5 = q.target === 'MT5';
+  const dc = q.dir==='BUY' ? 'var(--up)' : 'var(--dn)';
+
+  $('qtTitle').textContent = isMt5 ? `MT5 pe Bhejo — ${sym}` : `Maine Ye Trade Liya — ${sym}`;
+
+  $('qtBody').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;background:${q.dir==='BUY'?'rgba(18,201,138,.10)':'rgba(242,84,91,.10)'};
+         border:1px solid ${dc};border-radius:11px;padding:11px 13px;margin-bottom:14px">
+      <b style="font-size:17px;color:${dc};letter-spacing:.5px">${q.dir}</b>
+      <span class="mono" style="font-size:14px">${sym}</span>
+      <span class="gr" style="margin-left:auto">${q.grade}${q.qual?` · ${q.qual}%`:''}</span>
+    </div>
+
+    ${isMt5 ? `
+      <label>MT5 order type</label>
+      <div class="chips" style="margin-bottom:12px">
+        <button class="chip ${q.ordType==='MARKET'?'on gold':''}" onclick="qtSet('ordType','MARKET')">Market</button>
+        <button class="chip ${q.ordType==='LIMIT'?'on gold':''}" onclick="qtSet('ordType','LIMIT')">Limit</button>
+        <button class="chip ${q.ordType==='STOP'?'on gold':''}" onclick="qtSet('ordType','STOP')">Stop</button>
+      </div>` : ''}
+
+    <label>SL / TP kaise nikale</label>
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip ${!atrOn?'on gold':''}" onclick="qtSet('mode','DOLLAR')">Fixed $</button>
+      <button class="chip ${atrOn?'on gold':''}" onclick="qtSet('mode','ATR')" ${q.atr>0?'':'disabled style="opacity:.4"'}>ATR based</button>
+    </div>
+    ${q.atr>0 ? '' : '<p class="hint" style="margin:-6px 0 12px">ATR mode ke liye pehle is pair ko Analyze karo.</p>'}
+
+    ${atrOn ? `
+      <div class="grid3" style="margin-bottom:10px">
+        <div><label>SL = ATR ×</label><input class="mono" type="number" step="0.1" value="${q.atrSL}" oninput="qtSet('atrSL',+this.value,1)"></div>
+        <div><label>TP = SL ×</label><input class="mono" type="number" step="0.1" value="${q.atrRR}" oninput="qtSet('atrRR',+this.value,1)"></div>
+        <div><label>Lots</label><input class="mono" type="number" step="0.01" value="${lv.lots}" ${q.autoLot?'disabled style="opacity:.5"':''} oninput="qtSet('lots',+this.value,1)"></div>
+      </div>
+      <div class="sw ${q.autoLot?'on':''}" onclick="qtSet('autoLot',!qtState.autoLot)">
+        <div class="tg"></div>
+        <div>Lot auto nikalo<small>Risk $${q.riskUsd} ke hisaab se lot size khud set hoga</small></div>
+      </div>
+      ${q.autoLot ? `<div style="margin:8px 0 10px"><label>Risk per trade ($)</label><input class="mono" type="number" step="0.25" value="${q.riskUsd}" oninput="qtSet('riskUsd',+this.value,1)"></div>` : ''}
+    ` : `
+      <div class="grid3" style="margin-bottom:10px">
+        <div><label>TP ($)</label><input class="mono" type="number" step="0.5" value="${q.tpD}" oninput="qtSet('tpD',+this.value,1)"></div>
+        <div><label>SL ($)</label><input class="mono" type="number" step="0.5" value="${q.slD}" oninput="qtSet('slD',+this.value,1)"></div>
+        <div><label>Lots</label><input class="mono" type="number" step="0.01" value="${q.lots}" oninput="qtSet('lots',+this.value,1)"></div>
+      </div>
+    `}
+
+    <div><label>Entry price (manually badal sakte ho)</label>
+      <input class="mono" type="number" step="0.00001" value="${fmt(sym,q.entry)}" oninput="qtSet('entry',+this.value,1)"></div>
+
+    ${(() => { const n = newsRisk(sym); return n
+      ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.1);border-radius:6px;padding:10px;margin:12px 0">
+          <b style="color:var(--dn);font-size:11px;letter-spacing:1px">⚠ NEWS ${t12(n.d)}</b>
+          <p class="hint" style="color:var(--dn);margin:4px 0 0">${n.c} · ${n.t}. News ke waqt SL slip ho sakti hai.</p></div>` : '' })()}
+    <div class="lvls" id="qtLv" style="margin:14px 0 4px"></div>
+    <p class="hint" id="qtInfo"></p>
+
+    ${lv.clamped ? `<div style="border:1px solid var(--dn);background:rgba(242,84,91,.08);border-radius:10px;padding:11px;margin:10px 0">
+      <b style="color:var(--dn);font-size:12px">⚠ Risk target se bahar</b>
+      <p class="hint" style="color:var(--dn);margin:5px 0 0">Is SL ke liye <b>${lv.clamped.toFixed(3)} lot</b> chahiye tha, par broker ka minimum <b>0.01</b> hai.
+      Asli risk <b>$${lv.slD}</b> ho jayega, target $${q.riskUsd} nahi.</p></div>` : ''}
+
+    <div class="grid2" style="margin:14px 0 8px">
+      <button class="btn ghost sm" onclick="qtReset()">↺ Reset to Default</button>
+      <button class="btn ghost sm" onclick="qtLive()">⟳ Live Price Lo</button>
+    </div>
+
+    ${isMt5
+      ? `<p class="hint" style="margin:0 0 10px">Confirm karte hi FXBridgeEA MT5 pe order daal dega. App ke journal me nahi jayega.</p>
+         <button class="btn gold" onclick="confirmTrade()">🚀 MT5 pe Confirm Karo</button>`
+      : `<p class="hint" style="margin:0 0 10px">Ye sirf app ke journal me record hoga. MT5 pe lagane ke liye 🚀 button use karo.</p>
+         <button class="btn ${q.dir==='SELL'?'r':'g'}" onclick="confirmTrade()">Trade Lagao</button>`}`;
+
+  qtLevels();
+}
+
+/* sirf levels dobara likho — input me typing todke redraw na ho */
+function qtLevels(){
+  const q = qtState, sym = q.sym;
+  const {lv, sl, tp} = qtCalc();
+  const isMt5 = q.target === 'MT5';
+  const sendPx = isMt5 ? qtSendPrice() : q.entry;
+  const shift = sendPx - q.entry;
+
+  $('qtLv').innerHTML = `
+    <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(sym, sendPx)}</b>
+      <small style="display:block;font-size:9px;color:var(--mut)">${lv.lots} lot</small></div>
+    <div class="lvl sl"><span>STOP LOSS</span><b class="mono">${fmt(sym, sl + shift)}</b>
+      <small style="display:block;font-size:10px;color:var(--dn);font-weight:700">−$${lv.slD}</small>
+      <small style="display:block;font-size:9px;color:var(--mut)">${lv.slPips} pips</small></div>
+    <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono">${fmt(sym, tp + shift)}</b>
+      <small style="display:block;font-size:10px;color:var(--up);font-weight:700">+$${lv.tpD}</small>
+      <small style="display:block;font-size:9px;color:var(--mut)">${lv.tpPips} pips</small></div>`;
+
+  const rr = lv.tpD / (lv.slD || 1);
+  const typeTxt = isMt5 && q.ordType !== 'MARKET'
+    ? ` · ${q.dir}${q.ordType} live se ${S.limPips} pips ${q.ordType==='LIMIT'?'door':'aage'}`
+    : '';
+  $('qtInfo').textContent = `R:R 1:${rr.toFixed(2)} · barabar rehne ko ${(100/(1+rr)).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${q.mode==='ATR'?` · ATR ${fmt(sym,q.atr)}`:''}${typeTxt}`;
+}
+
+function qtSet(k, v, keepFocus){
+  qtState[k] = v;
+  keepFocus ? qtLevels() : drawQuick();
+}
+
+function qtReset(){
+  Object.assign(qtState, {
+    lots: S.dLot, mode: qtState.atr > 0 ? S.slMode : 'DOLLAR',
+    slD: S.dSl, tpD: S.dTp, atrSL: S.atrSL, atrRR: S.atrRR,
+    autoLot: S.autoLot, riskUsd: S.riskUsd, ordType: S.mt5Type
+  });
+  if(lastSignal && lastSignal.sym === qtState.sym) qtState.entry = lastSignal.live;
+  drawQuick(); toast('Default values wapas aa gayi');
+}
+
+async function qtLive(){
+  const p = await getPrice(qtState.sym);
+  if(p){ qtState.entry = p; drawQuick(); toast('Live price update ho gaya') }
+}
+
+async function confirmTrade(){
+  const q = qtState, sym = q.sym;
+  if(!q.entry || !q.lots){ toast('Entry aur lots bharo'); return }
+  const {lv, sl, tp} = qtCalc();
+  if(!lv.slD || !lv.tpD){ toast('SL/TP zero hai — values check karo'); return }
+  if(lv.clamped && !confirm(`Is trade ka risk $${lv.slD} hai, target $${q.riskUsd} tha.\n\nMinimum lot 0.01 ki wajah se risk badh gaya.\n\nPhir bhi lagana hai?`)) return;
+
+  if(q.target === 'MT5'){
+    closeSheet('qtSheet');
+    await sendMT5(sym, q.dir, lv.lots, q.entry, sl, tp, q.ordType);
+    return;
+  }
+  addTrade({
+    sym, dir: q.dir, lots: lv.lots, entry: q.entry, sl, tp,
+    slD: lv.slD, tpD: lv.tpD, q: q.qual, grade: q.grade
+  });
+  closeSheet('qtSheet');
+}
+
+/* ---------------- manual trade ---------------- */
+function openManual(){
+  pickVal.manual = S.pair;
+  fillPairs();
+  $('mtLots').value = S.dLot; $('mtTp').value = S.dTp; $('mtSl').value = S.dSl;
+  const px = (S.px[S.pair]&&S.px[S.pair].p) || (prices[S.pair]&&prices[S.pair].p) || (lastSignal&&lastSignal.live) || refPrice(S.pair);
+  $('mtEntry').value = fmt(S.pair, px);
+  mtCalc(); openSheet('mtSheet');
+}
+const MT_IDS = ['mtDir','mtLots','mtEntry','mtTp','mtSl'];
+['input','change'].forEach(ev =>
+  document.addEventListener(ev, e => { if(MT_IDS.includes(e.target.id)) mtCalc() })
+);
+function mtCalc(){
+  const sym=pickVal.manual || S.pair, dir=$('mtDir').value, entry=+$('mtEntry').value, lots=+$('mtLots').value||0.01;
+  const slD=+$('mtSl').value||0, tpD=+$('mtTp').value||0;
+  if(!entry){ $('mtCalc').textContent='Entry price daalo'; return }
+  const sd=dollarsToDist(sym,entry,lots,slD), td_=dollarsToDist(sym,entry,lots,tpD);
+  const sl=dir==='BUY'?entry-sd:entry+sd, tp=dir==='BUY'?entry+td_:entry-td_;
+  $('mtCalc').innerHTML = `SL <b class="mono dn">${fmt(sym,sl)}</b> (−$${slD}, ${(sd/SPECS[sym].pip).toFixed(1)} pips) · TP <b class="mono up">${fmt(sym,tp)}</b> (+$${tpD}, ${(td_/SPECS[sym].pip).toFixed(1)} pips) · R:R 1:${(tpD/(slD||1)).toFixed(2)}`;
+}
+function saveManual(){
+  const sym=pickVal.manual || S.pair, dir=$('mtDir').value, entry=+$('mtEntry').value, lots=+$('mtLots').value||0.01;
+  const slD=+$('mtSl').value, tpD=+$('mtTp').value;
+  if(!entry||!slD||!tpD){ toast('Sab values bharo'); return }
+  const sd=dollarsToDist(sym,entry,lots,slD), td_=dollarsToDist(sym,entry,lots,tpD);
+  addTrade({sym,dir,lots,entry,sl:dir==='BUY'?entry-sd:entry+sd,tp:dir==='BUY'?entry+td_:entry-td_,slD,tpD,q:0,grade:'—'});
+  closeSheet('mtSheet');
+}
+
+/* ---------------- trades ---------------- */
+function addTrade(t){
+  t.id = 'T' + Date.now();
+  t.at = Date.now();
+  t.cur = t.entry;
+  t.pl = 0;
+  S.open.push(t); save();
+  renderTrades(); go('Trades', document.querySelector('nav button[data-pg="Trades"]'));
+  toast(`App journal me add ho gaya — ${t.dir} ${t.sym} @ ${fmt(t.sym,t.entry)}`);
+  logAdd(`Trade open: ${t.dir} ${t.sym} @ ${fmt(t.sym,t.entry)}`);
+  if(S.tgAuto) tgSend(tradeText(t,'OPEN'), true);
+}
+
+function tradePL(t, cur){
+  const dirMul = t.dir==='BUY' ? 1 : -1;
+  return (cur - t.entry) * dirMul * usdPerPoint(t.sym, cur, t.lots);
+}
+
+function closeTrade(id, reason){
+  const i = S.open.findIndex(t=>t.id===id); if(i<0) return;
+  const t = S.open[i];
+  const cur = t.cur || t.entry;
+  const exit = reason==='TP' ? t.tp : reason==='SL' ? t.sl : cur;
+  const pl = tradePL(t, exit);
+  const rec = Object.assign({}, t, {exit, pl, reason, closedAt: Date.now()});
+  S.open.splice(i,1); S.hist.unshift(rec); S.hist = S.hist.slice(0,300); save();
+  renderTrades();
+  const word = reason==='TP'?'TP HIT ✅':reason==='SL'?'SL HIT ❌':'Manual close';
+  toast(`${t.sym} ${word} · ${money(pl)}`);
+  logAdd(`${word} — ${t.sym} ${money(pl)}`);
+  if(S.tgAuto) tgSend(tradeText(rec, reason), true);
+}
+function closeManualBtn(id){ if(confirm('Ye trade band karna hai?')) closeTrade(id,'MANUAL') }
+
+let lastOpenSync = 0, syncBusy = false;
+
+async function refreshOpen(force){
+  if(syncBusy) return;
+  if(!S.open.length || !S.key) return;
+  const syms = [...new Set(S.open.map(t=>t.sym))].filter(x=>!isBad(x));
+  if(!syms.length) return;
+
+  if(!force){
+    if(document.hidden) return;                       /* app background me hai */
+    if($('pgTrades').classList.contains('hide')) return;  /* Trades page pe nahi ho */
+    if(!S.autoM) return;                              /* auto band hai */
+    if(S.day.blocked) return;
+    const gap = Math.max(S.autoM * 60000, syms.length * 9000);
+    if(Date.now() - lastOpenSync < gap) return;
+    if(creditsLeft() < syms.length) { syncStatus(); return; }
+  }
+
+  syncBusy = true; syncStatus('sync');
+  try{
+    const q = await getQuotes(syms, sec => syncStatus('wait', sec), 10000);
+    Object.assign(prices, q);
+    const hits = [];
+    let okCount = 0;
+    S.open.forEach(t=>{
+      const d = q[t.sym]; if(!d || !d.p) return;
+      okCount++;
+      t.cur = d.p; t.pl = tradePL(t, d.p);
+      if(t.dir==='BUY'){
+        if(d.p >= t.tp) hits.push([t.id,'TP']); else if(d.p <= t.sl) hits.push([t.id,'SL']);
+      } else {
+        if(d.p <= t.tp) hits.push([t.id,'TP']); else if(d.p >= t.sl) hits.push([t.id,'SL']);
+      }
+    });
+    lastOpenSync = Date.now();
+    save(); renderTrades();
+    if(force){
+      const bad = (q.__failed||[]).length;
+      toast(bad ? `${okCount} update, ${bad} fail — Alerts me log dekho` : `${okCount} trades ka rate update ho gaya`);
+    }
+    hits.forEach(([id,r])=>closeTrade(id,r));
+  }catch(e){
+    if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
+    if(force) toast(e.message);
+  }
+  syncBusy = false; syncStatus();
+}
+
+function syncStatus(mode, sec){
+  const el = $('syncT'); if(!el) return;
+  const n = [...new Set(S.open.map(t=>t.sym))].length;
+  if(mode === 'sync'){ el.innerHTML = '<span class="spin"></span>'; return }
+  if(mode === 'wait'){ el.textContent = `limit — ${sec}s`; return }
+  if(!S.open.length){ el.textContent = '—'; return }
+  if(!lastOpenSync){ el.textContent = `${n} pairs · ${n} credits`; return }
+  el.textContent = `⟳ ${t12(lastOpenSync)} · ${n} credits`;
+}
+setInterval(()=>refreshOpen(false), 20000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refreshOpen(false) });
+
+function renderTrades(){
+  /* stats */
+  const live = S.open.reduce((a,t)=>a+(t.pl||0),0);
+  const closed = S.hist.reduce((a,t)=>a+t.pl,0);
+  const wins = S.hist.filter(t=>t.pl>0).length;
+  $('stLive').textContent = money(live);
+  $('stLive').className = 'mono ' + (live>=0?'up':'dn');
+  $('stClosed').textContent = money(closed);
+  $('stClosed').className = 'mono ' + (closed>=0?'up':'dn');
+  $('stWr').textContent = S.hist.length ? Math.round(wins/S.hist.length*100)+'%' : '0%';
+  $('openT').textContent = S.open.length + ' open';
+  const uniq = [...new Set(S.open.map(t=>t.sym))].length;
+  renderPerf();
+  $('creditWarn').innerHTML = uniq > 5
+    ? `⚠ ${uniq} alag pairs open hain — har refresh pe ${uniq} API credits lagte hain, aur free plan pe minute me sirf 8 milte hain. Auto-refresh isliye dheema hai. Ek hi pair ke trades rakho ya manual refresh use karo.`
+    : '';
+  syncStatus();
+
+  /* open */
+  $('openBox').innerHTML = S.open.length ? S.open.map(t=>{
+    const pl = t.pl || 0;
+    const cur = t.cur || t.entry;
+    const span = Math.abs(t.tp - t.sl) || 1;
+    let prog = (t.dir==='BUY' ? (cur - t.sl) : (t.sl - cur)) / span;
+    prog = Math.max(0, Math.min(1, prog));
+    return `<div class="tr ${t.dir.toLowerCase()}">
+      <div class="tr-h">
+        <b class="mono">${t.sym}</b>
+        <span class="tag ${t.dir.toLowerCase()}">${t.dir}</span>
+        <span class="mu" style="font-size:11px">${t.lots} lot</span>
+        <span class="pl mono ${pl>=0?'up':'dn'}">${money(pl)}</span>
+      </div>
+      <div class="bar"><i style="width:${prog*100}%;background:${pl>=0?'var(--up)':'var(--dn)'}"></i></div>
+      <div class="tr-g mono">
+        <div><span>ENTRY</span>${fmt(t.sym,t.entry)}</div>
+        <div><span>NOW</span>${fmt(t.sym,cur)}</div>
+        <div><span>SL $${t.slD}</span><em class="dn" style="font-style:normal">${fmt(t.sym,t.sl)}</em></div>
+        <div><span>TP $${t.tpD}</span><em class="up" style="font-style:normal">${fmt(t.sym,t.tp)}</em></div>
+      </div>
+      <p class="hint" style="margin:0 0 9px">${dt12(t.at)} · Quality ${t.q||0}% ${t.grade?'· '+t.grade:''}</p>
+      <div class="acts">
+        <button class="btn ghost sm" onclick="editTrade('${t.id}')">SL/TP</button>
+        <button class="btn ${pl<0?'gold':'ghost'} sm" onclick="openHedge('${t.id}')">⚖ Against</button>
+        <button class="btn gold sm" onclick="resendMT5('${t.id}')">🚀 MT5</button>
+        <button class="btn ghost sm" onclick="shareTradeWa('${t.id}')">WA</button>
+        <button class="btn r sm" onclick="closeManualBtn('${t.id}')">Close</button>
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty"><div>💼</div>Koi open trade nahi.<br>Signal analyze karke "Maine Ye Trade Liya" dabao.</div>';
+
+  /* history */
+  $('histBox').innerHTML = S.hist.length ? S.hist.slice(0,60).map(t=>{
+    const w = t.reason==='TP'?'w':t.reason==='SL'?'l':'m';
+    const ic = t.reason==='TP'?'TP':t.reason==='SL'?'SL':'M';
+    return `<div class="hist">
+      <div class="ic ${w}">${ic}</div>
+      <div class="in">
+        <b class="mono">${t.sym} <span class="${t.dir==='BUY'?'up':'dn'}" style="font-size:11px">${t.dir}</span></b>
+        <small>${dt12(t.closedAt)} · ${fmt(t.sym,t.entry)} → ${fmt(t.sym,t.exit)} · ${t.lots} lot</small>
+      </div>
+      <div class="amt mono ${t.pl>=0?'up':'dn'}">${money(t.pl)}</div>
+    </div>`;
+  }).join('') : '<div class="empty"><div>📜</div>History khaali hai.</div>';
+}
+
+function renderPerf(){
+  const H = S.hist;
+
+  /* nateeje ke hisaab se ginti — manual close bhi win/loss me jaata hai */
+  const win  = H.filter(t => t.pl > 0);
+  const loss = H.filter(t => t.pl < 0);
+  const flat = H.filter(t => t.pl === 0);
+
+  const tpHit = H.filter(t => t.reason === 'TP').length;
+  const slHit = H.filter(t => t.reason === 'SL').length;
+  const mWin  = win.filter(t => t.reason === 'MANUAL').length;
+  const mLoss = loss.filter(t => t.reason === 'MANUAL').length;
+
+  const decided = win.length + loss.length;
+  const acc = decided ? (win.length / decided * 100) : 0;
+  const total = H.reduce((a,t) => a + t.pl, 0);
+
+  const Rs = H.map(t => (t.slD > 0 ? t.pl / t.slD : 0));
+  const exp = Rs.length ? Rs.reduce((a,b) => a+b, 0) / Rs.length : 0;
+
+  const avgW = win.length  ? win.reduce((a,t)=>a+t.pl,0)  / win.length  : 0;
+  const avgL = loss.length ? loss.reduce((a,t)=>a+t.pl,0) / loss.length : 0;
+
+  /* breakeven WR asli avg win/loss se — sirf setting se nahi */
+  const beWR = (avgW > 0 && avgL < 0)
+    ? (100 * Math.abs(avgL) / (avgW + Math.abs(avgL)))
+    : (100 / (1 + S.dTp / S.dSl));
+
+  $('perfN').textContent = H.length ? `${H.length} closed` : '—';
+
+  if(!H.length){
+    $('perfBox').innerHTML = '<div class="empty"><div>📈</div>Abhi koi closed trade nahi.<br>Trade band hone par yahan stats aayenge.</div>';
+    return;
+  }
+
+  const accCol = acc >= beWR ? 'var(--up)' : 'var(--dn)';
+  const warn = decided >= 5 && acc < beWR
+    ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Avg win $${avgW.toFixed(2)} aur avg loss ${money(avgL)} pe barabar rehne ke liye <b>${beWR.toFixed(0)}%</b> win rate chahiye, tumhara <b>${acc.toFixed(0)}%</b> hai. Ya TP bada karo, ya SL chhoti.</p>`
+    : '';
+
+  const byPair = {};
+  H.forEach(t => {
+    const k = t.sym;
+    if(!byPair[k]) byPair[k] = {n:0, w:0, pl:0};
+    byPair[k].n++; if(t.pl > 0) byPair[k].w++; byPair[k].pl += t.pl;
+  });
+  const rows = Object.entries(byPair).sort((a,b) => b[1].pl - a[1].pl);
+
+  $('perfBox').innerHTML = `
+    <div class="perf">
+      <div class="pb"><b>${H.length}</b><span>CLOSED</span></div>
+      <div class="pb"><b style="color:${accCol}">${acc.toFixed(0)}%</b><span>ACCURACY</span></div>
+      <div class="pb"><b style="color:${exp>=0?'var(--up)':'var(--dn)'}">${exp>=0?'+':''}${exp.toFixed(2)}R</b><span>EXPECTANCY</span></div>
+    </div>
+    <div class="perf">
+      <div class="pb"><b class="up">${win.length}</b><span>WIN</span>
+        <em>${tpHit} TP${mWin?` + ${mWin} manual`:''}</em></div>
+      <div class="pb"><b class="dn">${loss.length}</b><span>LOSS</span>
+        <em>${slHit} SL${mLoss?` + ${mLoss} manual`:''}</em></div>
+      <div class="pb"><b style="color:var(--mut)">${flat.length}</b><span>BREAKEVEN</span>
+        <em>0.00 pe band</em></div>
+    </div>
+    <div class="perf">
+      <div class="pb"><b class="up" style="font-size:15px">${money(avgW)}</b><span>AVG WIN</span></div>
+      <div class="pb"><b class="dn" style="font-size:15px">${money(avgL)}</b><span>AVG LOSS</span></div>
+      <div class="pb"><b style="font-size:15px">${beWR.toFixed(0)}%</b><span>BREAKEVEN WR</span></div>
+    </div>
+    <div class="ptot">
+      <b style="color:${total>=0?'var(--up)':'var(--dn)'}">${total>=0?'+':''}${money(total)}</b>
+      <span>TOTAL P/L</span>
+    </div>
+    <p class="hint" style="margin-top:9px">${win.length} + ${loss.length}${flat.length?` + ${flat.length}`:''} = ${H.length} closed · abhi ${S.open.length} open hain (inka hisaab upar Live P&amp;L me hai)</p>
+    ${warn}
+    <p class="ttl" style="margin:16px 0 8px">Pair Wise</p>
+    <table><thead><tr><th>Pair</th><th style="text-align:right">Trades</th><th style="text-align:right">Win%</th><th style="text-align:right">P/L</th></tr></thead>
+    <tbody>${rows.map(([k,v]) => `<tr>
+      <td class="mono"><b>${SPECS[k] ? SPECS[k].n : k}</b></td>
+      <td class="mono" style="text-align:right">${v.n}</td>
+      <td class="mono" style="text-align:right">${Math.round(v.w/v.n*100)}%</td>
+      <td class="mono ${v.pl>=0?'up':'dn'}" style="text-align:right">${money(v.pl)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function editTrade(id){
+  const t = S.open.find(x=>x.id===id); if(!t) return;
+  const sl = prompt(`${t.sym} — naya Stop Loss price:`, fmt(t.sym,t.sl));
+  if(sl===null) return;
+  const tp = prompt(`${t.sym} — naya Take Profit price:`, fmt(t.sym,t.tp));
+  if(tp===null) return;
+  const nsl=+sl, ntp=+tp;
+  if(!isFinite(nsl)||!isFinite(ntp)||!nsl||!ntp){ toast('Value galat hai'); return }
+  t.sl=nsl; t.tp=ntp;
+  t.slD = +distToDollars(t.sym,t.entry,t.lots,t.entry-nsl).toFixed(2);
+  t.tpD = +distToDollars(t.sym,t.entry,t.lots,ntp-t.entry).toFixed(2);
+  save(); renderTrades(); toast('SL/TP update ho gaya');
+}
+function clearHistory(){ if(confirm('Poori history delete kar dein?')){ S.hist=[]; save(); renderTrades(); toast('History clear') } }
+
+/* ---- purana service worker + cache zabardasti hatao ---- */
+async function forceUpdate(){
+  toast('Purana version hata raha hoon...');
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for(const r of regs) await r.unregister();
+    }
+    if(window.caches){
+      const keys = await caches.keys();
+      for(const k of keys) await caches.delete(k);
+    }
+  }catch(e){}
+  location.replace(location.pathname + '?v=' + Date.now());
+}
+
+/* ---- global manual refresh: ticker + open trades ek saath ---- */
+let refBusy = false;
+async function refreshAll(){
+  if(needKey()) return;
+  if(refBusy) return;
+  refBusy = true;
+  const b = $('btnRef');
+  b.innerHTML = '<span class="spin"></span>';
+  b.style.transform = 'none';
+  try{
+    const openSyms = [...new Set(S.open.map(t=>t.sym))].filter(x=>!isBad(x));
+    const tickSyms = TICKER.filter(x=>!isBad(x));
+    const all = [...new Set([...openSyms, ...tickSyms])];
+    if(!all.length){ toast('Refresh karne ko kuch nahi hai'); }
+    else{
+      const q = await getQuotes(all, sec => { b.textContent = sec+'s' }, 0);  /* cache bypass */
+      Object.assign(prices, q);
+      const hits = [];
+      S.open.forEach(t=>{
+        const d = q[t.sym]; if(!d || !d.p) return;
+        t.cur = d.p; t.pl = tradePL(t, d.p);
+        if(t.dir==='BUY'){
+          if(d.p >= t.tp) hits.push([t.id,'TP']); else if(d.p <= t.sl) hits.push([t.id,'SL']);
+        } else {
+          if(d.p <= t.tp) hits.push([t.id,'TP']); else if(d.p >= t.sl) hits.push([t.id,'SL']);
+        }
+      });
+      lastOpenSync = Date.now();
+      save(); buildTicker(); renderTrades();       const bad = (q.__failed||[]).length;
+      toast(bad ? `${all.length-bad} update, ${bad} fail` : `${all.length} pairs ka rate aa gaya`);
+      hits.forEach(([id,r])=>closeTrade(id,r));
+    }
+  }catch(e){
+    if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
+    toast(e.message);
+  }
+  b.textContent = '⟳';
+  refBusy = false;
+}
+
+/* ================= MT5 BRIDGE (Firebase -> FXBridgeEA) ================= */
+/* EA ye path padhta hai:  <FirebaseURL>/fxbridge/order.json
+   Format: {"id":..,"pair":"XAUUSD","type":"BUYLIMIT","lots":..,"entry":..,"sl":..,"tp":..} */
+
+function fbEndpoint(){
+  let u = (S.fbUrl || '').trim().replace(/\/+$/, '');
+  if(!u) return '';
+  if(!/^https?:\/\//.test(u)) u = 'https://' + u;
+  return u + '/fxbridge/order.json' + (S.fbAuth ? '?auth=' + encodeURIComponent(S.fbAuth) : '');
+}
+
+function mt5Payload(sym, dir, lots, entry, sl, tp, kind){
+  const d = SPECS[sym].d;
+  const mode = kind || S.mt5Type;             /* MARKET | LIMIT | STOP */
+  return {
+    id: Date.now(),
+    pair: SPECS[sym].n,                       /* EA khud suffix "m" lagata hai */
+    type: dir + mode,                         /* BUYMARKET / SELLLIMIT / BUYSTOP ... */
+    lots: +Number(lots).toFixed(2),
+    entry: +Number(entry).toFixed(d),
+    sl: +Number(sl).toFixed(d),
+    tp: +Number(tp).toFixed(d)
+  };
+}
+
+async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
+  const url = fbEndpoint();
+  if(!url){
+    if(!silent){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet') }
+    return false;
+  }
+  const mode = kind || S.mt5Type;
+  /* LIMIT: entry ko live price se thoda door karo, warna MT5 reject karega.
+     SL/TP bhi utna hi shift hote hain, isliye $ risk bilkul same rehta hai. */
+  if(mode === 'LIMIT' || mode === 'STOP'){
+    const off = (S.limPips || 5) * SPECS[sym].pip;
+    /* LIMIT: BUY neeche, SELL upar | STOP: BUY upar, SELL neeche */
+    const sign = (mode === 'LIMIT') ? -1 : 1;
+    const sh = (dir === 'BUY' ? sign : -sign) * off;
+    entry += sh; sl += sh; tp += sh;
+  }
+  const body = mt5Payload(sym, dir, lots, entry, sl, tp, mode);
+  try{
+    const r = await fetch(url, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
+    LS.set('lastOrder', {t:Date.now(), body, ok:true});
+    logAdd(`MT5 bhej diya: ${body.type} ${body.pair} ${body.lots} @ ${body.entry} (id ${body.id})`);
+    if(!silent) toast(body.type.includes('MARKET')
+      ? `${body.pair} ${dir} MT5 pe laga diya`
+      : `Pending ${body.type} lagi @ ${body.entry}`);
+    if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → MT5</b>\n\n<b>${body.pair} ${body.type}</b>\nLots: ${body.lots}\nEntry: <code>${body.entry}</code>\nSL: <code>${body.sl}</code>\nTP: <code>${body.tp}</code>\n⏰ ${t12(Date.now())}`, true);
+    return true;
+  }catch(e){
+    LS.set('lastOrder', {t:Date.now(), body, ok:false, err:e.message});
+    logAdd('MT5 fail: ' + e.message);
+    if(!silent) toast('MT5 bridge fail — ' + e.message);
+    return false;
+  }
+}
+
+/* signal card ka button */
+function sendSignalMT5(){ openQuick('MT5'); }
+
+/* kisi bhi open trade ko dobara MT5 pe bhejo */
+function resendMT5(id){ openMt5FromTrade(id); }
+
+async function testBridge(){
+  const box = $('fbOut');
+  const btn = event && event.target;
+  box.classList.remove('hide');
+  box.scrollIntoView({behavior:'smooth', block:'center'});
+
+  S.fbUrl = $('setFb').value.trim();
+  S.fbAuth = $('setFbAuth').value.trim();
+  save();
+
+  const url = fbEndpoint();
+  if(!url){
+    box.textContent = '❌ Firebase URL khaali hai.\n\nUpar wale box me apna URL daalo, format:\nhttps://xxx-default-rtdb.firebaseio.com';
+    return;
+  }
+  if(btn) btn.innerHTML = '<span class="spin"></span> test...';
+  box.textContent = 'Connect ho raha hai...';
+  try{
+    const r = await fetch(url);
+    const txt = await r.text();
+    let pretty = txt;
+    try { pretty = JSON.stringify(JSON.parse(txt), null, 1) } catch(e){}
+    box.textContent =
+      `GET ${url.split('?')[0]}\nHTTP ${r.status}\n\n--- abhi ka order node ---\n${(pretty||'null').slice(0,700)}\n\n` +
+      (r.ok
+        ? (txt && txt !== 'null'
+            ? '✅ Firebase connected. Upar wala order node dikh raha hai — ab app se 🚀 dabao aur phir se test karo, id badalni chahiye.'
+            : '✅ Firebase connected, par node abhi khaali hai (null). App se 🚀 dabao, phir yahan order dikhega.')
+        : '❌ Firebase ne mana kiya. Database Rules me read/write true karo, ya auth secret daalo.');
+  }catch(e){
+    box.textContent = `❌ Connect nahi hua: ${e.message}\n\nCheck karo:\n• URL sahi hai? https://xxx-default-rtdb.firebaseio.com\n• Internet chal raha hai?\n• Firebase project region sahi hai?`;
+  }
+  if(btn) btn.textContent = '🔌 Bridge Test Karo';
+}
+
+/* app ne aakhri baar kya bheja — bina internet ke bhi dikhega */
+function lastOrderShow(){
+  const box = $('fbOut'); box.classList.remove('hide');
+  box.scrollIntoView({behavior:'smooth', block:'center'});
+  const o = LS.get('lastOrder', null);
+  box.textContent = o
+    ? `Mode: ${S.mt5Type}\n\nApp ne aakhri baar ye bheja tha:\n\n${JSON.stringify(o.body, null, 1)}\n\nWaqt: ${dt12(o.t)}\nResult: ${o.ok ? '✅ Firebase ne accept kiya' : '❌ ' + o.err}`
+    : 'App ne abhi tak koi order nahi bheja.\n\nSignal card ya trade card pe 🚀 dabao.';
+}
+
+/* ================= CORRELATION / HEDGE ================= */
+
+/* structural estimate — bilkul free, koi API call nahi */
+function structCorr(a, b){
+  if(a === b) return 1;
+  const A = SPECS[a].ccy, B = SPECS[b].ccy;
+  let c = 0;
+  if(A[0] === B[0]) c += 0.50;   /* dono ka base same  -> halka positive */
+  if(A[1] === B[1]) c += 0.75;   /* dono ka quote same -> strong positive */
+  if(A[0] === B[1]) c -= 0.75;   /* ulta position      -> negative */
+  if(A[1] === B[0]) c -= 0.75;
+  /* metals aur crypto forex se kam judte hain */
+  const odd = x => ['XAU','BTC','ETH'].includes(SPECS[x].ccy[0]);
+  if(odd(a) || odd(b)) c *= 0.5;
+  return Math.max(-0.98, Math.min(0.98, +c.toFixed(2)));
+}
+
+const ckey = (a,b) => [a,b].sort().join('|');
+function getCorr(a, b){
+  if(a === b) return {v:1, live:false};
+  if(S.corr.d === utcDay() && S.corr.m[ckey(a,b)] !== undefined)
+    return {v: S.corr.m[ckey(a,b)], live:true};
+  return {v: structCorr(a,b), live:false};
+}
+
+function pearson(x, y){
+  const n = Math.min(x.length, y.length); if(n < 10) return 0;
+  const xs = x.slice(-n), ys = y.slice(-n);
+  const mx = xs.reduce((p,c)=>p+c,0)/n, my = ys.reduce((p,c)=>p+c,0)/n;
+  let sxy=0, sxx=0, syy=0;
+  for(let i=0;i<n;i++){ const dx=xs[i]-mx, dy=ys[i]-my; sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy }
+  return (sxx && syy) ? +(sxy/Math.sqrt(sxx*syy)).toFixed(2) : 0;
+}
+const rets = bars => bars.slice(1).map((b,i)=>Math.log(b.c / bars[i].c));
+
+/* live correlation — basket ke har pair ka 1 credit, din me ek baar */
+async function liveCorr(basket, onNote){
+  const series = {};
+  for(const sym of basket){
+    const b = await getSeries(sym, '4h', 120, onNote);
+    series[sym] = rets(b);
+  }
+  const m = (S.corr.d === utcDay()) ? Object.assign({}, S.corr.m) : {};
+  for(let i=0;i<basket.length;i++)
+    for(let j=i+1;j<basket.length;j++)
+      m[ckey(basket[i], basket[j])] = pearson(series[basket[i]], series[basket[j]]);
+  S.corr = {d: utcDay(), m}; save();
+  return m;
+}
+
+/* ---- ek trade ke against kaunsa pair ---- */
+const flip = d => d === 'BUY' ? 'SELL' : 'BUY';
+
+function hedgeList(t, limit){
+  const px = sym => (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p) || refPrice(sym);
+  const mine = usdPerPip(t.sym, px(t.sym), t.lots);
+  return PAIRS
+    .filter(q => q !== t.sym && !isBad(q))
+    .map(q => {
+      const c = getCorr(t.sym, q);
+      const dir = c.v > 0 ? flip(t.dir) : t.dir;
+      const theirs = usdPerPip(q, px(q), 0.01);
+      const lots = theirs > 0 ? (mine / theirs) * 0.01 / Math.max(0.35, Math.abs(c.v)) : 0.01;
+      return {sym:q, corr:c.v, live:c.live, dir, lots: Math.max(0.01, +lots.toFixed(2))};
+    })
+    .filter(r => Math.abs(r.corr) >= 0.45)
+    .sort((a,b) => Math.abs(b.corr) - Math.abs(a.corr))
+    .slice(0, limit || 8);
+}
+
+let hedgeFor = null;
+function openHedge(id){
+  const t = S.open.find(x => x.id === id); if(!t) return;
+  hedgeFor = t;
+  renderHedge();
+  openSheet('hgSheet');
+}
+
+function renderHedge(){
+  const t = hedgeFor; if(!t) return;
+  const rows = hedgeList(t, 8);
+  const anyLive = rows.some(r => r.live);
+  const pl = t.pl || 0;
+  $('hgTitle').textContent = `${t.sym} ke against`;
+  $('hgBody').innerHTML = `
+    <div class="tr ${t.dir.toLowerCase()}" style="margin-bottom:14px">
+      <div class="tr-h">
+        <b class="mono">${t.sym}</b>
+        <span class="tag ${t.dir.toLowerCase()}">${t.dir}</span>
+        <span class="mu" style="font-size:11px">${t.lots} lot</span>
+        <span class="pl mono ${pl>=0?'up':'dn'}">${money(pl)}</span>
+      </div>
+      <p class="hint" style="margin:0">Entry ${fmt(t.sym,t.entry)} · Now ${fmt(t.sym,t.cur||t.entry)}</p>
+    </div>
+
+    <p class="ttl">Direct Hedge</p>
+    <div class="hist" style="border:none;padding:4px 0 12px">
+      <div class="ic ${t.dir==='BUY'?'l':'w'}">↔</div>
+      <div class="in"><b class="mono">${t.sym} ${flip(t.dir)} · ${t.lots} lot</b>
+        <small>100% offset — loss wahin ruk jayega, aage na badhega na ghatega</small></div>
+    </div>
+
+    <p class="ttl">Correlation Se ${anyLive?'<span class="sp" style="color:var(--up)">live data</span>':'<span class="sp">estimate</span>'}</p>
+    ${rows.map(r => `
+      <div class="hist">
+        <div class="ic ${r.corr>0?'w':'l'}" style="font-size:10px">${r.corr>0?'+':''}${r.corr}</div>
+        <div class="in">
+          <b class="mono">${r.sym} <span class="${r.dir==='BUY'?'up':'dn'}" style="font-size:11px">${r.dir}</span></b>
+          <small>${r.lots} lot · ${r.corr>0?'saath chalta hai':'ulta chalta hai'}${r.live?'':' · anuman'}</small>
+        </div>
+        <button class="btn ghost sm" style="width:auto;padding:7px 11px;font-size:11px"
+          onclick="takeHedge('${r.sym}','${r.dir}',${r.lots})">Lagao</button>
+      </div>`).join('') || '<p class="hint">Is pair ka koi strong correlation nahi mila.</p>'}
+
+    <button class="btn ghost sm" style="margin-top:14px" onclick="runLiveCorr()">
+      ⟳ Live Correlation Nikalo (${Math.min(8, rows.length+1)} credits)</button>
+
+    <p class="hint" style="margin-top:12px">
+      Correlation +1 ke paas = dono pair saath chalte hain, −1 ke paas = ulta.
+      Lot size pip-value ke hisaab se adjust kiya hai, volatility ka farak nahi joda.
+      <br><br><b style="color:var(--gold)">Dhyan rakho:</b> hedge se loss rukta hai, khatam nahi hota —
+      aur do trades ka spread/swap dono taraf lagta hai. News ke waqt correlation toot bhi jaati hai.
+    </p>`;
+}
+
+function renderCorrBrowser(){
+  const base = pickVal.corr || S.pair;
+  const rows = PAIRS.filter(q => q !== base && !isBad(q))
+    .map(q => Object.assign({sym:q}, getCorr(base, q)))
+    .sort((a,b) => b.v - a.v);
+  let live = false;
+  $('corrBox').innerHTML = rows.map(r => {
+    if(r.live) live = true;
+    const pct = Math.round((r.v + 1) / 2 * 100);
+    const col = r.v >= 0.6 ? 'var(--up)' : r.v <= -0.6 ? 'var(--dn)' : 'var(--gold)';
+    return `<div class="strrow">
+      <b class="mono" style="width:66px;font-size:11px">${SPECS[r.sym].n}</b>
+      <div class="t"><i style="width:${pct}%;background:${col}"></i></div>
+      <span class="mono" style="width:44px">${r.v>0?'+':''}${r.v}</span>
+    </div>`;
+  }).join('');
+  $('corrT').innerHTML = live
+    ? '<span style="color:var(--up)">live data</span>'
+    : 'estimate — hedge sheet me live nikal sakte ho';
+}
+
+async function runLiveCorr(){
+  if(needKey()) return;
+  const t = hedgeFor; if(!t) return;
+  const basket = [t.sym, ...hedgeList(t, 7).map(r => r.sym)];
+  const btn = event && event.target;
+  if(btn) btn.innerHTML = '<span class="spin"></span> chal raha hai...';
+  try{
+    await liveCorr(basket, sec => { if(btn) btn.textContent = `limit — ${sec}s` });
+    renderHedge();
+    toast('Live correlation aa gayi');
+  }catch(e){
+    toast(e.message);
+    if(btn) btn.textContent = '⟳ Live Correlation Nikalo';
+  }
+}
+
+function takeHedge(sym, dir, lots){
+  const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p);
+  if(!px){ toast('Pehle is pair ka rate lao — Market page se'); return }
+  const sd = dollarsToDist(sym, px, lots, S.dSl), td_ = dollarsToDist(sym, px, lots, S.dTp);
+  const sl = dir==='BUY' ? px-sd : px+sd, tp = dir==='BUY' ? px+td_ : px-td_;
+  addTrade({ sym, dir, lots, entry: px, sl, tp, slD: S.dSl, tpD: S.dTp, q: 0, grade: 'HDG' });
+  closeSheet('hgSheet');
+}
+
+/* ---------------- messages ---------------- */
+/* poora report — signal + agents + news, ek hi message me */
+function fullReport(html){
+  const s = lastSignal;
+  if(!s) return '';
+  const b = html ? t => `<b>${t}</b>` : t => t;
+  const c = html ? t => `<code>${t}</code>` : t => t;
+  const L = [];
+
+  L.push(`📡 ${b('SAMUSIGNAL')}`);
+  L.push('');
+  L.push(`${b(s.sym)}  —  ${b(s.dir)}   (${s.grade})`);
+  L.push(`Quality: ${b(s.q + '%')}   ${s.q>=70?'STRONG':s.q>=50?'MEDIUM':'WEAK'}`);
+  L.push(`Timeframe: ${s.tf}`);
+  L.push('');
+  L.push('━━━ LEVELS ━━━');
+  L.push(`Entry : ${c(fmt(s.sym, s.live))}`);
+  L.push(`SL    : ${c(fmt(s.sym, s.sl))}   −$${s.slD}  (${s.slPips} pips)`);
+  L.push(`TP    : ${c(fmt(s.sym, s.tp))}   +$${s.tpD}  (${s.tpPips} pips)`);
+  L.push(`Lots  : ${s.lots}    R:R 1:${(s.tpD/s.slD).toFixed(2)}`);
+
+  if(lastVotes && lastVotes.sym === s.sym){
+    const v = lastVotes;
+    L.push('');
+    L.push('━━━ AGENT VOTE (50) ━━━');
+    L.push(`BUY   : ${v.buy}`);
+    L.push(`HOLD  : ${v.hold}`);
+    L.push(`SELL  : ${v.sell}`);
+    L.push(`Verdict: ${b(v.verdict)}  (${v.conf}% consensus)`);
+    if(v.verdict !== s.dir && v.verdict !== 'HOLD')
+      L.push(`⚠ Signal ${s.dir} hai par agents ${v.verdict} bol rahe hain`);
+  }
+
+  L.push('');
+  L.push('━━━ HTF BIAS ━━━');
+  s.tfs.forEach(t => L.push(`${t.l.padEnd(4)} : ${t.b}`));
+  if(!s.htfOk) L.push('⚠ 4H/1D bias match nahi kar raha');
+
+  const nr = newsRisk(s.sym) || nextNews(s.sym);
+  if(nr){
+    L.push('');
+    L.push('━━━ NEWS ━━━');
+    const soon = nr.d - Date.now();
+    L.push(`${nr.c} · ${nr.t}`);
+    L.push(`${t12(nr.d)}${soon>0?`  (${Math.round(soon/60000)} min me)`:'  (ho chuki)'}`);
+  }
+
+  L.push('');
+  L.push(`RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym, s.atr)} · ${s.mode==='ATR'?'ATR mode':'Fixed $'}`);
+  L.push(`⏰ ${t12(s.at)}`);
+  return L.join('\n');
+}
+
+function signalText(s){
+  if(!s) return '';
+  return `📡 <b>SamuSignal</b>\n\n`+
+    `<b>${s.sym}</b> — <b>${s.dir}</b>  (${s.grade})\n`+
+    `Quality: <b>${s.q}%</b>\n`+
+    `Timeframe: ${s.tf}\n\n`+
+    `Entry: <code>${fmt(s.sym,s.live)}</code>\n`+
+    `SL: <code>${fmt(s.sym,s.sl)}</code>  ($${s.slD})\n`+
+    `TP: <code>${fmt(s.sym,s.tp)}</code>  ($${s.tpD})\n`+
+    `Lots: ${s.lots}  ·  R:R 1:${(s.tpD/s.slD).toFixed(2)}\n\n`+
+    `HTF: ${s.tfs.map(t=>t.l+' '+t.b).join(' | ')}\n`+
+    `⏰ ${t12(s.at)}`;
+}
+function tradeText(t, kind){
+  if(kind==='OPEN'){
+    return `✅ <b>SamuSignal — Trade Open</b>\n\n<b>${t.sym} ${t.dir}</b>\nEntry: <code>${fmt(t.sym,t.entry)}</code>\nSL: <code>${fmt(t.sym,t.sl)}</code> ($${t.slD})\nTP: <code>${fmt(t.sym,t.tp)}</code> ($${t.tpD})\nLots: ${t.lots}\n⏰ ${t12(t.at)}`;
+  }
+  const e = kind==='TP'?'🎯 TP HIT':kind==='SL'?'🛑 SL HIT':'✋ Manual Close';
+  return `${e} — <b>SamuSignal</b>\n\n<b>${t.sym} ${t.dir}</b>\nEntry: <code>${fmt(t.sym,t.entry)}</code>\nExit: <code>${fmt(t.sym,t.exit)}</code>\nP/L: <b>${money(t.pl)}</b>\n⏰ ${t12(t.closedAt)}`;
+}
+const strip = s => s.replace(/<[^>]+>/g,'');
+
+/* ---------------- WhatsApp ---------------- */
+function shareWa(){
+  if(!lastSignal){ toast('Pehle analyze karo'); return }
+  window.open('https://wa.me/?text=' + encodeURIComponent(fullReport(false)), '_blank');
+}
+function shareTradeWa(id){
+  const t = S.open.find(x=>x.id===id); if(!t) return;
+  const txt = `📡 SamuSignal\n\n${t.sym} ${t.dir}\nEntry: ${fmt(t.sym,t.entry)}\nNow: ${fmt(t.sym,t.cur||t.entry)}\nSL: ${fmt(t.sym,t.sl)} ($${t.slD})\nTP: ${fmt(t.sym,t.tp)} ($${t.tpD})\nLots: ${t.lots}\nLive P/L: ${money(t.pl||0)}\n⏰ ${t12(Date.now())}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+}
+
+/* ---------------- Telegram ---------------- */
+async function tgSend(text, silentFail){
+  if(!S.tgTok || !S.tgId){ if(!silentFail) toast('Telegram token aur chat ID daalo'); return }
+  if(!text){ return }
+  try{
+    const r = await fetch(`https://api.telegram.org/bot${S.tgTok}/sendMessage`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id:S.tgId, text, parse_mode:'HTML', disable_web_page_preview:true})
+    });
+    const j = await r.json();
+    if(j.ok){ logAdd('Telegram bheja: ' + strip(text).split('\n')[0]); if(!silentFail) toast('Telegram pe chala gaya') }
+    else { logAdd('Telegram fail: ' + (j.description||'')); if(!silentFail) toast('Telegram error: ' + (j.description||'')) }
+  }catch(e){ logAdd('Telegram fail: ' + e.message); if(!silentFail) toast('Telegram nahi gaya — internet check karo') }
+}
+function saveTg(){
+  S.tgTok = $('tgTok').value.trim(); S.tgId = $('tgId').value.trim(); save();
+  toast('Telegram settings save ho gayi');
+}
+function testTg(){
+  S.tgTok = $('tgTok').value.trim(); S.tgId = $('tgId').value.trim(); save();
+  tgSend(`📡 <b>SamuSignal</b> connected!\n\nAb yahan signal aur trade alerts aayenge.\n⏰ ${t12(Date.now())}`);
+}
+function logAdd(m){
+  S.log.unshift({t:Date.now(), m}); S.log = S.log.slice(0,80); save();
+  if(!$('pgAlerts').classList.contains('hide')) renderLog();
+}
+function renderLog(){
+  $('logBox').innerHTML = S.log.length ? S.log.map(l=>
+    `<div class="hist"><div class="ic m">🔔</div><div class="in"><b style="font-size:12px">${l.m}</b><small>${dt12(l.t)}</small></div></div>`
+  ).join('') : '<p class="hint">Abhi koi alert nahi.</p>';
+}
+
+/* ---------------- backup ---------------- */
+function doBackup(){
+  const data = {app:'SamuSignal', v:2, at:new Date().toISOString(), state:S};
+  const b = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = `samusignal-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Backup file download ho gayi');
+}
+const fileIn = $('fileIn');
+fileIn.addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(r.result);
+      const st = d.state || d;
+      if(!st || typeof st !== 'object') throw new Error('bad');
+      Object.keys(S).forEach(k=>{ if(st[k]!==undefined) S[k]=st[k] });
+      save(); boot(); toast('Restore ho gaya');
+    }catch(err){ toast('File padhi nahi gayi — sahi backup JSON chuno') }
+  };
+  r.readAsText(f); e.target.value='';
+});
+
+/* ---------------- settings ---------------- */
+function saveSettings(){
+  const oldKey = S.key;
+  S.key = $('setKey').value.trim();
+  if(S.key !== oldKey) dayReset(true);   /* naya key = naya quota */
+  S.dTp = +$('setTp').value || 5;
+  S.dSl = +$('setSl').value || 2.5;
+  S.dLot = +$('setLot').value || 0.01;
+  S.cap  = Math.max(50, +$('setCap').value || 700);
+  S.newsMin = Math.max(0, +$('setNewsMin').value || 30);
+  S.newsImp = $('setNewsImp').value;
+  S.slMode = $('setMode').value;
+  S.atrSL = Math.max(0.1, +$('setAtrSL').value || 1.5);
+  S.atrRR = Math.max(0.1, +$('setAtrRR').value || 2);
+  S.riskUsd = Math.max(0.1, +$('setRisk').value || 1.75);
+  S.fbUrl = $('setFb').value.trim();
+  S.fbAuth = $('setFbAuth').value.trim();
+  S.mt5Type = $('setMtype').value;
+  S.limPips = Math.max(1, +$('setLim').value || 5);
+  showMode(); if($('verMode')) $('verMode').textContent = S.mt5Type;
+  S.autoM = +$('setAuto').value;
+  $('inLots').value = S.dLot; S.lots = S.dLot;
+  save(); closeSheet('setSheet');
+  $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
+  toast('Settings save ho gayi');
+  }
+function resetCalc(){
+  S.dTp = 1; S.dSl = 2.5; S.dLot = 0.01;
+  $('setTp').value = 1; $('setSl').value = 2.5; $('setLot').value = 0.01;
+  $('inLots').value = 0.01; S.lots = 0.01;
+  save(); if(lastSignal) renderSignal();
+  toast('Calculator default pe reset');
+}
+function wipeAll(){
+  if(!confirm('Sab data (trades, history, settings) delete ho jayega. Pakka?')) return;
+  Object.keys(localStorage).filter(k=>k.startsWith('samu_')).forEach(k=>localStorage.removeItem(k));
+  location.reload();
+}
+
+/* ---------------- boot ---------------- */
+/* ---- custom pair picker ---- */
+let pickCtx = 'main';
+const pickVal = {main:null, manual:null, corr:null};
+
+function pickLabel(el, sym){
+  if(!el) return;
+  el.innerHTML = `<span>${sym}</span>${isBad(sym)?' <span style="font-size:9px;color:var(--dim);margin-left:6px">LOCKED</span>':''}<i>▼ CHANGE</i>`;
+  el.classList.toggle('lock', isBad(sym));
+}
+function fillPairs(){
+  pickVal.main = pickVal.main || S.pair;
+  pickVal.manual = pickVal.manual || S.pair;
+  pickVal.corr = pickVal.corr || S.pair;
+  pickLabel($('selPair'), pickVal.main);
+  pickLabel($('mtPair'), pickVal.manual);
+  pickLabel($('corrPair'), pickVal.corr);
+}
+
+function openPick(ctx){
+  pickCtx = ctx;
+  $('pickTitle').textContent = ctx==='manual' ? 'Manual Trade — Pair' : ctx==='corr' ? 'Correlation — Base Pair' : 'Pair Chuno';
+  $('pickSearch').value = '';
+  drawPick();
+  openSheet('pickSheet');
+  setTimeout(() => { const a = $('pickList').querySelector('.prow.on'); if(a) a.scrollIntoView({block:'center'}) }, 60);
+}
+
+function drawPick(){
+  const q = ($('pickSearch').value || '').trim().toUpperCase().replace(/[^A-Z]/g,'');
+  const cur = pickVal[pickCtx];
+  let html = '';
+  for(const g in GROUPS){
+    const list = GROUPS[g].filter(p => !q || SPECS[p].n.includes(q) || (q==='GOLD' && p==='XAU/USD'));
+    if(!list.length) continue;
+    html += `<div class="pgrp">${g.toUpperCase()}</div>`;
+    html += list.map(p => {
+      const d = S.px[p] || prices[p];
+      return `<button class="prow ${p===cur?'on':''} ${isBad(p)?'off':''}" onclick="choosePick('${p}')">
+        <span class="dot"></span>${p}
+        <span class="px">${isBad(p) ? 'locked' : (d && d.p ? fmt(p,d.p) : '')}</span>
+      </button>`;
+    }).join('');
+  }
+  $('pickList').innerHTML = html || '<p class="hint" style="padding:20px 0;text-align:center">Koi pair nahi mila.</p>';
+}
+
+function choosePick(sym){
+  pickVal[pickCtx] = sym;
+  closeSheet('pickSheet');
+  if(pickCtx === 'main'){
+    S.pair = sym; save(); pickLabel($('selPair'), sym);
+    setChart(sym); lastSignal = null; renderSignal();
+  } else if(pickCtx === 'manual'){
+    pickLabel($('mtPair'), sym);
+    const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p) || refPrice(sym);
+    $('mtEntry').value = fmt(sym, px);
+    mtCalc();
+  } else {
+    pickLabel($('corrPair'), sym); renderCorrBrowser();
+  }
+}
+async function apiTest(){
+  const box = $('apiOut'); box.classList.remove('hide');
+  box.scrollIntoView({behavior:'smooth', block:'center'});
+  const key = ($('setKey').value || S.key || '').trim();
+  if(!key){ box.textContent = 'API key khaali hai'; return }
+  box.textContent = 'Test chal raha hai...';
+  const syms = [...new Set(S.open.map(t=>t.sym))].slice(0,3);
+  const one = syms[0] || 'EUR/USD';
+  let out = `Credits bache: ${creditsLeft()}/${LIMIT}\n\n`;
+  try{
+    const r1 = await fetch(`${API}/quote?symbol=${encodeURIComponent(one)}&apikey=${encodeURIComponent(key)}`);
+    const j1 = await r1.json();
+    out += `[1] SINGLE ${one}\nHTTP ${r1.status}\n${JSON.stringify(j1).slice(0,400)}\n\n`;
+  }catch(e){ out += `[1] fail: ${e.message}\n\n` }
+  if(syms.length > 1){
+    try{
+      const r2 = await fetch(`${API}/quote?symbol=${encodeURIComponent(syms.join(','))}&apikey=${encodeURIComponent(key)}`);
+      const j2 = await r2.json();
+      out += `[2] BATCH ${syms.join(',')}\nHTTP ${r2.status}\n${JSON.stringify(j2).slice(0,600)}`;
+    }catch(e){ out += `[2] fail: ${e.message}` }
+  }
+  box.textContent = out;
+}
+
+function unlockAll(){
+  S.bad = []; save(); fillPairs(); toast('Locked pairs reset ho gaye — dobara try karo');
+}
+function boot(){
+  fillPairs();
+  $('inLots').value = S.lots;
+  $('inLots').onchange = e => { S.lots = +e.target.value||0.01; save() };
+
+  $('tfChips').innerHTML = TFS.map(t=>`<button class="chip ${t.id===S.tf?'on gold':''}" data-tf="${t.id}">${t.l}</button>`).join('');
+  $('tfChips').onclick = e => {
+    const b = e.target.closest('[data-tf]'); if(!b) return;
+    S.tf = b.dataset.tf; save();
+    $('tfChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
+    $('tfChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('gold', c===b));
+  };
+
+  renderCorrBrowser();
+  renderNews();
+
+  $('mktChips').innerHTML = Object.keys(GROUPS).map(g=>
+    `<button class="chip ${g===S.mktG?'on':''}" data-g="${g}">${g}</button>`).join('');
+  $('mktChips').onclick = e => {
+    const b = e.target.closest('[data-g]'); if(!b) return;
+    S.mktG = b.dataset.g; save();
+    $('mktChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
+    loadMarket();
+  };
+
+  $('chartTf').innerHTML = TFS.map(t=>`<button class="chip ${t.tv===S.chartTf?'on':''}" data-ctf="${t.tv}">${t.l}</button>`).join('');
+  $('chartTf').onclick = e => {
+    const b = e.target.closest('[data-ctf]'); if(!b) return;
+    S.chartTf = b.dataset.ctf; save();
+    $('chartTf').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
+    setChart(S.pair);
+  };
+
+  $('swHtf').classList.toggle('on', S.htf);
+  $('swNews').classList.toggle('on', S.newsOn);
+  $('swTgAuto').classList.toggle('on', S.tgAuto);
+  $('setCap').value = S.cap; $('setAuto').value = S.autoM;
+  $('setNewsMin').value = S.newsMin; $('setNewsImp').value = S.newsImp;
+  $('setMode').value = S.slMode; $('setAtrSL').value = S.atrSL;
+  $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
+  $('swAutoLot').classList.toggle('on', S.autoLot);
+  $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
+  $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode();
+  if($('verMode')) $('verMode').textContent = S.mt5Type;
+  renderBanner();
+  $('setKey').value = S.key; $('setTp').value = S.dTp; $('setSl').value = S.dSl; $('setLot').value = S.dLot;
+  $('tgTok').value = S.tgTok; $('tgId').value = S.tgId;
+  $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
+
+  $('verTag').textContent = 'v' + VERSION;
+  $('verBig').textContent = 'SamuSignal v' + VERSION;
+  $('verMode').textContent = S.mt5Type;
+  setChart(S.pair);
+    buildTicker();
+  renderSignal();
+  renderTrades();
+  renderLog();
+  showCredits();
+  setTimeout(() => loadNews(false), 900);   /* din me ek baar, API credits nahi lagte */
+  if(S.key){ refreshOpen(true); setTimeout(()=>refreshTicker(false), 1200); }
+}
+boot();
+
+/* ---------------- install prompt ---------------- */
+let deferred = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('btnInstall').style.color = 'var(--gold)'; });
+$('btnInstall').onclick = async () => {
+  if(deferred){ deferred.prompt(); await deferred.userChoice; deferred = null; }
+  else toast('Browser menu → "Add to Home screen" dabao');
+};
+window.addEventListener('appinstalled', ()=> toast('SamuSignal install ho gaya'));
+
+/* ---------------- service worker (relative scope — 404 fix) ---------------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(()=>{});
+  });
+}
+
+</script>
+</body>
+</html>
