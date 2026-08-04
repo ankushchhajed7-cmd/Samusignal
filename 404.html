@@ -226,9 +226,9 @@ tr:last-child td{border-bottom:none}
 /* ---------- nav ---------- */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);
   border-top:1px solid var(--line);display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 1px;
-  font-size:8px;font-weight:700;letter-spacing:.6px;color:var(--dim)}
-nav button i{font-style:normal;font-size:16px;filter:grayscale(1);opacity:.45}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 0;
+  font-size:7.5px;font-weight:700;letter-spacing:.3px;color:var(--dim)}
+nav button i{font-style:normal;font-size:15px;filter:grayscale(1);opacity:.45}
 nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 .badge{position:absolute;top:2px;margin-left:20px;background:var(--dn);color:#000;font-size:8px;
   min-width:15px;height:15px;border-radius:99px;display:grid;place-items:center;padding:0 3px}
@@ -349,6 +349,31 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   </div>
 </section>
 
+<!-- ============ SCAN ============ -->
+<section id="pgScan" class="hide">
+  <div class="card">
+    <p class="ttl">Setup Scanner <span class="sp" id="scanT">—</span></p>
+    <div class="grid2" style="margin-bottom:10px">
+      <div><label>Kitna strong</label><select id="scanMin">
+        <option value="80">Sirf 80%+ (bahut kam)</option>
+        <option value="70">70%+ strong</option>
+        <option value="60">60%+ theek-thaak</option>
+        <option value="0">Sab dikhao</option>
+      </select></div>
+      <div><label>Depth</label><select id="scanDeep">
+        <option value="0">Fast — 2 credits/pair</option>
+        <option value="1">Deep — 4 credits/pair</option>
+      </select></div>
+    </div>
+    <label>Watchlist <span id="wCount" style="color:var(--gold)"></span></label>
+    <button class="pick" style="margin-bottom:10px" onclick="openWatch()">
+      <span id="wLabel">—</span><i>▼ BADLO</i></button>
+    <button class="btn gold" id="btnScan" onclick="runScan()">SCAN KARO</button>
+    <p class="hint" id="scanCost"></p>
+  </div>
+  <div id="scanOut"></div>
+</section>
+
 <!-- ============ VOTES ============ -->
 <section id="pgVotes" class="hide">
   <div class="card">
@@ -452,6 +477,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 
 <nav>
   <button class="on" data-pg="Signals" onclick="go('Signals',this)"><i>📡</i>SIGNALS</button>
+  <button data-pg="Scan" onclick="go('Scan',this)"><i>🎯</i>SCAN</button>
   <button data-pg="Votes" onclick="go('Votes',this)"><i>🗳</i>VOTES</button>
   <button data-pg="Market" onclick="go('Market',this)"><i>📊</i>MARKET</button>
   <button data-pg="Trades" onclick="go('Trades',this)"><i>💼</i>TRADES</button>
@@ -574,6 +600,18 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div id="hgBody"></div>
 </div></div>
 
+<div class="ov" id="watchSheet"><div class="sheet">
+  <div class="sh-h"><h3>Watchlist</h3><button onclick="closeSheet('watchSheet')">×</button></div>
+  <p class="hint" style="margin:0 0 12px" id="watchCost"></p>
+  <div class="chips" style="margin-bottom:12px">
+    <button class="chip" onclick="watchPreset('major')">Majors</button>
+    <button class="chip" onclick="watchPreset('gold')">Gold + Majors</button>
+    <button class="chip" onclick="watchPreset('jpy')">JPY Pairs</button>
+    <button class="chip" onclick="watchPreset('clear')">Saaf karo</button>
+  </div>
+  <div class="plist" id="watchList"></div>
+</div></div>
+
 <div class="ov" id="pickSheet"><div class="sheet">
   <div class="sh-h"><h3 id="pickTitle">Pair Chuno</h3><button onclick="closeSheet('pickSheet')">×</button></div>
   <input id="pickSearch" placeholder="Search — eur, jpy, gold..." oninput="drawPick()" style="margin-bottom:10px">
@@ -607,7 +645,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '4.0.0';
+const VERSION = '4.1.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -751,6 +789,10 @@ let S = {
   corr:  LS.get('corr',{d:'',m:{}}),
   news:  LS.get('news',{d:'',list:[]}),
   sigs:  LS.get('sigs',[]),
+  watch: LS.get('watch',['XAU/USD','EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD']),
+  scanDeep: LS.get('scanDeep',false),
+  scanMin: LS.get('scanMin',70),
+  scan:  LS.get('scan',{at:0,rows:[]}),
   notif: LS.get('notif',true),
   tts:   LS.get('tts',false),
   newsMin: LS.get('newsMin',30),
@@ -762,7 +804,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -842,9 +884,10 @@ function openSheet(id){ $(id).classList.add('on') }
 function closeSheet(id){ $(id).classList.remove('on') }
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('on') }));
 function go(pg,btn){
-  ['Signals','Votes','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
+  ['Signals','Scan','Votes','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
+  if(pg==='Scan') renderScan();
   if(pg==='Votes'){ renderVotes(); renderSigHist() }
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
@@ -1603,6 +1646,197 @@ function renderSignal(){
       </div>
     </div>`;
   setChart(s.sym);
+}
+
+/* ================= SETUP SCANNER ================= */
+function scanCost(){ return S.watch.length * (S.scanDeep ? 4 : 2) }
+
+function renderScan(){
+  const n = S.watch.length, c = scanCost();
+  $('wCount').textContent = `(${n} pairs)`;
+  $('wLabel').textContent = n ? S.watch.map(x=>SPECS[x].n).join(', ').slice(0,42) + (n>4?'…':'') : 'Koi pair nahi';
+  $('scanMin').value = S.scanMin;
+  $('scanDeep').value = S.scanDeep ? '1' : '0';
+  const left = dayLeft();
+  $('scanCost').innerHTML = `Ye scan <b style="color:${c>left?'var(--dn)':'var(--gold)'}">${c} credits</b> lega · aaj ${left} bache hain` +
+    (c > left ? '<br><span style="color:var(--dn)">Budget kam hai — watchlist chhoti karo ya Fast mode chuno.</span>' : '');
+  $('scanT').innerHTML = S.scan.at ? `<span data-ago="${S.scan.at}">${ago(S.scan.at)}</span>` : '—';
+  drawScanRows();
+}
+
+function drawScanRows(){
+  const rows = (S.scan.rows||[]).filter(r => r.score >= S.scanMin);
+  const all = (S.scan.rows||[]).length;
+  if(!all){
+    $('scanOut').innerHTML = '<div class="card"><div class="empty"><div>🎯</div>Abhi tak scan nahi hua.<br>Watchlist chuno aur SCAN KARO dabao.</div></div>';
+    return;
+  }
+  if(!rows.length){
+    $('scanOut').innerHTML = `<div class="card"><div class="empty"><div>😐</div>${all} pairs scan hue, par koi ${S.scanMin}%+ setup nahi mila.<br><br>
+      <span style="font-size:11px">Market abhi saaf nahi hai. Threshold kam karo ya thodi der baad phir scan karo.</span></div></div>`;
+    return;
+  }
+  $('scanOut').innerHTML = rows.map(r => {
+    const up = r.dir === 'BUY';
+    const dc = up ? 'var(--up)' : 'var(--dn)';
+    const tier = r.score>=80 ? 'STRONG' : r.score>=65 ? 'GOOD' : 'OK';
+    return `<div class="card" style="border-left:3px solid ${dc};padding:13px">
+      <div class="sig-h" style="margin-bottom:8px">
+        <b style="letter-spacing:1px">${SPECS[r.sym].n}</b>
+        <span class="tag ${up?'buy':'sell'}">${r.dir}</span>
+        <span class="gr">${r.grade}</span>
+        <span style="margin-left:auto;font-size:15px;font-weight:700;color:${dc}">${r.score}%</span>
+      </div>
+      <div class="segs" style="margin-bottom:10px">
+        ${Array.from({length:20},(_,i)=>`<i style="${i<Math.round(r.score/5)?'background:'+dc:''}"></i>`).join('')}
+      </div>
+      <div class="tr-g" style="margin-bottom:8px">
+        <div><span>ENTRY</span>${fmt(r.sym,r.entry)}</div>
+        <div><span>SL</span><em class="dn" style="font-style:normal">${fmt(r.sym,r.sl)}</em></div>
+        <div><span>TP</span><em class="up" style="font-style:normal">${fmt(r.sym,r.tp)}</em></div>
+        <div><span>AGENTS</span>${r.vb}B/${r.vs}S</div>
+      </div>
+      <p class="hint" style="margin:0 0 9px">${tier} · Quality ${r.q}% · Analyst ${r.an}% · ${r.htf}/${r.htfN} TF saath${r.news?` · ⚠ ${r.news}`:''}</p>
+      <p class="hint" style="margin:0 0 10px;color:#c8c8c8">${r.why}</p>
+      <button class="btn ${up?'g':'r'} sm" onclick="openScanned('${r.sym}')">POORA ANALYSIS DEKHO</button>
+    </div>`;
+  }).join('') + `<p class="hint" style="text-align:center;padding:4px 0 10px">${all} scan hue · ${rows.length} ne ${S.scanMin}% ka bar paar kiya</p>`;
+}
+
+let scanning = false;
+async function runScan(){
+  if(needKey()) return;
+  if(scanning) return;
+  if(!S.watch.length){ toast('Pehle watchlist me pair chuno'); return }
+  const cost = scanCost();
+  if(dayLeft() < cost && !confirm(`Ye scan ${cost} credits lega par aaj sirf ${dayLeft()} bache hain.\n\nBeech me ruk jayega. Phir bhi chalu karein?`)) return;
+
+  scanning = true;
+  const btn = $('btnScan');
+  const list = S.watch.filter(x => !isBad(x));
+  const rows = [];
+  const tfs = S.scanDeep ? [S.tf, '1h', '4h', '1day'] : [S.tf, '4h'];
+  const uniq = [...new Set(tfs)];
+
+  for(let i = 0; i < list.length; i++){
+    const sym = list[i];
+    btn.innerHTML = `<span class="spin"></span> ${i+1}/${list.length} · ${SPECS[sym].n}`;
+    try{
+      const res = {}; let base = null;
+      for(const tf of uniq){
+        const bars = await getSeries(sym, tf, 120, sec => { btn.textContent = `LIMIT — ${sec}s` });
+        if(!base) base = bars;
+        res[tf] = tfBias(bars);
+      }
+      const b0 = res[uniq[0]];
+      const dir = b0.bias;
+      if(dir === 'NEUTRAL'){ rows.push(null); continue }
+
+      const live = b0.price;
+      prices[sym] = Object.assign(prices[sym]||{}, {p:live});
+      S.px[sym] = {p:live, chg:(S.px[sym]||{}).chg||0, t:Date.now()};
+
+      /* quality */
+      let q = 22;
+      if(res['1h'] && res['1h'].bias === dir) q += 16;
+      if(res['4h'] && res['4h'].bias === dir) q += 20;
+      if(res['1day'] && res['1day'].bias === dir) q += 18;
+      if(!S.scanDeep) q += 18;                       /* fast mode me 1D nahi — neutral maano */
+      if(b0.stDir === (dir==='BUY'?1:-1)) q += 10;
+      const rv = b0.rsi;
+      if(dir==='BUY' ? (rv>50&&rv<72) : (rv<50&&rv>28)) q += 8;
+      if(dir==='BUY' ? b0.macd>0 : b0.macd<0) q += 6;
+      q = Math.max(0, Math.min(100, Math.round(q)));
+
+      const lv = calcLevels(sym, live, S.dLot, b0.atr);
+      const sl = dir==='BUY' ? live-lv.slDist : live+lv.slDist;
+      const tp = dir==='BUY' ? live+lv.tpDist : live-lv.tpDist;
+      const tfArr = uniq.filter(t=>res[t]).map(t => ({l:(TFS.find(x=>x.id===t)||{l:t}).l, b:res[t].bias}));
+
+      const v = runAgents(base, (() => {
+        const o = {}; ['1h','4h','1day'].forEach(k => { if(res[k]) o[k] = res[k].bias==='NEUTRAL'?'HOLD':res[k].bias });
+        return o;
+      })(), live);
+
+      const sig = {sym, dir, live, sl, tp, slPips:lv.slPips, tpPips:lv.tpPips, tfs:tfArr, q};
+      const an = analyse(sym, base, v, sig);
+
+      /* combined score — teeno ka mel */
+      const agentFit = v.verdict === dir ? v.conf : 100 - v.conf;
+      const score = Math.round(q*0.4 + an.pct*0.35 + agentFit*0.25);
+
+      const nr = newsRisk(sym);
+      const good = an.O.filter(x => x.ok===2).map(x => x.h.toLowerCase());
+      const why = an.bad.length
+        ? `${good.slice(0,3).join(', ')} theek hain, par ${an.bad.map(x=>x.h.toLowerCase()).join(' aur ')} chinta ki baat hai.`
+        : `${good.slice(0,4).join(', ')} — sab paksh me hain.`;
+
+      rows.push({
+        sym, dir, score, q, an:an.pct, grade: q>=80?'A+':q>=70?'A':q>=60?'B':q>=45?'C':'D',
+        entry:live, sl, tp, vb:v.buy, vs:v.sell, conf:v.conf, verdict:v.verdict,
+        htf: tfArr.filter(x=>x.b===dir).length, htfN: tfArr.length,
+        news: nr ? nr.c+' news' : '', why
+      });
+    }catch(e){
+      if(e.code === 404) markBad(sym);
+      if(e.code === 429){ toast(e.message); break }
+      rows.push(null);
+    }
+  }
+
+  S.scan = {at: Date.now(), rows: rows.filter(Boolean).sort((a,b) => b.score - a.score)};
+  save();
+  btn.textContent = 'SCAN KARO';
+  scanning = false;
+  renderScan(); save();
+
+  const best = S.scan.rows.filter(r => r.score >= S.scanMin);
+  toast(best.length ? `${best.length} setup mile — sabse achha ${SPECS[best[0].sym].n} ${best[0].score}%` : 'Koi strong setup nahi mila');
+  if(best.length){
+    notify(`${best.length} setup mile`, `${SPECS[best[0].sym].n} ${best[0].dir} · ${best[0].score}%`, 'scan');
+    if(S.tts) speak(`${best.length} setup mile. Best is ${best[0].dir} ${SPECS[best[0].sym].n} at ${best[0].score} percent.`);
+  }
+}
+
+/* scan result se seedha poora analysis */
+function openScanned(sym){
+  S.pair = sym; save(); fillPairs(); setChart(sym);
+  go('Signals', document.querySelector('nav button[data-pg="Signals"]'));
+  toast('Analyze dabao — poora breakdown aa jayega');
+}
+
+/* ---- watchlist ---- */
+function openWatch(){ drawWatch(); openSheet('watchSheet') }
+function drawWatch(){
+  const c = scanCost();
+  $('watchCost').innerHTML = `${S.watch.length} pairs chune hain · scan me <b style="color:var(--gold)">${c} credits</b> lagenge`;
+  let html = '';
+  for(const g in GROUPS){
+    html += `<div class="pgrp">${g.toUpperCase()}</div>`;
+    html += GROUPS[g].map(p => {
+      const on = S.watch.includes(p);
+      return `<button class="prow ${on?'on':''} ${isBad(p)?'off':''}" onclick="toggleWatch('${p}')">
+        <span class="dot"></span>${p}
+        <span class="px">${isBad(p)?'locked':(S.px[p]&&S.px[p].p?fmt(p,S.px[p].p):'')}</span>
+      </button>`;
+    }).join('');
+  }
+  $('watchList').innerHTML = html;
+}
+function toggleWatch(p){
+  if(isBad(p)){ toast('Ye pair tumhare plan me nahi hai'); return }
+  const i = S.watch.indexOf(p);
+  if(i >= 0) S.watch.splice(i,1);
+  else { if(S.watch.length >= 12){ toast('Zyada se zyada 12 pairs'); return } S.watch.push(p) }
+  save(); drawWatch(); renderScan();
+}
+function watchPreset(k){
+  if(k==='major') S.watch = ['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF'];
+  if(k==='gold')  S.watch = ['XAU/USD','EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD'];
+  if(k==='jpy')   S.watch = ['USD/JPY','EUR/JPY','GBP/JPY','AUD/JPY','CAD/JPY','CHF/JPY'];
+  if(k==='clear') S.watch = [];
+  S.watch = S.watch.filter(x => !isBad(x));
+  save(); drawWatch(); renderScan();
 }
 
 /* ---------------- signal history ---------------- */
@@ -3193,6 +3427,9 @@ function boot(){
 
   $('swHtf').classList.toggle('on', S.htf);
   $('swNews').classList.toggle('on', S.newsOn);
+  $('scanMin').onchange = e => { S.scanMin = +e.target.value; save(); drawScanRows(); renderScan() };
+  $('scanDeep').onchange = e => { S.scanDeep = e.target.value === '1'; save(); renderScan() };
+  renderScan();
   $('swNotif').classList.toggle('on', S.notif && ('Notification' in window) && Notification.permission==='granted');
   $('swTts').classList.toggle('on', S.tts);
   $('swTgAuto').classList.toggle('on', S.tgAuto);
@@ -3231,7 +3468,7 @@ window.addEventListener('online', () => { netState(); toast('Wapas online') });
 window.addEventListener('offline', netState);
 
 /* ---------------- swipe to switch pages ---------------- */
-const PAGES = ['Signals','Votes','Market','Trades','Alerts'];
+const PAGES = ['Signals','Scan','Votes','Market','Trades','Alerts'];
 let tx=0, ty=0, tt=0;
 document.addEventListener('touchstart', e => {
   if(e.touches.length !== 1) return;
