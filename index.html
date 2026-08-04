@@ -204,6 +204,22 @@ tr:last-child td{border-bottom:none}
 .ag .vt.s{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.35)}
 .ag .vt.h{background:rgba(119,119,119,.12);color:var(--mut);border:1px solid var(--line)}
 
+/* skeleton loader */
+@keyframes shim{0%{background-position:-380px 0}100%{background-position:380px 0}}
+.sk{background:linear-gradient(90deg,#141414 8%,#1e1e1e 18%,#141414 33%);
+  background-size:800px 100%;animation:shim 1.3s linear infinite;border-radius:4px;height:12px;margin-bottom:9px}
+.sk.t{height:22px;width:45%} .sk.s{width:70%} .sk.xs{width:35%;height:10px}
+.skrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.skrow .sk{height:56px;margin:0}
+
+/* analyst */
+.an{border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:8px;background:var(--bg)}
+.an .ah{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.an .ah b{font-size:10px;letter-spacing:1.5px}
+.an .dot2{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.an p{margin:0;font-size:11.5px;line-height:1.65;color:#c8c8c8}
+.an.g{border-left:3px solid var(--up)} .an.y{border-left:3px solid var(--gold)} .an.r{border-left:3px solid var(--dn)}
+
 .empty{text-align:center;padding:26px 12px;color:var(--mut);font-size:12px}
 .empty div{font-size:30px;margin-bottom:8px;opacity:.4}
 
@@ -308,6 +324,11 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 
   <div class="card" id="cardSignal"></div>
 
+  <div class="card" id="anCard">
+    <p class="ttl">Chart Analysis <span class="sp" id="anT">—</span></p>
+    <div id="anBox"><p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p></div>
+  </div>
+
   <div class="card">
     <p class="ttl">News Filter <span class="sp" id="newsT">—</span></p>
     <div class="chips" id="newsChips" style="margin-bottom:12px"></div>
@@ -333,6 +354,10 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   <div class="card">
     <p class="ttl">AI Agent Voting <span class="sp" id="voteT">—</span></p>
     <div id="voteBox"></div>
+  </div>
+  <div class="card">
+    <p class="ttl">Signal History <span class="sp" id="sigT">—</span></p>
+    <div id="sigBox"></div>
   </div>
   <div class="card" id="voteListCard">
     <p class="ttl">50 Agents <span class="sp" id="voteFilt">sab</span></p>
@@ -478,6 +503,20 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
   </div>
   <p class="hint" style="margin-bottom:14px">Free plan pe 800 credits/day. Cap 700 rakho taaki buffer rahe. Har open pair ka 1 credit lagta hai — 5 pairs + 5 minute refresh = ~60 credits/ghanta.</p>
 
+  <p class="ttl">Alerts &amp; Voice</p>
+  <div class="sw" id="swNotif" onclick="toggleNotif(this)">
+    <div class="tg"></div>
+    <div>Phone notification<small>Signal aane pe aur TP/SL hit hone pe</small></div>
+  </div>
+  <div class="sw" id="swTts" onclick="toggleSw(this,'tts')">
+    <div class="tg"></div>
+    <div>Awaaz me batao<small>"BUY XAUUSD at 3300, stop loss..." bolkar sunayega</small></div>
+  </div>
+  <div class="grid2" style="margin:8px 0 16px">
+    <button class="btn ghost sm" onclick="notify('SamuSignal','Notification chalu hai ✅','test')">Test Notif</button>
+    <button class="btn ghost sm" onclick="speak('Samu Signal voice test. Buy gold at 3300.')">Test Voice</button>
+  </div>
+
   <p class="ttl">News Filter</p>
   <div class="grid2" style="margin-bottom:6px">
     <div><label>Warning window (min)</label><input class="mono" id="setNewsMin" type="number" step="5" value="30"></div>
@@ -560,12 +599,15 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 </div></div>
 
 <div class="toast" id="toast"></div>
+<div id="offBar" class="hide" style="position:fixed;bottom:calc(78px + env(safe-area-inset-bottom));left:12px;right:12px;
+  z-index:60;background:var(--panel);border:1px solid var(--gold);border-radius:6px;padding:9px 12px;
+  font-size:11px;color:var(--gold);text-align:center">⚠ Offline — purana cached data dikh raha hai</div>
 
 <script>
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '3.5.0';
+const VERSION = '4.0.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -708,6 +750,9 @@ let S = {
   day:   LS.get('day',{d:'',used:0,blocked:false}),
   corr:  LS.get('corr',{d:'',m:{}}),
   news:  LS.get('news',{d:'',list:[]}),
+  sigs:  LS.get('sigs',[]),
+  notif: LS.get('notif',true),
+  tts:   LS.get('tts',false),
   newsMin: LS.get('newsMin',30),
   newsOn: LS.get('newsOn',true),
   newsImp: LS.get('newsImp','High'),
@@ -717,7 +762,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -725,7 +770,70 @@ if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.s
 let lastSignal = null;
 let lastVotes = null;
 let mktLoaded = false;
+let mktAt = 0;
 let prices = {};   // sym -> {p, chg}
+
+/* ---------- relative time ---------- */
+function ago(t){
+  if(!t) return '—';
+  const d = Math.floor((Date.now() - t)/1000);
+  if(d < 5) return 'abhi';
+  if(d < 60) return d + ' sec pehle';
+  const m = Math.floor(d/60);
+  if(m < 60) return m + ' min pehle';
+  const h = Math.floor(m/60);
+  if(h < 24) return h + ' ghante pehle';
+  return Math.floor(h/24) + ' din pehle';
+}
+function tickAgo(){
+  document.querySelectorAll('[data-ago]').forEach(el => {
+    const t = +el.dataset.ago;
+    if(t) el.textContent = ago(t);
+  });
+}
+setInterval(tickAgo, 10000);
+
+/* ---------- notifications ---------- */
+async function askNotif(){
+  if(!('Notification' in window)){ toast('Is browser me notification support nahi hai'); return false }
+  if(Notification.permission === 'granted') return true;
+  if(Notification.permission === 'denied'){
+    toast('Notification block hai — Chrome site settings me allow karo'); return false;
+  }
+  const r = await Notification.requestPermission();
+  const ok = r === 'granted';
+  toast(ok ? 'Notification chalu ho gaya' : 'Notification allow nahi hua');
+  return ok;
+}
+async function notify(title, body, tag){
+  if(!S.notif || !('Notification' in window) || Notification.permission !== 'granted') return;
+  try{
+    const opt = {body, icon:'./icon-192.png', badge:'./icon-192.png',
+                 tag: tag || 'samu', vibrate:[120,60,120], renotify:true};
+    const reg = navigator.serviceWorker ? await navigator.serviceWorker.getRegistration() : null;
+    if(reg && reg.showNotification) await reg.showNotification(title, opt);
+    else new Notification(title, opt);
+  }catch(e){}
+}
+
+/* ---------- voice (TTS) ---------- */
+function speak(txt){
+  if(!('speechSynthesis' in window)) return;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt);
+    u.rate = 0.95; u.lang = 'en-IN';
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function sayPrice(sym, v){
+  return String(fmt(sym, v)).split('').map(ch => ch === '.' ? ' point ' : ch).join(' ');
+}
+function speakSignal(s){
+  if(!S.tts || !s || s.dir === 'NEUTRAL') return;
+  speak(`${s.dir} ${SPECS[s.sym].n.split('').join(' ')} at ${sayPrice(s.sym, s.live)}. ` +
+        `Stop loss ${sayPrice(s.sym, s.sl)}. Target ${sayPrice(s.sym, s.tp)}. Quality ${s.q} percent.`);
+}
 
 /* ---------- ui helpers ---------- */
 let tmr;
@@ -737,10 +845,17 @@ function go(pg,btn){
   ['Signals','Votes','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
-  if(pg==='Votes') renderVotes();
+  if(pg==='Votes'){ renderVotes(); renderSigHist() }
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
   if(pg==='Alerts') renderLog();
+}
+async function toggleNotif(el){
+  if(!S.notif){
+    const ok = await askNotif();
+    if(!ok) return;
+  }
+  S.notif = !S.notif; el.classList.toggle('on', S.notif); save();
 }
 function toggleSw(el,key){ S[key]=!S[key]; el.classList.toggle('on',S[key]); save(); }
 
@@ -1050,6 +1165,158 @@ const TFS = [
   {id:'1day', l:'1D',  tv:'D'}
 ];
 
+/* ================= CHART ANALYST =================
+   Har number se ek saaf wajah banata hai — kyun BUY, kyun SELL */
+function analyse(sym, bars, v, s){
+  const c = bars.map(x=>x.c), p = last(c);
+  const e20 = last(ema(c,20)), e50 = last(ema(c,50));
+  const e200 = last(ema(c, Math.min(200, c.length-1)));
+  const st = supertrend(bars,10,3);
+  const r = last(rsi(c,14)), h = last(macdH(c)), a = adx(bars,14);
+  const at = last(st.atr), k = stoch(bars,14);
+  const hi = hh(bars,30), lo = ll(bars,30);
+  const pos = hi===lo ? 50 : (p-lo)/(hi-lo)*100;
+  const sd = stdev(c,20), mid = last(sma(c,20));
+  const bbPos = sd ? (p-mid)/(2*sd)*100 : 0;
+  const d = s.dir, up = d === 'BUY';
+  const P = n => fmt(sym, n);
+  const O = [];
+
+  /* --- 1. Market structure --- */
+  const strong = (up ? (p>e20 && e20>e50 && e50>e200) : (p<e20 && e20<e50 && e50<e200));
+  const partial = (up ? (p>e50) : (p<e50));
+  O.push({
+    h:'STRUCTURE',
+    ok: strong ? 2 : partial ? 1 : 0,
+    t: strong
+      ? `Poora dhaancha ${up?'upar':'neeche'} ka hai — price ${P(p)}, EMA20 ${P(e20)}, EMA50 ${P(e50)}, EMA200 ${P(e200)} sab ek hi kram me lage hain. Ye saaf ${up?'uptrend':'downtrend'} hai, koi confusion nahi.`
+      : partial
+      ? `Price EMA50 (${P(e50)}) ke ${up?'upar':'neeche'} hai, par EMA20 aur EMA200 poori tarah line me nahi. Trend ${up?'bana':'bana'} to hai, magar utna majboot nahi.`
+      : `Price EMA50 (${P(e50)}) ke ${up?'neeche':'upar'} hai — ye ${d} ke khilaaf jaata hai. Ye counter-trend trade hoga.`
+  });
+
+  /* --- 2. Trend engine --- */
+  const stOk = last(st.dir) === (up?1:-1);
+  O.push({
+    h:'SUPERTREND',
+    ok: stOk ? 2 : 0,
+    t: stOk
+      ? `Supertrend ${P(last(st.line))} pe ${up?'neeche support':'upar resistance'} de raha hai aur ${d} bol raha hai. Jab tak price isse ${up?'upar':'neeche'} hai, trend zinda hai.`
+      : `Supertrend abhi ${up?'SELL':'BUY'} pe hai (line ${P(last(st.line))}). Ye is trade ke ulta hai — sabse bada laal jhanda yahi hai.`
+  });
+
+  /* --- 3. Momentum --- */
+  const rOk = up ? (r>52 && r<72) : (r<48 && r>28);
+  const rExt = up ? r>75 : r<25;
+  O.push({
+    h:'MOMENTUM',
+    ok: rExt ? 0 : rOk ? 2 : 1,
+    t: rExt
+      ? `RSI ${r.toFixed(1)} pe hai — ye ${up?'overbought':'oversold'} zone hai. Chaal thak chuki ho sakti hai; abhi ${d} lena late entry ka khatra rakhta hai.`
+      : rOk
+      ? `RSI ${r.toFixed(1)} — ${up?'55 se upar par 72 se neeche':'45 se neeche par 28 se upar'}. Yahi sweet spot hai: taakat hai, par abhi thaka nahi.`
+      : `RSI ${r.toFixed(1)} beech me hai — momentum na ${up?'majboot':'majboot'} hai na kamzor. Iska matlab market abhi faisla nahi kar paaya.`
+  });
+
+  const mOk = up ? h>0 : h<0;
+  O.push({
+    h:'MACD',
+    ok: mOk ? 2 : 0,
+    t: mOk
+      ? `MACD histogram ${h>0?'+':''}${h.toFixed(5)} — zero line ke ${up?'upar':'neeche'} hai, matlab short-term momentum bhi ${d} ke saath hai.`
+      : `MACD histogram ${h>0?'+':''}${h.toFixed(5)} — ye ${d} ke ulta hai. Momentum abhi is direction me nahi.`
+  });
+
+  /* --- 4. Trend strength --- */
+  const dirOk = up ? a.pdi>a.ndi : a.ndi>a.pdi;
+  O.push({
+    h:'ADX / TAAKAT',
+    ok: a.adx>25 && dirOk ? 2 : a.adx<20 ? 0 : 1,
+    t: a.adx < 20
+      ? `ADX sirf ${a.adx.toFixed(1)} hai — market range-bound hai, koi trend nahi. Aise me breakout aksar fail hote hain aur SL noise me hi lag jaati hai.`
+      : a.adx > 25
+      ? `ADX ${a.adx.toFixed(1)} — trend me sach me dum hai. +DI ${a.pdi.toFixed(1)} vs −DI ${a.ndi.toFixed(1)}, matlab ${a.pdi>a.ndi?'kharidne':'bechne'} wale haavi hain.`
+      : `ADX ${a.adx.toFixed(1)} — halka trend ban raha hai par abhi confirm nahi. Thoda intezaar behtar hoga.`
+  });
+
+  /* --- 5. Location — sabse zyada nazarandaz ki jaane wali baat --- */
+  const badLoc = up ? pos>80 : pos<20;
+  O.push({
+    h:'ENTRY LOCATION',
+    ok: badLoc ? 0 : (up ? pos<55 : pos>45) ? 2 : 1,
+    t: badLoc
+      ? `Price 30-candle range ke ${pos.toFixed(0)}% pe hai — matlab ${up?'sabse upar':'sabse neeche'}. Yahan ${d} lena "mehnga ${up?'kharidna':'bechna'}" hai. Range ${P(lo)} – ${P(hi)}.`
+      : `Price range ke ${pos.toFixed(0)}% pe hai (${P(lo)} – ${P(hi)}). ${up?'Upar':'Neeche'} chalne ki gunjaish bachi hai — entry ki jagah theek hai.`
+  });
+
+  O.push({
+    h:'BOLLINGER',
+    ok: Math.abs(bbPos)>95 ? 0 : 1,
+    t: Math.abs(bbPos)>95
+      ? `Price Bollinger band ke bilkul kinare pe hai (${bbPos.toFixed(0)}%). Aise me aksar wapas beech ki taraf kheenchav aata hai.`
+      : `Price 20-period average ${P(mid)} se ${bbPos>0?'upar':'neeche'} ${Math.abs(bbPos).toFixed(0)}% band width pe hai — normal range me.`
+  });
+
+  /* --- 6. Volatility vs SL --- */
+  const slPips = s.slPips, atrPips = at / SPECS[sym].pip;
+  const slSafe = slPips > atrPips * 0.8;
+  O.push({
+    h:'SL vs VOLATILITY',
+    ok: slSafe ? 2 : 0,
+    t: slSafe
+      ? `ATR ${atrPips.toFixed(1)} pips hai aur SL ${slPips} pips door — SL ko saans lene ki jagah mil rahi hai.`
+      : `⚠ ATR ${atrPips.toFixed(1)} pips hai par SL sirf ${slPips} pips door. Market ki normal hilne-dulne se hi SL lag sakti hai, signal sahi hone ke bawajood.`
+  });
+
+  /* --- 7. HTF --- */
+  const agree = s.tfs.filter(x => x.b === d).length;
+  O.push({
+    h:'HIGHER TIMEFRAME',
+    ok: agree >= s.tfs.length-1 ? 2 : agree >= 2 ? 1 : 0,
+    t: `${s.tfs.length} me se ${agree} timeframe ${d} bol rahe hain (${s.tfs.map(x=>x.l+' '+x.b).join(', ')}). ` +
+      (agree >= s.tfs.length-1
+        ? 'Sab ek taraf hain — ye sabse behtar haalat hai.'
+        : agree >= 2
+        ? 'Zyadatar saath hain, par ek-do ulta hai. Chhota target rakhna theek rahega.'
+        : 'Bade timeframe ulta bol rahe hain — is trade me current ke khilaaf tair rahe ho.')
+  });
+
+  /* --- 8. Agents --- */
+  if(v){
+    const by = {};
+    v.list.forEach(x => {
+      by[x.g] = by[x.g] || {b:0,s:0,h:0};
+      by[x.g][x.v==='BUY'?'b':x.v==='SELL'?'s':'h']++;
+    });
+    const detail = Object.entries(by)
+      .map(([g,z]) => `${g} ${z.b}B/${z.s}S`).join(' · ');
+    O.push({
+      h:'50 AGENTS',
+      ok: v.conf>=70 && v.verdict===d ? 2 : v.verdict===d ? 1 : 0,
+      t: `${v.buy} BUY, ${v.hold} HOLD, ${v.sell} SELL — verdict ${v.verdict} (${v.conf}%). ${detail}. ` +
+        (v.verdict !== d
+          ? `⚠ Agents ${v.verdict} bol rahe hain par signal ${d} hai — ye takraav hai.`
+          : v.conf >= 70 ? 'Majboot sahmati.' : 'Sahmati hai par kamzor.')
+    });
+  }
+
+  /* --- verdict --- */
+  const score = O.reduce((x,y)=>x+y.ok, 0);
+  const maxS = O.length * 2;
+  const pct = Math.round(score/maxS*100);
+  const bad = O.filter(x => x.ok === 0);
+  const verdict = pct>=75 ? 'ACHHA SETUP' : pct>=55 ? 'THEEK-THAAK' : pct>=40 ? 'KAMZOR' : 'MAT LO';
+  const vcol = pct>=75 ? 'var(--up)' : pct>=55 ? 'var(--gold)' : 'var(--dn)';
+
+  /* invalidation */
+  const inval = up
+    ? `Agar price ${P(last(st.line))} ke neeche band hota hai to ye setup khatam — SL se pehle hi nikal jaana behtar.`
+    : `Agar price ${P(last(st.line))} ke upar band hota hai to ye setup khatam — SL se pehle hi nikal jaana behtar.`;
+
+  return {O, pct, verdict, vcol, bad, inval, d,
+    summary: `${d} ${SPECS[sym].n} — ${O.filter(x=>x.ok===2).length} baat paksh me, ${bad.length} khilaaf.`};
+}
+
 /* ================= 50 STRATEGY AGENTS =================
    Har agent ek alag technical niyam hai. Ye LLM nahi hain —
    ye 50 rule-based strategies hain jo apna-apna vote deti hain. */
@@ -1178,6 +1445,12 @@ async function runAnalyze(){
   busy = true;
   const btn = $('btnAnalyze');
   btn.innerHTML = '<span class="spin"></span> Analyze ho raha hai...';
+  $('cardSignal').innerHTML = `<p class="ttl">Signal</p>
+    <div class="sk t"></div><div class="sk"></div><div class="sk s"></div>
+    <div class="skrow"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+    <div class="sk xs"></div>`;
+  $('anBox').innerHTML = `<div class="sk t"></div><div class="sk"></div><div class="sk s"></div>
+    <div class="sk"></div><div class="sk s"></div>`;
   const sym = S.pair;
   const note = sec => { btn.innerHTML = `<span class="spin"></span> API limit — ${sec}s ruko`; };
   try{
@@ -1240,7 +1513,15 @@ async function runAnalyze(){
       tfs: TFS.filter(t=>res[t.id]).map(t=>({l:t.l, b:res[t.id].bias})),
       at: Date.now()
     };
-    renderSignal();
+    lastAn = analyse(sym, barsBase, lastVotes, lastSignal);
+    lastAn.at = Date.now();
+    logSignal(lastSignal, lastVotes, lastAn);
+    renderSignal(); renderAnalyst();
+    if(dir !== 'NEUTRAL' && htfOk){
+      notify(`${s0q(dir)} ${SPECS[sym].n} · ${q}%`,
+        `Entry ${fmt(sym,live)} · SL ${fmt(sym,sl)} · TP ${fmt(sym,tp)}`, 'sig');
+      speakSignal(lastSignal);
+    }
     if(S.tgAuto && dir!=='NEUTRAL' && htfOk) tgSend(fullReport(true), true);
   }catch(e){
     if(e.code === 404){ markBad(sym); }
@@ -1280,7 +1561,7 @@ function renderSignal(){
   const weak = s.q < 70 ? `<p class="hint" style="color:var(--gold);margin-top:8px">Ye ${tier} signal hai (${s.q}%). Tum sirf strong lete ho — 70%+ ka intezaar karo.</p>` : '';
   const warn = !s.htfOk ? `<p class="hint" style="color:var(--gold);margin-top:8px">⚠ HTF filter ON hai aur 4H/1D bias match nahi kar raha. Ye trade skip karna behtar.</p>` : '';
   $('cardSignal').innerHTML = `
-    <p class="ttl">Signal <span class="sp">${t12(s.at)}</span></p>
+    <p class="ttl">Signal <span class="sp" data-ago="${s.at}">${ago(s.at)}</span></p>
     <div class="sig ${cls}">
       <div class="sig-h">
         <b class="mono">${s.sym}</b>
@@ -1324,6 +1605,142 @@ function renderSignal(){
   setChart(s.sym);
 }
 
+/* ---------------- signal history ---------------- */
+function logSignal(sig, v, an){
+  if(!sig || sig.dir === 'NEUTRAL') return;
+  S.sigs.unshift({
+    id:'S'+Date.now(), at:sig.at, sym:sig.sym, dir:sig.dir, tf:sig.tf,
+    q:sig.q, grade:sig.grade, entry:sig.live, sl:sig.sl, tp:sig.tp,
+    slD:sig.slD, tpD:sig.tpD,
+    vote: v ? {b:v.buy, s:v.sell, h:v.hold, verdict:v.verdict, conf:v.conf} : null,
+    an: an ? {pct:an.pct, verdict:an.verdict} : null,
+    out:'OPEN', pl:0
+  });
+  S.sigs = S.sigs.slice(0,200); save();
+}
+
+/* har signal ka nateeja check karo — jo pairs already refresh ho rahe hain, unhi se */
+function scoreSignals(q){
+  let changed = false;
+  S.sigs.forEach(g => {
+    if(g.out !== 'OPEN') return;
+    const d = q[g.sym]; if(!d || !d.p) return;
+    const p = d.p;
+    const hitTP = g.dir==='BUY' ? p >= g.tp : p <= g.tp;
+    const hitSL = g.dir==='BUY' ? p <= g.sl : p >= g.sl;
+    if(hitTP){ g.out='TP'; g.pl=+g.tpD; g.closedAt=Date.now(); changed=true }
+    else if(hitSL){ g.out='SL'; g.pl=-g.slD; g.closedAt=Date.now(); changed=true }
+    else if(Date.now() - g.at > 48*3600000){ g.out='EXPIRED'; g.closedAt=Date.now(); changed=true }
+  });
+  if(changed){ save(); if(!$('pgVotes').classList.contains('hide')) renderSigHist() }
+}
+
+function gradeStats(){
+  const done = S.sigs.filter(g => g.out==='TP' || g.out==='SL');
+  const by = {};
+  done.forEach(g => {
+    const k = g.grade || '—';
+    by[k] = by[k] || {n:0, w:0, pl:0, q:0};
+    by[k].n++; if(g.out==='TP') by[k].w++;
+    by[k].pl += g.pl; by[k].q += g.q;
+  });
+  const order = ['A+','A','B','C','D','—'];
+  return Object.entries(by)
+    .sort((a,b) => order.indexOf(a[0]) - order.indexOf(b[0]))
+    .map(([k,v]) => ({grade:k, n:v.n, wr:Math.round(v.w/v.n*100), pl:v.pl, avgQ:Math.round(v.q/v.n)}));
+}
+
+function renderSigHist(){
+  const all = S.sigs;
+  const done = all.filter(g => g.out==='TP' || g.out==='SL');
+  const open = all.filter(g => g.out==='OPEN').length;
+  const wr = done.length ? Math.round(done.filter(g=>g.out==='TP').length/done.length*100) : 0;
+  const pl = done.reduce((a,g)=>a+g.pl,0);
+
+  $('sigT').textContent = all.length ? `${all.length} signals` : '—';
+  if(!all.length){
+    $('sigBox').innerHTML = '<div class="empty"><div>📋</div>Abhi koi signal record nahi.<br>Analyze karte hi yahan aana shuru ho jayega.</div>';
+    return;
+  }
+  const gs = gradeStats();
+  $('sigBox').innerHTML = `
+    <div class="perf">
+      <div class="pb"><b>${done.length}</b><span>SCORED</span><em>${open} chal rahe</em></div>
+      <div class="pb"><b class="${wr>=50?'up':'dn'}">${wr}%</b><span>ACCURACY</span></div>
+      <div class="pb"><b class="${pl>=0?'up':'dn'}" style="font-size:15px">${money(pl)}</b><span>THEORETICAL</span></div>
+    </div>
+    ${gs.length ? `<p class="ttl" style="margin:16px 0 8px">Grade Wise</p>
+    <table><thead><tr><th>Grade</th><th style="text-align:right">Signals</th><th style="text-align:right">Accuracy</th><th style="text-align:right">Avg Q</th></tr></thead>
+    <tbody>${gs.map(g => `<tr>
+      <td class="mono"><b style="color:${g.wr>=60?'var(--up)':g.wr>=40?'var(--gold)':'var(--dn)'}">${g.grade}</b></td>
+      <td class="mono" style="text-align:right">${g.n}</td>
+      <td class="mono ${g.wr>=50?'up':'dn'}" style="text-align:right">${g.wr}%</td>
+      <td class="mono mu" style="text-align:right">${g.avgQ}%</td>
+    </tr>`).join('')}</tbody></table>
+    <p class="hint">Ye asli trades nahi — har analyze hua signal apne SL/TP se khud score hota hai. Isse pata chalta hai kaunsa grade sach me kaam karta hai.</p>` : ''}
+    <p class="ttl" style="margin:16px 0 8px">Recent</p>
+    ${all.slice(0,25).map(g => {
+      const ic = g.out==='TP'?'w':g.out==='SL'?'l':'m';
+      const lbl = g.out==='TP'?'TP':g.out==='SL'?'SL':g.out==='EXPIRED'?'EX':'···';
+      return `<div class="hist">
+        <div class="ic ${ic}">${lbl}</div>
+        <div class="in">
+          <b class="mono">${SPECS[g.sym]?SPECS[g.sym].n:g.sym} <span class="${g.dir==='BUY'?'up':'dn'}" style="font-size:10px">${g.dir}</span>
+            <span class="mu" style="font-size:10px">${g.grade} ${g.q}%</span></b>
+          <small>${dt12(g.at)} · ${g.tf}${g.vote?` · agents ${g.vote.verdict} ${g.vote.conf}%`:''}${g.an?` · ${g.an.pct}%`:''}</small>
+        </div>
+        ${g.out==='OPEN' ? '<span class="mu" style="font-size:10px" data-ago="'+g.at+'">'+ago(g.at)+'</span>'
+          : `<div class="amt mono ${g.pl>=0?'up':'dn'}">${money(g.pl)}</div>`}
+      </div>`;
+    }).join('')}`;
+}
+
+/* ---------------- analyst render ---------------- */
+let lastAn = null;
+function s0q(d){ return d }
+function renderAnalyst(){
+  const a = lastAn;
+  if(!a){ $('anBox').innerHTML = '<p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p>'; return }
+  $('anT').innerHTML = `<span data-ago="${a.at}">${ago(a.at)}</span>`;
+  const cls = k => k===2?'g':k===1?'y':'r';
+  const col = k => k===2?'var(--up)':k===1?'var(--gold)':'var(--dn)';
+  $('anBox').innerHTML = `
+    <div style="text-align:center;padding:4px 0 10px">
+      <b style="font-size:20px;color:${a.vcol};letter-spacing:2px">${a.verdict}</b>
+      <p class="hint" style="margin-top:3px">${a.pct}% checks paas · ${a.summary}</p>
+    </div>
+    ${a.bad.length ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.07);border-radius:6px;padding:10px;margin-bottom:10px">
+      <b style="color:var(--dn);font-size:10px;letter-spacing:1.5px">${a.bad.length} CHINTA KI BAAT</b>
+      <p class="hint" style="color:#e88;margin-top:4px">${a.bad.map(x=>x.h).join(' · ')}</p></div>` : ''}
+    ${a.O.map(x => `<div class="an ${cls(x.ok)}">
+      <div class="ah"><span class="dot2" style="background:${col(x.ok)}"></span><b style="color:${col(x.ok)}">${x.h}</b></div>
+      <p>${x.t}</p></div>`).join('')}
+    <div class="an y">
+      <div class="ah"><span class="dot2" style="background:var(--gold)"></span><b style="color:var(--gold)">KAB GALAT SAABIT HOGA</b></div>
+      <p>${a.inval}</p></div>
+    <div class="grid2" style="margin-top:10px">
+      <button class="btn ghost sm" onclick="shareAnWa()">WhatsApp</button>
+      <button class="btn ghost sm" onclick="tgSend(anText(true))">Telegram</button>
+    </div>`;
+}
+function anText(html){
+  const a = lastAn; if(!a || !lastSignal) return '';
+  const b = html ? x=>`<b>${x}</b>` : x=>x;
+  const L = [`📊 ${b('CHART ANALYSIS')} — ${lastSignal.sym}`, ''];
+  L.push(`${b(a.verdict)}  (${a.pct}% checks paas)`);
+  L.push('');
+  a.O.forEach(x => { L.push(`${x.ok===2?'✅':x.ok===1?'⚠️':'❌'} ${b(x.h)}`); L.push(x.t); L.push('') });
+  L.push(`🎯 ${b('KAB GALAT SAABIT HOGA')}`);
+  L.push(a.inval);
+  L.push('');
+  L.push(`⏰ ${t12(a.at)}`);
+  return L.join('\n');
+}
+function shareAnWa(){
+  if(!lastAn){ toast('Pehle analyze karo'); return }
+  window.open('https://wa.me/?text=' + encodeURIComponent(anText(false)), '_blank');
+}
+
 /* ---------------- votes render ---------------- */
 let voteFilter = 'All';
 
@@ -1336,7 +1753,7 @@ function renderVotes(){
     return;
   }
   $('voteListCard').classList.remove('hide');
-  $('voteT').textContent = `${SPECS[v.sym].n} · ${v.tf} · ${t12(v.at)}`;
+  $('voteT').innerHTML = `${SPECS[v.sym].n} · ${v.tf} · <span data-ago="${v.at}">${ago(v.at)}</span>`;
 
   const T = AGENTS.length;
   const bp = v.buy/T*100, sp = v.sell/T*100, hp = v.hold/T*100;
@@ -1524,7 +1941,8 @@ async function loadMarket(){
         <td style="text-align:right"><span class="tag ${up?'buy':'sell'}">${up?'BULL':'BEAR'}</span></td>
       </tr>`;
     }).join('');
-    $('mktT').textContent = t12(Date.now());
+    mktAt = Date.now();
+    $('mktT').innerHTML = `<span data-ago="${mktAt}">abhi</span>`;
     buildTicker();   }catch(e){
     $('mktT').textContent='error';
     if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
@@ -1849,6 +2267,11 @@ function closeTrade(id, reason){
   renderTrades();
   const word = reason==='TP'?'TP HIT ✅':reason==='SL'?'SL HIT ❌':'Manual close';
   toast(`${t.sym} ${word} · ${money(pl)}`);
+  if(reason !== 'MANUAL'){
+    notify(`${reason==='TP'?'🎯 TP HIT':'🛑 SL HIT'} — ${SPECS[t.sym].n}`,
+      `${t.dir} ${t.lots} lot · ${money(pl)}`, 'close');
+    if(S.tts) speak(`${SPECS[t.sym].n.split('').join(' ')} ${reason==='TP'?'target hit':'stop loss hit'}. ${pl>=0?'Profit':'Loss'} ${Math.abs(pl).toFixed(2)} dollars.`);
+  }
   logAdd(`${word} — ${t.sym} ${money(pl)}`);
   if(S.tgAuto) tgSend(tradeText(rec, reason), true);
 }
@@ -1876,6 +2299,7 @@ async function refreshOpen(force){
   try{
     const q = await getQuotes(syms, sec => syncStatus('wait', sec), 10000);
     Object.assign(prices, q);
+    scoreSignals(q);
     const hits = [];
     let okCount = 0;
     S.open.forEach(t=>{
@@ -1909,7 +2333,7 @@ function syncStatus(mode, sec){
   if(mode === 'wait'){ el.textContent = `limit — ${sec}s`; return }
   if(!S.open.length){ el.textContent = '—'; return }
   if(!lastOpenSync){ el.textContent = `${n} pairs · ${n} credits`; return }
-  el.textContent = `⟳ ${t12(lastOpenSync)} · ${n} credits`;
+  el.innerHTML = `<span data-ago="${lastOpenSync}">${ago(lastOpenSync)}</span> · ${n} cr`;
 }
 setInterval(()=>refreshOpen(false), 20000);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refreshOpen(false) });
@@ -2111,6 +2535,7 @@ async function refreshAll(){
     else{
       const q = await getQuotes(all, sec => { b.textContent = sec+'s' }, 0);  /* cache bypass */
       Object.assign(prices, q);
+      scoreSignals(q);
       const hits = [];
       S.open.forEach(t=>{
         const d = q[t.sym]; if(!d || !d.p) return;
@@ -2768,6 +3193,8 @@ function boot(){
 
   $('swHtf').classList.toggle('on', S.htf);
   $('swNews').classList.toggle('on', S.newsOn);
+  $('swNotif').classList.toggle('on', S.notif && ('Notification' in window) && Notification.permission==='granted');
+  $('swTts').classList.toggle('on', S.tts);
   $('swTgAuto').classList.toggle('on', S.tgAuto);
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
   $('setNewsMin').value = S.newsMin; $('setNewsImp').value = S.newsImp;
@@ -2795,6 +3222,37 @@ function boot(){
   if(S.key){ refreshOpen(true); setTimeout(()=>refreshTicker(false), 1200); }
 }
 boot();
+
+/* ---------------- offline ---------------- */
+function netState(){
+  $('offBar').classList.toggle('hide', navigator.onLine);
+}
+window.addEventListener('online', () => { netState(); toast('Wapas online') });
+window.addEventListener('offline', netState);
+
+/* ---------------- swipe to switch pages ---------------- */
+const PAGES = ['Signals','Votes','Market','Trades','Alerts'];
+let tx=0, ty=0, tt=0;
+document.addEventListener('touchstart', e => {
+  if(e.touches.length !== 1) return;
+  tx = e.touches[0].clientX; ty = e.touches[0].clientY; tt = Date.now();
+}, {passive:true});
+document.addEventListener('touchend', e => {
+  if(!tt) return;
+  const dx = e.changedTouches[0].clientX - tx;
+  const dy = e.changedTouches[0].clientY - ty;
+  const dt = Date.now() - tt;
+  tt = 0;
+  if(dt > 600) return;                          /* dheema swipe = scroll */
+  if(Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy)*1.8) return;
+  if(document.querySelector('.ov.on')) return;  /* sheet khuli hai */
+  if(e.target.closest('.chips, .tvbox, input, select, textarea, .plist')) return;
+  const cur = PAGES.findIndex(p => !$('pg'+p).classList.contains('hide'));
+  let nx = cur + (dx < 0 ? 1 : -1);
+  if(nx < 0 || nx >= PAGES.length) return;
+  const btn = document.querySelector(`nav button[data-pg="${PAGES[nx]}"]`);
+  if(btn){ go(PAGES[nx], btn); if(navigator.vibrate) navigator.vibrate(8) }
+}, {passive:true});
 
 /* ---------------- install prompt ---------------- */
 let deferred = null;
