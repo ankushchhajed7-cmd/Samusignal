@@ -696,7 +696,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '4.5.0';
+const VERSION = '4.6.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1602,7 +1602,7 @@ async function runAnalyze(){
     let barsBase = null, done = 0;
     for(const tf of wanted){
       const bars = await getSeries(sym, tf, 120, note);
-      if(tf === S.tf || wanted[0] === tf) barsBase = barsBase || bars;
+      if(tf === S.tf || wanted[0] === tf){ barsBase = barsBase || bars; barCache[sym] = bars; }
       res[tf] = tfBias(bars);
       done++;
       btn.innerHTML = `<span class="spin"></span> ${done}/${wanted.length} timeframe`;
@@ -1721,6 +1721,7 @@ function renderSignal(){
         <div class="lvl sl"><span>SL · $${s.slD}</span><b class="mono">${fmt(s.sym,s.sl)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.slPips} pips</small></div>
         <div class="lvl tp"><span>TP · $${s.tpD}</span><b class="mono">${fmt(s.sym,s.tp)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.tpPips} pips</small></div>
       </div>
+      ${levelChartHTML('sigChart')}
       <div class="tfrow">
         ${s.tfs.map(t=>`<div class="tfp ${t.b==='BUY'?'up':t.b==='SELL'?'dn':'nu'}"><span>${t.l}</span><b>${t.b==='NEUTRAL'?'—':t.b}</b></div>`).join('')}
       </div>
@@ -1744,6 +1745,7 @@ function renderSignal(){
       </div>
     </div>`;
   setChart(s.sym);
+  requestAnimationFrame(paintSignalChart);
 }
 
 /* ================= SETUP SCANNER ================= */
@@ -1843,7 +1845,7 @@ async function runScan(){
           btn.innerHTML = `<span style="letter-spacing:2px">⏳ ${m}:${ss}</span>
             <small style="display:block;font-size:9px;opacity:.7;letter-spacing:.5px">API limit — ruk kar khud chalu hoga</small>`;
         });
-        if(!base) base = bars;
+        if(!base){ base = bars; barCache[sym] = bars; }
         res[tf] = tfBias(bars);
       }
       const b0 = res[uniq[0]];
@@ -2051,6 +2053,103 @@ function renderSigHist(){
       </div>`;
     }).join('')}`;
 }
+
+/* ================= LEVEL CHART (apna canvas) ================= */
+const barCache = {};   /* sym -> bars, analysis se aata hai */
+
+function drawLevels(cv, sym, bars, t){
+  if(!cv || !bars || bars.length < 5) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr;
+  const x = cv.getContext('2d');
+  x.setTransform(dpr,0,0,dpr,0,0);
+  x.clearRect(0,0,W,H);
+
+  const PAD_R = 62, PAD_T = 8, PAD_B = 16;
+  const n = Math.min(bars.length, 70);
+  const b = bars.slice(-n);
+  const cur = t.cur || last(b).c;
+
+  /* range me levels bhi shaamil */
+  let lo = Math.min(...b.map(k=>k.l), t.sl, t.tp, t.entry, cur);
+  let hi = Math.max(...b.map(k=>k.h), t.sl, t.tp, t.entry, cur);
+  const pad = (hi-lo)*0.06 || 1;
+  lo -= pad; hi += pad;
+  const CW = W - PAD_R;
+  const Y = v => PAD_T + (hi-v)/(hi-lo) * (H-PAD_T-PAD_B);
+  const bw = CW/n;
+
+  /* SL aur TP zone */
+  const up = t.dir === 'BUY';
+  x.fillStyle = 'rgba(255,68,68,.07)';
+  x.fillRect(0, Y(up?t.entry:t.sl), CW, Math.abs(Y(t.sl)-Y(t.entry)));
+  x.fillStyle = 'rgba(0,255,150,.07)';
+  x.fillRect(0, Y(up?t.tp:t.entry), CW, Math.abs(Y(t.tp)-Y(t.entry)));
+
+  /* candles */
+  b.forEach((k,i) => {
+    const cx = i*bw + bw/2;
+    const grn = k.c >= k.o;
+    x.strokeStyle = grn ? 'rgba(0,255,150,.75)' : 'rgba(255,68,68,.75)';
+    x.fillStyle = x.strokeStyle;
+    x.lineWidth = 1;
+    x.beginPath(); x.moveTo(cx, Y(k.h)); x.lineTo(cx, Y(k.l)); x.stroke();
+    const bh = Math.max(1, Math.abs(Y(k.o)-Y(k.c)));
+    x.fillRect(cx - Math.max(1,bw*0.3), Math.min(Y(k.o),Y(k.c)), Math.max(2,bw*0.6), bh);
+  });
+
+  /* level line + label */
+  const line = (v, col, txt, dash) => {
+    const y = Y(v);
+    x.strokeStyle = col; x.lineWidth = 1.2;
+    x.setLineDash(dash || []);
+    x.beginPath(); x.moveTo(0,y); x.lineTo(CW,y); x.stroke();
+    x.setLineDash([]);
+    x.fillStyle = col;
+    x.fillRect(CW+2, y-8, PAD_R-4, 16);
+    x.fillStyle = '#0d0d0d';
+    x.font = '700 9px ui-monospace, Menlo, monospace';
+    x.textAlign = 'left';
+    x.fillText(txt, CW+5, y+3);
+  };
+
+  line(t.tp,    '#00FF96', 'TP ' + fmt(sym,t.tp));
+  line(t.entry, '#FFB800', fmt(sym,t.entry));
+  line(t.sl,    '#FF4444', 'SL ' + fmt(sym,t.sl));
+  line(cur,     '#00CCFF', fmt(sym,cur), [3,3]);
+
+  /* pip labels bayen taraf */
+  x.font = '700 9px ui-monospace, Menlo, monospace';
+  x.textAlign = 'left';
+  const pip = SPECS[sym].pip;
+  x.fillStyle = 'rgba(0,255,150,.8)';
+  x.fillText(`+${(Math.abs(t.tp-t.entry)/pip).toFixed(0)}p`, 4, Y((t.entry+t.tp)/2)+3);
+  x.fillStyle = 'rgba(255,68,68,.8)';
+  x.fillText(`-${(Math.abs(t.entry-t.sl)/pip).toFixed(0)}p`, 4, Y((t.entry+t.sl)/2)+3);
+}
+
+function levelChartHTML(id){
+  return `<canvas id="${id}" style="width:100%;height:190px;display:block;
+    background:var(--bg);border:1px solid var(--line);border-radius:6px;margin-top:10px"></canvas>`;
+}
+
+/* signal card ka chart */
+function paintSignalChart(){
+  const s = lastSignal; if(!s) return;
+  const bars = barCache[s.sym]; if(!bars) return;
+  drawLevels($('sigChart'), s.sym, bars,
+    {entry:s.live, sl:s.sl, tp:s.tp, dir:s.dir, cur:(prices[s.sym]||{}).p || s.live});
+}
+/* har open trade ka chart */
+function paintTradeCharts(){
+  S.open.forEach(t => {
+    const cv = $('tc_' + t.id);
+    const bars = barCache[t.sym];
+    if(cv && bars) drawLevels(cv, t.sym, bars, {entry:t.entry, sl:t.sl, tp:t.tp, dir:t.dir, cur:t.cur||t.entry});
+  });
+}
+window.addEventListener('resize', () => { paintSignalChart(); paintTradeCharts() });
 
 /* ---------------- analyst render ---------------- */
 let lastAn = null;
@@ -2482,6 +2581,7 @@ function drawQuick(){
       ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.1);border-radius:6px;padding:10px;margin:12px 0">
           <b style="color:var(--dn);font-size:11px;letter-spacing:1px">⚠ NEWS ${t12(n.d)}</b>
           <p class="hint" style="color:var(--dn);margin:4px 0 0">${n.c} · ${n.t}. News ke waqt SL slip ho sakti hai.</p></div>` : '' })()}
+    ${barCache[sym] ? levelChartHTML('qtChart') : ''}
     <div class="lvls" id="qtLv" style="margin:14px 0 4px"></div>
     <p class="hint" id="qtInfo"></p>
 
@@ -2511,6 +2611,15 @@ function drawQuick(){
          <button class="btn ${q.dir==='SELL'?'r':'g'}" onclick="confirmTrade()">Trade Lagao</button>`}`;
 
   qtLevels();
+  requestAnimationFrame(paintQtChart);
+}
+function paintQtChart(){
+  const q = qtState; if(!q) return;
+  const cv = $('qtChart'), bars = barCache[q.sym];
+  if(!cv || !bars) return;
+  const {sl, tp} = qtCalc();
+  const sh = q.target==='MT5' ? qtSendPrice()-q.entry : 0;
+  drawLevels(cv, q.sym, bars, {entry:q.entry+sh, sl:sl+sh, tp:tp+sh, dir:q.dir, cur:q.entry});
 }
 
 /* sirf levels dobara likho — input me typing todke redraw na ho */
@@ -2691,6 +2800,7 @@ async function refreshOpen(force){
     });
     lastOpenSync = Date.now();
     save(); renderTrades();
+    paintSignalChart();
     if(force){
       const bad = (q.__failed||[]).length;
       toast(bad ? `${okCount} update, ${bad} fail — Alerts me log dekho` : `${okCount} trades ka rate update ho gaya`);
@@ -2745,6 +2855,7 @@ function renderTrades(){
       ${ks.length>1?`<button class="btn ghost sm" style="margin-top:8px" onclick="mt5ClearAll()">SAB LOCK HATAO</button>`:''}
     </div>` : '';
 
+  requestAnimationFrame(paintTradeCharts);
   renderPerf();
   $('creditWarn').innerHTML = uniq > 5
     ? `⚠ ${uniq} alag pairs open hain — har refresh pe ${uniq} API credits lagte hain, aur free plan pe minute me sirf 8 milte hain. Auto-refresh isliye dheema hai. Ek hi pair ke trades rakho ya manual refresh use karo.`
@@ -2766,6 +2877,7 @@ function renderTrades(){
         <span class="pl mono glow ${pl>=0?'up':'dn'}">${money(pl)}</span>
       </div>
       <div class="bar"><i style="width:${prog*100}%;background:${pl>=0?'var(--up)':'var(--dn)'}"></i></div>
+      ${barCache[t.sym] ? levelChartHTML('tc_'+t.id) : ''}
       <div class="tr-g mono">
         <div><span>ENTRY</span>${fmt(t.sym,t.entry)}</div>
         <div><span>NOW</span>${fmt(t.sym,cur)}</div>
