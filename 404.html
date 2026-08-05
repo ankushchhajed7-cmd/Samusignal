@@ -676,13 +676,24 @@ body.t-navy{
   </div>
 
   <div class="card">
-    <p class="ttl">Backup &amp; Restore</p>
+    <p class="ttl">Data Suraksha</p>
+    <p class="hint" id="cloudInfo" style="margin:0 0 12px">—</p>
+    <div class="sw" id="swCloud" onclick="toggleCloud(this)">
+      <div class="tg"></div>
+      <div>Auto cloud backup<small>Firebase pe apne aap — har badlaav ke baad aur roz ek baar</small></div>
+    </div>
+    <div class="grid2" style="margin:8px 0">
+      <button class="btn gold sm" onclick="cloudPush()">☁ ABHI BACKUP</button>
+      <button class="btn ghost sm" onclick="cloudPull()">☁ CLOUD SE LAAO</button>
+    </div>
+    <button class="btn ghost sm" style="margin-bottom:12px" onclick="fixStorage()">🔒 DATA LOCK KARO</button>
+    <p class="ttl" style="margin:14px 0 8px">File Backup</p>
     <div class="grid2">
-      <button class="btn ghost sm" onclick="doBackup()">⬇ Backup File</button>
-      <button class="btn ghost sm" onclick="fileIn.click()">⬆ Restore</button>
+      <button class="btn ghost sm" onclick="doBackup()">⬇ FILE BANAO</button>
+      <button class="btn ghost sm" onclick="fileIn.click()">⬆ FILE SE LAAO</button>
     </div>
     <input type="file" id="fileIn" accept=".json" class="hide">
-    <p class="hint">Backup me settings, open trades, history, Telegram config — sab aata hai.</p>
+    <p class="hint">Cloud backup wahi Firebase use karta hai jo MT5 bridge me hai. Har phone ka apna alag backup rehta hai.</p>
   </div>
 
   <div class="card">
@@ -888,7 +899,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '5.6.0';
+const VERSION = '5.7.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1049,6 +1060,9 @@ let S = {
   scanMin: LS.get('scanMin',70),
   scan:  LS.get('scan',{at:0,rows:[]}),
   theme: LS.get('theme','terminal'),
+  cloud: LS.get('cloud',true),
+  cloudId: LS.get('cloudId',''),
+  cloudAt: LS.get('cloudAt',0),
   notif: LS.get('notif',true),
   tts:   LS.get('tts',false),
   newsMin: LS.get('newsMin',30),
@@ -1060,7 +1074,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -1090,6 +1104,128 @@ function tickAgo(){
   });
 }
 setInterval(tickAgo, 10000);
+
+/* ================= DATA SURAKSHA =================
+   1) browser ko bolo data delete mat karna
+   2) Firebase pe roz apne aap backup */
+
+async function askPersist(){
+  try{
+    if(!navigator.storage || !navigator.storage.persist) return false;
+    if(await navigator.storage.persisted()) return true;
+    return await navigator.storage.persist();
+  }catch(e){ return false }
+}
+async function storageInfo(){
+  try{
+    const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false;
+    const e = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : {};
+    return {p, used: e.usage || 0, quota: e.quota || 0};
+  }catch(err){ return {p:false, used:0, quota:0} }
+}
+
+function deviceId(){
+  if(!S.cloudId){
+    S.cloudId = 'd' + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
+    LS.set('cloudId', S.cloudId);
+  }
+  return S.cloudId;
+}
+function cloudUrl(){
+  let u = (S.fbUrl || '').trim().replace(/\/+$/, '');
+  if(!u) return '';
+  if(!/^https?:\/\//.test(u)) u = 'https://' + u;
+  return u + '/samusignal/backup/' + deviceId() + '.json' +
+    (S.fbAuth ? '?auth=' + encodeURIComponent(S.fbAuth) : '');
+}
+function snapshot(){
+  const out = {};
+  Object.keys(S).forEach(k => { out[k] = S[k] });
+  return {app:'SamuSignal', v:VERSION, at:Date.now(), state:out};
+}
+function applySnapshot(d){
+  const st = d.state || d;
+  if(!st || typeof st !== 'object') throw new Error('bad backup');
+  Object.keys(S).forEach(k => { if(st[k] !== undefined) S[k] = st[k] });
+  save();
+}
+
+let cloudBusy = false;
+async function cloudPush(silent){
+  const url = cloudUrl();
+  if(!url){ if(!silent) toast('Pehle Settings me Firebase URL daalo'); return false }
+  if(cloudBusy) return false;
+  cloudBusy = true;
+  try{
+    const r = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(snapshot())});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    S.cloudAt = Date.now(); LS.set('cloudAt', S.cloudAt);
+    logAdd('Cloud backup ho gaya');
+    if(!silent) toast('Cloud pe backup ho gaya');
+    cloudBusy = false; renderCloud(); return true;
+  }catch(e){
+    if(!silent) toast('Cloud backup fail — ' + e.message);
+    cloudBusy = false; return false;
+  }
+}
+async function cloudPull(silent){
+  const url = cloudUrl();
+  if(!url){ if(!silent) toast('Pehle Firebase URL daalo'); return false }
+  try{
+    const r = await fetch(url, {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if(!d || !d.state){ if(!silent) toast('Cloud pe koi backup nahi mila'); return false }
+    if(!silent){
+      const q = `Cloud backup ${dt12(d.at)} ka hai.\n\n` +
+        `Usme ${(d.state.open||[]).length} open, ${(d.state.hist||[]).length} closed trades hain.\n` +
+        `Abhi phone me ${S.open.length} open, ${S.hist.length} closed hain.\n\n` +
+        `Cloud wala data laga dein? (abhi ka data hat jayega)`;
+      if(!confirm(q)) return false;
+    }
+    applySnapshot(d);
+    toast('Cloud se restore ho gaya'); boot();
+    return true;
+  }catch(e){ if(!silent) toast('Restore fail — ' + e.message); return false }
+}
+
+async function cloudAutoRestore(){
+  if(!S.cloud || !S.fbUrl) return;
+  if(S.open.length || S.hist.length || S.sigs.length) return;
+  try{
+    const r = await fetch(cloudUrl(), {cache:'no-store'});
+    if(!r.ok) return;
+    const d = await r.json();
+    if(!d || !d.state) return;
+    const n = (d.state.hist||[]).length + (d.state.open||[]).length;
+    if(!n) return;
+    if(confirm(`Cloud pe ${dt12(d.at)} ka backup mila — ${n} trades.\n\nWapas laga dein?`)){
+      applySnapshot(d); toast('Data wapas aa gaya'); boot();
+    }
+  }catch(e){}
+}
+
+let pushTmr = null;
+function cloudTouch(){
+  if(!S.cloud || !S.fbUrl) return;
+  clearTimeout(pushTmr);
+  pushTmr = setTimeout(() => cloudPush(true), 40000);
+}
+setInterval(() => {
+  if(S.cloud && S.fbUrl && Date.now() - S.cloudAt > 20*3600000) cloudPush(true);
+}, 10*60000);
+
+async function renderCloud(){
+  const el = $('cloudInfo'); if(!el) return;
+  const si = await storageInfo();
+  const mb = si.used ? (si.used/1048576).toFixed(1) : '0';
+  el.innerHTML =
+    `<b style="color:${si.p?'var(--up)':'var(--gold)'}">${si.p ? '✓ Data surakshit hai' : '⚠ Data delete ho sakta hai'}</b>` +
+    `<br>Phone pe ${mb} MB use ho raha hai` +
+    `<br>Cloud backup: ${S.cloudAt ? dt12(S.cloudAt) : 'abhi tak nahi'}` +
+    (S.fbUrl ? '' : '<br><span style="color:var(--dn)">Firebase URL nahi daala — cloud backup band hai</span>');
+}
 
 /* ---------- notifications ---------- */
 async function askNotif(){
@@ -1148,7 +1284,7 @@ function go(pg,btn){
     $('btTf').textContent = S.tf; $('btT').innerHTML = S.bt ? `<span data-ago="${S.bt.at}">${ago(S.bt.at)}</span>` : '—' }
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
-  if(pg==='Alerts') renderLog();
+  if(pg==='Alerts'){ renderLog(); renderCloud() }
 }
 async function toggleNotif(el){
   if(!S.notif){
@@ -4198,6 +4334,20 @@ function renderLog(){
 }
 
 /* ---------------- backup ---------------- */
+async function toggleCloud(el){
+  S.cloud = !S.cloud; el.classList.toggle('on', S.cloud); save();
+  if(S.cloud){
+    if(!S.fbUrl){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
+    await cloudPush();
+  }
+}
+async function fixStorage(){
+  const ok = await askPersist();
+  await renderCloud();
+  alert(ok
+    ? '✓ Ho gaya — ab Chrome is app ka data khud se delete nahi karega.'
+    : 'Chrome ne abhi permission nahi di.\n\nZyada chance ke liye:\n• App ko home screen pe INSTALL karo\n• Kuch din regular use karo\n\nTab tak cloud backup on rakho — data safe rahega.');
+}
 function doBackup(){
   const data = {app:'SamuSignal', v:2, at:new Date().toISOString(), state:S};
   const b = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
