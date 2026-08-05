@@ -125,7 +125,18 @@ input:focus,select:focus{border-color:var(--gold)}
 /* ---------- signal ---------- */
 .sig{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:13px}
 .sig.buy{border-left:3px solid var(--up)} .sig.sell{border-left:3px solid var(--dn)}
-.sig-h{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.sig-h{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.sig-l{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:3px}
+.sumcol{flex:0 0 auto;width:118px;display:flex;flex-direction:column;gap:4px}
+.sumrow{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);
+  border-radius:5px;padding:4px 6px}
+.sumrow .k{font-size:7.5px;color:var(--lbl);letter-spacing:.8px;font-weight:700;width:31px}
+.sumrow .v{font-size:9px;font-weight:700;letter-spacing:.3px;margin-left:auto;text-align:right;flex:1}
+.sumrow .n{font-size:8.5px;font-weight:700;opacity:.85}
+.verdictbar{display:flex;align-items:center;gap:9px;border-radius:6px;padding:10px 12px;margin-bottom:11px;
+  border:1px solid}
+.verdictbar b{font-size:14px;letter-spacing:2px;flex:0 0 auto}
+.verdictbar p{margin:0;font-size:10px;line-height:1.5;flex:1}
 .sig-h b{font-size:15px;letter-spacing:1px}
 .tag{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1px}
 .tag.buy{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.5);
@@ -721,7 +732,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '5.0.0';
+const VERSION = '5.2.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1687,7 +1698,7 @@ async function runAnalyze(){
     lastAn = analyse(sym, barsBase, lastVotes, lastSignal);
     lastAn.at = Date.now();
     logSignal(lastSignal, lastVotes, lastAn);
-    renderSignal(); renderAnalyst();
+    renderAnalyst(); renderSignal();
     if(dir !== 'NEUTRAL' && htfOk){
       notify(`${s0q(dir)} ${SPECS[sym].n} · ${q}%`,
         `Entry ${fmt(sym,live)} · SL ${fmt(sym,sl)} · TP ${fmt(sym,tp)}`, 'sig');
@@ -1703,6 +1714,88 @@ async function runAnalyze(){
   }
   btn.textContent = 'Analyze Karo';
   busy = false;
+}
+
+/* pair ke saath 3-line summary: signal, vote, technical */
+function tierOf(pct, kind){
+  if(kind === 'tech'){
+    return pct>=75 ? {t:'STRONG',   c:'var(--up)'}
+         : pct>=55 ? {t:'THEEK',    c:'var(--gold)'}
+         : pct>=40 ? {t:'KAMZOR',   c:'var(--dn)'}
+         :           {t:'MAT LO',   c:'var(--dn)'};
+  }
+  return pct>=70 ? {t:'STRONG', c:'var(--up)'}
+       : pct>=50 ? {t:'MEDIUM', c:'var(--gold)'}
+       :           {t:'LOW',    c:'var(--dn)'};
+}
+function sumColumn(s){
+  const rows = [];
+  const q = tierOf(s.q, 'sig');
+  rows.push(['SIG', s.q + '%', q.t, q.c]);
+
+  if(lastVotes && lastVotes.sym === s.sym){
+    const v = lastVotes;
+    const fit = v.verdict === s.dir ? v.conf : 100 - v.conf;
+    const t = tierOf(fit, 'vote');
+    rows.push(['VOTE', v.conf + '%', v.verdict === s.dir ? t.t : 'ULTA',
+               v.verdict === s.dir ? t.c : 'var(--dn)']);
+  } else rows.push(['VOTE', '—', '—', 'var(--mut)']);
+
+  if(lastAn){
+    const t = tierOf(lastAn.pct, 'tech');
+    rows.push(['TECH', lastAn.pct + '%', t.t, t.c]);
+  } else rows.push(['TECH', '—', '—', 'var(--mut)']);
+
+  return `<div class="sumcol">` + rows.map(([k,n,t,c]) =>
+    `<div class="sumrow" style="border-color:${c==='var(--mut)'?'var(--line)':c}">
+      <span class="k">${k}</span>
+      <span class="n mono" style="color:${c}">${n}</span>
+      <span class="v" style="color:${c}">${t}</span>
+    </div>`).join('') + `</div>`;
+}
+
+/* teeno cheezein milakar ek faisla: LE LO / WAIT / CHHOD DO */
+function finalCall(s){
+  const R = [];                       /* wajah */
+  let block = 0, warn = 0;
+
+  /* --- CHHOD DO ke karan --- */
+  if(lastVotes && lastVotes.sym === s.sym){
+    const v = lastVotes;
+    if(v.verdict !== s.dir && v.verdict !== 'HOLD'){
+      block++; R.push(`agents ${v.verdict} bol rahe hain`);
+    }
+  }
+  if(lastAn && lastAn.pct < 40){ block++; R.push('technical bahut kamzor') }
+  if(lastAn){
+    const st = lastAn.O.find(x => x.h === 'SUPERTREND');
+    const loc = lastAn.O.find(x => x.h === 'ENTRY LOCATION');
+    const str = lastAn.O.find(x => x.h === 'STRUCTURE');
+    if(str && str.ok === 0){ block++; R.push('counter-trend hai') }
+    if(st && st.ok === 0){ warn++; R.push('supertrend ulta') }
+    if(loc && loc.ok === 0){ warn++; R.push('entry range ke kinare pe') }
+    const sv = lastAn.O.find(x => x.h === 'SL vs VOLATILITY');
+    if(sv && sv.ok === 0){ warn++; R.push('SL volatility se patli') }
+  }
+
+  /* --- WAIT ke karan --- */
+  const nr = newsRisk(s.sym);
+  if(nr){ warn++; R.push(`${nr.c} news ${t12(nr.d)} pe`) }
+  if(!s.htfOk){ warn++; R.push('4H/1D bias match nahi') }
+  if(s.q < 60){ warn++; R.push(`quality sirf ${s.q}%`) }
+  if(lastVotes && lastVotes.sym === s.sym && lastVotes.conf < 50){
+    warn++; R.push(`agents bate hue (${lastVotes.conf}%)`);
+  }
+  if(s.rsi > 75 || s.rsi < 25){ warn++; R.push(`RSI ${s.rsi.toFixed(0)} extreme pe`) }
+
+  if(block) return {t:'CHHOD DO', c:'var(--dn)', bg:'rgba(255,68,68,.08)',
+    why: R.slice(0,3).join(' · ') + ' — intezaar se ye theek nahi hoga, doosra pair dekho'};
+  if(warn >= 2) return {t:'WAIT', c:'var(--gold)', bg:'rgba(255,184,0,.08)',
+    why: R.slice(0,3).join(' · ') + ' — thoda ruk kar dobara analyze karo'};
+  if(warn === 1) return {t:'WAIT', c:'var(--gold)', bg:'rgba(255,184,0,.08)',
+    why: R[0] + ' — baaki sab theek hai, chaho to chhote size me lo'};
+  return {t:'LE LO', c:'var(--up)', bg:'rgba(0,255,150,.08)',
+    why: `Quality ${s.q}%${lastAn?`, technical ${lastAn.pct}%`:''}${lastVotes&&lastVotes.sym===s.sym?`, ${Math.max(lastVotes.buy,lastVotes.sell)}/50 agents saath`:''} — sab paksh me hai`};
 }
 
 function renderSignal(){
@@ -1735,9 +1828,12 @@ function renderSignal(){
     <p class="ttl">Signal <span class="sp" data-ago="${s.at}">${ago(s.at)}</span></p>
     <div class="sig ${cls}">
       <div class="sig-h">
-        <b class="mono">${s.sym}</b>
-        <span class="tag ${cls||'n'}">${s.dir}</span>
-        <span class="gr">${s.grade}</span>
+        <div class="sig-l">
+          <b class="mono" style="font-size:15px;letter-spacing:1px">${s.sym}</b>
+          <span class="tag ${cls||'n'}">${s.dir}</span>
+          <span class="gr" style="margin-left:0">${s.grade}</span>
+        </div>
+        ${sumColumn(s)}
       </div>
       <div class="meter">
         <div class="lbl">
@@ -1751,6 +1847,11 @@ function renderSignal(){
         <div class="lvl sl"><span>SL · $${s.slD}</span><b class="mono">${fmt(s.sym,s.sl)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.slPips} pips</small></div>
         <div class="lvl tp"><span>TP · $${s.tpD}</span><b class="mono">${fmt(s.sym,s.tp)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.tpPips} pips</small></div>
       </div>
+      ${(() => { const f = finalCall(s); return `
+      <div class="verdictbar" style="border-color:${f.c};background:${f.bg}">
+        <b class="shine ${f.c==='var(--up)'?'up':f.c==='var(--dn)'?'dn':'gd'}">${f.t}</b>
+        <p style="color:${f.c}">${f.why}</p>
+      </div>`; })()}
       ${levelChartHTML('sigChart')}
       <div class="tfrow">
         ${s.tfs.map(t=>`<div class="tfp ${t.b==='BUY'?'up':t.b==='SELL'?'dn':'nu'}"><span>${t.l}</span><b>${t.b==='NEUTRAL'?'—':t.b}</b></div>`).join('')}
@@ -1843,7 +1944,7 @@ function drawScanRows(){
         <div><span>AGENTS</span>${r.vb}B/${r.vs}S</div>
       </div>
       <p class="hint" style="margin:0 0 9px">${tier} · Quality ${r.q}% · Analyst ${r.an}% · ${r.htf}/${r.htfN} TF saath${r.news?` · ⚠ ${r.news}`:''}</p>
-      <p class="hint" style="margin:0 0 10px;color:#c8c8c8">${r.why}</p>
+      <p class="hint" style="margin:0 0 10px;color:#dde3ea">${r.why}</p>
       <button class="btn ${up?'g':'r'} sm" onclick="openScanned('${r.sym}')">POORA ANALYSIS DEKHO</button>
     </div>`;
   }).join('') + `<p class="hint" style="text-align:center;padding:4px 0 10px">${all} scan hue · ${rows.length} ne ${S.scanMin}% ka bar paar kiya<br>Result 5 min me apne aap hat jayega — levels purane ho jaate hain.</p>`;
@@ -2299,76 +2400,110 @@ function drawLevels(cv, sym, bars, t){
   if(!cv || !bars || bars.length < 5) return;
   const dpr = window.devicePixelRatio || 1;
   const W = cv.clientWidth, H = cv.clientHeight;
+  if(!W || !H) return;
   cv.width = W*dpr; cv.height = H*dpr;
   const x = cv.getContext('2d');
   x.setTransform(dpr,0,0,dpr,0,0);
   x.clearRect(0,0,W,H);
 
-  const PAD_R = 62, PAD_T = 8, PAD_B = 16;
-  const n = Math.min(bars.length, 70);
+  const PAD_R = 66, PAD_T = 10, PAD_B = 12;
+  const n = Math.min(bars.length, 55);
   const b = bars.slice(-n);
   const cur = t.cur || last(b).c;
 
-  /* range me levels bhi shaamil */
-  let lo = Math.min(...b.map(k=>k.l), t.sl, t.tp, t.entry, cur);
-  let hi = Math.max(...b.map(k=>k.h), t.sl, t.tp, t.entry, cur);
-  const pad = (hi-lo)*0.06 || 1;
-  lo -= pad; hi += pad;
-  const CW = W - PAD_R;
-  const Y = v => PAD_T + (hi-v)/(hi-lo) * (H-PAD_T-PAD_B);
-  const bw = CW/n;
+  /* range levels ke aas-paas rakho, warna SL/TP ek line me chipak jaate hain */
+  const lvLo = Math.min(t.sl, t.tp, t.entry, cur);
+  const lvHi = Math.max(t.sl, t.tp, t.entry, cur);
+  const lvSpan = (lvHi - lvLo) || (SPECS[sym].pip * 10);
+  const cLo = Math.min(...b.map(k=>k.l)), cHi = Math.max(...b.map(k=>k.h));
 
-  /* SL aur TP zone */
+  /* levels ko kam se kam 45% jagah do */
+  let lo = Math.min(lvLo, cLo), hi = Math.max(lvHi, cHi);
+  const minSpan = lvSpan / 0.45;
+  if(hi - lo > minSpan){
+    const mid = (lvLo + lvHi) / 2;
+    lo = mid - minSpan/2; hi = mid + minSpan/2;
+  }
+  const pad = (hi-lo)*0.08;
+  lo -= pad; hi += pad;
+
+  const CW = W - PAD_R, CH = H - PAD_T - PAD_B;
+  const Y = v => PAD_T + Math.max(-40, Math.min(CH+40, (hi-v)/(hi-lo) * CH));
+  const bw = CW/n;
   const up = t.dir === 'BUY';
-  x.fillStyle = 'rgba(255,68,68,.07)';
+
+  x.save(); x.beginPath(); x.rect(0, 0, CW, H); x.clip();
+
+  /* zones */
+  x.fillStyle = 'rgba(255,68,68,.08)';
   x.fillRect(0, Y(up?t.entry:t.sl), CW, Math.abs(Y(t.sl)-Y(t.entry)));
-  x.fillStyle = 'rgba(0,255,150,.07)';
+  x.fillStyle = 'rgba(0,255,150,.08)';
   x.fillRect(0, Y(up?t.tp:t.entry), CW, Math.abs(Y(t.tp)-Y(t.entry)));
 
   /* candles */
   b.forEach((k,i) => {
     const cx = i*bw + bw/2;
     const grn = k.c >= k.o;
-    x.strokeStyle = grn ? 'rgba(0,255,150,.75)' : 'rgba(255,68,68,.75)';
+    x.strokeStyle = grn ? 'rgba(0,255,150,.8)' : 'rgba(255,68,68,.8)';
     x.fillStyle = x.strokeStyle;
     x.lineWidth = 1;
     x.beginPath(); x.moveTo(cx, Y(k.h)); x.lineTo(cx, Y(k.l)); x.stroke();
     const bh = Math.max(1, Math.abs(Y(k.o)-Y(k.c)));
-    x.fillRect(cx - Math.max(1,bw*0.3), Math.min(Y(k.o),Y(k.c)), Math.max(2,bw*0.6), bh);
+    x.fillRect(cx - Math.max(1,bw*0.28), Math.min(Y(k.o),Y(k.c)), Math.max(2,bw*0.56), bh);
   });
+  x.restore();
 
-  /* level line + label */
-  const line = (v, col, txt, dash) => {
-    const y = Y(v);
-    x.strokeStyle = col; x.lineWidth = 1.2;
-    x.setLineDash(dash || []);
+  /* lines pehle, labels baad me — overlap hataakar */
+  const L = [
+    {v:t.tp,    c:'#00FF96', txt:'TP ' + fmt(sym,t.tp)},
+    {v:t.entry, c:'#FFB800', txt:fmt(sym,t.entry)},
+    {v:cur,     c:'#00CCFF', txt:fmt(sym,cur), dash:[3,3]},
+    {v:t.sl,    c:'#FF4444', txt:'SL ' + fmt(sym,t.sl)}
+  ];
+  L.forEach(k => {
+    const y = Y(k.v);
+    if(y < -5 || y > H+5) return;
+    x.strokeStyle = k.c; x.lineWidth = 1.2;
+    x.setLineDash(k.dash || []);
     x.beginPath(); x.moveTo(0,y); x.lineTo(CW,y); x.stroke();
     x.setLineDash([]);
-    x.fillStyle = col;
-    x.fillRect(CW+2, y-8, PAD_R-4, 16);
-    x.fillStyle = '#0d0d0d';
-    x.font = '700 9px ui-monospace, Menlo, monospace';
-    x.textAlign = 'left';
-    x.fillText(txt, CW+5, y+3);
-  };
+    k.y = y;
+  });
 
-  line(t.tp,    '#00FF96', 'TP ' + fmt(sym,t.tp));
-  line(t.entry, '#FFB800', fmt(sym,t.entry));
-  line(t.sl,    '#FF4444', 'SL ' + fmt(sym,t.sl));
-  line(cur,     '#00CCFF', fmt(sym,cur), [3,3]);
-
-  /* pip labels bayen taraf */
+  /* labels: 15px se paas hon to alag khiso */
+  const vis = L.filter(k => k.y !== undefined).sort((a,b2) => a.y - b2.y);
+  for(let i = 1; i < vis.length; i++){
+    if(vis[i].y - vis[i-1].y < 15) vis[i].y = vis[i-1].y + 15;
+  }
+  for(let i = vis.length-1; i > 0; i--){
+    if(vis[i].y > H-9){ vis[i].y = H-9; if(vis[i].y - vis[i-1].y < 15) vis[i-1].y = vis[i].y - 15 }
+  }
   x.font = '700 9px ui-monospace, Menlo, monospace';
   x.textAlign = 'left';
+  vis.forEach(k => {
+    const y = Math.max(9, Math.min(H-3, k.y));
+    x.fillStyle = k.c;
+    x.fillRect(CW+2, y-7, PAD_R-4, 14);
+    x.fillStyle = '#0d0d0d';
+    x.fillText(k.txt, CW+5, y+3);
+  });
+
+  /* pip labels */
   const pip = SPECS[sym].pip;
-  x.fillStyle = 'rgba(0,255,150,.8)';
-  x.fillText(`+${(Math.abs(t.tp-t.entry)/pip).toFixed(0)}p`, 4, Y((t.entry+t.tp)/2)+3);
-  x.fillStyle = 'rgba(255,68,68,.8)';
-  x.fillText(`-${(Math.abs(t.entry-t.sl)/pip).toFixed(0)}p`, 4, Y((t.entry+t.sl)/2)+3);
+  const tpY = (Y(t.entry)+Y(t.tp))/2, slY = (Y(t.entry)+Y(t.sl))/2;
+  x.font = '700 9px ui-monospace, Menlo, monospace';
+  if(tpY > 8 && tpY < H-4){
+    x.fillStyle = 'rgba(0,255,150,.9)';
+    x.fillText(`+${(Math.abs(t.tp-t.entry)/pip).toFixed(0)}p`, 5, tpY+3);
+  }
+  if(slY > 8 && slY < H-4){
+    x.fillStyle = 'rgba(255,68,68,.9)';
+    x.fillText(`-${(Math.abs(t.entry-t.sl)/pip).toFixed(0)}p`, 5, slY+3);
+  }
 }
 
 function levelChartHTML(id){
-  return `<canvas id="${id}" style="width:100%;height:190px;display:block;
+  return `<canvas id="${id}" style="width:100%;height:200px;display:block;
     background:var(--bg);border:1px solid var(--line);border-radius:6px;margin-top:10px"></canvas>`;
 }
 
@@ -3673,7 +3808,9 @@ function fullReport(html){
 
   L.push(`📡 ${b('SAMUSIGNAL')}`);
   L.push('');
+  const fc = finalCall(s);
   L.push(`${b(s.sym)}  —  ${b(s.dir)}   (${s.grade})`);
+  L.push(`👉 ${b(fc.t)}  —  ${fc.why}`);
   L.push(`Quality: ${b(s.q + '%')}   ${s.q>=70?'STRONG':s.q>=50?'MEDIUM':'WEAK'}`);
   L.push(`Timeframe: ${s.tf}`);
   L.push('');
