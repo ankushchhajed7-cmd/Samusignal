@@ -459,6 +459,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
       <span class="mono" id="syncT" style="font-size:11px;color:var(--mut);min-width:96px;text-align:right">—</span>
     </div>
     <div id="openBox"></div>
+    <div id="mt5Box"></div>
     <p class="hint" id="creditWarn"></p>
     <button class="btn ghost sm" style="margin-top:6px" onclick="openManual()">+ Manual Trade Add Karo</button>
   </div>
@@ -695,7 +696,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '4.4.2';
+const VERSION = '4.5.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -834,7 +835,8 @@ let S = {
   limPips: LS.get('limPips',5),
   minPips: LS.get('minPips',{}),
   symMap: LS.get('symMap',{}),
-  symDef: LS.get('symDef',{}),   /* per-symbol minimum SL/TP distance */
+  symDef: LS.get('symDef',{}),
+  mt5sent: LS.get('mt5sent',{}),   /* per-symbol minimum SL/TP distance */
   freshPx: LS.get('freshPx',true),
   mt5Auto: LS.get('mt5Auto',true),
   dLot:  LS.get('dLot',0.01),
@@ -861,7 +863,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -1049,9 +1051,17 @@ async function spend(n, note){
   if(dayLeft() < n) throw apiErr(429, 'CAP');
   const w = waitFor(n);
   if(w > 0){
-    const sec = Math.ceil(w/1000);
-    if(note) note(sec); else toast(`API limit — ${sec} sec ruk raha hoon`);
-    await new Promise(r => setTimeout(r, w));
+    /* har second ghatta hua counter */
+    const end = Date.now() + w;
+    let left = Math.ceil(w/1000);
+    if(note) note(left); else toast(`API limit — ${left} sec ruk raha hoon`);
+    await new Promise(done => {
+      const iv = setInterval(() => {
+        const rem = Math.ceil((end - Date.now())/1000);
+        if(rem <= 0){ clearInterval(iv); done(); return }
+        if(rem !== left){ left = rem; if(note) note(left) }
+      }, 250);
+    });
   }
   const t = Date.now();
   for(let i=0;i<n;i++) credits.push(t);
@@ -1580,7 +1590,10 @@ async function runAnalyze(){
   $('anBox').innerHTML = `<div class="sk t"></div><div class="sk"></div><div class="sk s"></div>
     <div class="sk"></div><div class="sk s"></div>`;
   const sym = S.pair;
-  const note = sec => { btn.innerHTML = `<span class="spin"></span> API limit — ${sec}s ruko`; };
+  const note = sec => {
+    const m = Math.floor(sec/60), ss = String(sec%60).padStart(2,'0');
+    btn.innerHTML = `⏳ ${m}:${ss} <small style="font-size:9px;opacity:.7">API limit</small>`;
+  };
   try{
     if(isBad(sym)) throw apiErr(404, '', sym);
     const wanted = S.htf ? ['15min','1h','4h','1day'] : ['1h','4h'];
@@ -1743,7 +1756,8 @@ function renderScan(){
   $('scanMin').value = S.scanMin;
   $('scanDeep').value = S.scanDeep ? '1' : '0';
   const left = dayLeft();
-  $('scanCost').innerHTML = `Ye scan <b style="color:${c>left?'var(--dn)':'var(--gold)'}">${c} credits</b> lega · aaj ${left} bache hain` +
+  const cc = c > left ? 'var(--dn)' : 'var(--gold)';
+  $('scanCost').innerHTML = `Ye scan <b style="color:${cc}">${c} credits</b> lega · aaj <b style="color:${cc}">${left} bache hain</b>` +
     (c > left ? '<br><span style="color:var(--dn)">Budget kam hai — watchlist chhoti karo ya Fast mode chuno.</span>' : '');
   if(scanFresh()){
     const left = Math.ceil((SCAN_TTL - (Date.now()-S.scan.at))/1000);
@@ -1824,7 +1838,11 @@ async function runScan(){
     try{
       const res = {}; let base = null;
       for(const tf of uniq){
-        const bars = await getSeries(sym, tf, 120, sec => { btn.textContent = `LIMIT — ${sec}s` });
+        const bars = await getSeries(sym, tf, 120, sec => {
+          const m = Math.floor(sec/60), ss = String(sec%60).padStart(2,'0');
+          btn.innerHTML = `<span style="letter-spacing:2px">⏳ ${m}:${ss}</span>
+            <small style="display:block;font-size:9px;opacity:.7;letter-spacing:.5px">API limit — ruk kar khud chalu hoga</small>`;
+        });
         if(!base) base = bars;
         res[tf] = tfBias(bars);
       }
@@ -1913,7 +1931,8 @@ async function openScanned(sym){
 function openWatch(){ drawWatch(); openSheet('watchSheet') }
 function drawWatch(){
   const c = scanCost();
-  $('watchCost').innerHTML = `${S.watch.length} pairs chune hain · scan me <b style="color:var(--gold)">${c} credits</b> lagenge`;
+  const lf = dayLeft(), wc = c > lf ? 'var(--dn)' : 'var(--gold)';
+  $('watchCost').innerHTML = `${S.watch.length} pairs chune hain · scan me <b style="color:${wc}">${c} credits</b> lagenge · aaj <b style="color:${wc}">${lf} bache hain</b>`;
   let html = '';
   for(const g in GROUPS){
     html += `<div class="pgrp">${g.toUpperCase()}</div>`;
@@ -2590,6 +2609,13 @@ function saveManual(){
 
 /* ---------------- trades ---------------- */
 function addTrade(t){
+  const dup = S.open.find(x => x.sym === t.sym);
+  if(dup){
+    alert(`${t.sym} pe pehle se ek trade khuli hai —\n\n` +
+      `${dup.dir} ${dup.lots} lot @ ${fmt(dup.sym, dup.entry)}\n${dt12(dup.at)}\n\n` +
+      `Pehle use band karo, phir nayi lagao.`);
+    return;
+  }
   t.id = 'T' + Date.now();
   t.at = Date.now();
   t.cur = t.entry;
@@ -2617,6 +2643,7 @@ function closeTrade(id, reason){
   renderTrades();
   const word = reason==='TP'?'TP HIT ✅':reason==='SL'?'SL HIT ❌':'Manual close';
   toast(`${t.sym} ${word} · ${money(pl)}`);
+  if(mt5Has(t.sym)){ delete S.mt5sent[t.sym]; save() }
   if(reason !== 'MANUAL'){
     notify(`${reason==='TP'?'🎯 TP HIT':'🛑 SL HIT'} — ${SPECS[t.sym].n}`,
       `${t.dir} ${t.lots} lot · ${money(pl)}`, 'close');
@@ -2700,6 +2727,24 @@ function renderTrades(){
   $('stWr').textContent = S.hist.length ? Math.round(wins/S.hist.length*100)+'%' : '0%';
   $('openT').textContent = S.open.length + ' open';
   const uniq = [...new Set(S.open.map(t=>t.sym))].length;
+  /* MT5 pe bheje hue orders */
+  const ks = Object.keys(S.mt5sent);
+  $('mt5Box').innerHTML = ks.length ? `
+    <div style="border:1px solid var(--gold);border-radius:6px;padding:11px;margin:4px 0 12px;background:rgba(255,184,0,.05)">
+      <b style="color:var(--gold);font-size:10px;letter-spacing:1.5px">MT5 PE BHEJE HUE (${ks.length})</b>
+      <p class="hint" style="margin:4px 0 9px">In pairs pe dobara order nahi jayega. MT5 pe band ho gaya ho to lock hata do.</p>
+      ${ks.map(k => {
+        const o = S.mt5sent[k];
+        return `<div class="hist" style="padding:8px 0">
+          <div class="ic m" style="font-size:9px">🚀</div>
+          <div class="in"><b class="mono">${SPECS[k]?SPECS[k].n:k} <span class="${o.dir==='BUY'?'up':'dn'}" style="font-size:10px">${o.dir}</span></b>
+            <small>${o.lots} lot · <span data-ago="${o.at}">${ago(o.at)}</span></small></div>
+          <button class="btn ghost sm" style="width:auto;padding:6px 10px;font-size:10px" onclick="mt5Clear('${k}')">LOCK HATAO</button>
+        </div>`;
+      }).join('')}
+      ${ks.length>1?`<button class="btn ghost sm" style="margin-top:8px" onclick="mt5ClearAll()">SAB LOCK HATAO</button>`:''}
+    </div>` : '';
+
   renderPerf();
   $('creditWarn').innerHTML = uniq > 5
     ? `⚠ ${uniq} alag pairs open hain — har refresh pe ${uniq} API credits lagte hain, aur free plan pe minute me sirf 8 milte hain. Auto-refresh isliye dheema hai. Ek hi pair ke trades rakho ya manual refresh use karo.`
@@ -2965,6 +3010,12 @@ function mt5Payload(sym, dir, lots, entry, sl, tp, kind){
   };
 }
 
+/* MT5 pe pehle se bheja hua order — app MT5 padh nahi sakti, isliye jo bheja wahi yaad rakhti hai */
+function mt5Has(sym){ return S.mt5sent[sym] || null }
+function mt5Mark(sym, dir, lots){ S.mt5sent[sym] = {at:Date.now(), dir, lots}; save() }
+function mt5Clear(sym){ delete S.mt5sent[sym]; save(); renderTrades(); toast(SPECS[sym].n + ' free — ab dobara bhej sakte ho') }
+function mt5ClearAll(){ S.mt5sent = {}; save(); renderTrades(); toast('Sab MT5 lock hata diye') }
+
 async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
   const url = fbEndpoint();
   if(!url){
@@ -2986,6 +3037,17 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
         }
       }
     }catch(e){}
+  }
+
+  /* wahi pair pehle se MT5 pe bheja hua hai? */
+  const prev = mt5Has(sym);
+  if(prev){
+    const msg = `${SPECS[sym].n} pe pehle se ek order MT5 pe bheja hua hai —\n\n` +
+      `${prev.dir} ${prev.lots} lot · ${dt12(prev.at)}\n\n` +
+      `Wo MT5 pe band ho chuka hai to Trades page se uska lock hata do, phir dobara bhejo.`;
+    logAdd('MT5 duplicate roka: ' + SPECS[sym].n);
+    if(!silent) alert(msg);
+    return false;
   }
 
   /* SL/TP sahi hain? — 10016 se pehle hi pakdo */
@@ -3013,6 +3075,7 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
     });
     if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
     LS.set('lastOrder', {t:Date.now(), body, ok:true});
+    mt5Mark(sym, dir, body.lots);
     logAdd(`MT5 bhej diya: ${body.type} ${body.pair} ${body.lots} @ ${body.entry} (id ${body.id})`);
     if(!silent) toast(body.type.includes('MARKET')
       ? `${body.pair} ${dir} MT5 pe laga diya`
