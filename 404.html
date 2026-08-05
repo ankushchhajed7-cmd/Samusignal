@@ -899,7 +899,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '5.7.0';
+const VERSION = '5.7.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1141,10 +1141,17 @@ function cloudUrl(){
 function snapshot(){
   const out = {};
   Object.keys(S).forEach(k => { out[k] = S[k] });
-  return {app:'SamuSignal', v:VERSION, at:Date.now(), state:out};
+  /* Firebase key me '/' '.' '$' '#' '[' ']' allowed nahi —
+     aur hamare keys 'XAU/USD' jaise hain. Isliye poora data ek string me. */
+  return {app:'SamuSignal', v:VERSION, at:Date.now(), json:JSON.stringify(out)};
+}
+function readSnap(d){
+  if(!d) return null;
+  if(typeof d.json === 'string'){ try{ return JSON.parse(d.json) }catch(e){ return null } }
+  return d.state || (typeof d === 'object' ? d : null);   /* purane format ke liye */
 }
 function applySnapshot(d){
-  const st = d.state || d;
+  const st = readSnap(d);
   if(!st || typeof st !== 'object') throw new Error('bad backup');
   Object.keys(S).forEach(k => { if(st[k] !== undefined) S[k] = st[k] });
   save();
@@ -1157,9 +1164,14 @@ async function cloudPush(silent){
   if(cloudBusy) return false;
   cloudBusy = true;
   try{
-    const r = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(snapshot())});
-    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const body = JSON.stringify(snapshot());
+    const r = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body});
+    if(!r.ok){
+      let why = 'HTTP ' + r.status;
+      try{ const j = await r.json(); if(j && j.error) why += ' — ' + j.error }catch(e){}
+      if(r.status === 401 || r.status === 403) why = 'Firebase rules ne mana kiya — write permission do';
+      throw new Error(why);
+    }
     S.cloudAt = Date.now(); LS.set('cloudAt', S.cloudAt);
     logAdd('Cloud backup ho gaya');
     if(!silent) toast('Cloud pe backup ho gaya');
@@ -1176,10 +1188,11 @@ async function cloudPull(silent){
     const r = await fetch(url, {cache:'no-store'});
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
-    if(!d || !d.state){ if(!silent) toast('Cloud pe koi backup nahi mila'); return false }
+    const st = readSnap(d);
+    if(!st){ if(!silent) toast('Cloud pe koi backup nahi mila'); return false }
     if(!silent){
       const q = `Cloud backup ${dt12(d.at)} ka hai.\n\n` +
-        `Usme ${(d.state.open||[]).length} open, ${(d.state.hist||[]).length} closed trades hain.\n` +
+        `Usme ${(st.open||[]).length} open, ${(st.hist||[]).length} closed trades hain.\n` +
         `Abhi phone me ${S.open.length} open, ${S.hist.length} closed hain.\n\n` +
         `Cloud wala data laga dein? (abhi ka data hat jayega)`;
       if(!confirm(q)) return false;
@@ -1197,8 +1210,9 @@ async function cloudAutoRestore(){
     const r = await fetch(cloudUrl(), {cache:'no-store'});
     if(!r.ok) return;
     const d = await r.json();
-    if(!d || !d.state) return;
-    const n = (d.state.hist||[]).length + (d.state.open||[]).length;
+    const st = readSnap(d);
+    if(!st) return;
+    const n = (st.hist||[]).length + (st.open||[]).length;
     if(!n) return;
     if(confirm(`Cloud pe ${dt12(d.at)} ka backup mila — ${n} trades.\n\nWapas laga dein?`)){
       applySnapshot(d); toast('Data wapas aa gaya'); boot();
