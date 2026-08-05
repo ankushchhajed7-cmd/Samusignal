@@ -551,16 +551,21 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
   <button class="btn ghost sm" style="margin-bottom:6px" onclick="lastOrderShow()">📄 Aakhri Bheja Order Dekho</button>
   <p class="hint" style="margin-bottom:16px">FXBridgeEA wahi <code>fxbridge/order.json</code> padhta hai. EA khud broker suffix (Exness = "m") lagata hai, isliye yahan sirf XAUUSD bhejo.</p>
 
-  <p class="ttl">Broker Minimum Stops</p>
-  <div class="grid2" style="margin-bottom:6px">
-    <div><label>Pair</label><button class="pick" id="minPairBtn" onclick="openPick('minstop')"></button></div>
+  <p class="ttl">Per-Pair Settings</p>
+  <div style="margin-bottom:10px"><label>Pair</label>
+    <button class="pick" id="minPairBtn" onclick="openPick('minstop')"></button></div>
+  <div class="grid3" style="margin-bottom:6px">
+    <div><label>TP ($)</label><input class="mono" id="setPTp" type="number" step="0.5" oninput="savePairDef()"></div>
+    <div><label>SL ($)</label><input class="mono" id="setPSl" type="number" step="0.5" oninput="savePairDef()"></div>
     <div><label>Min pips</label><input class="mono" id="setMinPips" type="number" step="1" oninput="saveMinPips()"></div>
   </div>
+  <p class="hint" id="pairDefNote" style="margin-bottom:8px"></p>
+  <button class="btn ghost sm" style="margin-bottom:10px" onclick="resetPairDef()">↺ Is pair ko default pe wapas</button>
   <div class="sw" id="swFresh" onclick="toggleSw(this,'freshPx')">
     <div class="tg"></div>
     <div>Bhejne se pehle taza price lo<small>1 credit lagta hai, par stale rate se order fail nahi hoga</small></div>
   </div>
-  <p class="hint" style="margin-bottom:16px">Error 10016 "invalid stops" aaye to us pair ka minimum badha do. Gold pe aksar 50+ pips chahiye hota hai.</p>
+  <p class="hint" style="margin-bottom:16px">Gold, US30 aur BTC pe global $1/$2.50 kaam nahi karta — inke apne default already set hain. Error 10016 aaye to min pips badha do.</p>
 
   <p class="ttl">API Budget</p>
   <div class="grid2" style="margin-bottom:6px">
@@ -621,7 +626,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
     <div><label>SL ($)</label><input class="mono" id="setSl" type="number" step="0.5" value="2.5"></div>
     <div><label>Lots</label><input class="mono" id="setLot" type="number" step="0.01" value="0.01"></div>
   </div>
-  <p class="hint" style="margin-bottom:14px">"Maine Ye Trade Liya" button inhi values se trade lagayega.</p>
+  <p class="hint" style="margin-bottom:14px">Ye forex pairs ke liye hai. Gold, US30, BTC apne alag default use karte hain — upar "Per-Pair Settings" me.</p>
   <div class="grid2" style="margin-bottom:8px">
     <button class="btn sm" onclick="saveSettings()">Save Karo</button>
     <button class="btn ghost sm" onclick="resetCalc()">↺ Reset to Default</button>
@@ -690,7 +695,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '4.3.0';
+const VERSION = '4.4.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -722,8 +727,10 @@ FX.forEach(pr => {
     contract: 100000, tv: 'OANDA:'+b+q, ccy: [b,q]
   };
 });
-SPECS['BTC/USD'] = {n:'BTCUSD', d:2, pip:1,   contract:1, tv:'BITSTAMP:BTCUSD', ccy:['BTC','USD']};
-SPECS['ETH/USD'] = {n:'ETHUSD', d:2, pip:0.1, contract:1, tv:'BITSTAMP:ETHUSD', ccy:['ETH','USD']};
+SPECS['BTC/USD'] = {n:'BTCUSD', d:2, pip:1, contract:1, tv:'BITSTAMP:BTCUSD', ccy:['BTC','USD']};
+/* US30 — Exness pe 1 lot = $1 per index point */
+SPECS['US30']    = {n:'US30', d:1, pip:1, contract:1, tv:'CAPITALCOM:US30', ccy:['US30','USD'],
+                    alt:['DJI','US30','DJIA','US30/USD']};
 
 const PAIRS = Object.keys(SPECS);
 const MAJORS = ['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','XAU/USD'];
@@ -735,7 +742,8 @@ const GROUPS = {
   'GBP Cross': ['GBP/JPY','GBP/CHF','GBP/CAD','GBP/AUD','GBP/NZD'],
   'AUD / NZD': ['AUD/JPY','AUD/CHF','AUD/CAD','AUD/NZD','NZD/JPY','NZD/CHF','NZD/CAD'],
   'CAD / CHF': ['CAD/CHF','CAD/JPY','CHF/JPY'],
-  'Crypto':    ['BTC/USD','ETH/USD']
+  'Index':     ['US30'],
+  'Crypto':    ['BTC/USD']
 };
 
 /* 1 unit of quote-currency = kitne USD */
@@ -788,8 +796,8 @@ function calcLevels(sym, price, lots, atr, opt){
       if(want < 0.01) clamped = want;   /* broker minimum se neeche — risk badh jayega */
     }
   } else {
-    slDist = dollarsToDist(sym, price, L, o.slD !== undefined ? o.slD : S.dSl);
-    tpDist = dollarsToDist(sym, price, L, o.tpD !== undefined ? o.tpD : S.dTp);
+    slDist = dollarsToDist(sym, price, L, o.slD !== undefined ? o.slD : defSL(sym));
+    tpDist = dollarsToDist(sym, price, L, o.tpD !== undefined ? o.tpD : defTP(sym));
   }
   return {
     lots: L, slDist, tpDist, clamped,
@@ -824,7 +832,9 @@ let S = {
   fbAuth:LS.get('fbAuth',''),
   mt5Type: LS.get('mt5Type','MARKET'),
   limPips: LS.get('limPips',5),
-  minPips: LS.get('minPips',{}),   /* per-symbol minimum SL/TP distance */
+  minPips: LS.get('minPips',{}),
+  symMap: LS.get('symMap',{}),
+  symDef: LS.get('symDef',{}),   /* per-symbol minimum SL/TP distance */
   freshPx: LS.get('freshPx',true),
   mt5Auto: LS.get('mt5Auto',true),
   dLot:  LS.get('dLot',0.01),
@@ -851,7 +861,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -1084,8 +1094,32 @@ function markBad(sym){
 }
 function isBad(sym){ return S.bad.includes(sym) }
 
+/* app ka naam -> API ka naam. alt list se pehla jo chale */
+function apiSym(sym){
+  const sp = SPECS[sym];
+  if(!sp) return sym;
+  if(S.symMap[sym]) return S.symMap[sym];
+  return sp.alt ? sp.alt[0] : sym;
+}
+function nextAlt(sym){
+  const sp = SPECS[sym];
+  if(!sp || !sp.alt) return null;
+  const cur = apiSym(sym);
+  const i = sp.alt.indexOf(cur);
+  const nx = sp.alt[i+1];
+  if(nx){ S.symMap[sym] = nx; save(); return nx }
+  return null;
+}
+
 async function getSeries(sym, interval, n, note){
-  const j = await td(`/time_series?symbol=${encodeURIComponent(sym)}&interval=${interval}&outputsize=${n||120}&order=ASC`, 1, sym, note);
+  let j;
+  try{
+    j = await td(`/time_series?symbol=${encodeURIComponent(apiSym(sym))}&interval=${interval}&outputsize=${n||120}&order=ASC`, 1, sym, note);
+  }catch(e){
+    if(e.code === 404 && nextAlt(sym)){
+      j = await td(`/time_series?symbol=${encodeURIComponent(apiSym(sym))}&interval=${interval}&outputsize=${n||120}&order=ASC`, 1, sym, note);
+    } else throw e;
+  }
   if(!j.values || !j.values.length) throw new Error('Data nahi mila: ' + sym);
   return j.values.map(v => ({
     t: v.datetime,
@@ -1102,13 +1136,17 @@ async function getQuotes(syms, note, ttl){
   const maxAge = ttl === undefined ? 60000 : ttl;
   syms.forEach(x => { const c = QCACHE[x]; (c && now-c.t < maxAge) ? fresh[x] = c.d : need.push(x); });
   if(!need.length) return fresh;
-  const j = await td(`/quote?symbol=${encodeURIComponent(need.join(','))}`, need.length, need.join(','), note);
+  const apiList = need.map(apiSym);
+  const back = {};
+  need.forEach((x,i) => back[apiList[i]] = x);
+  const j = await td(`/quote?symbol=${encodeURIComponent(apiList.join(','))}`, need.length, need.join(','), note);
   const out = Object.assign({}, fresh);
   const stamp = () => { LS.set('px', S.px); };
-  const rows = (need.length === 1) ? {[need[0]]: j} : j;
+  const rows = (need.length === 1) ? {[apiList[0]]: j} : j;
   const failed = [];
-  for(const k in rows){
-    const q = rows[k];
+  for(const rk in rows){
+    const k = back[rk] || rk;
+    const q = rows[rk];
     if(!q || !q.close){
       failed.push(k + (q && q.message ? ' (' + q.message + ')' : ''));
       if(q && (q.code === 404 || q.code === 403)) markBad(k);
@@ -1128,7 +1166,7 @@ async function getQuotes(syms, note, ttl){
 
 async function getPrice(sym){
   try{
-    const j = await td(`/price?symbol=${encodeURIComponent(sym)}`, 1, sym);
+    const j = await td(`/price?symbol=${encodeURIComponent(apiSym(sym))}`, 1, sym);
     const p = +j.price;
     if(isFinite(p) && p>0){ prices[sym] = Object.assign(prices[sym]||{}, {p}); return p }
   }catch(e){}
@@ -1591,7 +1629,7 @@ async function runAnalyze(){
 
     /* --- levels from default $ risk --- */
     const L0 = +$('inLots').value || S.dLot;
-    const lv = calcLevels(sym, live, L0, base.atr);
+    const lv = calcLevels(sym, live, L0, base.atr, {slD: defSL(sym), tpD: defTP(sym)});
     const lots = lv.lots;
     const sl = dir==='BUY' ? live - lv.slDist : live + lv.slDist;
     const tp = dir==='BUY' ? live + lv.tpDist : live - lv.tpDist;
@@ -1810,7 +1848,7 @@ async function runScan(){
       if(dir==='BUY' ? b0.macd>0 : b0.macd<0) q += 6;
       q = Math.max(0, Math.min(100, Math.round(q)));
 
-      const lv = calcLevels(sym, live, S.dLot, b0.atr);
+      const lv = calcLevels(sym, live, S.dLot, b0.atr, {slD: defSL(sym), tpD: defTP(sym)});
       const sl = dir==='BUY' ? live-lv.slDist : live+lv.slDist;
       const tp = dir==='BUY' ? live+lv.tpDist : live-lv.tpDist;
       const tfArr = uniq.filter(t=>res[t]).map(t => ({l:(TFS.find(x=>x.id===t)||{l:t}).l, b:res[t].bias}));
@@ -2253,7 +2291,7 @@ async function loadMarket(){
 /* fallback reference prices sirf pip-table ke liye */
 function refPrice(sym){
   return {'XAU/USD':3300,'EUR/USD':1.09,'GBP/USD':1.27,'AUD/USD':0.66,'NZD/USD':0.60,
-    'USD/JPY':150,'USD/CHF':0.88,'USD/CAD':1.36,'BTC/USD':95000,'ETH/USD':3200}[sym] || 1;
+    'USD/JPY':150,'USD/CHF':0.88,'USD/CAD':1.36,'BTC/USD':95000,'US30':44000}[sym] || 1;
 }
 
 /* ticker sirf 5 symbols = 5 credits */
@@ -2325,7 +2363,7 @@ function openQuick(target){
     target: target || 'APP',
     sym: s.sym, dir: s.dir, entry: s.live, lots: +$('inLots').value || S.dLot,
     atr: s.atr, grade: s.grade, qual: s.q,
-    mode: S.slMode, slD: S.dSl, tpD: S.dTp,
+    mode: S.slMode, slD: defSL(s.sym), tpD: defTP(s.sym),
     atrSL: S.atrSL, atrRR: S.atrRR, autoLot: S.autoLot, riskUsd: S.riskUsd,
     ordType: S.mt5Type
   };
@@ -2489,7 +2527,7 @@ function qtSet(k, v, keepFocus){
 function qtReset(){
   Object.assign(qtState, {
     lots: S.dLot, mode: qtState.atr > 0 ? S.slMode : 'DOLLAR',
-    slD: S.dSl, tpD: S.dTp, atrSL: S.atrSL, atrRR: S.atrRR,
+    slD: defSL(qtState.sym), tpD: defTP(qtState.sym), atrSL: S.atrSL, atrRR: S.atrRR,
     autoLot: S.autoLot, riskUsd: S.riskUsd, ordType: S.mt5Type
   });
   if(lastSignal && lastSignal.sym === qtState.sym) qtState.entry = lastSignal.live;
@@ -2524,7 +2562,7 @@ async function confirmTrade(){
 function openManual(){
   pickVal.manual = S.pair;
   fillPairs();
-  $('mtLots').value = S.dLot; $('mtTp').value = S.dTp; $('mtSl').value = S.dSl;
+  $('mtLots').value = S.dLot; $('mtTp').value = defTP(S.pair); $('mtSl').value = defSL(S.pair);
   const px = (S.px[S.pair]&&S.px[S.pair].p) || (prices[S.pair]&&prices[S.pair].p) || (lastSignal&&lastSignal.live) || refPrice(S.pair);
   $('mtEntry').value = fmt(S.pair, px);
   mtCalc(); openSheet('mtSheet');
@@ -2883,10 +2921,19 @@ function fbEndpoint(){
 }
 
 /* broker ka minimum stop distance — pips me. Default suraksha ke liye rakha hai */
-const MIN_DEF = {'XAU/USD':50, 'BTC/USD':300, 'ETH/USD':100};
+const MIN_DEF = {'XAU/USD':50, 'BTC/USD':300, 'US30':60};
+/* jin pairs pe global $1/$2.50 chalta hi nahi — inke apne default */
+const DEF_TPSL = {
+  'XAU/USD': {tp:5,  sl:8},
+  'BTC/USD': {tp:30, sl:50},
+  'US30':    {tp:6,  sl:10}
+};
+function defTP(sym){ return (S.symDef[sym] && S.symDef[sym].tp) ?? (DEF_TPSL[sym] ? DEF_TPSL[sym].tp : S.dTp) }
+function defSL(sym){ return (S.symDef[sym] && S.symDef[sym].sl) ?? (DEF_TPSL[sym] ? DEF_TPSL[sym].sl : S.dSl) }
+function hasOwnDef(sym){ return !!(S.symDef[sym] || DEF_TPSL[sym]) }
 function minStop(sym){
   if(S.minPips[sym] !== undefined) return S.minPips[sym];
-  return MIN_DEF[sym] !== undefined ? MIN_DEF[sym] : 12;
+  return MIN_DEF[sym] !== undefined ? MIN_DEF[sym] : 5;
 }
 
 /* SL/TP sahi taraf hain aur kaafi door hain? */
@@ -3042,7 +3089,7 @@ function structCorr(a, b){
   if(A[0] === B[1]) c -= 0.75;   /* ulta position      -> negative */
   if(A[1] === B[0]) c -= 0.75;
   /* metals aur crypto forex se kam judte hain */
-  const odd = x => ['XAU','BTC','ETH'].includes(SPECS[x].ccy[0]);
+  const odd = x => ['XAU','BTC','US30'].includes(SPECS[x].ccy[0]);
   if(odd(a) || odd(b)) c *= 0.5;
   return Math.max(-0.98, Math.min(0.98, +c.toFixed(2)));
 }
@@ -3485,12 +3532,13 @@ function choosePick(sym){
     setChart(sym); lastSignal = null; renderSignal();
   } else if(pickCtx === 'manual'){
     pickLabel($('mtPair'), sym);
+    $('mtTp').value = defTP(sym); $('mtSl').value = defSL(sym);
     const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p) || refPrice(sym);
     $('mtEntry').value = fmt(sym, px);
     mtCalc();
   } else if(pickCtx === 'minstop'){
     pickLabel($('minPairBtn'), sym);
-    $('setMinPips').value = minStop(sym);
+    loadPairDef(sym);
   } else {
     pickLabel($('corrPair'), sym); renderCorrBrowser();
   }
@@ -3522,7 +3570,39 @@ async function apiTest(){
 function saveMinPips(){
   const sym = pickVal.minstop || 'XAU/USD';
   const v = +$('setMinPips').value;
-  if(isFinite(v) && v >= 0){ S.minPips[sym] = v; save() }
+  if(isFinite(v) && v >= 0){ S.minPips[sym] = v; save(); pairDefNote() }
+}
+function savePairDef(){
+  const sym = pickVal.minstop || 'XAU/USD';
+  const tp = +$('setPTp').value, sl = +$('setPSl').value;
+  if(tp > 0 && sl > 0){ S.symDef[sym] = {tp, sl}; save(); pairDefNote() }
+}
+function resetPairDef(){
+  const sym = pickVal.minstop || 'XAU/USD';
+  delete S.symDef[sym]; delete S.minPips[sym]; save();
+  loadPairDef(sym); toast(SPECS[sym].n + ' default pe wapas');
+}
+function loadPairDef(sym){
+  $('setPTp').value = defTP(sym);
+  $('setPSl').value = defSL(sym);
+  $('setMinPips').value = minStop(sym);
+  pairDefNote();
+}
+function pairDefNote(){
+  const sym = pickVal.minstop || 'XAU/USD';
+  const el = $('pairDefNote'); if(!el) return;
+  const tp = defTP(sym), sl = defSL(sym), pip = SPECS[sym].pip;
+  const px = (S.px[sym] && S.px[sym].p) || refPrice(sym);
+  const tpP = dollarsToDist(sym, px, S.dLot, tp)/pip;
+  const slP = dollarsToDist(sym, px, S.dLot, sl)/pip;
+  const min = minStop(sym);
+  const ok = tpP >= min && slP >= min;
+  const custom = !!S.symDef[sym];
+  el.innerHTML = `${S.dLot} lot pe → TP <b class="up">${tpP.toFixed(0)} pips</b> · SL <b class="dn">${slP.toFixed(0)} pips</b> · R:R 1:${(tp/sl).toFixed(2)}` +
+    (ok ? ` <span class="up">✓ broker minimum se upar</span>`
+        : ` <span class="dn">⚠ minimum ${min} pips se kam — order fail ho sakta hai</span>`) +
+    (custom ? '<br><span style="color:var(--gold)">Custom set hai</span>'
+            : (DEF_TPSL[sym] ? '<br><span style="color:var(--gold)">Is pair ka apna built-in default</span>' : ''));
 }
 function unlockAll(){
   S.bad = []; save(); fillPairs(); toast('Locked pairs reset ho gaye — dobara try karo');
@@ -3574,7 +3654,7 @@ function boot(){
   $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
   $('swAutoLot').classList.toggle('on', S.autoLot);
   $('swFresh').classList.toggle('on', S.freshPx);
-  $('setMinPips').value = minStop(pickVal.minstop || 'XAU/USD');
+  loadPairDef(pickVal.minstop || 'XAU/USD');
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
   $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode();
   if($('verMode')) $('verMode').textContent = S.mt5Type;
