@@ -471,11 +471,13 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
     <button class="btn ghost sm" style="margin-top:12px" onclick="loadMarket()">Refresh Karo</button>
   </div>
   <div class="card">
-    <p class="ttl">Correlation <span class="sp" id="corrT">estimate</span></p>
-    <label>Kis pair ke against dekhna hai</label>
-    <button class="pick" id="corrPair" style="margin-bottom:12px" onclick="openPick('corr')"></button>
+    <p class="ttl">Against Trade</p>
+    <label>Tumhari trade</label>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="pick" style="flex:1" id="corrPair" onclick="openPick('corr')"></button>
+      <button class="chip" id="corrDirBtn" style="padding:10px 18px" onclick="corrFlip()">BUY</button>
+    </div>
     <div id="corrBox"></div>
-    <p class="hint">+1 ke paas = dono saath chalte hain (hedge ke liye ulti direction lo). −1 ke paas = ulta chalte hain (wahi direction lo).</p>
   </div>
 
 </section>
@@ -732,7 +734,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '5.2.0';
+const VERSION = '5.3.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -3751,25 +3753,46 @@ function renderHedge(){
     </p>`;
 }
 
+let corrDir = 'BUY';
+function corrFlip(){
+  corrDir = corrDir === 'BUY' ? 'SELL' : 'BUY';
+  renderCorrBrowser();
+}
 function renderCorrBrowser(){
   const base = pickVal.corr || S.pair;
+  const btn = $('corrDirBtn');
+  if(btn){
+    btn.textContent = corrDir;
+    btn.style.color = corrDir==='BUY' ? 'var(--up)' : 'var(--dn)';
+    btn.style.borderColor = corrDir==='BUY' ? 'var(--up)' : 'var(--dn)';
+    btn.style.background = corrDir==='BUY' ? 'rgba(0,255,150,.12)' : 'rgba(255,68,68,.12)';
+  }
+  const flipD = corrDir === 'BUY' ? 'SELL' : 'BUY';
   const rows = PAIRS.filter(q => q !== base && !isBad(q))
-    .map(q => Object.assign({sym:q}, getCorr(base, q)))
-    .sort((a,b) => b.v - a.v);
-  let live = false;
-  $('corrBox').innerHTML = rows.map(r => {
-    if(r.live) live = true;
-    const pct = Math.round((r.v + 1) / 2 * 100);
-    const col = r.v >= 0.6 ? 'var(--up)' : r.v <= -0.6 ? 'var(--dn)' : 'var(--gold)';
-    return `<div class="strrow">
-      <b class="mono" style="width:66px;font-size:11px">${SPECS[r.sym].n}</b>
-      <div class="t"><i style="width:${pct}%;background:${col}"></i></div>
-      <span class="mono" style="width:44px">${r.v>0?'+':''}${r.v}</span>
-    </div>`;
-  }).join('');
-  $('corrT').innerHTML = live
-    ? '<span style="color:var(--up)">live data</span>'
-    : 'estimate — hedge sheet me live nikal sakte ho';
+    .map(q => {
+      const c = getCorr(base, q);
+      return {sym:q, v:c.v, live:c.live, dir: c.v > 0 ? flipD : corrDir};
+    })
+    .filter(r => Math.abs(r.v) >= 0.6)
+    .sort((a,b) => Math.abs(b.v) - Math.abs(a.v))
+    .slice(0, 6);
+
+  if(!rows.length){
+    $('corrBox').innerHTML = `<p class="hint">${SPECS[base].n} ka koi strong jodidar nahi mila. Seedha ${SPECS[base].n} ${flipD} hi sabse saaf hedge hai.</p>`;
+    return;
+  }
+  $('corrBox').innerHTML = `
+    <div class="hist" style="border-bottom:1px solid var(--gold);padding-bottom:10px">
+      <div class="ic m" style="border-color:var(--gold);color:var(--gold)">↔</div>
+      <div class="in"><b class="mono">${SPECS[base].n} <span class="${flipD==='BUY'?'up':'dn'}">${flipD}</span></b>
+        <small>same pair · 100% offset</small></div>
+    </div>` +
+    rows.map(r => `<div class="hist">
+      <div class="ic ${r.dir==='BUY'?'w':'l'}" style="font-size:9px">${r.dir==='BUY'?'▲':'▼'}</div>
+      <div class="in"><b class="mono">${SPECS[r.sym].n} <span class="${r.dir==='BUY'?'up':'dn'}">${r.dir}</span></b>
+        <small>${r.live?'live':'anuman'} ${r.v>0?'+':''}${r.v}</small></div>
+    </div>`).join('') +
+    `<p class="hint">${SPECS[base].n} ${corrDir} loss me hai to inme se koi ek lo — sabse upar wala sabse pakka.</p>`;
 }
 
 async function runLiveCorr(){
