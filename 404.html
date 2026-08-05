@@ -14,7 +14,8 @@
 <style>
 :root{
   --bg:#0d0d0d; --panel:#141414; --panel2:#0d0d0d; --line:#2a2a2a;
-  --txt:#e0e0e0; --mut:#777; --dim:#555;
+  --txt:#f0f0f0; --mut:#9aa4b0; --dim:#7d8794;
+  --lbl:#8fd4ff;
   --up:#00FF96; --dn:#FF4444; --gold:#FFB800; --blue:#00CCFF;
   --r:8px;
 }
@@ -40,31 +41,31 @@ header{
 .hbox{max-width:600px;margin:0 auto;text-align:center;padding:9px 10px;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
 .hbox h1{margin:0 0 2px;font-size:16px;color:var(--gold);letter-spacing:2.5px;font-weight:700}
-.hbox p{margin:0;font-size:8.5px;color:var(--dim);letter-spacing:1.2px;white-space:nowrap}
+.hbox p{margin:0;font-size:8.5px;color:var(--lbl);letter-spacing:1.2px;white-space:nowrap}
 .hrow{display:flex;gap:5px;margin-top:8px;justify-content:center;align-items:center}
 .ib{padding:5px 8px;background:var(--bg);border:1px solid var(--line);border-radius:5px;
-  color:var(--mut);font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap;line-height:1.4}
+  color:var(--lbl);font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap;line-height:1.4}
 .ib:active{border-color:var(--gold);color:var(--gold)}
-.clock{padding:4px 7px;font-size:8.5px;color:var(--dim);line-height:1.3;text-align:left;white-space:nowrap}
+.clock{padding:4px 7px;font-size:8.5px;color:var(--mut);line-height:1.3;text-align:left;white-space:nowrap}
 .clock b{display:block;color:var(--gold);font-size:11px;letter-spacing:.5px}
 
 /* ---------- ticker ---------- */
 .tickwrap{max-width:600px;margin:0 auto 14px;padding:0 12px}
 .tick{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
   padding:9px 12px;font-size:11px;display:flex;gap:18px;white-space:nowrap;overflow:hidden}
-.tick span{color:var(--mut)}
+.tick span{color:var(--lbl)}
 .tick b{color:var(--txt)}
 
 /* ---------- layout ---------- */
 main{padding:0 12px 20px;max-width:600px;margin:0 auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
   padding:14px;margin-bottom:14px}
-.ttl{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);
+.ttl{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.3);
   margin:0 0 12px;font-weight:700;display:flex;align-items:center;gap:8px}
 .ttl .sp{margin-left:auto;font-weight:700;letter-spacing:0;text-transform:none;
-  color:var(--dim);font-size:10px}
-label{display:block;font-size:10px;color:var(--mut);letter-spacing:1px;margin-bottom:5px;
-  font-weight:700;text-transform:uppercase}
+  color:var(--lbl);font-size:10px;opacity:.85}
+label{display:block;font-size:10px;color:var(--lbl);letter-spacing:1px;margin-bottom:5px;
+  font-weight:700;text-transform:uppercase;text-shadow:0 0 8px rgba(143,212,255,.35)}
 input,select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
   padding:10px 11px;color:var(--txt);outline:none}
 input:focus,select:focus{border-color:var(--gold)}
@@ -76,10 +77,13 @@ input:focus,select:focus{border-color:var(--gold)}
   letter-spacing:1px;text-transform:uppercase;font-size:12px;
   background:rgba(0,204,255,.12);color:var(--blue);border:1px solid var(--blue)}
 .btn:active{opacity:.65}
-.btn.g{background:rgba(0,255,150,.12);color:var(--up);border-color:var(--up)}
-.btn.r{background:rgba(255,68,68,.12);color:var(--dn);border-color:var(--dn)}
-.btn.gold{background:rgba(255,184,0,.15);color:var(--gold);border-color:var(--gold)}
-.btn.ghost{background:var(--bg);color:var(--mut);border-color:var(--line)}
+.btn.g{background:rgba(0,255,150,.12);color:var(--up);border-color:var(--up);
+  text-shadow:0 0 10px rgba(0,255,150,.6);box-shadow:0 0 16px rgba(0,255,150,.12)}
+.btn.r{background:rgba(255,68,68,.12);color:var(--dn);border-color:var(--dn);
+  text-shadow:0 0 10px rgba(255,68,68,.6);box-shadow:0 0 16px rgba(255,68,68,.12)}
+.btn.gold{background:rgba(255,184,0,.15);color:var(--gold);border-color:var(--gold);
+  text-shadow:0 0 10px rgba(255,184,0,.6);box-shadow:0 0 16px rgba(255,184,0,.12)}
+.btn.ghost{background:var(--bg);color:var(--lbl);border-color:#33404d}
 .btn.sm{padding:9px 6px;font-size:11px;letter-spacing:.5px}
 
 /* custom pair picker — native dropdown ki jagah */
@@ -87,7 +91,7 @@ input:focus,select:focus{border-color:var(--gold)}
   padding:10px 11px;color:var(--txt);text-align:left;display:flex;align-items:center;
   font-size:13px;font-weight:700;letter-spacing:.5px}
 .pick:active{border-color:var(--blue)}
-.pick i{margin-left:auto;font-style:normal;color:var(--mut);font-size:11px}
+.pick i{margin-left:auto;font-style:normal;color:var(--lbl);font-size:11px}
 .pick.lock{color:var(--dim)}
 
 .plist{max-height:58vh;overflow-y:auto;margin:0 -14px;padding:0 14px}
@@ -98,14 +102,14 @@ input:focus,select:focus{border-color:var(--gold)}
   font-size:13px;font-weight:700;letter-spacing:1px;color:var(--txt);text-align:left}
 .prow.on{border-color:var(--blue);background:rgba(0,204,255,.1);color:var(--blue)}
 .prow.off{opacity:.4}
-.prow .px{margin-left:auto;font-size:11px;font-weight:400;color:var(--mut);letter-spacing:0}
+.prow .px{margin-left:auto;font-size:11px;font-weight:400;color:var(--lbl);letter-spacing:0}
 .prow .dot{width:15px;height:15px;border-radius:50%;border:1px solid var(--line);flex:0 0 auto}
 .prow.on .dot{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--bg),inset 0 0 0 9px var(--blue)}
 
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;padding:8px 13px;border-radius:6px;background:var(--panel);
-  border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--mut);letter-spacing:.5px}
+  border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--lbl);letter-spacing:.5px}
 .chip.on{background:rgba(0,204,255,.15);border-color:var(--blue);color:var(--blue)}
 .chip.on.gold{background:rgba(255,184,0,.15);border-color:var(--gold);color:var(--gold)}
 
@@ -116,7 +120,7 @@ input:focus,select:focus{border-color:var(--gold)}
   border-radius:50%;background:var(--dim);transition:.18s}
 .sw.on .tg{background:rgba(0,255,150,.2);border-color:var(--up)}
 .sw.on .tg::after{transform:translateX(19px);background:var(--up)}
-.sw div{font-size:12px} .sw small{color:var(--dim);font-size:10px;display:block;margin-top:2px}
+.sw div{font-size:12px} .sw small{color:#9aa4b0;font-size:10px;display:block;margin-top:2px}
 
 /* ---------- signal ---------- */
 .sig{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:13px}
@@ -124,14 +128,17 @@ input:focus,select:focus{border-color:var(--gold)}
 .sig-h{display:flex;align-items:center;gap:9px;margin-bottom:10px}
 .sig-h b{font-size:15px;letter-spacing:1px}
 .tag{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1px}
-.tag.buy{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.4)}
-.tag.sell{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.4)}
+.tag.buy{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.5);
+  text-shadow:0 0 10px rgba(0,255,150,.75);box-shadow:0 0 12px rgba(0,255,150,.15) inset}
+.tag.sell{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.5);
+  text-shadow:0 0 10px rgba(255,68,68,.75);box-shadow:0 0 12px rgba(255,68,68,.15) inset}
 .tag.n{background:rgba(119,119,119,.15);color:var(--mut);border:1px solid var(--line)}
 .gr{margin-left:auto;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;
-  background:rgba(255,184,0,.15);color:var(--gold);border:1px solid rgba(255,184,0,.4)}
+  background:rgba(255,184,0,.15);color:var(--gold);border:1px solid rgba(255,184,0,.5);
+  text-shadow:0 0 10px rgba(255,184,0,.7)}
 
 .meter{margin:12px 0 5px}
-.meter .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);
+.meter .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--lbl);
   margin-bottom:6px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
 .meter .lbl b{color:var(--txt);font-size:12px}
 .segs{display:flex;gap:2px;height:10px}
@@ -140,27 +147,27 @@ input:focus,select:focus{border-color:var(--gold)}
 
 .lvls{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
 .lvl{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 4px;text-align:center}
-.lvl>span{display:block;font-size:9px;color:var(--dim);letter-spacing:1px;font-weight:700;margin-bottom:4px}
+.lvl>span{display:block;font-size:9px;color:var(--lbl);letter-spacing:1px;font-weight:700;margin-bottom:4px}
 .lvl b{font-size:13px;display:block}
-.lvl.sl b{color:var(--dn)} .lvl.tp b{color:var(--up)}
+.lvl.sl b{color:var(--dn);text-shadow:0 0 9px rgba(255,68,68,.5)} .lvl.tp b{color:var(--up);text-shadow:0 0 9px rgba(0,255,150,.5)}
 
 .tfrow{display:flex;gap:5px;margin-top:10px}
 .tfp{flex:1;text-align:center;background:var(--panel);border:1px solid var(--line);
   border-radius:6px;padding:6px 2px}
-.tfp span{display:block;font-size:9px;color:var(--dim);font-weight:700}
+.tfp span{display:block;font-size:9px;color:var(--lbl);font-weight:700}
 .tfp b{font-size:11px}
-.tfp.up b{color:var(--up)} .tfp.dn b{color:var(--dn)} .tfp.nu b{color:var(--dim)}
+.tfp.up b{color:var(--up);text-shadow:0 0 8px rgba(0,255,150,.5)} .tfp.dn b{color:var(--dn);text-shadow:0 0 8px rgba(255,68,68,.5)} .tfp.nu b{color:var(--mut)}
 
 .acts{display:flex;gap:6px;margin-top:11px}
 .acts button{flex:1;padding:9px 4px;border-radius:6px;font-size:10.5px;font-weight:700}
 
 /* ---------- table ---------- */
 table{width:100%;border-collapse:collapse;font-size:11px}
-th{text-align:left;font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;
+th{text-align:left;font-size:9px;color:var(--lbl);letter-spacing:1px;text-transform:uppercase;
   padding:0 0 8px;font-weight:700;border-bottom:1px solid var(--line)}
 td{padding:9px 0;border-bottom:1px solid #1a1a1a}
 tr:last-child td{border-bottom:none}
-.up{color:var(--up)} .dn{color:var(--dn)} .mu{color:var(--mut)}
+.up{color:var(--up);text-shadow:0 0 8px rgba(0,255,150,.35)} .dn{color:var(--dn);text-shadow:0 0 8px rgba(255,68,68,.35)} .mu{color:var(--mut)}
 
 /* ---------- trades ---------- */
 .tr{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
@@ -169,27 +176,27 @@ tr:last-child td{border-bottom:none}
 .tr-h b{font-size:14px;letter-spacing:1px}
 .pl{margin-left:auto;font-size:16px;font-weight:700}
 .tr-g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:11px;margin-bottom:9px}
-.tr-g div span{display:block;color:var(--dim);font-size:9px;letter-spacing:.5px;font-weight:700}
+.tr-g div span{display:block;color:var(--lbl);font-size:9px;letter-spacing:.5px;font-weight:700}
 .bar{height:5px;border-radius:99px;background:#222;overflow:hidden;margin-bottom:9px;display:flex}
 .bar i{display:block;height:100%}
 
 .stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .st{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 5px;text-align:center}
-.st span{display:block;font-size:9px;color:var(--dim);letter-spacing:1.2px;font-weight:700;margin-bottom:5px}
+.st span{display:block;font-size:9px;color:var(--lbl);letter-spacing:1.2px;font-weight:700;margin-bottom:5px}
 .st b{font-size:17px}
 
 .perf{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
 .pb{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px 4px;text-align:center}
 .pb b{display:block;font-size:19px;line-height:1.1}
-.pb span{display:block;font-size:8.5px;color:var(--dim);letter-spacing:1.2px;font-weight:700;margin-top:5px}
-.pb em{display:block;font-style:normal;font-size:8.5px;color:#555;margin-top:3px;letter-spacing:.2px}
+.pb span{display:block;font-size:8.5px;color:var(--lbl);letter-spacing:1.2px;font-weight:700;margin-top:5px}
+.pb em{display:block;font-style:normal;font-size:8.5px;color:#8a94a0;margin-top:3px;letter-spacing:.2px}
 .ptot{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:16px;text-align:center}
 .ptot b{display:block;font-size:27px;line-height:1}
-.ptot span{display:block;font-size:9px;color:var(--dim);letter-spacing:1.6px;font-weight:700;margin-top:6px}
+.ptot span{display:block;font-size:9px;color:var(--lbl);letter-spacing:1.6px;font-weight:700;margin-top:6px}
 
 .vbar{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin:12px 0 8px}
-.vbar i{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
-  color:#0d0d0d;font-style:normal;letter-spacing:.5px;transition:width .5s}
+.vbar i{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+  color:#0d0d0d;font-style:normal;letter-spacing:.5px;transition:width .5s;text-shadow:0 1px 2px rgba(255,255,255,.3)}
 .vote3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .vc{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:13px 5px;text-align:center}
 .vc b{display:block;font-size:24px;line-height:1}
@@ -198,11 +205,38 @@ tr:last-child td{border-bottom:none}
 .ag{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #1a1a1a;font-size:11px}
 .ag:last-child{border:none}
 .ag .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ag .gp{font-size:8.5px;color:var(--dim);letter-spacing:.5px}
+.ag .gp{font-size:8.5px;color:var(--lbl);letter-spacing:.5px;opacity:.8}
 .ag .vt{width:44px;text-align:center;padding:3px 0;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px}
-.ag .vt.b{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.35)}
-.ag .vt.s{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.35)}
+.ag .vt.b{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.4);text-shadow:0 0 8px rgba(0,255,150,.6)}
+.ag .vt.s{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.4);text-shadow:0 0 8px rgba(255,68,68,.6)}
 .ag .vt.h{background:rgba(119,119,119,.12);color:var(--mut);border:1px solid var(--line)}
+
+/* ---- mirror shine: colored text ke upar chalta hua highlight ---- */
+@keyframes mirror{
+  0%   {background-position:-220% 0}
+  60%  {background-position:220% 0}
+  100% {background-position:220% 0}
+}
+.shine{
+  background-image:linear-gradient(100deg,
+    transparent 0%, transparent 38%,
+    rgba(255,255,255,.85) 48%, rgba(255,255,255,.95) 52%,
+    transparent 62%, transparent 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text; background-clip:text;
+  animation:mirror 4.5s ease-in-out infinite;
+  text-shadow:0 0 14px currentColor;
+}
+.shine.up{color:var(--up);-webkit-text-fill-color:transparent;
+  background-image:linear-gradient(100deg,var(--up) 0%,var(--up) 38%,#dffff0 48%,#ffffff 52%,var(--up) 62%,var(--up) 100%)}
+.shine.dn{color:var(--dn);-webkit-text-fill-color:transparent;
+  background-image:linear-gradient(100deg,var(--dn) 0%,var(--dn) 38%,#ffe3e3 48%,#ffffff 52%,var(--dn) 62%,var(--dn) 100%)}
+.shine.gd{color:var(--gold);-webkit-text-fill-color:transparent;
+  background-image:linear-gradient(100deg,var(--gold) 0%,var(--gold) 38%,#fff2cc 48%,#ffffff 52%,var(--gold) 62%,var(--gold) 100%)}
+@media (prefers-reduced-motion:reduce){.shine{animation:none}}
+
+/* colored glow — chhote labels ke liye */
+.glow{text-shadow:0 0 10px currentColor}
 
 /* skeleton loader */
 @keyframes shim{0%{background-position:-380px 0}100%{background-position:380px 0}}
@@ -217,19 +251,19 @@ tr:last-child td{border-bottom:none}
 .an .ah{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .an .ah b{font-size:10px;letter-spacing:1.5px}
 .an .dot2{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
-.an p{margin:0;font-size:11.5px;line-height:1.65;color:#c8c8c8}
+.an p{margin:0;font-size:11.5px;line-height:1.65;color:#dde3ea}
 .an.g{border-left:3px solid var(--up)} .an.y{border-left:3px solid var(--gold)} .an.r{border-left:3px solid var(--dn)}
 
-.empty{text-align:center;padding:26px 12px;color:var(--mut);font-size:12px}
+.empty{text-align:center;padding:26px 12px;color:#a8b2be;font-size:12px}
 .empty div{font-size:30px;margin-bottom:8px;opacity:.4}
 
 /* ---------- nav ---------- */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);
   border-top:1px solid var(--line);display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
 nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 0;
-  font-size:7.5px;font-weight:700;letter-spacing:.3px;color:var(--dim)}
+  font-size:7.5px;font-weight:700;letter-spacing:.3px;color:var(--lbl)}
 nav button i{font-style:normal;font-size:15px;filter:grayscale(1);opacity:.45}
-nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
+nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav button.on i{filter:none;opacity:1}
 .badge{position:absolute;top:2px;margin-left:20px;background:var(--dn);color:#000;font-size:8px;
   min-width:15px;height:15px;border-radius:99px;display:grid;place-items:center;padding:0 3px}
 
@@ -243,7 +277,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 .sh-h{display:flex;align-items:center;margin-bottom:14px}
 .sh-h h3{margin:0;font-size:15px;color:var(--gold);letter-spacing:2px;text-transform:uppercase}
 .sh-h button{margin-left:auto;font-size:22px;color:var(--mut);padding:0 6px}
-.hint{font-size:10px;color:var(--dim);margin:6px 0 0;line-height:1.65}
+.hint{font-size:10.5px;color:#a8b2be;margin:6px 0 0;line-height:1.65}
 .hint a{color:var(--blue)}
 
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;z-index:200;
@@ -267,7 +301,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 .strrow b{width:42px;font-size:11px}
 .strrow .t{flex:1;height:7px;background:#222;border-radius:99px;overflow:hidden}
 .strrow .t i{display:block;height:100%;border-radius:99px}
-.strrow span{width:38px;text-align:right;font-size:10px;color:var(--mut)}
+.strrow span{width:38px;text-align:right;font-size:10px;color:var(--lbl)}
 
 .hist{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #1a1a1a}
 .hist:last-child{border:none}
@@ -278,7 +312,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 .hist .ic.m{background:rgba(119,119,119,.15);color:var(--mut);border:1px solid var(--line)}
 .hist .in{flex:1;min-width:0}
 .hist .in b{font-size:12px;display:block}
-.hist .in small{color:var(--dim);font-size:10px}
+.hist .in small{color:#9aa4b0;font-size:10px}
 .hist .amt{font-size:13px;font-weight:700}
 </style>
 </head>
@@ -286,7 +320,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 
 <header>
   <div class="hbox">
-    <h1>SAMUSIGNAL</h1>
+    <h1 class="shine gd">SAMUSIGNAL</h1>
     <p>FOREX &amp; GOLD SIGNALS · <span id="verTag">v—</span></p>
     <div class="hrow">
       <div class="clock"><b id="clkT">--:--</b><span id="clkD">--</span></div>
@@ -645,7 +679,7 @@ nav button.on{color:var(--gold)} nav button.on i{filter:none;opacity:1}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '4.1.0';
+const VERSION = '4.2.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1613,8 +1647,8 @@ function renderSignal(){
       </div>
       <div class="meter">
         <div class="lbl">
-          <span style="color:${tierCol}">${tier} ${s.dir}</span>
-          <b style="color:${tierCol}">${s.q}%</b>
+          <span class="shine ${s.dir==='BUY'?'up':s.dir==='SELL'?'dn':'gd'}">${tier} ${s.dir}</span>
+          <b class="shine ${s.dir==='BUY'?'up':s.dir==='SELL'?'dn':'gd'}">${s.q}%</b>
         </div>
         <div class="segs">${segs}</div>
       </div>
@@ -1660,15 +1694,30 @@ function renderScan(){
   const left = dayLeft();
   $('scanCost').innerHTML = `Ye scan <b style="color:${c>left?'var(--dn)':'var(--gold)'}">${c} credits</b> lega · aaj ${left} bache hain` +
     (c > left ? '<br><span style="color:var(--dn)">Budget kam hai — watchlist chhoti karo ya Fast mode chuno.</span>' : '');
-  $('scanT').innerHTML = S.scan.at ? `<span data-ago="${S.scan.at}">${ago(S.scan.at)}</span>` : '—';
+  if(scanFresh()){
+    const left = Math.ceil((SCAN_TTL - (Date.now()-S.scan.at))/1000);
+    $('scanT').innerHTML = `<span style="color:${left<60?'var(--dn)':'var(--gold)'}">${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} baaki</span>`;
+  } else $('scanT').textContent = '—';
   drawScanRows();
 }
 
+const SCAN_TTL = 5*60000;
+function scanFresh(){ return S.scan.at && (Date.now() - S.scan.at) < SCAN_TTL }
+function scanExpire(){
+  if(S.scan.rows && S.scan.rows.length && !scanFresh()){
+    S.scan = {at:0, rows:[]}; save();
+    if(!$('pgScan').classList.contains('hide')){ renderScan(); toast('Scan result purana ho gaya — dobara scan karo') }
+  }
+}
+setInterval(scanExpire, 15000);
+setInterval(() => { if(!$('pgScan').classList.contains('hide') && scanFresh()) renderScan() }, 1000);
+
 function drawScanRows(){
+  scanExpire();
   const rows = (S.scan.rows||[]).filter(r => r.score >= S.scanMin);
   const all = (S.scan.rows||[]).length;
   if(!all){
-    $('scanOut').innerHTML = '<div class="card"><div class="empty"><div>🎯</div>Abhi tak scan nahi hua.<br>Watchlist chuno aur SCAN KARO dabao.</div></div>';
+    $('scanOut').innerHTML = '<div class="card"><div class="empty"><div>🎯</div>Abhi tak scan nahi hua.<br>Watchlist chuno aur SCAN KARO dabao.<br><br><span style="font-size:11px">Result 5 minute tak rehta hai — uske baad price badal jaati hai, isliye apne aap hat jaata hai.</span></div></div>';
     return;
   }
   if(!rows.length){
@@ -1685,7 +1734,7 @@ function drawScanRows(){
         <b style="letter-spacing:1px">${SPECS[r.sym].n}</b>
         <span class="tag ${up?'buy':'sell'}">${r.dir}</span>
         <span class="gr">${r.grade}</span>
-        <span style="margin-left:auto;font-size:15px;font-weight:700;color:${dc}">${r.score}%</span>
+        <span class="shine ${up?'up':'dn'}" style="margin-left:auto;font-size:16px;font-weight:700">${r.score}%</span>
       </div>
       <div class="segs" style="margin-bottom:10px">
         ${Array.from({length:20},(_,i)=>`<i style="${i<Math.round(r.score/5)?'background:'+dc:''}"></i>`).join('')}
@@ -1700,7 +1749,7 @@ function drawScanRows(){
       <p class="hint" style="margin:0 0 10px;color:#c8c8c8">${r.why}</p>
       <button class="btn ${up?'g':'r'} sm" onclick="openScanned('${r.sym}')">POORA ANALYSIS DEKHO</button>
     </div>`;
-  }).join('') + `<p class="hint" style="text-align:center;padding:4px 0 10px">${all} scan hue · ${rows.length} ne ${S.scanMin}% ka bar paar kiya</p>`;
+  }).join('') + `<p class="hint" style="text-align:center;padding:4px 0 10px">${all} scan hue · ${rows.length} ne ${S.scanMin}% ka bar paar kiya<br>Result 5 min me apne aap hat jayega — levels purane ho jaate hain.</p>`;
 }
 
 let scanning = false;
@@ -1799,10 +1848,14 @@ async function runScan(){
 }
 
 /* scan result se seedha poora analysis */
-function openScanned(sym){
-  S.pair = sym; save(); fillPairs(); setChart(sym);
+async function openScanned(sym){
+  S.pair = sym; pickVal.main = sym; save();
+  fillPairs(); setChart(sym);
+  lastSignal = null; lastVotes = null; lastAn = null;
   go('Signals', document.querySelector('nav button[data-pg="Signals"]'));
-  toast('Analyze dabao — poora breakdown aa jayega');
+  await runAnalyze();
+  const c = $('cardSignal');
+  if(c) c.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 /* ---- watchlist ---- */
@@ -1940,7 +1993,7 @@ function renderAnalyst(){
   const col = k => k===2?'var(--up)':k===1?'var(--gold)':'var(--dn)';
   $('anBox').innerHTML = `
     <div style="text-align:center;padding:4px 0 10px">
-      <b style="font-size:20px;color:${a.vcol};letter-spacing:2px">${a.verdict}</b>
+      <b class="shine ${a.pct>=75?'up':a.pct>=55?'gd':'dn'}" style="font-size:20px;letter-spacing:2px">${a.verdict}</b>
       <p class="hint" style="margin-top:3px">${a.pct}% checks paas · ${a.summary}</p>
     </div>
     ${a.bad.length ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.07);border-radius:6px;padding:10px;margin-bottom:10px">
@@ -1996,7 +2049,7 @@ function renderVotes(){
 
   $('voteBox').innerHTML = `
     <div style="text-align:center;padding:6px 0 2px">
-      <b style="font-size:26px;color:${vc};letter-spacing:3px">${strength} ${v.verdict}</b>
+      <b class="shine ${v.verdict==='BUY'?'up':v.verdict==='SELL'?'dn':'gd'}" style="font-size:26px;letter-spacing:3px">${strength} ${v.verdict}</b>
       <p class="hint" style="margin-top:4px">${Math.max(v.buy,v.sell)} / ${T} agents ek taraf · ${v.conf}% consensus</p>
     </div>
     <div class="vbar">
@@ -2005,9 +2058,9 @@ function renderVotes(){
       ${sp?`<i style="width:${sp}%;background:var(--dn)">${v.sell}</i>`:''}
     </div>
     <div class="vote3">
-      <div class="vc b"><b class="up">${v.buy}</b><span>BUY VOTE</span></div>
+      <div class="vc b"><b class="shine up">${v.buy}</b><span>BUY VOTE</span></div>
       <div class="vc"><b class="mu">${v.hold}</b><span>HOLD VOTE</span></div>
-      <div class="vc s"><b class="dn">${v.sell}</b><span>SELL VOTE</span></div>
+      <div class="vc s"><b class="shine dn">${v.sell}</b><span>SELL VOTE</span></div>
     </div>
     ${lastSignal && lastSignal.sym===v.sym && lastSignal.dir!==v.verdict && v.verdict!=='HOLD'
       ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Signal card <b>${lastSignal.dir}</b> keh raha hai, par agents <b>${v.verdict}</b> bol rahe hain. Aisa ho to ruk jaana behtar.</p>` : ''}
@@ -2202,7 +2255,7 @@ function buildTicker(){
     const c = d.chg || 0, up = c >= 0;
     const col = c === 0 ? 'var(--txt)' : up ? 'var(--up)' : 'var(--dn)';
     const ar  = c === 0 ? '' : (up ? '▲' : '▼');
-    return `<span>${sym} <b class="mono" style="color:${col}">${ar} ${fmt(sym,d.p)}</b></span>`;
+    return `<span>${sym} <b class="mono" style="color:${col};text-shadow:0 0 8px ${col}">${ar} ${fmt(sym,d.p)}</b></span>`;
   }).join('');
   const age = newest
     ? `<span style="color:var(--dim)">⟳ ${t12(newest)} · tap to refresh</span>`
@@ -2310,7 +2363,7 @@ function drawQuick(){
   $('qtBody').innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;background:${q.dir==='BUY'?'rgba(18,201,138,.10)':'rgba(242,84,91,.10)'};
          border:1px solid ${dc};border-radius:11px;padding:11px 13px;margin-bottom:14px">
-      <b style="font-size:17px;color:${dc};letter-spacing:.5px">${q.dir}</b>
+      <b class="shine ${q.dir==='BUY'?'up':'dn'}" style="font-size:17px;letter-spacing:.5px">${q.dir}</b>
       <span class="mono" style="font-size:14px">${sym}</span>
       <span class="gr" style="margin-left:auto">${q.grade}${q.qual?` · ${q.qual}%`:''}</span>
     </div>
@@ -2578,9 +2631,9 @@ function renderTrades(){
   const closed = S.hist.reduce((a,t)=>a+t.pl,0);
   const wins = S.hist.filter(t=>t.pl>0).length;
   $('stLive').textContent = money(live);
-  $('stLive').className = 'mono ' + (live>=0?'up':'dn');
+  $('stLive').className = 'mono glow ' + (live>=0?'up':'dn');
   $('stClosed').textContent = money(closed);
-  $('stClosed').className = 'mono ' + (closed>=0?'up':'dn');
+  $('stClosed').className = 'mono glow ' + (closed>=0?'up':'dn');
   $('stWr').textContent = S.hist.length ? Math.round(wins/S.hist.length*100)+'%' : '0%';
   $('openT').textContent = S.open.length + ' open';
   const uniq = [...new Set(S.open.map(t=>t.sym))].length;
@@ -2602,7 +2655,7 @@ function renderTrades(){
         <b class="mono">${t.sym}</b>
         <span class="tag ${t.dir.toLowerCase()}">${t.dir}</span>
         <span class="mu" style="font-size:11px">${t.lots} lot</span>
-        <span class="pl mono ${pl>=0?'up':'dn'}">${money(pl)}</span>
+        <span class="pl mono glow ${pl>=0?'up':'dn'}">${money(pl)}</span>
       </div>
       <div class="bar"><i style="width:${prog*100}%;background:${pl>=0?'var(--up)':'var(--dn)'}"></i></div>
       <div class="tr-g mono">
@@ -2706,7 +2759,7 @@ function renderPerf(){
       <div class="pb"><b style="font-size:15px">${beWR.toFixed(0)}%</b><span>BREAKEVEN WR</span></div>
     </div>
     <div class="ptot">
-      <b style="color:${total>=0?'var(--up)':'var(--dn)'}">${total>=0?'+':''}${money(total)}</b>
+      <b class="shine ${total>=0?'up':'dn'}">${total>=0?'+':''}${money(total)}</b>
       <span>TOTAL P/L</span>
     </div>
     <p class="hint" style="margin-top:9px">${win.length} + ${loss.length}${flat.length?` + ${flat.length}`:''} = ${H.length} closed · abhi ${S.open.length} open hain (inka hisaab upar Live P&amp;L me hai)</p>
@@ -2997,7 +3050,7 @@ function renderHedge(){
         <b class="mono">${t.sym}</b>
         <span class="tag ${t.dir.toLowerCase()}">${t.dir}</span>
         <span class="mu" style="font-size:11px">${t.lots} lot</span>
-        <span class="pl mono ${pl>=0?'up':'dn'}">${money(pl)}</span>
+        <span class="pl mono glow ${pl>=0?'up':'dn'}">${money(pl)}</span>
       </div>
       <p class="hint" style="margin:0">Entry ${fmt(t.sym,t.entry)} · Now ${fmt(t.sym,t.cur||t.entry)}</p>
     </div>
