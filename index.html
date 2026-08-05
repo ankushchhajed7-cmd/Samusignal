@@ -879,7 +879,7 @@ body.t-navy{
     <div><label>Direction</label><select id="mtDir"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
   </div>
   <div class="grid2" style="margin-bottom:10px">
-    <div><label>Lots</label><input class="mono" id="mtLots" type="number" step="0.01" value="0.01"></div>
+    <div><label>Lots</label><input class="mono" id="mtLots" type="number" step="0.01" value="0.01" onchange="mtLotDone(this)"></div>
     <div><label>Entry Price</label><input class="mono" id="mtEntry" type="number" step="0.00001"></div>
   </div>
   <div class="grid2" style="margin-bottom:10px">
@@ -899,7 +899,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '5.7.1';
+const VERSION = '5.7.2';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -3182,6 +3182,7 @@ function openQuick(target){
     target: target || 'APP',
     sym: s.sym, dir: s.dir, entry: s.live, lots: +$('inLots').value || S.dLot,
     atr: s.atr, grade: s.grade, qual: s.q,
+    lotsBase: +$('inLots').value || S.dLot,
     mode: S.slMode, slD: defSL(s.sym, +$('inLots').value || S.dLot), tpD: defTP(s.sym, +$('inLots').value || S.dLot),
     atrSL: S.atrSL, atrRR: S.atrRR, autoLot: S.autoLot, riskUsd: S.riskUsd,
     ordType: S.mt5Type
@@ -3195,7 +3196,7 @@ function openMt5FromTrade(id){
   const atr = (lastSignal && lastSignal.sym === t.sym) ? lastSignal.atr : 0;
   qtState = {
     target: 'MT5',
-    sym: t.sym, dir: t.dir, entry: t.cur || t.entry, lots: t.lots,
+    sym: t.sym, dir: t.dir, entry: t.cur || t.entry, lots: t.lots, lotsBase: t.lots,
     atr, grade: t.grade || '—', qual: t.q || 0,
     mode: atr > 0 ? S.slMode : 'DOLLAR', slD: t.slD, tpD: t.tpD,
     atrSL: S.atrSL, atrRR: S.atrRR, autoLot: false, riskUsd: S.riskUsd,
@@ -3260,7 +3261,7 @@ function drawQuick(){
       <div class="grid3" style="margin-bottom:10px">
         <div><label>SL = ATR ×</label><input class="mono" type="number" step="0.1" value="${q.atrSL}" oninput="qtSet('atrSL',+this.value,1)"></div>
         <div><label>TP = SL ×</label><input class="mono" type="number" step="0.1" value="${q.atrRR}" oninput="qtSet('atrRR',+this.value,1)"></div>
-        <div><label>Lots</label><input class="mono" type="number" step="0.01" value="${lv.lots}" ${q.autoLot?'disabled style="opacity:.5"':''} oninput="qtSet('lots',+this.value,1)"></div>
+        <div><label>Lots</label><input class="mono" id="qLot" type="number" step="0.01" value="${lv.lots}" ${q.autoLot?'disabled style="opacity:.5"':''} oninput="qtSet('lots',+this.value,1)"></div>
       </div>
       <div class="sw ${q.autoLot?'on':''}" onclick="qtSet('autoLot',!qtState.autoLot)">
         <div class="tg"></div>
@@ -3269,9 +3270,10 @@ function drawQuick(){
       ${q.autoLot ? `<div style="margin:8px 0 10px"><label>Risk per trade ($)</label><input class="mono" type="number" step="0.25" value="${q.riskUsd}" oninput="qtSet('riskUsd',+this.value,1)"></div>` : ''}
     ` : `
       <div class="grid3" style="margin-bottom:10px">
-        <div><label>TP ($)</label><input class="mono" type="number" step="0.5" value="${q.tpD}" oninput="qtSet('tpD',+this.value,1)"></div>
-        <div><label>SL ($)</label><input class="mono" type="number" step="0.5" value="${q.slD}" oninput="qtSet('slD',+this.value,1)"></div>
-        <div><label>Lots</label><input class="mono" type="number" step="0.01" value="${q.lots}" oninput="qtSet('lots',+this.value,1)"></div>
+        <div><label>TP ($)</label><input class="mono" id="qTp" type="number" step="0.5" value="${q.tpD}" oninput="qtSet('tpD',+this.value,1)"></div>
+        <div><label>SL ($)</label><input class="mono" id="qSl" type="number" step="0.5" value="${q.slD}" oninput="qtSet('slD',+this.value,1)"></div>
+        <div><label>Lots</label><input class="mono" id="qLot" type="number" step="0.01" value="${q.lots}"
+             oninput="qtLotType(this.value)" onchange="qtLotDone(this)"></div>
       </div>
     `}
 
@@ -3348,23 +3350,39 @@ function qtLevels(){
   $('qtInfo').textContent = `R:R 1:${rr.toFixed(2)} · barabar rehne ko ${(100/(1+rr)).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${q.mode==='ATR'?` · ATR ${fmt(sym,q.atr)}`:''}${typeTxt}`;
 }
 
-function qtSet(k, v, keepFocus){
-  if(k === 'lots' && qtState.mode !== 'ATR'){
-    const old = qtState.lots || S.dLot;
-    if(v > 0 && old > 0 && v !== old){
-      const r = v / old;
-      qtState.slD = +(qtState.slD * r).toFixed(2);
-      qtState.tpD = +(qtState.tpD * r).toFixed(2);
-    }
+/* type karte waqt: sirf value yaad rakho, sheet dobara mat banao */
+function qtLotType(val){
+  const v = parseFloat(val);
+  if(!isFinite(v) || v <= 0) return;      /* aadha typed number ignore */
+  qtState.lots = v;
+  qtLevels();
+}
+/* field chhodne pe: TP/SL ko usi anupat me badlo */
+function qtLotDone(el){
+  const v = parseFloat(el.value);
+  if(!isFinite(v) || v <= 0){ el.value = qtState.lots; return }
+  const old = qtState.lotsBase || S.dLot;
+  if(qtState.mode !== 'ATR' && old > 0 && v !== old){
+    const r = v / old;
+    qtState.slD = +(qtState.slD * r).toFixed(2);
+    qtState.tpD = +(qtState.tpD * r).toFixed(2);
   }
+  qtState.lots = v;
+  qtState.lotsBase = v;
+  if($('qTp')) $('qTp').value = qtState.tpD;
+  if($('qSl')) $('qSl').value = qtState.slD;
+  qtLevels();
+  paintQtChart();
+}
+
+function qtSet(k, v, keepFocus){
   qtState[k] = v;
-  if(k === 'lots' && qtState.mode !== 'ATR'){ drawQuick(); return }
   keepFocus ? qtLevels() : drawQuick();
 }
 
 function qtReset(){
   Object.assign(qtState, {
-    lots: S.dLot, mode: qtState.atr > 0 ? S.slMode : 'DOLLAR',
+    lots: S.dLot, lotsBase: S.dLot, mode: qtState.atr > 0 ? S.slMode : 'DOLLAR',
     slD: defSL(qtState.sym, S.dLot), tpD: defTP(qtState.sym, S.dLot), atrSL: S.atrSL, atrRR: S.atrRR,
     autoLot: S.autoLot, riskUsd: S.riskUsd, ordType: S.mt5Type
   });
@@ -3410,14 +3428,19 @@ const MT_IDS = ['mtDir','mtLots','mtEntry','mtTp','mtSl'];
   document.addEventListener(ev, e => { if(MT_IDS.includes(e.target.id)) mtCalc() })
 );
 let mtLastLots = null;
-function mtCalc(){
-  const nowLots = +$('mtLots').value || S.dLot;
-  if(mtLastLots !== null && nowLots !== mtLastLots && nowLots > 0){
-    const r = nowLots / mtLastLots;
+function mtLotDone(el){
+  const v = parseFloat(el.value);
+  if(!isFinite(v) || v <= 0){ el.value = mtLastLots || S.dLot; return }
+  const old = mtLastLots || S.dLot;
+  if(old > 0 && v !== old){
+    const r = v / old;
     $('mtTp').value = +(+$('mtTp').value * r).toFixed(2);
     $('mtSl').value = +(+$('mtSl').value * r).toFixed(2);
   }
-  mtLastLots = nowLots;
+  mtLastLots = v;
+  mtCalc();
+}
+function mtCalc(){
   const sym=pickVal.manual || S.pair, dir=$('mtDir').value, entry=+$('mtEntry').value, lots=+$('mtLots').value||0.01;
   const slD=+$('mtSl').value||0, tpD=+$('mtTp').value||0;
   if(!entry){ $('mtCalc').textContent='Entry price daalo'; return }
