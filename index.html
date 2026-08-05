@@ -551,6 +551,17 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
   <button class="btn ghost sm" style="margin-bottom:6px" onclick="lastOrderShow()">📄 Aakhri Bheja Order Dekho</button>
   <p class="hint" style="margin-bottom:16px">FXBridgeEA wahi <code>fxbridge/order.json</code> padhta hai. EA khud broker suffix (Exness = "m") lagata hai, isliye yahan sirf XAUUSD bhejo.</p>
 
+  <p class="ttl">Broker Minimum Stops</p>
+  <div class="grid2" style="margin-bottom:6px">
+    <div><label>Pair</label><button class="pick" id="minPairBtn" onclick="openPick('minstop')"></button></div>
+    <div><label>Min pips</label><input class="mono" id="setMinPips" type="number" step="1" oninput="saveMinPips()"></div>
+  </div>
+  <div class="sw" id="swFresh" onclick="toggleSw(this,'freshPx')">
+    <div class="tg"></div>
+    <div>Bhejne se pehle taza price lo<small>1 credit lagta hai, par stale rate se order fail nahi hoga</small></div>
+  </div>
+  <p class="hint" style="margin-bottom:16px">Error 10016 "invalid stops" aaye to us pair ka minimum badha do. Gold pe aksar 50+ pips chahiye hota hai.</p>
+
   <p class="ttl">API Budget</p>
   <div class="grid2" style="margin-bottom:6px">
     <div><label>Daily cap</label><input class="mono" id="setCap" type="number" step="50" value="700"></div>
@@ -679,7 +690,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '4.2.0';
+const VERSION = '4.3.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -813,6 +824,8 @@ let S = {
   fbAuth:LS.get('fbAuth',''),
   mt5Type: LS.get('mt5Type','MARKET'),
   limPips: LS.get('limPips',5),
+  minPips: LS.get('minPips',{}),   /* per-symbol minimum SL/TP distance */
+  freshPx: LS.get('freshPx',true),
   mt5Auto: LS.get('mt5Auto',true),
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
@@ -838,7 +851,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -2343,6 +2356,9 @@ function qtCalc(){
 }
 
 /* MT5 pe jo entry sach me jayegi (limit/stop offset ke baad) */
+function sendPx0(){ return qtSendPrice() }
+function sl0(){ const {lv,sl} = qtCalc(); const sh = qtState.target==='MT5' ? qtSendPrice()-qtState.entry : 0; return sl+sh }
+function tp0(){ const {lv,tp} = qtCalc(); const sh = qtState.target==='MT5' ? qtSendPrice()-qtState.entry : 0; return tp+sh }
 function qtSendPrice(){
   const q = qtState;
   if(q.ordType === 'MARKET') return q.entry;
@@ -2412,6 +2428,15 @@ function drawQuick(){
     <div class="lvls" id="qtLv" style="margin:14px 0 4px"></div>
     <p class="hint" id="qtInfo"></p>
 
+    ${(() => {
+      if(!isMt5) return '';
+      const e = checkStops(sym, q.dir, sendPx0(), sl0(), tp0());
+      return e.length ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.1);border-radius:6px;padding:11px;margin:12px 0">
+        <b style="color:var(--dn);font-size:11px;letter-spacing:1px">⚠ BROKER MANA KAR DEGA</b>
+        <p class="hint" style="color:#f99;margin:5px 0 0">${e.join('<br>')}<br><br>
+        ${SPECS[sym].n} pe kam se kam <b>${minStop(sym)} pips</b> chahiye.
+        TP/SL dollar value badhao, ya Settings me is pair ka minimum theek karo.</p></div>` : '';
+    })()}
     ${lv.clamped ? `<div style="border:1px solid var(--dn);background:rgba(242,84,91,.08);border-radius:10px;padding:11px;margin:10px 0">
       <b style="color:var(--dn);font-size:12px">⚠ Risk target se bahar</b>
       <p class="hint" style="color:var(--dn);margin:5px 0 0">Is SL ke liye <b>${lv.clamped.toFixed(3)} lot</b> chahiye tha, par broker ka minimum <b>0.01</b> hai.
@@ -2857,6 +2882,27 @@ function fbEndpoint(){
   return u + '/fxbridge/order.json' + (S.fbAuth ? '?auth=' + encodeURIComponent(S.fbAuth) : '');
 }
 
+/* broker ka minimum stop distance — pips me. Default suraksha ke liye rakha hai */
+const MIN_DEF = {'XAU/USD':50, 'BTC/USD':300, 'ETH/USD':100};
+function minStop(sym){
+  if(S.minPips[sym] !== undefined) return S.minPips[sym];
+  return MIN_DEF[sym] !== undefined ? MIN_DEF[sym] : 12;
+}
+
+/* SL/TP sahi taraf hain aur kaafi door hain? */
+function checkStops(sym, dir, entry, sl, tp){
+  const pip = SPECS[sym].pip, min = minStop(sym) * pip;
+  const up = dir === 'BUY';
+  const slD = up ? entry - sl : sl - entry;
+  const tpD = up ? tp - entry : entry - tp;
+  const err = [];
+  if(slD <= 0) err.push(`SL galat taraf hai — ${up?'BUY me SL entry se neeche':'SELL me SL entry se upar'} honi chahiye`);
+  else if(slD < min) err.push(`SL sirf ${(slD/pip).toFixed(1)} pips door hai, broker ko kam se kam ~${minStop(sym)} chahiye`);
+  if(tpD <= 0) err.push(`TP galat taraf hai — ${up?'BUY me TP entry se upar':'SELL me TP entry se neeche'} honi chahiye`);
+  else if(tpD < min) err.push(`TP sirf ${(tpD/pip).toFixed(1)} pips door hai, broker ko kam se kam ~${minStop(sym)} chahiye`);
+  return err;
+}
+
 function mt5Payload(sym, dir, lots, entry, sl, tp, kind){
   const d = SPECS[sym].d;
   const mode = kind || S.mt5Type;             /* MARKET | LIMIT | STOP */
@@ -2878,6 +2924,30 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
     return false;
   }
   const mode = kind || S.mt5Type;
+
+  /* MARKET order: taza price lo, warna stale rate se SL/TP galat taraf ja sakti hai */
+  if(mode === 'MARKET' && S.freshPx && S.key && !S.day.blocked){
+    try{
+      const fresh = await getPrice(sym);
+      if(fresh && isFinite(fresh)){
+        const drift = Math.abs(fresh - entry) / SPECS[sym].pip;
+        if(drift > 0.5){
+          const shift = fresh - entry;
+          entry += shift; sl += shift; tp += shift;
+          if(!silent && drift > 3) toast(`Price ${drift.toFixed(0)} pips badal gaya — levels adjust kar diye`);
+        }
+      }
+    }catch(e){}
+  }
+
+  /* SL/TP sahi hain? — 10016 se pehle hi pakdo */
+  const bad = checkStops(sym, dir, entry, sl, tp);
+  if(bad.length){
+    const msg = bad.join('\n');
+    logAdd('MT5 roka gaya: ' + bad[0]);
+    if(!silent) alert(`MT5 pe nahi bheja —\n\n${msg}\n\nSettings me is pair ka TP/SL bada karo.`);
+    return false;
+  }
   /* LIMIT: entry ko live price se thoda door karo, warna MT5 reject karega.
      SL/TP bhi utna hi shift hote hain, isliye $ risk bilkul same rehta hai. */
   if(mode === 'LIMIT' || mode === 'STOP'){
@@ -3359,7 +3429,7 @@ function wipeAll(){
 /* ---------------- boot ---------------- */
 /* ---- custom pair picker ---- */
 let pickCtx = 'main';
-const pickVal = {main:null, manual:null, corr:null};
+const pickVal = {main:null, manual:null, corr:null, minstop:null};
 
 function pickLabel(el, sym){
   if(!el) return;
@@ -3373,11 +3443,15 @@ function fillPairs(){
   pickLabel($('selPair'), pickVal.main);
   pickLabel($('mtPair'), pickVal.manual);
   pickLabel($('corrPair'), pickVal.corr);
+  pickVal.minstop = pickVal.minstop || 'XAU/USD';
+  pickLabel($('minPairBtn'), pickVal.minstop);
 }
 
 function openPick(ctx){
   pickCtx = ctx;
-  $('pickTitle').textContent = ctx==='manual' ? 'Manual Trade — Pair' : ctx==='corr' ? 'Correlation — Base Pair' : 'Pair Chuno';
+  $('pickTitle').textContent = ctx==='manual' ? 'Manual Trade — Pair'
+    : ctx==='corr' ? 'Correlation — Base Pair'
+    : ctx==='minstop' ? 'Minimum Stops — Pair' : 'Pair Chuno';
   $('pickSearch').value = '';
   drawPick();
   openSheet('pickSheet');
@@ -3414,6 +3488,9 @@ function choosePick(sym){
     const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p) || refPrice(sym);
     $('mtEntry').value = fmt(sym, px);
     mtCalc();
+  } else if(pickCtx === 'minstop'){
+    pickLabel($('minPairBtn'), sym);
+    $('setMinPips').value = minStop(sym);
   } else {
     pickLabel($('corrPair'), sym); renderCorrBrowser();
   }
@@ -3442,6 +3519,11 @@ async function apiTest(){
   box.textContent = out;
 }
 
+function saveMinPips(){
+  const sym = pickVal.minstop || 'XAU/USD';
+  const v = +$('setMinPips').value;
+  if(isFinite(v) && v >= 0){ S.minPips[sym] = v; save() }
+}
 function unlockAll(){
   S.bad = []; save(); fillPairs(); toast('Locked pairs reset ho gaye — dobara try karo');
 }
@@ -3491,6 +3573,8 @@ function boot(){
   $('setMode').value = S.slMode; $('setAtrSL').value = S.atrSL;
   $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
   $('swAutoLot').classList.toggle('on', S.autoLot);
+  $('swFresh').classList.toggle('on', S.freshPx);
+  $('setMinPips').value = minStop(pickVal.minstop || 'XAU/USD');
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
   $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode();
   if($('verMode')) $('verMode').textContent = S.mt5Type;
