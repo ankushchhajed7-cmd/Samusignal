@@ -695,7 +695,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '4.4.1';
+const VERSION = '4.4.2';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2864,6 +2864,7 @@ async function forceUpdate(){
       const keys = await caches.keys();
       for(const k of keys) await caches.delete(k);
     }
+    try{ localStorage.removeItem('samu_swver') }catch(e){}
   }catch(e){}
   location.replace(location.pathname + '?v=' + Date.now());
 }
@@ -3718,9 +3719,36 @@ $('btnInstall').onclick = async () => {
 window.addEventListener('appinstalled', ()=> toast('SamuSignal install ho gaya'));
 
 /* ---------------- service worker (relative scope — 404 fix) ---------------- */
+/* Page khud purana cache saaf karta hai — sw.js purani ho to bhi.
+   index.html hamesha naya aata hai, isliye ye jaal se bahar nikal aata hai. */
+const CACHE_TAG = 'samusignal-v' + VERSION.replace(/\./g,'-');
+
+async function purgeOldCaches(){
+  if(!window.caches) return 0;
+  let killed = 0;
+  try{
+    for(const k of await caches.keys()){
+      if(k !== CACHE_TAG){ await caches.delete(k); killed++ }
+    }
+  }catch(e){}
+  return killed;
+}
+
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(()=>{});
+  window.addEventListener('load', async () => {
+    const killed = await purgeOldCaches();   /* pehle purana kachra hatao */
+    try{
+      const reg = await navigator.serviceWorker.register('./sw.js', {scope:'./', updateViaCache:'none'});
+      reg.update().catch(()=>{});
+      setInterval(() => reg.update().catch(()=>{}), 10*60000);
+    }catch(e){}
+    if(killed) console.log('[SamuSignal] purane cache hatae:', killed);
+  });
+  /* naya SW aane pe ek hi baar reload */
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(reloaded) return; reloaded = true;
+    location.reload();
   });
 }
 

@@ -1,5 +1,5 @@
 /* SamuSignal service worker — network first, offline fallback */
-const CACHE = 'samusignal-v2-9-0';
+const CACHE = 'samusignal-v4-4-2';
 const SHELL = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const SHELL = [
   './icon-512.png'
 ];
 
+/* v4.4.2 — cache name VERSION se juda hai, isliye har release pe purana khud hat jaata hai */
 self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(
