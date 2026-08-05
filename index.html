@@ -418,6 +418,31 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
     <p class="ttl">Signal History <span class="sp" id="sigT">—</span></p>
     <div id="sigBox"></div>
   </div>
+  <div class="card">
+    <p class="ttl">Agent Backtest <span class="sp" id="btT">—</span></p>
+    <div class="grid2" style="margin-bottom:10px">
+      <div><label>Pair</label><button class="pick" id="btPair" onclick="openPick('bt')"></button></div>
+      <div><label>Candles</label><select id="btBars">
+        <option value="800">800 (~1 credit)</option>
+        <option value="1500">1500</option>
+        <option value="3000">3000</option>
+      </select></div>
+    </div>
+    <div style="margin-bottom:10px"><label>Aage kitni candles tak dekhe</label><select id="btFwd">
+      <option value="12">12 candles</option>
+      <option value="24">24 candles</option>
+      <option value="48">48 candles</option>
+    </select></div>
+    <button class="btn gold" id="btnBt" onclick="runBacktest()">BACKTEST CHALAO</button>
+    <p class="hint">Timeframe wahi chalega jo Signals page pe chuna hai (abhi <b id="btTf">—</b>). Ek pair = 1 credit.</p>
+    <div id="btOut" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Live Agent Record <span class="sp"><button style="color:var(--dn);font-size:10px;font-weight:700" onclick="resetAgLive()">RESET</button></span></p>
+    <div id="agLiveOut"></div>
+  </div>
+
   <div class="card" id="voteListCard">
     <p class="ttl">50 Agents <span class="sp" id="voteFilt">sab</span></p>
     <div class="chips" id="voteChips" style="margin-bottom:12px"></div>
@@ -696,7 +721,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '4.6.0';
+const VERSION = '5.0.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -836,7 +861,11 @@ let S = {
   minPips: LS.get('minPips',{}),
   symMap: LS.get('symMap',{}),
   symDef: LS.get('symDef',{}),
-  mt5sent: LS.get('mt5sent',{}),   /* per-symbol minimum SL/TP distance */
+  mt5sent: LS.get('mt5sent',{}),
+  agLive: LS.get('agLive',{}),      /* live: agent index -> {n,w,l} */
+  bt:     LS.get('bt',null),        /* backtest result */
+  btBars: LS.get('btBars',1500),
+  btFwd:  LS.get('btFwd',24),   /* per-symbol minimum SL/TP distance */
   freshPx: LS.get('freshPx',true),
   mt5Auto: LS.get('mt5Auto',true),
   dLot:  LS.get('dLot',0.01),
@@ -863,7 +892,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -947,7 +976,8 @@ function go(pg,btn){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
   if(pg==='Scan') renderScan();
-  if(pg==='Votes'){ renderVotes(); renderSigHist() }
+  if(pg==='Votes'){ renderVotes(); renderSigHist(); renderBt(); renderAgLive();
+    $('btTf').textContent = S.tf; $('btT').innerHTML = S.bt ? `<span data-ago="${S.bt.at}">${ago(S.bt.at)}</span>` : '—' }
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
   if(pg==='Alerts') renderLog();
@@ -1972,6 +2002,7 @@ function logSignal(sig, v, an){
     q:sig.q, grade:sig.grade, entry:sig.live, sl:sig.sl, tp:sig.tp,
     slD:sig.slD, tpD:sig.tpD,
     vote: v ? {b:v.buy, s:v.sell, h:v.hold, verdict:v.verdict, conf:v.conf} : null,
+    vstr: v ? v.list.map(x => x.v[0]).join('') : '',   /* B/S/H x50 */
     an: an ? {pct:an.pct, verdict:an.verdict} : null,
     out:'OPEN', pl:0
   });
@@ -1987,11 +2018,33 @@ function scoreSignals(q){
     const p = d.p;
     const hitTP = g.dir==='BUY' ? p >= g.tp : p <= g.tp;
     const hitSL = g.dir==='BUY' ? p <= g.sl : p >= g.sl;
-    if(hitTP){ g.out='TP'; g.pl=+g.tpD; g.closedAt=Date.now(); changed=true }
-    else if(hitSL){ g.out='SL'; g.pl=-g.slD; g.closedAt=Date.now(); changed=true }
+    if(hitTP){ g.out='TP'; g.pl=+g.tpD; g.closedAt=Date.now(); changed=true; agScore(g, true) }
+    else if(hitSL){ g.out='SL'; g.pl=-g.slD; g.closedAt=Date.now(); changed=true; agScore(g, false) }
     else if(Date.now() - g.at > 48*3600000){ g.out='EXPIRED'; g.closedAt=Date.now(); changed=true }
   });
   if(changed){ save(); if(!$('pgVotes').classList.contains('hide')) renderSigHist() }
+}
+
+/* jab signal ka nateeja aaye, har agent ko sahi/galat do */
+function agScore(g, won){
+  if(!g.vstr || g.vstr.length !== AGENTS.length || g.scored) return;
+  const want = g.dir[0];                       /* B ya S */
+  for(let i = 0; i < AGENTS.length; i++){
+    const v = g.vstr[i];
+    if(v === 'H') continue;                    /* HOLD = koi rai nahi */
+    const agreed = (v === want);
+    const right = agreed ? won : !won;         /* ulta bola aur trade haari -> agent sahi tha */
+    const a = S.agLive[i] || (S.agLive[i] = {n:0, w:0});
+    a.n++; if(right) a.w++;
+  }
+  g.scored = true; save();
+}
+
+function agLiveRows(){
+  return AGENTS.map((a,i) => {
+    const d = S.agLive[i] || {n:0,w:0};
+    return {i, n:a.n, g:a.g, votes:d.n, wr: d.n ? Math.round(d.w/d.n*100) : null};
+  }).filter(x => x.votes > 0).sort((a,b) => b.wr - a.wr);
 }
 
 function gradeStats(){
@@ -2052,6 +2105,191 @@ function renderSigHist(){
           : `<div class="amt mono ${g.pl>=0?'up':'dn'}">${money(g.pl)}</div>`}
       </div>`;
     }).join('')}`;
+}
+
+/* ================= BACKTEST =================
+   Purane candles pe 50 agents chalao, aage dekh ke nateeja nikalo.
+   Ek pair = 1 API credit, hazaron samples. */
+
+let btBusy = false;
+
+async function runBacktest(){
+  if(needKey()) return;
+  if(btBusy) return;
+  const sym = pickVal.bt || S.pair;
+  if(isBad(sym)){ toast('Ye pair plan me nahi hai'); return }
+
+  btBusy = true;
+  const btn = $('btnBt');
+  btn.innerHTML = '<span class="spin"></span> Candles la raha hoon...';
+  let bars;
+  try{
+    bars = await getSeries(sym, S.tf, S.btBars, sec => btn.textContent = `⏳ ${sec}s`);
+  }catch(e){
+    toast(e.message); btn.textContent = 'BACKTEST CHALAO'; btBusy = false; return;
+  }
+  if(bars.length < 400){
+    toast(`Sirf ${bars.length} candles mile — kam se kam 400 chahiye`);
+    btn.textContent = 'BACKTEST CHALAO'; btBusy = false; return;
+  }
+
+  const WIN = 220;                 /* har sample me itni history */
+  const STEP = 3;                  /* har 3rd candle — samples kam, speed zyada */
+  const FWD = S.btFwd;             /* itni candles aage tak nateeja dhoondo */
+  const tally = AGENTS.map(() => ({n:0, w:0, l:0}));
+  const conf = {};                 /* consensus bucket -> {n,w} */
+  let samples = 0, holds = 0, tp = 0, sl = 0, none = 0;
+  const first = WIN, lastIdx = bars.length - FWD - 1;
+
+  /* chunk me chalao taaki app hang na ho */
+  for(let i = first; i <= lastIdx; i += STEP){
+    const hist = bars.slice(i - WIN, i + 1);
+    const px = hist[hist.length-1].c;
+    const a = last(atr(hist, 14));
+    if(!a || !isFinite(a)) continue;
+
+    const slD = S.atrSL * a, tpD = slD * S.atrRR;
+    const v = runAgents(hist, {}, px);        /* HTF agents HOLD denge — theek hai */
+    samples++;
+    if(v.verdict === 'HOLD'){ holds++ }
+
+    /* aage dekho: BUY aur SELL dono ke liye nateeja */
+    const fwd = bars.slice(i+1, i+1+FWD);
+    const out = dir => {
+      const up = dir === 'BUY';
+      const T = up ? px + tpD : px - tpD;
+      const L = up ? px - slD : px + slD;
+      for(const k of fwd){
+        const hitT = up ? k.h >= T : k.l <= T;
+        const hitL = up ? k.l <= L : k.h >= L;
+        if(hitT && hitL) return 'SL';         /* dono same candle -> maan lo SL (safe) */
+        if(hitT) return 'TP';
+        if(hitL) return 'SL';
+      }
+      return 'NONE';
+    };
+    const oB = out('BUY'), oS = out('SELL');
+
+    v.list.forEach((x, idx) => {
+      if(x.v === 'H') return;
+      const r = x.v === 'BUY' ? oB : oS;
+      if(r === 'NONE'){ return }
+      tally[idx].n++;
+      if(r === 'TP') tally[idx].w++; else tally[idx].l++;
+    });
+
+    if(v.verdict !== 'HOLD'){
+      const r = v.verdict === 'BUY' ? oB : oS;
+      if(r === 'TP') tp++; else if(r === 'SL') sl++; else none++;
+      const b = v.conf >= 70 ? '70+' : v.conf >= 60 ? '60-69' : v.conf >= 50 ? '50-59' : '<50';
+      conf[b] = conf[b] || {n:0, w:0};
+      if(r !== 'NONE'){ conf[b].n++; if(r === 'TP') conf[b].w++ }
+    }
+
+    if(samples % 40 === 0){
+      btn.innerHTML = `<span class="spin"></span> ${Math.round((i-first)/(lastIdx-first)*100)}%`;
+      await new Promise(r => setTimeout(r, 0));   /* UI ko saans do */
+    }
+  }
+
+  const rows = AGENTS.map((a, i) => ({
+    i, name:a.n, grp:a.g, n:tally[i].n,
+    wr: tally[i].n ? Math.round(tally[i].w / tally[i].n * 100) : 0
+  })).filter(r => r.n >= 20).sort((a,b) => b.wr - a.wr);
+
+  const beWR = 100 / (1 + S.atrRR);            /* barabar rehne ki zaroorat */
+  S.bt = {
+    at: Date.now(), sym, tf: S.tf, bars: bars.length, samples,
+    holdPct: samples ? Math.round(holds/samples*100) : 0,
+    tp, sl, none, beWR: +beWR.toFixed(1),
+    rr: S.atrRR, slMult: S.atrSL, fwd: FWD,
+    conf: Object.entries(conf).map(([k,z]) => ({k, n:z.n, wr: z.n?Math.round(z.w/z.n*100):0})),
+    rows
+  };
+  save();
+  btn.textContent = 'BACKTEST CHALAO';
+  btBusy = false;
+  renderBt();
+  toast(`${samples} samples · ${rows.length} agents ka score aa gaya`);
+}
+
+function renderBt(){
+  const b = S.bt;
+  if(!b){
+    $('btOut').innerHTML = '<div class="empty"><div>🔬</div>Backtest nahi chala.<br>Pair chuno aur BACKTEST CHALAO dabao.<br><br><span style="font-size:11px">Ek pair = 1 API credit = hazaron samples.</span></div>';
+    return;
+  }
+  const total = b.tp + b.sl;
+  const wr = total ? Math.round(b.tp/total*100) : 0;
+  const edge = wr - b.beWR;
+  const good = b.rows.filter(r => r.wr >= b.beWR + 3);
+  const bad  = b.rows.filter(r => r.wr <= b.beWR - 3);
+
+  $('btOut').innerHTML = `
+    <div class="perf">
+      <div class="pb"><b>${b.samples}</b><span>SAMPLES</span><em>${b.bars} candles</em></div>
+      <div class="pb"><b class="${wr>=b.beWR?'up':'dn'}">${wr}%</b><span>CONSENSUS WR</span><em>chahiye ${b.beWR}%</em></div>
+      <div class="pb"><b class="${edge>=0?'up':'dn'}">${edge>=0?'+':''}${edge.toFixed(1)}</b><span>EDGE</span><em>points</em></div>
+    </div>
+    <div class="perf">
+      <div class="pb"><b class="up">${b.tp}</b><span>TP FIRST</span></div>
+      <div class="pb"><b class="dn">${b.sl}</b><span>SL FIRST</span></div>
+      <div class="pb"><b style="color:var(--gold)">${b.holdPct}%</b><span>HOLD/RANGE</span></div>
+    </div>
+    <p class="hint">${SPECS[b.sym].n} · ${b.tf} · SL ${b.slMult}×ATR, TP ${b.rr}×SL, ${b.fwd} candles tak dekha.
+      ${b.holdPct > 45 ? `<br><span style="color:var(--gold)">⚠ ${b.holdPct}% waqt agents HOLD pe the — ye pair kaafi range me rehta hai.</span>` : ''}</p>
+
+    ${b.conf.length ? `<p class="ttl" style="margin:16px 0 8px">Consensus Wise</p>
+    <table><thead><tr><th>Consensus</th><th style="text-align:right">Trades</th><th style="text-align:right">Win%</th><th style="text-align:right">Edge</th></tr></thead>
+    <tbody>${b.conf.sort((x,y)=>y.k.localeCompare(x.k)).map(c => `<tr>
+      <td class="mono"><b>${c.k}</b></td><td class="mono" style="text-align:right">${c.n}</td>
+      <td class="mono ${c.wr>=b.beWR?'up':'dn'}" style="text-align:right">${c.wr}%</td>
+      <td class="mono ${c.wr-b.beWR>=0?'up':'dn'}" style="text-align:right">${(c.wr-b.beWR).toFixed(0)}</td>
+    </tr>`).join('')}</tbody></table>
+    <p class="hint">Zyada consensus pe win rate badhta hai to voting sach me kaam kar rahi hai.</p>` : ''}
+
+    <p class="ttl" style="margin:16px 0 8px">Agent Scorecard <span class="sp">${b.rows.length} agents</span></p>
+    <p class="hint" style="margin:0 0 10px">Hara = ${b.beWR}% se upar (paisa banata hai) · Laal = neeche (nuksan)</p>
+    ${b.rows.map(r => {
+      const e = r.wr - b.beWR;
+      const col = e >= 3 ? 'var(--up)' : e <= -3 ? 'var(--dn)' : 'var(--gold)';
+      return `<div class="strrow">
+        <b style="width:132px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</b>
+        <div class="t"><i style="width:${Math.min(100,r.wr)}%;background:${col}"></i></div>
+        <span class="mono" style="width:52px;color:${col}">${r.wr}% <small style="opacity:.6">${r.n}</small></span>
+      </div>`;
+    }).join('')}
+
+    <div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-top:12px">
+      <b style="color:var(--gold);font-size:10px;letter-spacing:1.5px">NATEEJA</b>
+      <p class="hint" style="margin-top:5px">
+        <b class="up">${good.length} agents</b> breakeven se upar hain, <b class="dn">${bad.length}</b> neeche.
+        ${bad.length ? `<br><br>Sabse kamzor: ${bad.slice(-4).map(x=>x.name).join(', ')}.` : ''}
+        ${good.length ? `<br><br>Sabse achhe: ${good.slice(0,4).map(x=>x.name+' ('+x.wr+'%)').join(', ')}.` : ''}
+        <br><br><span style="color:var(--gold)">Dhyan rakho:</span> ye ek pair ka ek timeframe hai.
+        Faisla lene se pehle 3-4 pair pe chala ke dekho — jo agent har jagah kamzor ho, wahi sach me bekaar hai.
+      </p>
+    </div>`;
+}
+
+function renderAgLive(){
+  const rows = agLiveRows();
+  const el = $('agLiveOut'); if(!el) return;
+  if(!rows.length){
+    el.innerHTML = '<p class="hint">Abhi koi scored signal nahi. Signal TP/SL pe band hone lagenge tab har agent ka live record yahan banega.</p>';
+    return;
+  }
+  const be = 100 / (1 + S.dTp/S.dSl);
+  el.innerHTML = `<p class="hint" style="margin:0 0 10px">Live signals se — barabar rehne ko ${be.toFixed(0)}% chahiye</p>` +
+    rows.map(r => {
+      const col = r.wr >= be+3 ? 'var(--up)' : r.wr <= be-3 ? 'var(--dn)' : 'var(--gold)';
+      return `<div class="strrow">
+        <b style="width:132px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.n}</b>
+        <div class="t"><i style="width:${Math.min(100,r.wr)}%;background:${col}"></i></div>
+        <span class="mono" style="width:52px;color:${col}">${r.wr}% <small style="opacity:.6">${r.votes}</small></span>
+      </div>`;
+    }).join('') +
+    `<p class="hint">${rows[0].votes < 30 ? '⚠ Abhi data kam hai — 200+ votes ke baad hi ye numbers bharose layak honge.' : ''}</p>`;
 }
 
 /* ================= LEVEL CHART (apna canvas) ================= */
@@ -3652,7 +3890,7 @@ function wipeAll(){
 /* ---------------- boot ---------------- */
 /* ---- custom pair picker ---- */
 let pickCtx = 'main';
-const pickVal = {main:null, manual:null, corr:null, minstop:null};
+const pickVal = {main:null, manual:null, corr:null, minstop:null, bt:null};
 
 function pickLabel(el, sym){
   if(!el) return;
@@ -3668,13 +3906,16 @@ function fillPairs(){
   pickLabel($('corrPair'), pickVal.corr);
   pickVal.minstop = pickVal.minstop || 'XAU/USD';
   pickLabel($('minPairBtn'), pickVal.minstop);
+  pickVal.bt = pickVal.bt || S.pair;
+  pickLabel($('btPair'), pickVal.bt);
 }
 
 function openPick(ctx){
   pickCtx = ctx;
   $('pickTitle').textContent = ctx==='manual' ? 'Manual Trade — Pair'
     : ctx==='corr' ? 'Correlation — Base Pair'
-    : ctx==='minstop' ? 'Minimum Stops — Pair' : 'Pair Chuno';
+    : ctx==='minstop' ? 'Minimum Stops — Pair'
+    : ctx==='bt' ? 'Backtest — Pair' : 'Pair Chuno';
   $('pickSearch').value = '';
   drawPick();
   openSheet('pickSheet');
@@ -3712,6 +3953,8 @@ function choosePick(sym){
     const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p) || refPrice(sym);
     $('mtEntry').value = fmt(sym, px);
     mtCalc();
+  } else if(pickCtx === 'bt'){
+    pickLabel($('btPair'), sym);
   } else if(pickCtx === 'minstop'){
     pickLabel($('minPairBtn'), sym);
     loadPairDef(sym);
@@ -3780,6 +4023,10 @@ function pairDefNote(){
     (custom ? '<br><span style="color:var(--gold)">Custom set hai</span>'
             : (DEF_TPSL[sym] ? '<br><span style="color:var(--gold)">Is pair ka apna built-in default</span>' : ''));
 }
+function resetAgLive(){
+  if(!confirm('Live agent record delete kar dein?')) return;
+  S.agLive = {}; S.sigs.forEach(g => delete g.scored); save(); renderAgLive(); toast('Live record saaf');
+}
 function unlockAll(){
   S.bad = []; save(); fillPairs(); toast('Locked pairs reset ho gaye — dobara try karo');
 }
@@ -3818,6 +4065,9 @@ function boot(){
 
   $('swHtf').classList.toggle('on', S.htf);
   $('swNews').classList.toggle('on', S.newsOn);
+  $('btBars').value = S.btBars; $('btFwd').value = S.btFwd;
+  $('btBars').onchange = e => { S.btBars = +e.target.value; save() };
+  $('btFwd').onchange  = e => { S.btFwd  = +e.target.value; save() };
   $('scanMin').onchange = e => { S.scanMin = +e.target.value; save(); drawScanRows(); renderScan() };
   $('scanDeep').onchange = e => { S.scanDeep = e.target.value === '1'; save(); renderScan() };
   renderScan();
