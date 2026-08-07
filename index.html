@@ -746,7 +746,11 @@ body.t-navy{
     <div class="tg"></div>
     <div>Analyze ke baad khud chalao<small>Har analysis pe ek AI call — quota dekhte rehna</small></div>
   </div>
-  <p class="hint" style="margin-bottom:16px">Free key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> — free tier me roz kaafi calls milte hain.
+  <div class="grid2" style="margin-bottom:8px">
+    <button class="btn ghost sm" onclick="gShowModels()">🔍 MODELS DEKHO</button>
+    <button class="btn ghost sm" onclick="gReset()">↺ RESET</button>
+  </div>
+  <p class="hint" style="margin-bottom:16px">Free key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>
     <span id="gModelNote"></span></p>
 
   <p class="ttl">MT5 Bridge</p>
@@ -916,7 +920,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '6.0.0';
+const VERSION = '6.0.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1079,6 +1083,7 @@ let S = {
   theme: LS.get('theme','terminal'),
   gKey:  LS.get('gKey',''),
   gModel: LS.get('gModel',''),
+  gBad: LS.get('gBad',[]),
   gAuto: LS.get('gAuto',false),
   cloud: LS.get('cloud',true),
   cloudId: LS.get('cloudId',''),
@@ -1094,7 +1099,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -1264,29 +1269,42 @@ async function renderCloud(){
 /* ================= AI EXPLAIN (Gemini) =================
    Screenshot nahi — asli numbers bhejte hain, isliye guess-work zero. */
 const G_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const G_MODELS = ['gemini-2.0-flash','gemini-2.5-flash','gemini-1.5-flash','gemini-flash-latest'];
+const G_MODELS = [
+  'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash',
+  'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'
+];
 
-async function gPickModel(){
-  if(S.gModel) return S.gModel;
+let gAvail = null;
+async function gList(){
+  if(gAvail) return gAvail;
   try{
     const r = await fetch(`${G_BASE}/models?key=${encodeURIComponent(S.gKey)}`);
     if(r.ok){
       const j = await r.json();
-      const names = (j.models||[])
+      gAvail = (j.models||[])
         .filter(m => (m.supportedGenerationMethods||[]).includes('generateContent'))
         .map(m => m.name.replace('models/',''));
-      const pick = G_MODELS.find(w => names.includes(w)) ||
-                   names.find(n => /flash/.test(n)) || names[0];
-      if(pick){ S.gModel = pick; save(); return pick }
     }
   }catch(e){}
-  S.gModel = G_MODELS[0]; save();
-  return S.gModel;
+  return gAvail || [];
+}
+/* jo model chal sakte hain, pasand ke kram me */
+async function gCandidates(){
+  const names = await gList();
+  const bad = S.gBad || [];
+  const pool = names.length ? names : G_MODELS;
+  const pref = G_MODELS.filter(m => pool.includes(m));
+  const rest = pool.filter(m => /flash|lite/.test(m) && !pref.includes(m));
+  return [...pref, ...rest].filter(m => !bad.includes(m));
+}
+function gMarkBad(m){
+  if(!m) return;
+  S.gBad = [...new Set([...(S.gBad||[]), m])];
+  if(S.gModel === m) S.gModel = '';
+  save();
 }
 
-async function gAsk(prompt){
-  if(!S.gKey) throw new Error('Settings me Gemini API key daalo');
-  const model = await gPickModel();
+async function gOnce(model, prompt){
   const r = await fetch(`${G_BASE}/models/${model}:generateContent?key=${encodeURIComponent(S.gKey)}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
@@ -1295,16 +1313,63 @@ async function gAsk(prompt){
     })
   });
   if(!r.ok){
-    let why = 'HTTP ' + r.status;
-    try{ const j = await r.json(); if(j.error && j.error.message) why = j.error.message }catch(e){}
-    if(r.status === 400 || r.status === 404){ S.gModel = ''; save() }   /* model badal do */
-    throw new Error(why);
+    let msg = '', retry = 0;
+    try{
+      const j = await r.json();
+      msg = (j.error && j.error.message) || '';
+      const m = /retry in ([\d.]+)s/i.exec(msg);
+      if(m) retry = Math.ceil(+m[1]);
+    }catch(e){}
+    const e = new Error(msg || ('HTTP ' + r.status));
+    e.code = r.status;
+    e.retry = retry;
+    /* limit: 0 = ye model is key pe hai hi nahi */
+    e.dead = r.status === 404 || r.status === 400 || /limit:\s*0/.test(msg);
+    throw e;
   }
   const j = await r.json();
   const txt = (((j.candidates||[])[0]||{}).content||{}).parts?.[0]?.text || '';
   if(!txt) throw new Error('Khaali jawab aaya');
   try{ return JSON.parse(txt.replace(/```json|```/g,'').trim()) }
   catch(e){ throw new Error('Jawab samajh nahi aaya') }
+}
+
+async function gAsk(prompt, onNote){
+  if(!S.gKey) throw new Error('Settings me Gemini API key daalo');
+  let list = await gCandidates();
+  if(S.gModel && !list.includes(S.gModel)) S.gModel = '';
+  if(S.gModel) list = [S.gModel, ...list.filter(m => m !== S.gModel)];
+  if(!list.length){
+    S.gBad = []; save();
+    throw new Error('Koi model nahi chala. Key check karo ya thodi der baad try karo.');
+  }
+  let lastErr = null, waited = 0;
+  for(const model of list){
+    try{
+      if(onNote) onNote(model);
+      const out = await gOnce(model, prompt);
+      S.gModel = model; save();
+      return out;
+    }catch(e){
+      lastErr = e;
+      if(e.dead){ gMarkBad(model); continue }              /* model hai hi nahi -> agla */
+      if(e.code === 429){
+        if(e.retry && e.retry <= 30 && !waited){           /* asli rate limit -> ek baar ruko */
+          waited = 1;
+          if(onNote) onNote(model, e.retry);
+          await new Promise(r => setTimeout(r, e.retry * 1000 + 500));
+          try{ const out = await gOnce(model, prompt); S.gModel = model; save(); return out }
+          catch(e2){ lastErr = e2 }
+        }
+        continue;                                          /* doosra model try karo */
+      }
+      throw e;
+    }
+  }
+  const m = /quota|limit/i.test(lastErr && lastErr.message || '')
+    ? 'Aaj ka Gemini quota khatam — kal reset hoga. Ya aistudio.google.com pe naya key banao.'
+    : (lastErr && lastErr.message) || 'AI nahi chala';
+  throw new Error(m);
 }
 
 /* signal ka poora data -> prompt */
@@ -1378,15 +1443,39 @@ async function runAI(){
   $('aiBox').innerHTML = `<div class="sk t"></div><div class="sk"></div><div class="sk s"></div>
     <div class="sk"></div><div class="sk s"></div>`;
   try{
-    const d = await gAsk(aiPrompt());
+    const d = await gAsk(aiPrompt(), (m, wait) => {
+      $('aiBox').innerHTML = `<p class="hint"><span class="spin"></span> ` +
+        (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se pooch raha hoon...`) + `</p>`;
+    });
     lastAI = d; lastAI.sym = lastSignal.sym; lastAI.at = Date.now();
     renderAI();
     if(S.tts) speak(`AI says ${d.verdict}. ${d.reasoning}`);
   }catch(e){
-    $('aiBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}
-      <br><br>Free key yahan se: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>`;
+    const short = String(e.message).split('. For more')[0].split(' * Quota')[0].slice(0,220);
+    $('aiBox').innerHTML = `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.07);border-radius:6px;padding:11px">
+      <b style="color:var(--dn);font-size:10px;letter-spacing:1.2px">AI NAHI CHALA</b>
+      <p class="hint" style="color:#f99;margin:5px 0 0">${short}</p></div>
+      <p class="hint">${(S.gBad||[]).length ? `Ye models is key pe nahi hain: <b class="mono">${S.gBad.join(', ')}</b><br>` : ''}
+      Free key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="gReset()">↺ MODELS DOBARA DHOONDHO</button>`;
   }
   aiBusy = false;
+}
+
+function gReset(){
+  S.gBad = []; S.gModel = ''; gAvail = null; save();
+  toast('Model list reset — dobara try karo');
+  $('aiBox').innerHTML = '<p class="hint">Ab "AI SE SAMJHO" dabao.</p>';
+}
+async function gShowModels(){
+  if(!S.gKey){ toast('Pehle key daalo'); return }
+  gAvail = null;
+  const el = $('gModelNote');
+  el.innerHTML = '<br><span class="spin"></span> dhoondh raha hoon...';
+  const names = await gList();
+  el.innerHTML = names.length
+    ? `<br>Is key pe ${names.length} models: <b class="mono">${names.filter(n=>/flash|lite|pro/.test(n)).slice(0,6).join(', ')}</b>`
+    : '<br><span style="color:var(--dn)">Koi model nahi mila — key check karo</span>';
 }
 
 let lastAI = null;
