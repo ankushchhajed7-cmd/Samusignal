@@ -830,6 +830,7 @@ body.t-navy{
     <div><label>SL ($)</label><input class="mono" id="setSl" type="number" step="0.5" value="2.5" oninput="lotScaleNote()"></div>
     <div><label>Lots</label><input class="mono" id="setLot" type="number" step="0.01" value="0.01"></div>
   </div>
+  <div id="rrWarn"></div>
   <p class="hint" id="lotScaleNote" style="margin-bottom:14px"></p>
   <div class="grid2" style="margin-bottom:8px">
     <button class="btn sm" onclick="saveSettings()">Save Karo</button>
@@ -899,7 +900,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '5.7.2';
+const VERSION = '5.8.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2439,14 +2440,17 @@ function logSignal(sig, v, an){
 }
 
 /* har signal ka nateeja check karo — jo pairs already refresh ho rahe hain, unhi se */
-function scoreSignals(q){
+function scoreSignals(q, bars){
   let changed = false;
   S.sigs.forEach(g => {
     if(g.out !== 'OPEN') return;
     const d = q[g.sym]; if(!d || !d.p) return;
     const p = d.p;
-    const hitTP = g.dir==='BUY' ? p >= g.tp : p <= g.tp;
-    const hitSL = g.dir==='BUY' ? p <= g.sl : p >= g.sl;
+    const bb = (bars && bars[g.sym]) || null;
+    const hi = bb ? Math.max(...bb.map(b=>b.h), p) : p;
+    const lo = bb ? Math.min(...bb.map(b=>b.l), p) : p;
+    const hitTP = g.dir==='BUY' ? hi >= g.tp : lo <= g.tp;
+    const hitSL = g.dir==='BUY' ? lo <= g.sl : hi >= g.sl;
     if(hitTP){ g.out='TP'; g.pl=+g.tpD; g.closedAt=Date.now(); changed=true; agScore(g, true) }
     else if(hitSL){ g.out='SL'; g.pl=-g.slD; g.closedAt=Date.now(); changed=true; agScore(g, false) }
     else if(Date.now() - g.at > 48*3600000){ g.out='EXPIRED'; g.closedAt=Date.now(); changed=true }
@@ -3287,6 +3291,7 @@ function drawQuick(){
     ${barCache[sym] ? levelChartHTML('qtChart') : ''}
     <div class="lvls" id="qtLv" style="margin:14px 0 4px"></div>
     <p class="hint" id="qtInfo"></p>
+    <div id="qtRR"></div>
 
     ${(() => {
       if(!isMt5) return '';
@@ -3344,6 +3349,19 @@ function qtLevels(){
       <small style="display:block;font-size:9px;color:var(--mut)">${lv.tpPips} pips</small></div>`;
 
   const rr = lv.tpD / (lv.slD || 1);
+  const beW = 100/(1+rr);
+  const warnEl = $('qtRR');
+  if(warnEl){
+    warnEl.innerHTML = rr < 1
+      ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:10px;margin-top:10px">
+          <b style="color:var(--dn);font-size:10px;letter-spacing:1.2px">⚠ R:R 1:${rr.toFixed(2)} — ULTA GANIT</b>
+          <p class="hint" style="color:#f99;margin:4px 0 0">Ek SL ${(1/rr).toFixed(1)} TP kha jaata hai.
+          Barabar rehne ke liye <b>${beW.toFixed(0)}%</b> win rate chahiye — spread milaakar aur zyada.
+          TP badhao ya SL chhoti karo.</p></div>`
+      : rr >= 1.5
+      ? `<p class="hint" style="color:var(--up);margin-top:8px">✓ R:R 1:${rr.toFixed(2)} — sirf ${beW.toFixed(0)}% win rate se profit</p>`
+      : `<p class="hint" style="color:var(--gold);margin-top:8px">R:R 1:${rr.toFixed(2)} — ${beW.toFixed(0)}% win rate chahiye</p>`;
+  }
   const typeTxt = isMt5 && q.ordType !== 'MARKET'
     ? ` · ${q.dir}${q.ordType} live se ${S.limPips} pips ${q.ordType==='LIMIT'?'door':'aage'}`
     : '';
@@ -3505,6 +3523,14 @@ function closeTrade(id, reason){
 function closeManualBtn(id){ if(confirm('Ye trade band karna hai?')) closeTrade(id,'MANUAL') }
 
 let lastOpenSync = 0, syncBusy = false;
+
+/* Quote sirf abhi ka rate deta hai — beech me TP chhu ke wapas aaya to miss ho jaata tha.
+   5-min candles ka high/low dekhna utna hi mehnga hai (1 credit) par sach dikhata hai. */
+async function checkTouch(sym, since){
+  const bars = await getSeries(sym, '5min', 60);
+  const from = since || 0;
+  return bars.filter(b => new Date(b.t).getTime() >= from - 300000);
+}
 
 async function refreshOpen(force){
   if(syncBusy) return;
@@ -4414,6 +4440,18 @@ fileIn.addEventListener('change', e=>{
 function lotScaleNote(){
   const el = $('lotScaleNote'); if(!el) return;
   const t = +$('setTp').value || S.dTp, l = +$('setSl').value || S.dSl;
+  const rr = t/l, be = 100/(1+rr);
+  const rrBox = $('rrWarn');
+  if(rrBox){
+    rrBox.innerHTML = rr < 1
+      ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:11px;margin:8px 0">
+          <b style="color:var(--dn);font-size:11px;letter-spacing:1px">⚠ R:R 1:${rr.toFixed(2)}</b>
+          <p class="hint" style="color:#f99;margin:5px 0 0">
+          Barabar rehne ke liye <b>${be.toFixed(0)}%</b> win rate chahiye. Achhe systems 55-65% pe rehte hain.<br><br>
+          Suggestion: TP <b>$${l}</b> (R:R 1:1, ${(100/2).toFixed(0)}% chahiye) ya TP <b>$${(l*1.5).toFixed(1)}</b> (R:R 1:1.5, 40% chahiye).</p></div>`
+      : `<p class="hint" style="color:${rr>=1.5?'var(--up)':'var(--gold)'};margin:6px 0">
+          R:R 1:${rr.toFixed(2)} — ${be.toFixed(0)}% win rate se profit</p>`;
+  }
   const rows = [0.01, 0.02, 0.03, 0.05, 0.10].map(x =>
     `${x.toFixed(2)} → TP <b class="up">$${(t*x/0.01).toFixed(2)}</b> · SL <b class="dn">$${(l*x/0.01).toFixed(2)}</b>`);
   el.innerHTML = rows.join('<br>') +

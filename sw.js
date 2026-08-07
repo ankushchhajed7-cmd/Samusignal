@@ -1,5 +1,5 @@
 /* SamuSignal service worker — network first, offline fallback */
-const CACHE = 'samusignal-v5-7-2';
+const CACHE = 'samusignal-v5-8-0';
 const SHELL = [
   './',
   './index.html',
