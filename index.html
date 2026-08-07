@@ -514,6 +514,12 @@ body.t-navy{
 
   <div class="card" id="cardSignal"></div>
 
+  <div class="card">
+    <p class="ttl">AI Analysis <span class="sp" id="aiT">—</span></p>
+    <div id="aiBox"></div>
+    <button class="btn gold sm" style="margin-top:10px" onclick="runAI()">🤖 AI SE SAMJHO</button>
+  </div>
+
   <div class="card" id="anCard">
     <p class="ttl">Chart Analysis <span class="sp" id="anT">—</span></p>
     <div id="anBox"><p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p></div>
@@ -733,6 +739,16 @@ body.t-navy{
   </div>
   <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
   <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
+  <p class="ttl">AI Analysis</p>
+  <div style="margin-bottom:10px"><label>Gemini API key</label>
+    <input id="setGKey" type="password" placeholder="AIza..."></div>
+  <div class="sw" id="swGAuto" onclick="toggleSw(this,'gAuto')">
+    <div class="tg"></div>
+    <div>Analyze ke baad khud chalao<small>Har analysis pe ek AI call — quota dekhte rehna</small></div>
+  </div>
+  <p class="hint" style="margin-bottom:16px">Free key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> — free tier me roz kaafi calls milte hain.
+    <span id="gModelNote"></span></p>
+
   <p class="ttl">MT5 Bridge</p>
   <div style="margin-bottom:10px"><label>Firebase URL</label>
     <input id="setFb" placeholder="https://xxx-default-rtdb.firebaseio.com"></div>
@@ -900,7 +916,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '5.8.0';
+const VERSION = '6.0.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1061,6 +1077,9 @@ let S = {
   scanMin: LS.get('scanMin',70),
   scan:  LS.get('scan',{at:0,rows:[]}),
   theme: LS.get('theme','terminal'),
+  gKey:  LS.get('gKey',''),
+  gModel: LS.get('gModel',''),
+  gAuto: LS.get('gAuto',false),
   cloud: LS.get('cloud',true),
   cloudId: LS.get('cloudId',''),
   cloudAt: LS.get('cloudAt',0),
@@ -1075,7 +1094,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
@@ -1240,6 +1259,181 @@ async function renderCloud(){
     `<br>Phone pe ${mb} MB use ho raha hai` +
     `<br>Cloud backup: ${S.cloudAt ? dt12(S.cloudAt) : 'abhi tak nahi'}` +
     (S.fbUrl ? '' : '<br><span style="color:var(--dn)">Firebase URL nahi daala — cloud backup band hai</span>');
+}
+
+/* ================= AI EXPLAIN (Gemini) =================
+   Screenshot nahi — asli numbers bhejte hain, isliye guess-work zero. */
+const G_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const G_MODELS = ['gemini-2.0-flash','gemini-2.5-flash','gemini-1.5-flash','gemini-flash-latest'];
+
+async function gPickModel(){
+  if(S.gModel) return S.gModel;
+  try{
+    const r = await fetch(`${G_BASE}/models?key=${encodeURIComponent(S.gKey)}`);
+    if(r.ok){
+      const j = await r.json();
+      const names = (j.models||[])
+        .filter(m => (m.supportedGenerationMethods||[]).includes('generateContent'))
+        .map(m => m.name.replace('models/',''));
+      const pick = G_MODELS.find(w => names.includes(w)) ||
+                   names.find(n => /flash/.test(n)) || names[0];
+      if(pick){ S.gModel = pick; save(); return pick }
+    }
+  }catch(e){}
+  S.gModel = G_MODELS[0]; save();
+  return S.gModel;
+}
+
+async function gAsk(prompt){
+  if(!S.gKey) throw new Error('Settings me Gemini API key daalo');
+  const model = await gPickModel();
+  const r = await fetch(`${G_BASE}/models/${model}:generateContent?key=${encodeURIComponent(S.gKey)}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      contents:[{parts:[{text:prompt}]}],
+      generationConfig:{temperature:0.35, maxOutputTokens:1100, responseMimeType:'application/json'}
+    })
+  });
+  if(!r.ok){
+    let why = 'HTTP ' + r.status;
+    try{ const j = await r.json(); if(j.error && j.error.message) why = j.error.message }catch(e){}
+    if(r.status === 400 || r.status === 404){ S.gModel = ''; save() }   /* model badal do */
+    throw new Error(why);
+  }
+  const j = await r.json();
+  const txt = (((j.candidates||[])[0]||{}).content||{}).parts?.[0]?.text || '';
+  if(!txt) throw new Error('Khaali jawab aaya');
+  try{ return JSON.parse(txt.replace(/```json|```/g,'').trim()) }
+  catch(e){ throw new Error('Jawab samajh nahi aaya') }
+}
+
+/* signal ka poora data -> prompt */
+function aiPrompt(){
+  const s = lastSignal, a = lastAn, v = lastVotes;
+  const c = barCache[s.sym] || [];
+  const cl = c.map(x=>x.c);
+  const P = n => fmt(s.sym, n);
+  const ad = adx(c, 14);
+  const nr = newsRisk(s.sym) || nextNews(s.sym);
+  const grp = {};
+  if(v) v.list.forEach(x => { grp[x.g] = grp[x.g] || {B:0,S:0,H:0}; grp[x.g][x.v[0]]++ });
+
+  return `Tum ek experienced forex trader ho jo dusre trader ko samjha rahe ho.
+Neeche EK ASLI signal ka poora data hai. Isko padhkar imaandari se batao ki ye trade lena chahiye ya nahi.
+
+INSTRUMENT: ${s.sym} (${SPECS[s.sym].n})
+TIMEFRAME: ${s.tf}
+SIGNAL: ${s.dir}, quality ${s.q}% (grade ${s.grade})
+
+LEVELS:
+- Entry ${P(s.live)}
+- SL ${P(s.sl)} = -$${s.slD} (${s.slPips} pips)
+- TP ${P(s.tp)} = +$${s.tpD} (${s.tpPips} pips)
+- Lots ${s.lots}, R:R 1:${(s.tpD/s.slD).toFixed(2)}
+- Barabar rehne ke liye chahiye win rate: ${(100/(1+s.tpD/s.slD)).toFixed(0)}%
+
+INDICATORS (${s.tf}):
+- Price ${P(s.live)}
+- EMA20 ${P(last(ema(cl,20)))}, EMA50 ${P(last(ema(cl,50)))}, EMA200 ${P(last(ema(cl,Math.min(200,cl.length-1))))}
+- RSI(14) ${s.rsi.toFixed(1)}
+- MACD histogram ${last(macdH(cl)).toFixed(6)}
+- ATR(14) ${P(s.atr)} (${(s.atr/SPECS[s.sym].pip).toFixed(1)} pips)
+- ADX ${ad.adx.toFixed(1)} (+DI ${ad.pdi.toFixed(1)} / -DI ${ad.ndi.toFixed(1)})
+- 30-candle range: ${P(ll(c,30))} se ${P(hh(c,30))}
+
+HIGHER TIMEFRAME BIAS: ${s.tfs.map(t=>t.l+' '+t.b).join(', ')}
+${s.htfOk ? '(sab match kar rahe hain)' : '(4H/1D match NAHI kar rahe)'}
+
+50 STRATEGY AGENTS: ${v ? `BUY ${v.buy}, HOLD ${v.hold}, SELL ${v.sell} -> ${v.verdict} (${v.conf}% consensus)
+Category wise: ${Object.entries(grp).map(([g,z])=>`${g} ${z.B}B/${z.S}S/${z.H}H`).join(', ')}` : 'nahi chale'}
+
+RULE-BASED CHECKS: ${a ? a.pct + '% paas. Chinta: ' + (a.bad.length ? a.bad.map(x=>x.h).join(', ') : 'koi nahi') : 'nahi'}
+
+NEWS: ${nr ? `${nr.c} - ${nr.t}, ${t12(nr.d)}${nr.d>Date.now()?` (${Math.round((nr.d-Date.now())/60000)} min baad)`:' (ho chuki)'}` : 'koi high-impact news paas nahi'}
+
+Ab sirf JSON do, is shape me:
+{
+ "verdict": "LE LO" ya "WAIT" ya "CHHOD DO",
+ "confidence": 0-100 number,
+ "reasoning": "2-3 line - is direction ka asli karan, numbers ke saath",
+ "context": "2-3 line - market abhi kya kar raha hai, bade timeframe kya keh rahe hain",
+ "levels": "1-2 line - entry/SL/TP ki jagah sahi hai ya nahi, R:R par imaandar raay",
+ "what_i_would_do": "2-3 line - tum khud kya karte, size aur timing samet",
+ "risks": ["sabse bada risk", "doosra risk", "teesra risk"]
+}
+
+Zaroori:
+- Hinglish me likho (Hindi words, English script) - simple, seedha
+- Number quote karo, gol-mol baat mat karo
+- R:R kharab hai to saaf bolo
+- Cheerleader mat bano - agar setup kamzor hai to CHHOD DO bolo`;
+}
+
+let aiBusy = false;
+async function runAI(){
+  if(!lastSignal){ toast('Pehle analyze karo'); return }
+  if(!S.gKey){ toast('Settings me Gemini API key daalo'); openSheet('setSheet'); return }
+  if(aiBusy) return;
+  aiBusy = true;
+  $('aiBox').innerHTML = `<div class="sk t"></div><div class="sk"></div><div class="sk s"></div>
+    <div class="sk"></div><div class="sk s"></div>`;
+  try{
+    const d = await gAsk(aiPrompt());
+    lastAI = d; lastAI.sym = lastSignal.sym; lastAI.at = Date.now();
+    renderAI();
+    if(S.tts) speak(`AI says ${d.verdict}. ${d.reasoning}`);
+  }catch(e){
+    $('aiBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}
+      <br><br>Free key yahan se: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>`;
+  }
+  aiBusy = false;
+}
+
+let lastAI = null;
+function renderAI(){
+  const d = lastAI;
+  if(!d || !lastSignal || d.sym !== lastSignal.sym){
+    $('aiBox').innerHTML = '<p class="hint">Analyze ke baad "AI SE SAMJHO" dabao — saare numbers dekhkar poori wajah samjhayega.</p>';
+    return;
+  }
+  const col = d.verdict === 'LE LO' ? 'var(--up)' : d.verdict === 'CHHOD DO' ? 'var(--dn)' : 'var(--gold)';
+  const sec = (icon, t, body) => body ? `<div class="an" style="border-left-color:${col}">
+    <div class="ah"><span class="dot2" style="background:${col}"></span><b style="color:${col}">${icon} ${t}</b></div>
+    <p>${body}</p></div>` : '';
+  $('aiT').innerHTML = `<span data-ago="${d.at}">${ago(d.at)}</span>`;
+  $('aiBox').innerHTML = `
+    <div class="verdictbar" style="border-color:${col};background:${col.replace('var(--','rgba(').replace(')','')}">
+      <b class="shine ${d.verdict==='LE LO'?'up':d.verdict==='CHHOD DO'?'dn':'gd'}">${d.verdict}</b>
+      <p style="color:${col}">AI confidence ${d.confidence}%</p>
+    </div>
+    ${sec('📊','SIGNAL REASONING', d.reasoning)}
+    ${sec('🌍','MARKET CONTEXT', d.context)}
+    ${sec('🎯','LEVELS', d.levels)}
+    ${sec('🤖','MAIN KYA KARTA', d.what_i_would_do)}
+    ${Array.isArray(d.risks) && d.risks.length ? `<div class="an" style="border-left-color:var(--dn)">
+      <div class="ah"><span class="dot2" style="background:var(--dn)"></span><b style="color:var(--dn)">⚠ RISKS</b></div>
+      <p>${d.risks.map(r=>'• '+r).join('<br>')}</p></div>` : ''}
+    <div class="grid2" style="margin-top:10px">
+      <button class="btn ghost sm" onclick="shareAiWa()">WHATSAPP</button>
+      <button class="btn ghost sm" onclick="tgSend(aiText(true))">TELEGRAM</button>
+    </div>`;
+}
+function aiText(html){
+  const d = lastAI; if(!d) return '';
+  const b = html ? x=>`<b>${x}</b>` : x=>x;
+  const L = [`🤖 ${b('AI ANALYSIS')} — ${lastSignal.sym}`, ''];
+  L.push(`${b(d.verdict)}  (confidence ${d.confidence}%)`); L.push('');
+  if(d.reasoning){ L.push('📊 ' + b('REASONING')); L.push(d.reasoning); L.push('') }
+  if(d.context){ L.push('🌍 ' + b('MARKET CONTEXT')); L.push(d.context); L.push('') }
+  if(d.levels){ L.push('🎯 ' + b('LEVELS')); L.push(d.levels); L.push('') }
+  if(d.what_i_would_do){ L.push('🤖 ' + b('MAIN KYA KARTA')); L.push(d.what_i_would_do); L.push('') }
+  if(Array.isArray(d.risks)){ L.push('⚠ ' + b('RISKS')); d.risks.forEach(r=>L.push('• '+r)); L.push('') }
+  L.push(`⏰ ${t12(d.at)}`);
+  return L.join('\n');
+}
+function shareAiWa(){
+  if(!lastAI){ toast('Pehle AI chalao'); return }
+  window.open('https://wa.me/?text=' + encodeURIComponent(aiText(false)), '_blank');
 }
 
 /* ---------- notifications ---------- */
@@ -2027,7 +2221,9 @@ async function runAnalyze(){
     lastAn = analyse(sym, barsBase, lastVotes, lastSignal);
     lastAn.at = Date.now();
     logSignal(lastSignal, lastVotes, lastAn);
-    renderAnalyst(); renderSignal();
+    if(!lastAI || lastAI.sym !== sym) lastAI = null;
+    renderAnalyst(); renderSignal(); renderAI();
+    if(S.gAuto && S.gKey && dir !== 'NEUTRAL') runAI();
     if(dir !== 'NEUTRAL' && htfOk){
       notify(`${s0q(dir)} ${SPECS[sym].n} · ${q}%`,
         `Entry ${fmt(sym,live)} · SL ${fmt(sym,sl)} · TP ${fmt(sym,tp)}`, 'sig');
@@ -3987,6 +4183,9 @@ async function testBridge(){
   box.classList.remove('hide');
   box.scrollIntoView({behavior:'smooth', block:'center'});
 
+  const oldG = S.gKey;
+  S.gKey = $('setGKey').value.trim();
+  if(S.gKey !== oldG){ S.gModel = ''; }
   S.fbUrl = $('setFb').value.trim();
   S.fbAuth = $('setFbAuth').value.trim();
   save();
@@ -4248,6 +4447,7 @@ function fullReport(html){
   const fc = finalCall(s);
   L.push(`${b(s.sym)}  —  ${b(s.dir)}   (${s.grade})`);
   L.push(`👉 ${b(fc.t)}  —  ${fc.why}`);
+  if(lastAI && lastAI.sym === s.sym) L.push(`🤖 AI: ${b(lastAI.verdict)} (${lastAI.confidence}%)`);
   L.push(`Quality: ${b(s.q + '%')}   ${s.q>=70?'STRONG':s.q>=50?'MEDIUM':'WEAK'}`);
   L.push(`Timeframe: ${s.tf}`);
   L.push('');
@@ -4473,6 +4673,9 @@ function saveSettings(){
   S.atrSL = Math.max(0.1, +$('setAtrSL').value || 1.5);
   S.atrRR = Math.max(0.1, +$('setAtrRR').value || 2);
   S.riskUsd = Math.max(0.1, +$('setRisk').value || 1.75);
+  const oldG = S.gKey;
+  S.gKey = $('setGKey').value.trim();
+  if(S.gKey !== oldG){ S.gModel = ''; }
   S.fbUrl = $('setFb').value.trim();
   S.fbAuth = $('setFbAuth').value.trim();
   S.mt5Type = $('setMtype').value;
@@ -4694,6 +4897,9 @@ function boot(){
   $('swAutoLot').classList.toggle('on', S.autoLot);
   $('swFresh').classList.toggle('on', S.freshPx);
   loadPairDef(pickVal.minstop || 'XAU/USD');
+  $('setGKey').value = S.gKey;
+  $('swGAuto').classList.toggle('on', S.gAuto);
+  $('gModelNote').innerHTML = S.gModel ? `<br>Model: <b class="mono">${S.gModel}</b>` : '';
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
   $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode();
   if($('verMode')) $('verMode').textContent = S.mt5Type;
