@@ -920,7 +920,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '6.0.1';
+const VERSION = '6.0.2';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1304,13 +1304,44 @@ function gMarkBad(m){
   save();
 }
 
+/* adhoore ya gande JSON ko bacha lo */
+function jsonRescue(txt){
+  if(!txt) return null;
+  let t = txt.replace(/```json|```/g,'').trim();
+  try{ return JSON.parse(t) }catch(e){}
+  const i = t.indexOf('{');
+  if(i < 0) return null;
+  t = t.slice(i);
+  try{ return JSON.parse(t) }catch(e){}
+  /* truncated JSON — brackets khud band karo */
+  let depth = 0, inStr = false, esc = false, cut = -1;
+  for(let k = 0; k < t.length; k++){
+    const c = t[k];
+    if(esc){ esc = false; continue }
+    if(c === '\\'){ esc = true; continue }
+    if(c === '"'){ inStr = !inStr; continue }
+    if(inStr) continue;
+    if(c === '{') depth++;
+    else if(c === '}'){ depth--; if(depth === 0){ cut = k; break } }
+  }
+  if(cut > 0){ try{ return JSON.parse(t.slice(0, cut+1)) }catch(e){} }
+  let fix = t;
+  if(inStr) fix += '"';
+  fix = fix.replace(/,\s*$/,'');
+  const open = (fix.match(/\{/g)||[]).length - (fix.match(/\}/g)||[]).length;
+  const openA = (fix.match(/\[/g)||[]).length - (fix.match(/\]/g)||[]).length;
+  fix += ']'.repeat(Math.max(0,openA)) + '}'.repeat(Math.max(0,open));
+  try{ return JSON.parse(fix) }catch(e){}
+  return null;
+}
+
 async function gOnce(model, prompt){
+  const cfg = {temperature:0.35, maxOutputTokens:3000, responseMimeType:'application/json'};
+  /* 2.5 wale models "sochte" hain aur output tokens kha jaate hain — soch band karo */
+  if(/2\.5|thinking|flash-latest/.test(model)) cfg.thinkingConfig = {thinkingBudget:0};
   const r = await fetch(`${G_BASE}/models/${model}:generateContent?key=${encodeURIComponent(S.gKey)}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      contents:[{parts:[{text:prompt}]}],
-      generationConfig:{temperature:0.35, maxOutputTokens:1100, responseMimeType:'application/json'}
-    })
+    body: JSON.stringify({contents:[{parts:[{text:prompt}]}], generationConfig:cfg})
   });
   if(!r.ok){
     let msg = '', retry = 0;
@@ -1328,10 +1359,25 @@ async function gOnce(model, prompt){
     throw e;
   }
   const j = await r.json();
-  const txt = (((j.candidates||[])[0]||{}).content||{}).parts?.[0]?.text || '';
-  if(!txt) throw new Error('Khaali jawab aaya');
-  try{ return JSON.parse(txt.replace(/```json|```/g,'').trim()) }
-  catch(e){ throw new Error('Jawab samajh nahi aaya') }
+  const cand = (j.candidates||[])[0] || {};
+  const parts = (cand.content && cand.content.parts) || [];
+  const txt = parts.map(x => x.text || '').join('');
+  if(!txt){
+    const fr = cand.finishReason || 'khaali';
+    const e = new Error(fr === 'MAX_TOKENS'
+      ? 'Jawab bahut lamba ho gaya (MAX_TOKENS)'
+      : 'Khaali jawab — ' + fr);
+    e.soft = true; throw e;
+  }
+  const out = jsonRescue(txt);
+  if(!out){
+    const e = new Error('Jawab samajh nahi aaya');
+    e.soft = true; e.raw = txt.slice(0,160); throw e;
+  }
+  if(!out.verdict && !out.reasoning){
+    const e = new Error('Jawab me zaroori fields nahi'); e.soft = true; e.raw = txt.slice(0,160); throw e;
+  }
+  return out;
 }
 
 async function gAsk(prompt, onNote){
@@ -1353,6 +1399,7 @@ async function gAsk(prompt, onNote){
     }catch(e){
       lastErr = e;
       if(e.dead){ gMarkBad(model); continue }              /* model hai hi nahi -> agla */
+      if(e.soft) continue;                                  /* jawab bekaar -> doosra model */
       if(e.code === 429){
         if(e.retry && e.retry <= 30 && !waited){           /* asli rate limit -> ek baar ruko */
           waited = 1;
@@ -1366,9 +1413,10 @@ async function gAsk(prompt, onNote){
       throw e;
     }
   }
-  const m = /quota|limit/i.test(lastErr && lastErr.message || '')
+  const lm = (lastErr && lastErr.message) || 'AI nahi chala';
+  const m = /quota|limit/i.test(lm)
     ? 'Aaj ka Gemini quota khatam — kal reset hoga. Ya aistudio.google.com pe naya key banao.'
-    : (lastErr && lastErr.message) || 'AI nahi chala';
+    : lm + (lastErr && lastErr.raw ? '\n\nModel ne bheja: ' + lastErr.raw : '');
   throw new Error(m);
 }
 
@@ -1416,7 +1464,7 @@ RULE-BASED CHECKS: ${a ? a.pct + '% paas. Chinta: ' + (a.bad.length ? a.bad.map(
 
 NEWS: ${nr ? `${nr.c} - ${nr.t}, ${t12(nr.d)}${nr.d>Date.now()?` (${Math.round((nr.d-Date.now())/60000)} min baad)`:' (ho chuki)'}` : 'koi high-impact news paas nahi'}
 
-Ab sirf JSON do, is shape me:
+Ab SIRF JSON do (koi aur text nahi), is shape me. Har field ko chhota rakho — 2 line se zyada nahi:
 {
  "verdict": "LE LO" ya "WAIT" ya "CHHOD DO",
  "confidence": 0-100 number,
@@ -1424,7 +1472,7 @@ Ab sirf JSON do, is shape me:
  "context": "2-3 line - market abhi kya kar raha hai, bade timeframe kya keh rahe hain",
  "levels": "1-2 line - entry/SL/TP ki jagah sahi hai ya nahi, R:R par imaandar raay",
  "what_i_would_do": "2-3 line - tum khud kya karte, size aur timing samet",
- "risks": ["sabse bada risk", "doosra risk", "teesra risk"]
+ "risks": ["risk 1", "risk 2", "risk 3"]
 }
 
 Zaroori:
