@@ -258,12 +258,20 @@ tr:last-child td{border-bottom:none}
 .skrow .sk{height:56px;margin:0}
 
 /* analyst */
-.an{border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:8px;background:var(--bg)}
-.an .ah{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.an .ah b{font-size:10px;letter-spacing:1.5px}
-.an .dot2{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
-.an p{margin:0;font-size:11.5px;line-height:1.65;color:#dde3ea}
-.an.g{border-left:3px solid var(--up)} .an.y{border-left:3px solid var(--gold)} .an.r{border-left:3px solid var(--dn)}
+.an{border:1px solid var(--line);border-radius:8px;padding:13px;margin-bottom:10px;background:var(--bg)}
+.an .ah{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.an .ah b{font-size:11.5px;letter-spacing:2px;font-weight:800}
+.an .dot2{width:9px;height:9px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 8px currentColor}
+.an p{margin:0;font-size:13px;line-height:1.75;color:#eef3f8;font-weight:600}
+.an.g{border-left:4px solid var(--up);background:linear-gradient(100deg,rgba(0,255,150,.05),transparent 55%)}
+.an.y{border-left:4px solid var(--gold);background:linear-gradient(100deg,rgba(255,184,0,.05),transparent 55%)}
+.an.r{border-left:4px solid var(--dn);background:linear-gradient(100deg,rgba(255,68,68,.05),transparent 55%)}
+/* text ke andar highlight */
+.an .num{font-family:ui-monospace,Menlo,monospace;font-weight:800;color:var(--blue);
+  text-shadow:0 0 8px currentColor;font-size:12.5px}
+.an .hi{font-weight:800;color:var(--gold);text-shadow:0 0 8px currentColor}
+.an .up2{font-weight:800;color:var(--up);text-shadow:0 0 8px currentColor}
+.an .dn2{font-weight:800;color:var(--dn);text-shadow:0 0 8px currentColor}
 
 .empty{text-align:center;padding:26px 12px;color:#a8b2be;font-size:12px}
 .empty div{font-size:30px;margin-bottom:8px;opacity:.4}
@@ -920,7 +928,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '6.0.2';
+const VERSION = '6.1.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1536,7 +1544,7 @@ function renderAI(){
   const col = d.verdict === 'LE LO' ? 'var(--up)' : d.verdict === 'CHHOD DO' ? 'var(--dn)' : 'var(--gold)';
   const sec = (icon, t, body) => body ? `<div class="an" style="border-left-color:${col}">
     <div class="ah"><span class="dot2" style="background:${col}"></span><b style="color:${col}">${icon} ${t}</b></div>
-    <p>${body}</p></div>` : '';
+    <p>${paint(body)}</p></div>` : '';
   $('aiT').innerHTML = `<span data-ago="${d.at}">${ago(d.at)}</span>`;
   $('aiBox').innerHTML = `
     <div class="verdictbar" style="border-color:${col};background:${col.replace('var(--','rgba(').replace(')','')}">
@@ -1549,7 +1557,7 @@ function renderAI(){
     ${sec('🤖','MAIN KYA KARTA', d.what_i_would_do)}
     ${Array.isArray(d.risks) && d.risks.length ? `<div class="an" style="border-left-color:var(--dn)">
       <div class="ah"><span class="dot2" style="background:var(--dn)"></span><b style="color:var(--dn)">⚠ RISKS</b></div>
-      <p>${d.risks.map(r=>'• '+r).join('<br>')}</p></div>` : ''}
+      <p>${d.risks.map(r=>'• '+paint(r)).join('<br>')}</p></div>` : ''}
     <div class="grid2" style="margin-top:10px">
       <button class="btn ghost sm" onclick="shareAiWa()">WHATSAPP</button>
       <button class="btn ghost sm" onclick="tgSend(aiText(true))">TELEGRAM</button>
@@ -3189,6 +3197,26 @@ function paintTradeCharts(){
 }
 window.addEventListener('resize', () => { paintSignalChart(); paintTradeCharts() });
 
+/* numbers aur zaroori shabd rangeen karo — ek hi pass, isliye nesting nahi */
+const P_UP = /^(BUY|uptrend|majboot|sahi|theek|achha|paksh|surakshit)$/i;
+const P_DN = /^(SELL|downtrend|kamzor|khilaaf|galat|risk|khatra|patli|nahi)$/i;
+const P_HI = /^(RSI|ATR|ADX|MACD|Supertrend|HOLD|SL|TP|EMA\d*|R:R)$/;
+function paint(t){
+  if(!t) return '';
+  const esc = String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const re = /(\$\d+(?:\.\d+)?)|(\d[\d,]*(?:\.\d+)?\s*(?:pips?|%|×))|(\b\d+\.\d{2,5}\b)|(\b1:\d+(?:\.\d+)?)|(⚠)|([A-Za-z]+\d*(?::[A-Za-z]+)?)/g;
+  return esc.replace(re, (m, money, unit, dec, rr, warn, word) => {
+    if(money || unit || dec || rr) return `<span class="num">${m}</span>`;
+    if(warn) return `<span class="dn2">⚠</span>`;
+    if(word){
+      if(P_HI.test(word)) return `<span class="hi">${word}</span>`;
+      if(P_UP.test(word)) return `<span class="up2">${word}</span>`;
+      if(P_DN.test(word)) return `<span class="dn2">${word}</span>`;
+    }
+    return m;
+  });
+}
+
 /* ---------------- analyst render ---------------- */
 let lastAn = null;
 function s0q(d){ return d }
@@ -3199,19 +3227,27 @@ function renderAnalyst(){
   const cls = k => k===2?'g':k===1?'y':'r';
   const col = k => k===2?'var(--up)':k===1?'var(--gold)':'var(--dn)';
   $('anBox').innerHTML = `
-    <div style="text-align:center;padding:4px 0 10px">
-      <b class="shine ${a.pct>=75?'up':a.pct>=55?'gd':'dn'}" style="font-size:20px;letter-spacing:2px">${a.verdict}</b>
-      <p class="hint" style="margin-top:3px">${a.pct}% checks paas · ${a.summary}</p>
+    <div style="text-align:center;padding:8px 0 14px">
+      <b class="shine ${a.pct>=75?'up':a.pct>=55?'gd':'dn'}" style="font-size:26px;letter-spacing:3px;display:block">${a.verdict}</b>
+      <div class="segs" style="margin:10px 14px 8px">
+        ${Array.from({length:20},(_,i)=>`<i style="${i<Math.round(a.pct/5)?'background:'+a.vcol:''}"></i>`).join('')}
+      </div>
+      <p style="margin:0;font-size:12px;font-weight:700;color:${a.vcol}">${a.pct}% checks paas</p>
+      <p class="hint" style="margin-top:3px;font-size:11.5px">${paint(a.summary)}</p>
     </div>
-    ${a.bad.length ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.07);border-radius:6px;padding:10px;margin-bottom:10px">
-      <b style="color:var(--dn);font-size:10px;letter-spacing:1.5px">${a.bad.length} CHINTA KI BAAT</b>
-      <p class="hint" style="color:#e88;margin-top:4px">${a.bad.map(x=>x.h).join(' · ')}</p></div>` : ''}
+    ${a.bad.length ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.09);border-radius:8px;padding:12px;margin-bottom:12px">
+      <b class="shine dn" style="font-size:13px;letter-spacing:1.5px">⚠ ${a.bad.length} CHINTA KI BAAT</b>
+      <p style="color:#ff9c9c;margin:6px 0 0;font-size:12.5px;font-weight:700;line-height:1.6">${a.bad.map(x=>x.h).join('  ·  ')}</p></div>`
+      : `<div style="border:1px solid var(--up);background:rgba(0,255,150,.07);border-radius:8px;padding:12px;margin-bottom:12px;text-align:center">
+      <b class="shine up" style="font-size:13px;letter-spacing:1.5px">✓ KOI CHINTA NAHI</b></div>`}
     ${a.O.map(x => `<div class="an ${cls(x.ok)}">
-      <div class="ah"><span class="dot2" style="background:${col(x.ok)}"></span><b style="color:${col(x.ok)}">${x.h}</b></div>
-      <p>${x.t}</p></div>`).join('')}
+      <div class="ah"><span class="dot2" style="background:${col(x.ok)};color:${col(x.ok)}"></span>
+        <b style="color:${col(x.ok)};text-shadow:0 0 10px ${col(x.ok)}">${x.ok===2?'✓':x.ok===1?'~':'✕'} ${x.h}</b></div>
+      <p>${paint(x.t)}</p></div>`).join('')}
     <div class="an y">
-      <div class="ah"><span class="dot2" style="background:var(--gold)"></span><b style="color:var(--gold)">KAB GALAT SAABIT HOGA</b></div>
-      <p>${a.inval}</p></div>
+      <div class="ah"><span class="dot2" style="background:var(--gold);color:var(--gold)"></span>
+        <b style="color:var(--gold);text-shadow:0 0 10px var(--gold)">🎯 KAB GALAT SAABIT HOGA</b></div>
+      <p>${paint(a.inval)}</p></div>
     <div class="grid2" style="margin-top:10px">
       <button class="btn ghost sm" onclick="shareAnWa()">WhatsApp</button>
       <button class="btn ghost sm" onclick="tgSend(anText(true))">Telegram</button>
