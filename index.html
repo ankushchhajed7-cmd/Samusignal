@@ -832,55 +832,7 @@ body.t-gold nav{background:rgba(20,16,9,.96)}
 body.t-gold .lvl.tp{border-color:rgba(22,226,126,.28)}
 body.t-gold .card .ttl{border-bottom-color:rgba(232,181,75,.22)}
 
-/* ---- header: sticky, slides away as you scroll down ---- */
-header{position:sticky;top:0;z-index:40;transition:transform .22s ease}
-header.up{transform:translateY(-102%)}
-header.hide{display:none}
-
-/* ==================================================================
-   BOLD EDGES — v9.0.0
-   Skin layer har border ko dark aur quiet kar deta hai. Purane
-   SamuSignal wali pehchan bold gold kinara thi, isliye wo yahan
-   wapas laaya gaya hai — skin ke !important ko todne ke liye
-   inko bhi !important chahiye.
-   ================================================================== */
-.card{
-  border:2px solid var(--gold) !important;
-  box-shadow:0 0 0 1px rgba(0,0,0,.35);
-}
-.card .card{border:1px solid var(--line) !important}
-.card .ttl{padding-bottom:7px; border-bottom:2px solid var(--gold) !important}
-.card .ttl + .hint{margin-top:9px}
-
-header{border-bottom:2px solid var(--gold) !important}
-nav{border-top:2px solid var(--gold) !important}
-.hbox{border:2px solid var(--gold) !important}
-.sheet{border:2px solid var(--gold) !important; border-top-color:var(--gold) !important}
-.sh-h{border-bottom:2px solid var(--gold) !important}
-
-.btn{border-width:2px}
-.btn.g{border-color:var(--up)}
-.btn.r{border-color:var(--dn)}
-.btn.gold{border-color:var(--gold)}
-.ib{border-width:2px}
-.chip.on,.chip.on.gold{border-width:2px; border-color:var(--gold)}
-.lvl{border-width:2px}
-.lvl.sl{border-color:var(--dn) !important}
-.lvl.tp{border-color:var(--up) !important}
-.pb,.vc,.st,.ptot{border-width:2px}
-.ic.w{border-width:2px}
-th{border-bottom:2px solid var(--gold) !important}
-.hist{border-bottom:2px solid var(--line) !important}
-.hist:last-child{border-bottom:0 !important}
-.tick{border-width:2px}
-
-/* ---- sticky header ke peeche content nahi dikhna chahiye ---- */
-header, body.lux header{
-  background:var(--bg) !important;
-  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-}
-
-/* ---- pair picker: "CHANGE" text overlap fix ---- */
+/* ---- pair picker: "CHANGE" text overlap fix (Pro jaisa ek line me) ---- */
 .pick{display:flex; align-items:center; gap:8px; padding:12px 11px}
 .pick>span:first-child{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .pick i{flex:0 0 auto; white-space:nowrap; font-size:10.5px; margin-left:auto}
@@ -2149,7 +2101,6 @@ function go(pg,btn){
   /* header sirf Signals page pe — baaki pages pe poori screen milti hai */
   const hd = document.querySelector('header');
   hd.classList.toggle('hide', pg !== 'Signals');
-  hd.classList.remove('up'); lastY = 0;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
   if(pg==='Scan') renderScan();
@@ -6365,20 +6316,6 @@ function boot(){
   if(S.key){ refreshOpen(true); setTimeout(()=>refreshTicker(false), 1200); }
 }
 boot();
-
-/* ---------------- header: scroll pe chhup jaata hai ---------------- */
-/* Neeche scroll karo to header slide hokar hat jaata hai, upar karte hi
-   wapas aa jaata hai — chhoti screen pe zyada jagah milti hai. */
-let lastY = 0;
-window.addEventListener('scroll', () => {
-  const hd = document.querySelector('header');
-  if(!hd || hd.classList.contains('hide')) return;
-  const y = window.scrollY || 0;
-  if(y < 60){ hd.classList.remove('up'); lastY = y; return }
-  if(Math.abs(y - lastY) < 8) return;
-  hd.classList.toggle('up', y > lastY);
-  lastY = y;
-}, {passive:true});
 
 /* ---------------- offline ---------------- */
 function netState(){
