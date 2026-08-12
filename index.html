@@ -832,6 +832,43 @@ body.t-gold nav{background:rgba(20,16,9,.96)}
 body.t-gold .lvl.tp{border-color:rgba(22,226,126,.28)}
 body.t-gold .card .ttl{border-bottom-color:rgba(232,181,75,.22)}
 
+/* ==================================================================
+   FIX LAYER — v9.0.0
+   ================================================================== */
+
+/* ---- toggle ka knob bahar nikal raha tha ----
+   Base CSS knob ko transform:translateX(19px) se hilata hai aur skin
+   layer usko dobara left:21px se hilata hai — dono milkar knob ko pill
+   se bahar phenk dete the. Ek hi tareeka rakho: left. */
+.sw .tg::after,.sw.on .tg::after{transform:none}
+
+/* ---- bold gold kinara (corners) ----
+   Skin har border ko dark kar deta hai, isliye yahan wapas laaya gaya. */
+.card{border:2px solid var(--gold) !important; box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.card .card{border:1px solid var(--line) !important}
+.card .ttl{padding-bottom:7px; border-bottom:2px solid var(--gold) !important}
+.card .ttl + .hint{margin-top:9px}
+.hbox{border:2px solid var(--gold) !important}
+header{border-bottom:2px solid var(--gold) !important}
+nav{border-top:2px solid var(--gold) !important}
+.sheet{border:2px solid var(--gold) !important}
+.sh-h{border-bottom:2px solid var(--gold) !important}
+.tick{border:2px solid var(--gold) !important}
+.btn{border-width:2px}
+.btn.g{border-color:var(--up)}
+.btn.r{border-color:var(--dn)}
+.btn.gold{border-color:var(--gold)}
+.ib{border-width:2px}
+.chip.on,.chip.on.gold{border-width:2px; border-color:var(--gold)}
+.lvl{border-width:2px}
+.lvl.sl{border-color:var(--dn) !important}
+.lvl.tp{border-color:var(--up) !important}
+.pb,.vc,.st,.ptot{border-width:2px}
+.ic.w{border-width:2px}
+th{border-bottom:2px solid var(--gold) !important}
+.hist{border-bottom:2px solid var(--line) !important}
+.hist:last-child{border-bottom:0 !important}
+
 /* ---- pair picker: "CHANGE" text overlap fix (Pro jaisa ek line me) ---- */
 .pick{display:flex; align-items:center; gap:8px; padding:12px 11px}
 .pick>span:first-child{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -3192,7 +3229,14 @@ async function runScan(){
 
 /* scan result se seedha poora analysis */
 async function openScanned(sym){
-  S.pair = sym; pickVal.main = sym; save();
+  S.pair = sym; pickVal.main = sym;
+  const lv = fixLot(sym, S.lots);
+  if(lv !== S.lots){
+    S.lots = lv;
+    if($('inLots')) $('inLots').value = lv;
+    toast(`${SPECS[sym].n} ka minimum lot ${minLot(sym)} hai`);
+  }
+  save();
   fillPairs(); setChart(sym);
   lastSignal = null; lastVotes = null; lastAn = null;
   go('Signals', document.querySelector('nav button[data-pg="Signals"]'));
