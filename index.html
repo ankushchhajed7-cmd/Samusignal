@@ -836,6 +836,54 @@ body.t-gold .card .ttl{border-bottom-color:rgba(232,181,75,.22)}
 header{position:sticky;top:0;z-index:40;transition:transform .22s ease}
 header.up{transform:translateY(-102%)}
 header.hide{display:none}
+
+/* ==================================================================
+   BOLD EDGES — v9.0.0
+   Skin layer har border ko dark aur quiet kar deta hai. Purane
+   SamuSignal wali pehchan bold gold kinara thi, isliye wo yahan
+   wapas laaya gaya hai — skin ke !important ko todne ke liye
+   inko bhi !important chahiye.
+   ================================================================== */
+.card{
+  border:2px solid var(--gold) !important;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35);
+}
+.card .card{border:1px solid var(--line) !important}
+.card .ttl{padding-bottom:7px; border-bottom:2px solid var(--gold) !important}
+.card .ttl + .hint{margin-top:9px}
+
+header{border-bottom:2px solid var(--gold) !important}
+nav{border-top:2px solid var(--gold) !important}
+.hbox{border:2px solid var(--gold) !important}
+.sheet{border:2px solid var(--gold) !important; border-top-color:var(--gold) !important}
+.sh-h{border-bottom:2px solid var(--gold) !important}
+
+.btn{border-width:2px}
+.btn.g{border-color:var(--up)}
+.btn.r{border-color:var(--dn)}
+.btn.gold{border-color:var(--gold)}
+.ib{border-width:2px}
+.chip.on,.chip.on.gold{border-width:2px; border-color:var(--gold)}
+.lvl{border-width:2px}
+.lvl.sl{border-color:var(--dn) !important}
+.lvl.tp{border-color:var(--up) !important}
+.pb,.vc,.st,.ptot{border-width:2px}
+.ic.w{border-width:2px}
+th{border-bottom:2px solid var(--gold) !important}
+.hist{border-bottom:2px solid var(--line) !important}
+.hist:last-child{border-bottom:0 !important}
+.tick{border-width:2px}
+
+/* ---- sticky header ke peeche content nahi dikhna chahiye ---- */
+header, body.lux header{
+  background:var(--bg) !important;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+}
+
+/* ---- pair picker: "CHANGE" text overlap fix ---- */
+.pick{display:flex; align-items:center; gap:8px; padding:12px 11px}
+.pick>span:first-child{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pick i{flex:0 0 auto; white-space:nowrap; font-size:10.5px; margin-left:auto}
 </style>
 </head>
 <body>
