@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>SamuSignal</title>
-<meta name="description" content="SamuSignal - AI-Powered Forex & Gold Signal App">
-<meta name="theme-color" content="#0d0d0d">
+<meta name="description" content="SamuSignal — AI-powered forex aur gold signal analysis, scanner, chart AI aur trade journal.">
+<meta name="theme-color" content="#0a0704">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="SamuSignal">
@@ -13,8 +13,9 @@
 <link rel="apple-touch-icon" href="./icon-192.png">
 <style>
 :root{
-  --bg:#0d0d0d; --panel:#141414; --panel2:#0d0d0d; --line:#2a2a2a;
-  --txt:#f0f0f0; --mut:#9aa4b0; --dim:#7d8794;
+  --bg:#0d0d0d; --panel:#141414; --panel2:#0d0d0d; --line:#4a4a4a;
+  --txt:#f5f5f5; --mut:#a8f0d4; --dim:#8fe0c2;
+  --shineA:#00FF96; --shineB:#7dffcb; --shineHi:#ffffff;
   --lbl:#8fd4ff;
   --up:#00FF96; --dn:#FF4444; --gold:#FFB800; --blue:#00CCFF;
   --r:8px;
@@ -35,22 +36,24 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 
 /* ---------- header ---------- */
 header{
-  position:sticky;top:0;z-index:40;background:var(--bg);
+  position:relative;z-index:1;background:var(--bg);
   padding:calc(7px + env(safe-area-inset-top)) 12px 7px;
 }
-.hbox{max-width:600px;margin:0 auto;text-align:center;padding:9px 10px;
+header.hide{display:none}
+.hbox{max-width:600px;margin:0 auto;text-align:center;padding:5px 10px 7px;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
-.hbox h1{margin:0 0 2px;font-size:16px;color:var(--gold);letter-spacing:2.5px;font-weight:700}
-.hbox p{margin:0;font-size:8.5px;color:var(--lbl);letter-spacing:1.2px;white-space:nowrap}
-.hrow{display:flex;gap:5px;margin-top:8px;justify-content:center;align-items:center}
-.ib{padding:5px 8px;background:var(--bg);border:1px solid var(--line);border-radius:5px;
-  color:var(--lbl);font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap;line-height:1.4}
+.hbox h1{margin:0;font-size:15px;color:var(--gold);letter-spacing:2.2px;font-weight:700;line-height:1.2}
+.hbox p{margin:0;font-size:9px;font-weight:700;color:var(--lbl);letter-spacing:1px;white-space:nowrap;opacity:.9}
+.hrow{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.ib{padding:6px 8px;background:var(--bg);border:2px solid var(--line);border-radius:6px;
+  color:var(--lbl);font-size:10.5px;font-weight:700;letter-spacing:.5px;white-space:nowrap;line-height:1.4}
 .ib:active{border-color:var(--gold);color:var(--gold)}
-.clock{padding:4px 7px;font-size:8.5px;color:var(--mut);line-height:1.3;text-align:left;white-space:nowrap}
-.clock b{display:block;color:var(--gold);font-size:11px;letter-spacing:.5px}
+.clock{display:flex;align-items:baseline;justify-content:center;gap:6px;
+  margin-top:3px;font-size:10px;font-weight:700;color:var(--mut);white-space:nowrap}
+.clock b{color:var(--gold);font-size:11.5px;letter-spacing:.5px}
 
 /* ---------- ticker ---------- */
-.tickwrap{max-width:600px;margin:0 auto 14px;padding:0 12px}
+.tickwrap{margin:0 0 14px}
 .tick{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
   padding:9px 12px;font-size:11px;display:flex;gap:18px;white-space:nowrap;overflow:hidden}
 .tick span{color:var(--lbl)}
@@ -58,13 +61,41 @@ header{
 
 /* ---------- layout ---------- */
 main{padding:0 12px 20px;max-width:600px;margin:0 auto}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+/* Pages without the header start straight at the top: just enough inset to
+   clear the status bar, with no empty band above the first card. */
+main > section:not(#pgSignals){padding-top:env(safe-area-inset-top)}
+main > section:not(#pgSignals) > *:first-child{margin-top:0}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:var(--r);
   padding:14px;margin-bottom:14px}
-.ttl{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.3);
-  margin:0 0 12px;font-weight:700;display:flex;align-items:center;gap:8px}
+.ttl{font-size:13px;letter-spacing:2px;text-transform:uppercase;
+  margin:0 0 12px;font-weight:800;display:flex;align-items:center;gap:8px;
+  color:var(--shineA);
+  background-image:linear-gradient(100deg,
+    var(--shineA) 0%, var(--shineA) 36%,
+    var(--shineB) 46%, var(--shineHi) 51%, var(--shineB) 56%,
+    var(--shineA) 66%, var(--shineA) 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:mirror 5.5s ease-in-out infinite;
+  filter:drop-shadow(0 0 8px rgba(0,255,150,.30));}
+body.lux .ttl{filter:drop-shadow(0 0 8px rgba(var(--accRGB),.35))}
+body.t-emerald .ttl{filter:drop-shadow(0 0 8px rgba(20,180,150,.40))}
+body.t-royal .ttl{filter:drop-shadow(0 0 8px rgba(150,60,220,.40))}
+/* the right-hand status chip must stay solid, not swept */
+.ttl .sp{-webkit-text-fill-color:var(--lbl)}
+/* buttons inside a title keep their own colour (RESET is red, etc.) */
+.ttl button,.ttl .sp button{-webkit-text-fill-color:currentColor}
+/* a title given its own inline colour (e.g. the red "out of credits" header)
+   must opt out of the sweep, otherwise the gradient would hide it */
+.ttl[style*="color:"]{background-image:none;-webkit-text-fill-color:currentColor;
+  animation:none;filter:none;text-shadow:0 0 10px currentColor}
+/* same for a status chip that carries its own colour */
+.ttl .sp[style*="color:"]{-webkit-text-fill-color:currentColor}
+@media (prefers-reduced-motion:reduce){.ttl{animation:none}}
 .ttl .sp{margin-left:auto;font-weight:700;letter-spacing:0;text-transform:none;
-  color:var(--lbl);font-size:10px;opacity:.85}
-label{display:block;font-size:10px;color:var(--lbl);letter-spacing:1px;margin-bottom:5px;
+  color:var(--lbl);font-size:11.5px;opacity:1}
+label{display:block;font-size:11.5px;font-weight:700;color:var(--lbl);letter-spacing:1px;margin-bottom:6px;
   font-weight:700;text-transform:uppercase;text-shadow:0 0 8px rgba(143,212,255,.35)}
 input,select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
   padding:10px 11px;color:var(--txt);outline:none}
@@ -75,7 +106,7 @@ input:focus,select:focus{border-color:var(--gold)}
 /* ---------- buttons: outlined terminal style ---------- */
 .btn{display:block;width:100%;padding:12px;border-radius:6px;font-weight:700;text-align:center;
   letter-spacing:1px;text-transform:uppercase;font-size:12px;
-  background:rgba(0,204,255,.12);color:var(--blue);border:1px solid var(--blue)}
+  background:rgba(0,204,255,.12);color:var(--blue);border:2px solid var(--blue)}
 .btn:active{opacity:.65}
 .btn.g{background:rgba(0,255,150,.12);color:var(--up);border-color:var(--up);
   text-shadow:0 0 10px rgba(0,255,150,.6);box-shadow:0 0 16px rgba(0,255,150,.12)}
@@ -86,7 +117,7 @@ input:focus,select:focus{border-color:var(--gold)}
 .btn.ghost{background:var(--bg);color:var(--lbl);border-color:#33404d}
 .btn.sm{padding:9px 6px;font-size:11px;letter-spacing:.5px}
 
-/* custom pair picker — native dropdown ki jagah */
+/* custom pair picker — replaces the native dropdown */
 .pick{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
   padding:10px 11px;color:var(--txt);text-align:left;display:flex;align-items:center;
   font-size:13px;font-weight:700;letter-spacing:.5px}
@@ -95,21 +126,21 @@ input:focus,select:focus{border-color:var(--gold)}
 .pick.lock{color:var(--dim)}
 
 .plist{max-height:58vh;overflow-y:auto;margin:0 -14px;padding:0 14px}
-.pgrp{font-size:9px;color:var(--gold);letter-spacing:2px;font-weight:700;
+.pgrp{font-size:10.5px;color:var(--gold);letter-spacing:2px;font-weight:700;
   padding:14px 2px 7px;position:sticky;top:0;background:var(--panel)}
 .prow{width:100%;display:flex;align-items:center;gap:10px;padding:12px 11px;margin-bottom:6px;
-  background:var(--bg);border:1px solid var(--line);border-radius:6px;
+  background:var(--bg);border:2px solid var(--line);border-radius:6px;
   font-size:13px;font-weight:700;letter-spacing:1px;color:var(--txt);text-align:left}
 .prow.on{border-color:var(--blue);background:rgba(0,204,255,.1);color:var(--blue)}
 .prow.off{opacity:.4}
-.prow .px{margin-left:auto;font-size:11px;font-weight:400;color:var(--lbl);letter-spacing:0}
+.prow .px{margin-left:auto;font-size:12px;font-weight:700;color:var(--lbl);letter-spacing:0}
 .prow .dot{width:15px;height:15px;border-radius:50%;border:1px solid var(--line);flex:0 0 auto}
 .prow.on .dot{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--bg),inset 0 0 0 9px var(--blue)}
 
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;padding:8px 13px;border-radius:6px;background:var(--panel);
-  border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--lbl);letter-spacing:.5px}
+  border:2px solid var(--line);font-size:11px;font-weight:700;color:var(--lbl);letter-spacing:.5px}
 .chip.on{background:rgba(0,204,255,.15);border-color:var(--blue);color:var(--blue)}
 .chip.on.gold{background:rgba(255,184,0,.15);border-color:var(--gold);color:var(--gold)}
 
@@ -120,7 +151,7 @@ input:focus,select:focus{border-color:var(--gold)}
   border-radius:50%;background:var(--dim);transition:.18s}
 .sw.on .tg{background:rgba(0,255,150,.2);border-color:var(--up)}
 .sw.on .tg::after{transform:translateX(19px);background:var(--up)}
-.sw div{font-size:12px} .sw small{color:#9aa4b0;font-size:10px;display:block;margin-top:2px}
+.sw div{font-size:13.5px;font-weight:800} .sw small{color:var(--mut);font-size:12px;font-weight:700;display:block;margin-top:3px;line-height:1.6}
 
 /* ---------- signal ---------- */
 .sig{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:13px}
@@ -130,9 +161,9 @@ input:focus,select:focus{border-color:var(--gold)}
 .sumcol{flex:0 0 auto;width:118px;display:flex;flex-direction:column;gap:4px}
 .sumrow{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);
   border-radius:5px;padding:4px 6px}
-.sumrow .k{font-size:7.5px;color:var(--lbl);letter-spacing:.8px;font-weight:700;width:31px}
-.sumrow .v{font-size:9px;font-weight:700;letter-spacing:.3px;margin-left:auto;text-align:right;flex:1}
-.sumrow .n{font-size:8.5px;font-weight:700;opacity:.85}
+.sumrow .k{font-size:9.5px;color:var(--lbl);letter-spacing:.8px;font-weight:700;width:36px}
+.sumrow .v{font-size:11px;font-weight:700;letter-spacing:.3px;margin-left:auto;text-align:right;flex:1}
+.sumrow .n{font-size:10.5px;font-weight:700;opacity:1}
 .verdictbar{display:flex;align-items:center;gap:9px;border-radius:6px;padding:10px 12px;margin-bottom:11px;
   border:1px solid}
 .verdictbar b{font-size:14px;letter-spacing:2px;flex:0 0 auto}
@@ -143,12 +174,18 @@ input:focus,select:focus{border-color:var(--gold)}
   text-shadow:0 0 10px rgba(0,255,150,.75);box-shadow:0 0 12px rgba(0,255,150,.15) inset}
 .tag.sell{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.5);
   text-shadow:0 0 10px rgba(255,68,68,.75);box-shadow:0 0 12px rgba(255,68,68,.15) inset}
-.tag.n{background:rgba(119,119,119,.15);color:var(--mut);border:1px solid var(--line)}
+.tag.n{background:rgba(119,119,119,.15);color:var(--mut);border:1px solid var(--line);font-weight:700}
 .gr{margin-left:auto;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;
   background:rgba(255,184,0,.15);color:var(--gold);border:1px solid rgba(255,184,0,.5);
   text-shadow:0 0 10px rgba(255,184,0,.7)}
 
 .meter{margin:12px 0 5px}
+/* label/value row. Only .meter .lbl existed, so rows used elsewhere
+   (licence sheet, tracking card) rendered with no gap at all. */
+.lbl{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  font-size:11.5px;font-weight:700;color:var(--lbl);margin:6px 0}
+.lbl>span{flex:0 0 auto}
+.lbl>b{color:var(--txt);text-align:right;word-break:break-all;min-width:0}
 .meter .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--lbl);
   margin-bottom:6px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
 .meter .lbl b{color:var(--txt);font-size:12px}
@@ -157,15 +194,15 @@ input:focus,select:focus{border-color:var(--gold)}
 .segs i.f{background:var(--up)} .segs i.f.w{background:var(--gold)} .segs i.f.b{background:var(--dn)}
 
 .lvls{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.lvl{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 4px;text-align:center}
-.lvl>span{display:block;font-size:9px;color:var(--lbl);letter-spacing:1px;font-weight:700;margin-bottom:4px}
+.lvl{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:9px 4px;text-align:center}
+.lvl>span{display:block;font-size:10.5px;color:var(--lbl);letter-spacing:1px;font-weight:700;margin-bottom:5px}
 .lvl b{font-size:13px;display:block}
 .lvl.sl b{color:var(--dn);text-shadow:0 0 9px rgba(255,68,68,.5)} .lvl.tp b{color:var(--up);text-shadow:0 0 9px rgba(0,255,150,.5)}
 
 .tfrow{display:flex;gap:5px;margin-top:10px}
 .tfp{flex:1;text-align:center;background:var(--panel);border:1px solid var(--line);
   border-radius:6px;padding:6px 2px}
-.tfp span{display:block;font-size:9px;color:var(--lbl);font-weight:700}
+.tfp span{display:block;font-size:10.5px;color:var(--lbl);font-weight:700}
 .tfp b{font-size:11px}
 .tfp.up b{color:var(--up);text-shadow:0 0 8px rgba(0,255,150,.5)} .tfp.dn b{color:var(--dn);text-shadow:0 0 8px rgba(255,68,68,.5)} .tfp.nu b{color:var(--mut)}
 
@@ -174,11 +211,11 @@ input:focus,select:focus{border-color:var(--gold)}
 
 /* ---------- table ---------- */
 table{width:100%;border-collapse:collapse;font-size:11px}
-th{text-align:left;font-size:9px;color:var(--lbl);letter-spacing:1px;text-transform:uppercase;
+th{text-align:left;font-size:10.5px;color:var(--lbl);letter-spacing:1px;text-transform:uppercase;
   padding:0 0 8px;font-weight:700;border-bottom:1px solid var(--line)}
 td{padding:9px 0;border-bottom:1px solid #1a1a1a}
 tr:last-child td{border-bottom:none}
-.up{color:var(--up);text-shadow:0 0 8px rgba(0,255,150,.35)} .dn{color:var(--dn);text-shadow:0 0 8px rgba(255,68,68,.35)} .mu{color:var(--mut)}
+.up{color:var(--up);text-shadow:0 0 8px rgba(0,255,150,.35)} .dn{color:var(--dn);text-shadow:0 0 8px rgba(255,68,68,.35)} .mu{color:var(--mut);font-weight:700}
 
 /* ---------- trades ---------- */
 .tr{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
@@ -187,42 +224,45 @@ tr:last-child td{border-bottom:none}
 .tr-h b{font-size:14px;letter-spacing:1px}
 .pl{margin-left:auto;font-size:16px;font-weight:700}
 .tr-g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:11px;margin-bottom:9px}
-.tr-g div span{display:block;color:var(--lbl);font-size:9px;letter-spacing:.5px;font-weight:700}
+.tr-g div span{display:block;color:var(--lbl);font-size:10.5px;letter-spacing:.5px;font-weight:700}
 .bar{height:5px;border-radius:99px;background:#222;overflow:hidden;margin-bottom:9px;display:flex}
 .bar i{display:block;height:100%}
 
 .stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-.st{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 5px;text-align:center}
-.st span{display:block;font-size:9px;color:var(--lbl);letter-spacing:1.2px;font-weight:700;margin-bottom:5px}
+.st{background:var(--panel);border:2px solid var(--line);border-radius:var(--r);padding:12px 5px;text-align:center}
+.st span{display:block;font-size:10.5px;color:var(--lbl);letter-spacing:1.2px;font-weight:700;margin-bottom:5px}
 .st b{font-size:17px}
 
 .perf{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
-.pb{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px 4px;text-align:center}
+.pb{background:var(--bg);border:2px solid var(--line);border-radius:6px;padding:12px 4px;text-align:center}
 .pb b{display:block;font-size:19px;line-height:1.1}
-.pb span{display:block;font-size:8.5px;color:var(--lbl);letter-spacing:1.2px;font-weight:700;margin-top:5px}
-.pb em{display:block;font-style:normal;font-size:8.5px;color:#8a94a0;margin-top:3px;letter-spacing:.2px}
-.ptot{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:16px;text-align:center}
+.pb span{display:block;font-size:10px;color:var(--lbl);letter-spacing:1.2px;font-weight:700;margin-top:5px}
+.pb em{display:block;font-style:normal;font-size:11px;font-weight:700;color:var(--mut);margin-top:4px;letter-spacing:.2px}
+.ptot{background:var(--bg);border:2px solid var(--line);border-radius:6px;padding:16px;text-align:center}
 .ptot b{display:block;font-size:27px;line-height:1}
-.ptot span{display:block;font-size:9px;color:var(--lbl);letter-spacing:1.6px;font-weight:700;margin-top:6px}
+.ptot span{display:block;font-size:10.5px;color:var(--lbl);letter-spacing:1.6px;font-weight:700;margin-top:6px}
 
 .vbar{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin:12px 0 8px}
 .vbar i{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
   color:#0d0d0d;font-style:normal;letter-spacing:.5px;transition:width .5s;text-shadow:0 1px 2px rgba(255,255,255,.3)}
 .vote3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.vc{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:13px 5px;text-align:center}
+.vc{background:var(--bg);border:2px solid var(--line);border-radius:6px;padding:13px 5px;text-align:center}
 .vc b{display:block;font-size:24px;line-height:1}
-.vc span{display:block;font-size:9px;color:var(--dim);letter-spacing:1.4px;font-weight:700;margin-top:5px}
+.vc span{display:block;font-size:10.5px;color:var(--mut);letter-spacing:1.4px;font-weight:700;margin-top:5px}
 .vc.b{border-color:rgba(0,255,150,.45)} .vc.s{border-color:rgba(255,68,68,.45)}
 .ag{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #1a1a1a;font-size:11px}
 .ag:last-child{border:none}
 .ag .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ag .gp{font-size:8.5px;color:var(--lbl);letter-spacing:.5px;opacity:.8}
-.ag .vt{width:44px;text-align:center;padding:3px 0;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px}
+.ag .gp{font-size:10px;font-weight:600;color:var(--lbl);letter-spacing:.5px;opacity:1}
+.ag .vt{width:48px;text-align:center;padding:4px 0;border-radius:4px;font-size:10.5px;font-weight:700;letter-spacing:.5px}
 .ag .vt.b{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.4);text-shadow:0 0 8px rgba(0,255,150,.6)}
 .ag .vt.s{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.4);text-shadow:0 0 8px rgba(255,68,68,.6)}
 .ag .vt.h{background:rgba(119,119,119,.12);color:var(--mut);border:1px solid var(--line)}
 
-/* ---- mirror shine: colored text ke upar chalta hua highlight ---- */
+textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  padding:11px;color:var(--txt);font-family:inherit;font-size:13px;font-weight:600;resize:vertical}
+
+/* ---- mirror shine: a highlight sweeping across coloured text ---- */
 @keyframes mirror{
   0%   {background-position:-220% 0}
   60%  {background-position:220% 0}
@@ -242,11 +282,13 @@ tr:last-child td{border-bottom:none}
   background-image:linear-gradient(100deg,var(--up) 0%,var(--up) 38%,#dffff0 48%,#ffffff 52%,var(--up) 62%,var(--up) 100%)}
 .shine.dn{color:var(--dn);-webkit-text-fill-color:transparent;
   background-image:linear-gradient(100deg,var(--dn) 0%,var(--dn) 38%,#ffe3e3 48%,#ffffff 52%,var(--dn) 62%,var(--dn) 100%)}
+.shine.gr2{color:var(--up);-webkit-text-fill-color:transparent;
+  background-image:linear-gradient(100deg,var(--up) 0%,var(--up) 38%,#dffff0 48%,#ffffff 52%,var(--up) 62%,var(--up) 100%)}
 .shine.gd{color:var(--gold);-webkit-text-fill-color:transparent;
   background-image:linear-gradient(100deg,var(--gold) 0%,var(--gold) 38%,#fff2cc 48%,#ffffff 52%,var(--gold) 62%,var(--gold) 100%)}
 @media (prefers-reduced-motion:reduce){.shine{animation:none}}
 
-/* colored glow — chhote labels ke liye */
+/* coloured glow — for small labels */
 .glow{text-shadow:0 0 10px currentColor}
 
 /* skeleton loader */
@@ -266,21 +308,21 @@ tr:last-child td{border-bottom:none}
 .an.g{border-left:4px solid var(--up);background:linear-gradient(100deg,rgba(0,255,150,.05),transparent 55%)}
 .an.y{border-left:4px solid var(--gold);background:linear-gradient(100deg,rgba(255,184,0,.05),transparent 55%)}
 .an.r{border-left:4px solid var(--dn);background:linear-gradient(100deg,rgba(255,68,68,.05),transparent 55%)}
-/* text ke andar highlight */
+/* inline highlight inside text */
 .an .num{font-family:ui-monospace,Menlo,monospace;font-weight:800;color:var(--blue);
   text-shadow:0 0 8px currentColor;font-size:12.5px}
 .an .hi{font-weight:800;color:var(--gold);text-shadow:0 0 8px currentColor}
 .an .up2{font-weight:800;color:var(--up);text-shadow:0 0 8px currentColor}
 .an .dn2{font-weight:800;color:var(--dn);text-shadow:0 0 8px currentColor}
 
-.empty{text-align:center;padding:26px 12px;color:#a8b2be;font-size:12px}
+.empty{text-align:center;padding:26px 12px;color:var(--mut);font-size:13.5px;font-weight:700;line-height:1.75}
 .empty div{font-size:30px;margin-bottom:8px;opacity:.4}
 
 /* ---------- nav ---------- */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);
   border-top:1px solid var(--line);display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
 nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 0;
-  font-size:7.5px;font-weight:700;letter-spacing:.3px;color:var(--lbl)}
+  font-size:9.5px;font-weight:700;letter-spacing:.3px;color:var(--lbl)}
 nav button i{font-style:normal;font-size:15px;filter:grayscale(1);opacity:.45}
 nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav button.on i{filter:none;opacity:1}
 .badge{position:absolute;top:2px;margin-left:20px;background:var(--dn);color:#000;font-size:8px;
@@ -296,7 +338,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 .sh-h{display:flex;align-items:center;margin-bottom:14px}
 .sh-h h3{margin:0;font-size:15px;color:var(--gold);letter-spacing:2px;text-transform:uppercase}
 .sh-h button{margin-left:auto;font-size:22px;color:var(--mut);padding:0 6px}
-.hint{font-size:10.5px;color:#a8b2be;margin:6px 0 0;line-height:1.65}
+.hint{font-size:12.5px;font-weight:700;color:var(--mut);margin:7px 0 0;line-height:1.72;letter-spacing:.2px}
 .hint a{color:var(--blue)}
 
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;z-index:200;
@@ -331,12 +373,13 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 .hist .ic.m{background:rgba(119,119,119,.15);color:var(--mut);border:1px solid var(--line)}
 .hist .in{flex:1;min-width:0}
 .hist .in b{font-size:12px;display:block}
-.hist .in small{color:#9aa4b0;font-size:10px}
+.hist .in small{color:var(--mut);font-size:12px;font-weight:700}
 .hist .amt{font-size:13px;font-weight:700}
 
 /* ==================== GOLD THEME ==================== */
 body.lux{
-  --txt:#f5ecd8; --mut:#b09b6f; --dim:#8a7647; --lbl:#d9bb6a;
+  --txt:#f8f1e2; --mut:#d8c49a; --dim:#c2ab7c; --lbl:#f0d68a;
+  --shineA:#e8c063; --shineB:#fbecc0; --shineHi:#ffffff;
   --up:#2ee88a; --dn:#ff5a5a; --gold:#e8c063; --blue:#e8c063;
   --accRGB:212,163,60;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -363,12 +406,8 @@ body.lux .hbox h1{
   text-shadow:none; filter:drop-shadow(0 2px 6px rgba(var(--accRGB),.45));
 }
 body.lux .hbox p{color:#c9ad72;letter-spacing:1.6px;font-size:9.5px}
-body.lux .ttl{
-  background:linear-gradient(180deg,#fbecc0,#d9b055);
-  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
-  text-shadow:none; letter-spacing:1.6px; font-size:13px;
-}
-body.lux .ttl .sp{-webkit-text-fill-color:#b09b6f;color:#b09b6f}
+body.lux .ttl{letter-spacing:1.6px; font-size:13.5px}
+body.lux .ttl .sp{-webkit-text-fill-color:#e0c68d;color:#e0c68d}
 body.lux label{color:#c9ad72;text-shadow:none;letter-spacing:1.2px}
 
 body.lux .ib,body.lux .chip,body.lux .pick,body.lux input,body.lux select,
@@ -444,7 +483,7 @@ body.lux .spin{border-color:rgba(var(--accRGB),.25);border-top-color:#e8c063}
 
 /* ---- theme palettes ---- */
 body.t-gold{
-  --bg:#0a0704; --panel:#141009; --panel2:#0d0a05; --line:#3d2f14;
+  --bg:#0a0704; --panel:#141009; --panel2:#0d0a05; --line:#7a6230;
   --g1:rgba(212,163,60,.16); --g2:rgba(160,115,30,.10); --g3:rgba(120,86,20,.09);
   --cA:rgba(46,35,14,.85); --cB:rgba(14,10,5,.92);
   --cC:rgba(40,30,12,.55); --cD:rgba(12,9,4,.75); --cE:rgba(58,44,18,.55);
@@ -452,7 +491,8 @@ body.t-gold{
   --pT:#231703; --pG:rgba(200,150,40,.30);
 }
 body.t-emerald{
-  --bg:#03100e; --panel:#08201c; --panel2:#051512; --line:#12463c;
+  --shineA:#3fc9ab; --shineB:#8ff0dc; --shineHi:#eafffa;
+  --bg:#03100e; --panel:#08201c; --panel2:#051512; --line:#2b7d6a;
   --accRGB:212,175,80;
   --g1:rgba(20,180,150,.16); --g2:rgba(212,163,60,.10); --g3:rgba(10,120,100,.12);
   --cA:rgba(10,58,50,.85); --cB:rgba(3,20,17,.92);
@@ -461,7 +501,8 @@ body.t-emerald{
   --pT:#02201b; --pG:rgba(20,180,150,.30);
 }
 body.t-royal{
-  --bg:#0d0413; --panel:#1a0a26; --panel2:#0f0518; --line:#3f1c58;
+  --shineA:#c274ee; --shineB:#e5b3ff; --shineHi:#faf0ff;
+  --bg:#0d0413; --panel:#1a0a26; --panel2:#0f0518; --line:#6a3d94;
   --accRGB:222,176,70;
   --g1:rgba(150,60,220,.18); --g2:rgba(212,163,60,.10); --g3:rgba(95,30,150,.14);
   --cA:rgba(52,18,76,.85); --cB:rgba(16,6,24,.92);
@@ -470,7 +511,8 @@ body.t-royal{
   --pT:#1b0628; --pG:rgba(150,60,220,.32);
 }
 body.t-navy{
-  --bg:#020a1c; --panel:#06152f; --panel2:#040e22; --line:#123163;
+  --shineA:#eccd77; --shineB:#fbeaae; --shineHi:#fffaea;
+  --bg:#020a1c; --panel:#06152f; --panel2:#040e22; --line:#2d5c9e;
   --accRGB:224,178,64;
   --g1:rgba(30,90,200,.18); --g2:rgba(224,178,64,.11); --g3:rgba(15,50,130,.14);
   --cA:rgba(9,38,84,.88); --cB:rgba(2,9,24,.94);
@@ -478,29 +520,369 @@ body.t-navy{
   --pA:#fbeaae; --pB:#eccd77; --pC:#d0a63c; --pD:#b8862a; --pE:#f2dfa4;
   --pT:#1a1203; --pG:rgba(200,150,40,.30);
 }
+
+/* ---- bold, meaningful borders ----
+   A border should tell you something. Cards use the accent, and anything
+   that carries a direction or a risk borrows that colour instead. */
+.card{border-color:var(--gold);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.card .card{border-color:var(--line)}
+.btn{border-width:2px}
+.btn.g{border-color:var(--up)}
+.btn.r{border-color:var(--dn)}
+.btn.gold{border-color:var(--gold)}
+.chip.on{border-color:var(--gold);border-width:2px}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);outline:none}
+.sw.on{border-color:var(--up)}
+.lvl.sl{border-color:var(--dn)}
+.lvl.tp{border-color:var(--up)}
+.hist{border-bottom:2px solid var(--line)}
+.ic.w{border-width:2px}
+th{border-bottom:2px solid var(--gold)}
+td{border-bottom:1px solid var(--line)}
+.sh-h{border-bottom:2px solid var(--gold)}
+nav{border-top:2px solid var(--gold)}
+header{border-bottom:2px solid var(--gold)}
+.ib:active{border-color:var(--gold);color:var(--gold)}
+.up{color:var(--up)} .dn{color:var(--dn)}
+
+/* ---- moving sheen on card edges ----
+   A gradient border cannot be animated directly, so the card gets a
+   pseudo-element one layer behind it carrying the same sweep used on the
+   titles. `inset:-2px` makes it read as a 2px border. */
+/* Fallback first: if mask-composite is unsupported the card keeps a plain
+   bright border rather than losing its edge entirely. */
+.card{position:relative;border-color:var(--shineA)}
+@supports ((-webkit-mask-composite:xor) or (mask-composite:exclude)){
+  .card{border-color:transparent}
+}
+.card::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  border:2px solid transparent;
+  background-image:linear-gradient(115deg,
+    var(--shineA) 0%, var(--shineA) 34%,
+    var(--shineB) 45%, var(--shineHi) 50%, var(--shineB) 55%,
+    var(--shineA) 66%, var(--shineA) 100%);
+  background-size:260% 100%;
+  animation:mirror 6s ease-in-out infinite;
+  /* show the gradient only where the border is: fill both boxes, then mask
+     out everything inside the padding edge */
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+  display:none;
+}
+@supports ((-webkit-mask-composite:xor) or (mask-composite:exclude)){
+  .card::before{display:block}
+}
+/* the sheen belongs to the outer card only; nested boxes stay plain */
+.card .card{border-color:var(--line)}
+.card .card::before{display:none}
+
+/* section headers inside a card get a matching underline */
+.card .ttl{padding-bottom:7px;border-bottom:2px solid var(--shineA)}
+.card .ttl + .hint{margin-top:9px}
+
+@media (prefers-reduced-motion:reduce){ .card::before{animation:none} }
+
+/* ==================================================================
+   SKIN — approved preview design
+   ------------------------------------------------------------------
+   Borders are deliberately dark and quiet. The previous build used
+   bright gold 2px edges with an animated sheen on every card, which
+   made every box shout equally and left nothing to draw the eye.
+   Here the card edge recedes and colour is spent only where it means
+   something: a direction, a gain, a loss, a warning.
+   ================================================================== */
+
+:root, body.lux, body.t-emerald, body.t-royal, body.t-navy{
+  --bg:#050807; --panel:#0B1310; --panel2:#0F1A16; --line:#18251F;
+  --txt:#E9F1EC; --mut:#78908A; --dim:#4A5D57; --lbl:#78908A;
+  --gold:#16E27E; --up:#16E27E; --dn:#FF4D57; --acc:#16E27E;
+  --shineA:#16E27E; --shineB:#7DFFC4; --shineHi:#FFFFFF;
+  --r:14px;
+}
+
+/* ---- type: a numeric sans, not a terminal face ---- */
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  background:var(--bg); color:var(--txt);
+}
+.mono,.num,input,select,td,th,.tick,.clock{
+  font-family:inherit; font-variant-numeric:tabular-nums; letter-spacing:-.2px;
+}
+
+/* ---- cards: quiet edge, no sheen ---- */
+.card{
+  background:var(--panel); border:1px solid var(--line) !important;
+  border-radius:var(--r); padding:15px; margin-bottom:12px;
+  box-shadow:none; position:relative;
+}
+.card::before{display:none !important}
+.card .card{border-color:var(--line) !important}
+
+.ttl{
+  font-size:11.5px; font-weight:700; letter-spacing:.9px; text-transform:uppercase;
+  color:var(--txt); margin:0 0 12px; padding-bottom:0; border-bottom:0 !important;
+  background-image:none; -webkit-text-fill-color:currentColor; animation:none;
+  filter:none; text-shadow:none; display:flex; align-items:center; gap:9px;
+}
+.ttl .sp{
+  margin-left:auto; font-size:11.5px; font-weight:500; letter-spacing:0;
+  text-transform:none; color:var(--mut); -webkit-text-fill-color:var(--mut);
+}
+
+.hint{font-size:11.5px; font-weight:400; color:var(--mut); line-height:1.55; margin:7px 0 0}
+label,.lbl>span:first-child{
+  font-size:10px; font-weight:600; color:var(--mut); letter-spacing:.5px;
+  text-transform:uppercase;
+}
+
+/* ---- header ---- */
+header{background:var(--bg); border-bottom:1px solid var(--line) !important; padding-bottom:10px}
+.hbox h1{
+  font-size:16px; font-weight:600; letter-spacing:-.3px; color:var(--txt);
+  background-image:none; -webkit-text-fill-color:currentColor; animation:none;
+  filter:none; text-shadow:none;
+}
+.hbox p{font-size:10px; font-weight:500; color:var(--mut); letter-spacing:.4px; opacity:1}
+.clock{font-size:11px; color:var(--mut)}
+.clock b{color:var(--txt); font-size:12px}
+.ib{
+  padding:9px 8px; background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; color:var(--mut); font-size:11.5px; font-weight:600;
+  letter-spacing:0; text-transform:none;
+}
+#licBadge{background:rgba(232,181,75,.08); border-color:rgba(232,181,75,.3); color:#E8B54B}
+
+/* ---- buttons ---- */
+.btn{
+  padding:13px; border-radius:10px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--txt); font-size:13.5px; font-weight:600;
+  letter-spacing:0; text-transform:none;
+}
+.btn.gold{background:var(--gold); border-color:var(--gold); color:#04150C}
+.btn.g{background:var(--up); border-color:var(--up); color:#04150C}
+.btn.r{background:transparent; border-color:rgba(255,77,87,.35); color:var(--dn)}
+.btn.ghost{background:transparent; border-color:rgba(22,226,126,.32); color:var(--gold)}
+.btn.sm{padding:10px; font-size:12.5px}
+
+/* ---- chips ---- */
+.chip{
+  background:var(--panel); border:1px solid var(--line); color:var(--mut);
+  padding:9px 15px; border-radius:10px; font-size:13px; font-weight:500;
+  letter-spacing:0; text-transform:none;
+}
+.chip.on,.chip.on.gold{
+  background:rgba(22,226,126,.10); border-color:var(--gold);
+  color:var(--gold); font-weight:600;
+}
+
+/* ---- inputs ---- */
+input,select,textarea,.pick{
+  background:var(--panel2); border:1px solid var(--line); border-radius:10px;
+  padding:12px; color:var(--txt); font-size:13.5px; font-weight:500;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--gold); outline:none}
+
+/* ---- toggles ---- */
+.sw{border:0; background:none; padding:11px 0; border-bottom:1px solid var(--line); gap:12px}
+.sw:last-of-type{border-bottom:0}
+.sw div{font-size:13.5px; font-weight:600}
+.sw small{font-size:11.5px; font-weight:400; color:var(--mut); line-height:1.55}
+.sw .tg{
+  width:42px; height:24px; border-radius:99px; background:var(--panel2);
+  border:1px solid var(--line);
+}
+.sw.on .tg{background:rgba(22,226,126,.22); border-color:var(--gold)}
+.sw .tg:after{width:18px; height:18px; background:var(--dim); top:2px; left:2px}
+.sw.on .tg:after{left:21px; background:var(--gold)}
+
+/* ---- rows and lists ---- */
+.hist{border-bottom:1px solid var(--line) !important; padding:12px 0; gap:11px}
+.hist:last-child{border-bottom:0 !important}
+.hist .in b{font-size:14px; font-weight:600; letter-spacing:-.2px}
+.hist .in small{font-size:11.5px; font-weight:400; color:var(--mut)}
+.ic{
+  width:30px; height:30px; border-radius:99px; background:var(--panel2);
+  border:1px solid var(--line); font-size:14px;
+}
+.ic.w{background:rgba(22,226,126,.12); border-color:rgba(22,226,126,.3); color:var(--up)}
+
+/* ---- level strip ---- */
+.lvls{gap:6px}
+.lvl{
+  background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:11px 9px;
+}
+.lvl>span{font-size:9.5px; font-weight:600; color:var(--mut); letter-spacing:.5px}
+.lvl>b{font-size:13px; font-weight:600}
+.lvl.sl{border-color:rgba(255,77,87,.28)}
+.lvl.tp{border-color:rgba(22,226,126,.28)}
+
+/* ---- stat tiles ---- */
+.pb,.vc,.st,.ptot{
+  background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:11px 9px;
+}
+.pb b,.vc b,.st b,.ptot b{font-size:15px; font-weight:600}
+.pb span,.vc span,.st span,.ptot span{
+  font-size:9.5px; font-weight:600; color:var(--mut); letter-spacing:.5px;
+}
+.pb em{font-size:10.5px; font-weight:400; color:var(--mut)}
+
+/* ---- label rows ---- */
+.lbl{
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  font-size:12px; font-weight:400; color:var(--mut); margin:0; padding:9px 0;
+  border-bottom:1px solid var(--line);
+}
+.lbl:last-child{border-bottom:0}
+.lbl>b{color:var(--txt); font-weight:600; text-align:right}
+.meter .lbl{border-bottom:0; padding:0}
+
+/* ---- tables ---- */
+th{
+  font-size:10px; font-weight:700; color:var(--mut); letter-spacing:.6px;
+  text-transform:uppercase; padding:11px 0; border-bottom:1px solid var(--line) !important;
+}
+td{padding:12px 0; border-bottom:1px solid var(--line); font-size:13px}
+tr:last-child td{border-bottom:0}
+
+/* ---- agent rows ---- */
+.ag{border:0; border-bottom:1px solid var(--line); border-radius:0; padding:9px 0; background:none}
+.ag:last-child{border-bottom:0}
+.ag .vt{border-radius:6px; font-size:10.5px; font-weight:700; padding:4px 0}
+
+/* ---- tags and pills ---- */
+.tag{border-radius:6px; font-size:10.5px; font-weight:700; padding:4px 9px; letter-spacing:.4px}
+.tag.n{background:rgba(120,144,138,.12); color:var(--mut); border:1px solid var(--line)}
+
+/* ---- ticker ---- */
+.tickwrap{margin:0 0 12px}
+.tick{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+  padding:12px 14px; font-size:13px; font-weight:600;
+}
+
+/* ---- meters ---- */
+.meter{background:none; border:0; padding:0}
+.meter .bar,.bar{height:5px; background:var(--panel2); border-radius:99px}
+.bar i,.meter i{border-radius:99px}
+
+/* ---- sheets ---- */
+.sheet{
+  background:var(--panel); border:1px solid var(--line) !important;
+  border-radius:18px 18px 0 0;
+}
+.sh-h{border-bottom:1px solid var(--line) !important; padding:16px}
+.sh-h h3{
+  font-size:16px; font-weight:600; letter-spacing:-.3px;
+  background-image:none; -webkit-text-fill-color:currentColor; color:var(--txt);
+}
+
+/* ---- nav ---- */
+nav{
+  background:rgba(11,19,16,.96); backdrop-filter:blur(12px);
+  border-top:1px solid var(--line) !important;
+}
+nav button{color:var(--dim); font-size:9.5px; font-weight:600; letter-spacing:0}
+nav button i{font-size:18px; filter:none; opacity:.55}
+nav button.on{color:var(--gold)}
+nav button.on i{opacity:1}
+
+/* ---- empty states ---- */
+.empty{color:var(--mut); font-size:13px; font-weight:400; line-height:1.7; padding:28px 14px}
+
+/* ---- lock screen ---- */
+.lockCard{background:var(--panel); border:1px solid var(--line)}
+.lockCard h2{
+  background-image:none; -webkit-text-fill-color:currentColor; color:var(--txt);
+  animation:none; filter:none;
+}
+.priceTag b{color:var(--gold)}
+
+/* ---- shine only where it earns its place ---- */
+.shine{
+  background-image:none !important; -webkit-text-fill-color:currentColor !important;
+  animation:none !important; filter:none !important;
+}
+.shine.up{color:var(--up)} .shine.dn{color:var(--dn)} .shine.gd{color:var(--gold)}
+
+/* ==================================================================
+   GOLD SKIN — default theme
+   The skin layer above re-maps every accent to emerald. Gold is the
+   default here, so the same variables are re-declared once more for
+   body.t-gold, after that layer, and the few places that hard-code a
+   green rgba() are re-pointed at the gold accent.
+   ================================================================== */
+body.t-gold{
+  --bg:#0A0805; --panel:#141009; --panel2:#191308; --line:#2C2214;
+  --txt:#F5EEE0; --mut:#9C8C6F; --dim:#6E6148; --lbl:#9C8C6F;
+  --gold:#E8B54B; --up:#16E27E; --dn:#FF4D57; --acc:#E8B54B;
+  --shineA:#E8B54B; --shineB:#FFE2A3; --shineHi:#FFFFFF;
+  --accRGB:232,181,75;
+}
+body.t-gold .btn.gold{background:var(--gold);border-color:var(--gold);color:#1A1204}
+body.t-gold .btn.ghost{background:transparent;border-color:rgba(232,181,75,.34);color:var(--gold)}
+body.t-gold .chip.on,body.t-gold .chip.on.gold{
+  background:rgba(232,181,75,.10);border-color:var(--gold);color:var(--gold);font-weight:600}
+body.t-gold .sw.on .tg{background:rgba(232,181,75,.22);border-color:var(--gold)}
+body.t-gold .sw.on .tg:after{background:var(--gold)}
+body.t-gold .ic.w{background:rgba(232,181,75,.13);border-color:rgba(232,181,75,.32);color:var(--gold)}
+body.t-gold nav{background:rgba(20,16,9,.96)}
+body.t-gold .lvl.tp{border-color:rgba(22,226,126,.28)}
+body.t-gold .card .ttl{border-bottom-color:rgba(232,181,75,.22)}
+
+/* ---- header: sticky, slides away as you scroll down ---- */
+header{position:sticky;top:0;z-index:40;transition:transform .22s ease}
+header.up{transform:translateY(-102%)}
+header.hide{display:none}
 </style>
 </head>
 <body>
+
+<script>
+/* Save kiya hua theme paint hone se pehle hi lag jaata hai, taaki app
+   khulte waqt default palette ki flash na dikhe. boot() thodi der baad
+   isko dobara theek se chalata hai. */
+(function(){
+  var t = 'gold';
+  /* alag se padho: value kharab ho to bhi neeche wala paint na ruke */
+  try{
+    var raw = localStorage.getItem('samu_theme');
+    if(raw) t = JSON.parse(raw);
+  }catch(e){}
+  if(!{terminal:1, gold:1, emerald:1, royal:1, navy:1}[t]) t = 'gold';
+  var bg = {terminal:'#0d0d0d', gold:'#0a0704', emerald:'#03100e',
+            royal:'#0d0413', navy:'#020a1c'}[t];
+  try{
+    var b = document.body;
+    b.className = (t === 'terminal') ? '' : 'lux t-' + t;
+    b.style.background = bg;
+    var m = document.querySelector('meta[name="theme-color"]');
+    if(m) m.setAttribute('content', bg);
+  }catch(e){}
+})();
+</script>
 
 <header>
   <div class="hbox">
     <h1 class="shine gd">SAMUSIGNAL</h1>
     <p>FOREX &amp; GOLD SIGNALS · <span id="verTag">v—</span></p>
+    <div class="clock"><b id="clkT">--:--</b><span id="clkD">--</span></div>
     <div class="hrow">
-      <div class="clock"><b id="clkT">--:--</b><span id="clkD">--</span></div>
       <button class="ib" id="btnRef" onclick="refreshAll()">⟳ REFRESH</button>
       <button class="ib" id="btnInstall">⬇ INSTALL</button>
+      <button class="ib" onclick="openSheet('guideSheet')">📘 KAISE USE KARE</button>
       <button class="ib" onclick="openSheet('setSheet')">⚙ SETTINGS</button>
     </div>
   </div>
 </header>
 
-<div class="tickwrap"><div class="tick" id="tick"></div></div>
-
 <main>
 
 <!-- ============ SIGNALS ============ -->
 <section id="pgSignals">
+  <div class="tickwrap"><div class="tick" id="tick"></div></div>
   <div class="card" id="dayBar"></div>
   <div class="card">
     <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
@@ -690,7 +1072,31 @@ body.t-navy{
   </div>
 
   <div class="card">
+    <p class="ttl">Chart Analysis <span class="sp" id="shotState">screenshot upload karo</span></p>
+
+    <label>Trading style</label>
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip" id="mdScalp" onclick="setStyle('SCALP')">Scalping</button>
+      <button class="chip" id="mdDay"   onclick="setStyle('DAY')">Day</button>
+      <button class="chip" id="mdSwing" onclick="setStyle('SWING')">Swing</button>
+    </div>
+    <p class="hint" id="styleNote" style="margin:-4px 0 12px">—</p>
+
+    <button class="btn gold" onclick="shotIn.click()">🖼 CHART SCREENSHOT UPLOAD KARO</button>
+    <input type="file" id="shotIn" accept="image/*" class="hide">
+    <p class="hint" style="margin:8px 0 0">Gallery se saaf chart screenshot chuno. Price axis aur pair ka naam dikhna zaroori hai.</p>
+
+    <div id="shotBox" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Live Tracking <span class="sp" id="trackState">band</span></p>
+    <div id="trackBox"></div>
+  </div>
+
+  <div class="card">
     <p class="ttl">Data Suraksha</p>
+    <p class="hint" id="storeInfo" style="margin:0 0 10px">—</p>
     <p class="hint" id="cloudInfo" style="margin:0 0 12px">—</p>
     <div class="sw" id="swCloud" onclick="toggleCloud(this)">
       <div class="tg"></div>
@@ -728,6 +1134,14 @@ body.t-navy{
 </nav>
 
 <!-- ============ SHEETS ============ -->
+<div class="ov" id="guideSheet"><div class="sheet">
+  <div class="sh-h"><h3>Kaise Use Kare</h3><button onclick="closeSheet('guideSheet')">×</button></div>
+  <div class="sh-b">
+    <div class="chips" id="gTabs" style="margin-bottom:14px"></div>
+    <div id="gBody"></div>
+  </div>
+</div></div>
+
 <div class="ov" id="setSheet"><div class="sheet">
   <div class="sh-h"><h3>Settings</h3><button onclick="closeSheet('setSheet')">×</button></div>
   <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
@@ -810,6 +1224,18 @@ body.t-navy{
     </select></div>
   </div>
   <p class="hint" style="margin-bottom:14px">Free plan pe 800 credits/day. Cap 700 rakho taaki buffer rahe. Har open pair ka 1 credit lagta hai — 5 pairs + 5 minute refresh = ~60 credits/ghanta.</p>
+
+  <p class="ttl">Chart Tracking</p>
+  <div style="margin-bottom:6px">
+    <label>Har kitni der me price check</label>
+    <select id="setTrackMin">
+      <option value="2">2 minute</option>
+      <option value="5">5 minute</option>
+      <option value="10">10 minute</option>
+      <option value="15">15 minute</option>
+    </select>
+  </div>
+  <p class="hint" style="margin-bottom:14px">Har check pe 1 API credit lagta hai. Tracking sirf tab chalti hai jab app khuli ho.</p>
 
   <p class="ttl">Alerts &amp; Voice</p>
   <div class="sw" id="swNotif" onclick="toggleNotif(this)">
@@ -928,7 +1354,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '6.1.0';
+const VERSION = '9.0.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -961,12 +1387,23 @@ FX.forEach(pr => {
   };
 });
 SPECS['BTC/USD'] = {n:'BTCUSD', d:2, pip:1, contract:1, tv:'BITSTAMP:BTCUSD', ccy:['BTC','USD']};
+SPECS['ETH/USD'] = {n:'ETHUSD', d:2, pip:0.1, contract:1, tv:'BITSTAMP:ETHUSD', ccy:['ETH','USD']};
 /* US30 — Exness pe 1 lot = $1 per index point */
 SPECS['US30']    = {n:'US30', d:1, pip:1, contract:1, tv:'CAPITALCOM:US30', ccy:['US30','USD'],
                     alt:['DJI','US30','DJIA','US30/USD']};
 
 const PAIRS = Object.keys(SPECS);
 const MAJORS = ['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','XAU/USD'];
+
+/* Broker ka minimum lot — iske neeche order reject ho jaata hai */
+const MIN_LOT = {'ETH/USD':0.10, 'BTC/USD':0.02};
+function minLot(sym){ return MIN_LOT[sym] || 0.01 }
+/* Lot ko us instrument ke valid step pe round karo */
+function fixLot(sym, lots){
+  const m = minLot(sym);
+  const v = Math.max(m, +lots || m);
+  return +(Math.round(v / m) * m).toFixed(3);
+}
 
 /* Market page ke groups — har group max 8 symbol = max 8 credits */
 const GROUPS = {
@@ -976,7 +1413,7 @@ const GROUPS = {
   'AUD / NZD': ['AUD/JPY','AUD/CHF','AUD/CAD','AUD/NZD','NZD/JPY','NZD/CHF','NZD/CAD'],
   'CAD / CHF': ['CAD/CHF','CAD/JPY','CHF/JPY'],
   'Index':     ['US30'],
-  'Crypto':    ['BTC/USD']
+  'Crypto':    ['BTC/USD','ETH/USD']
 };
 
 /* 1 unit of quote-currency = kitne USD */
@@ -1088,7 +1525,7 @@ let S = {
   scanDeep: LS.get('scanDeep',false),
   scanMin: LS.get('scanMin',70),
   scan:  LS.get('scan',{at:0,rows:[]}),
-  theme: LS.get('theme','terminal'),
+  theme: LS.get('theme','gold'),
   gKey:  LS.get('gKey',''),
   gModel: LS.get('gModel',''),
   gBad: LS.get('gBad',[]),
@@ -1103,13 +1540,25 @@ let S = {
   newsImp: LS.get('newsImp','High'),
   bad:   LS.get('bad',[]),
   px:    LS.get('px',{}),
+  style: LS.get('style','DAY'),        /* SCALP | DAY | SWING */
+  shot:  LS.get('shot',null),          /* last chart analysis */
+  track: LS.get('track',null),         /* jo setup track ho raha hai */
+  trackMin: LS.get('trackMin',5),      /* kitne minute pe price check */
   open:  LS.get('open',[]),
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
+/* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
+   tha usko ek baar shift karo — jaanbujh ke chuni gayi theme nahi badlegi. */
+if(!LS.get('mig90', false)){
+  if(!LS.get('themePicked', false) && S.theme === 'terminal'){
+    S.theme = 'gold'; LS.set('theme','gold');
+  }
+  LS.set('mig90', true);
+}
 if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
 
 let lastSignal = null;
@@ -1582,8 +2031,23 @@ function shareAiWa(){
 }
 
 /* ---------- notifications ---------- */
+/* Wrapped app (TWA/WebView) me web Notification API hoti hi nahi. Wahan
+   "browser support nahi" bolna confusing hai, isliye Telegram pe bhejo —
+   wo app band hone par bhi kaam karta hai. */
+const WRAPPED = /median|gonative|wv\)|; wv/i.test(navigator.userAgent) ||
+                (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches
+                 && !('Notification' in window));
+function noNotif(){
+  return !('Notification' in window) || typeof Notification.requestPermission !== 'function';
+}
+
 async function askNotif(){
-  if(!('Notification' in window)){ toast('Is browser me notification support nahi hai'); return false }
+  if(noNotif()){
+    toast(WRAPPED
+      ? 'Is build me phone alert nahi milta — Telegram alert use karo'
+      : 'Is browser me notification support nahi hai');
+    return false;
+  }
   if(Notification.permission === 'granted') return true;
   if(Notification.permission === 'denied'){
     toast('Notification block hai — Chrome site settings me allow karo'); return false;
@@ -1626,11 +2090,18 @@ function speakSignal(s){
 /* ---------- ui helpers ---------- */
 let tmr;
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tmr); tmr=setTimeout(()=>t.classList.remove('on'),2600); }
-function openSheet(id){ $(id).classList.add('on') }
+function openSheet(id){
+  if(id === 'guideSheet') renderGuide();
+  $(id).classList.add('on');
+}
 function closeSheet(id){ $(id).classList.remove('on') }
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('on') }));
 function go(pg,btn){
   ['Signals','Scan','Votes','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
+  /* header sirf Signals page pe — baaki pages pe poori screen milti hai */
+  const hd = document.querySelector('header');
+  hd.classList.toggle('hide', pg !== 'Signals');
+  hd.classList.remove('up'); lastY = 0;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
   if(pg==='Scan') renderScan();
@@ -1638,7 +2109,7 @@ function go(pg,btn){
     $('btTf').textContent = S.tf; $('btT').innerHTML = S.bt ? `<span data-ago="${S.bt.at}">${ago(S.bt.at)}</span>` : '—' }
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
-  if(pg==='Alerts'){ renderLog(); renderCloud() }
+  if(pg==='Alerts'){ renderLog(); renderCloud(); renderStorage(); renderShot(); renderTrack() }
 }
 async function toggleNotif(el){
   if(!S.notif){
@@ -1655,8 +2126,9 @@ const THEMES = {
   navy:     {n:'Navy',      bg:'#020a1c'}
 };
 function applyTheme(){
-  const t = THEMES[S.theme] ? S.theme : 'terminal';
+  const t = THEMES[S.theme] ? S.theme : 'gold';
   const b = document.body;
+  b.style.background = '';   /* pre-paint wala inline colour hatao */
   b.className = b.className.replace(/\bt-\S+|\blux\b/g,'').trim();
   if(t !== 'terminal') b.classList.add('lux', 't-' + t);
   const m = document.querySelector('meta[name="theme-color"]');
@@ -1664,9 +2136,9 @@ function applyTheme(){
   requestAnimationFrame(() => { paintSignalChart(); paintTradeCharts() });
 }
 function setTheme(t){
-  S.theme = t; save(); applyTheme();
+  S.theme = t; LS.set('themePicked', true); save(); applyTheme();
   document.querySelectorAll('[data-th]').forEach(b => b.classList.toggle('on', b.dataset.th === t));
-  toast((THEMES[t]||THEMES.terminal).n + ' theme on');
+  toast((THEMES[t]||THEMES.gold).n + ' theme on');
 }
 function toggleSw(el,key){ S[key]=!S[key]; el.classList.toggle('on',S[key]); save(); }
 
@@ -3483,7 +3955,7 @@ async function loadMarket(){
 /* fallback reference prices sirf pip-table ke liye */
 function refPrice(sym){
   return {'XAU/USD':3300,'EUR/USD':1.09,'GBP/USD':1.27,'AUD/USD':0.66,'NZD/USD':0.60,
-    'USD/JPY':150,'USD/CHF':0.88,'USD/CAD':1.36,'BTC/USD':95000,'US30':44000}[sym] || 1;
+    'USD/JPY':150,'USD/CHF':0.88,'USD/CAD':1.36,'BTC/USD':95000,'ETH/USD':3200,'US30':44000}[sym] || 1;
 }
 
 /* ticker sirf 5 symbols = 5 credits */
@@ -4777,15 +5249,27 @@ async function toggleCloud(el){
     await cloudPush();
   }
 }
+function renderStorage(){
+  const el = $('storeInfo'); if(!el) return;
+  storageInfo().then(si => {
+    const mb = si.used ? (si.used/1048576).toFixed(1) : '0';
+    el.innerHTML =
+      `<b style="color:${si.p?'var(--up)':'var(--gold)'}">${si.p ? '\u2713 Data surakshit hai' : '\u26a0 Browser ye data saaf kar sakta hai'}</b>` +
+      `<br>Is device pe ${mb} MB use ho raha hai` +
+      `<br>Trades: ${S.open.length} open \u00b7 ${S.hist.length} band`;
+  });
+}
+
 async function fixStorage(){
   const ok = await askPersist();
   await renderCloud();
+  renderStorage();
   alert(ok
     ? '✓ Ho gaya — ab Chrome is app ka data khud se delete nahi karega.'
     : 'Chrome ne abhi permission nahi di.\n\nZyada chance ke liye:\n• App ko home screen pe INSTALL karo\n• Kuch din regular use karo\n\nTab tak cloud backup on rakho — data safe rahega.');
 }
 function doBackup(){
-  const data = {app:'SamuSignal', v:2, at:new Date().toISOString(), state:S};
+  const data = {app:'SamuSignal', v:3, at:new Date().toISOString(), state:S};
   const b = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(b);
@@ -4855,6 +5339,7 @@ function saveSettings(){
   S.limPips = Math.max(1, +$('setLim').value || 5);
   showMode(); if($('verMode')) $('verMode').textContent = S.mt5Type;
   S.autoM = +$('setAuto').value;
+  S.trackMin = Math.max(2, +$('setTrackMin').value || 5);
   $('inLots').value = S.dLot; S.lots = S.dLot;
   save(); closeSheet('setSheet');
   $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
@@ -4931,7 +5416,10 @@ function choosePick(sym){
   pickVal[pickCtx] = sym;
   closeSheet('pickSheet');
   if(pickCtx === 'main'){
-    S.pair = sym; save(); pickLabel($('selPair'), sym);
+    S.pair = sym;
+    const lv2 = fixLot(sym, S.lots);
+    if(lv2 !== S.lots){ S.lots = lv2; if($('inLots')) $('inLots').value = lv2 }
+    save(); pickLabel($('selPair'), sym);
     setChart(sym); lastSignal = null; renderSignal();
   } else if(pickCtx === 'manual'){
     pickLabel($('mtPair'), sym);
@@ -5017,10 +5505,739 @@ function resetAgLive(){
 function unlockAll(){
   S.bad = []; save(); fillPairs(); toast('Locked pairs reset ho gaye — dobara try karo');
 }
+
+/* ================= CHART SCREENSHOT AI (Gemini Vision) =================
+   Screenshot se hi levels padhe jaate hain — live data se nahi. Isliye
+   har jagah saaf likha hai ki number verify karke hi trade lena. */
+
+const STYLES = {
+  SCALP: {
+    label: 'Scalping',
+    note:  'Minute se kuch ghante. Tight SL, jaldi target, M1–M15 structure.',
+    brief: 'SCALPING: minute se lekar do-teen ghante ka hold. Sabse chhote visible timeframe ka structure padho. SL tight rakho aur pehla target paas — lagbhag 1:1 se 1:1.5 reward.'
+  },
+  DAY: {
+    label: 'Day trading',
+    note:  'Intraday. Usi session me entry aur exit, M15–H1 structure.',
+    brief: 'DAY TRADING: usi session me entry aur exit. Intraday structure se kaam karo. Lagbhag 1:1.5 se 1:2 reward, SL sabse paas wale saaf swing ke peeche.'
+  },
+  SWING: {
+    label: 'Swing trading',
+    note:  'Din se hafte. Bade structure ke peeche chaudi SL, bada target.',
+    brief: 'SWING TRADING: din se hafton ka hold. Bade swing structure se kaam karo. SL kisi bade high/low ke peeche aur target lagbhag 1:2 se 1:3 reward.'
+  }
+};
+
+function setStyle(k){
+  if(!STYLES[k]) return;
+  S.style = k; save(); paintStyle();
+}
+function paintStyle(){
+  const map = {SCALP:'mdScalp', DAY:'mdDay', SWING:'mdSwing'};
+  for(const k in map){
+    const el = $(map[k]); if(!el) continue;
+    el.classList.toggle('on', S.style === k);
+    el.classList.toggle('gold', S.style === k);
+  }
+  const n = $('styleNote');
+  if(n) n.textContent = STYLES[S.style] ? STYLES[S.style].note : '';
+}
+
+/* ---- bhejne se pehle image chhoti karo: quota aur upload time bachta hai ---- */
+function shrinkImage(file, maxPx, quality){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onerror = () => rej(new Error('Ye file padhi nahi ja saki'));
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => rej(new Error('Ye image kharab lag rahi hai'));
+      img.onload = () => {
+        const lim = maxPx || 1280;
+        let {width:w, height:h} = img;
+        const sc = Math.min(1, lim / Math.max(w, h));
+        w = Math.round(w * sc); h = Math.round(h * sc);
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        const url = cv.toDataURL('image/jpeg', quality || 0.82);
+        res({ b64: url.split(',')[1], w, h });
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ---- Gemini Vision: wahi retry aur model-rotation jo text path me hai ---- */
+async function gVisionOnce(model, prompt, b64){
+  const cfg = {temperature:0.25, maxOutputTokens:3000, responseMimeType:'application/json'};
+  if(/2\.5|thinking|flash-latest/.test(model)) cfg.thinkingConfig = {thinkingBudget:0};
+  const r = await fetch(`${G_BASE}/models/${model}:generateContent?key=${encodeURIComponent(S.gKey)}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      contents:[{parts:[
+        {inline_data:{mime_type:'image/jpeg', data:b64}},
+        {text:prompt}
+      ]}],
+      generationConfig:cfg
+    })
+  });
+  if(!r.ok){
+    let msg = '', retry = 0;
+    try{
+      const j = await r.json();
+      msg = (j.error && j.error.message) || '';
+      const m = /retry in ([\d.]+)s/i.exec(msg);
+      if(m) retry = Math.ceil(+m[1]);
+    }catch(e){}
+    const e = new Error(msg || ('HTTP ' + r.status));
+    e.code = r.status; e.retry = retry;
+    e.dead = r.status === 404 || r.status === 400 || /limit:\s*0/.test(msg);
+    throw e;
+  }
+  const j = await r.json();
+  const cand = (j.candidates||[])[0] || {};
+  const parts = (cand.content && cand.content.parts) || [];
+  const txt = parts.map(x => x.text || '').join('');
+  if(!txt){
+    const e = new Error(cand.finishReason === 'MAX_TOKENS'
+      ? 'Jawab beech me kat gaya (MAX_TOKENS)'
+      : 'Khaali jawab \u2014 ' + (cand.finishReason || 'pata nahi'));
+    e.soft = true; throw e;
+  }
+  const out = jsonRescue(txt);
+  if(!out){ const e = new Error('Jawab parse nahi hua'); e.soft = true; throw e }
+  if(!out.signal){ const e = new Error('Jawab me zaroori fields nahi hain'); e.soft = true; throw e }
+  return out;
+}
+
+async function gVision(prompt, b64, onNote){
+  if(!S.gKey) throw new Error('Settings me Gemini API key daalo');
+  let list = await gCandidates();
+  if(S.gModel && !list.includes(S.gModel)) S.gModel = '';
+  if(S.gModel) list = [S.gModel, ...list.filter(m => m !== S.gModel)];
+  let lastErr = null, waited = false;
+  for(const model of list){
+    try{
+      if(onNote) onNote(model);
+      const out = await gVisionOnce(model, prompt, b64);
+      S.gModel = model; save();
+      return out;
+    }catch(e){
+      lastErr = e;
+      if(e.dead){ gMarkBad(model); continue }
+      if(e.soft) continue;
+      if(e.code === 429){
+        if(e.retry && e.retry <= 30 && !waited){
+          waited = true;
+          if(onNote) onNote(model, e.retry);
+          await new Promise(r => setTimeout(r, (e.retry + 1) * 1000));
+          try{ const out = await gVisionOnce(model, prompt, b64); S.gModel = model; save(); return out }
+          catch(e2){ lastErr = e2 }
+        }
+        continue;
+      }
+      break;
+    }
+  }
+  const lm = (lastErr && lastErr.message) || 'AI ne jawab nahi diya';
+  throw new Error(/quota|exhaust/i.test(lm)
+    ? 'Aaj ka Gemini quota khatam \u2014 kal reset ho jayega. Ya aistudio.google.com pe nayi key bana lo.'
+    : lm);
+}
+
+function shotPrompt(){
+  const st = STYLES[S.style] || STYLES.DAY;
+  const names = PAIRS.map(p => SPECS[p].n).join(', ');
+  return `You are a professional technical analyst reading a trading chart screenshot.
+
+STYLE: ${st.brief}
+
+Read the image carefully. Identify the instrument, the timeframe, the visible price
+structure, and the actual price levels from the vertical axis. Base every number on
+what is genuinely visible in the image \u2014 never invent levels.
+
+If the image is not a price chart, or is too blurry or cropped to read the price axis,
+set "signal" to "UNREADABLE" and explain what is missing in "reasoning".
+
+If the instrument is one of these, use this exact spelling: ${names}
+If it is NOT in that list, report the ticker exactly as printed on the chart.
+Never substitute a different instrument \u2014 reporting an unknown ticker is
+correct, guessing a similar one is not.
+
+Write every text field in simple Hinglish (Hindi written in Roman/English letters,
+the way Indian traders talk). Keep all keys, symbols and numbers in English.
+
+Reply with JSON ONLY, no other text, in exactly this shape:
+{
+ "symbol": "closest match from the list above, or the raw ticker if none fits",
+ "timeframe": "what the chart shows, e.g. 15m, 1H, 4H, Daily",
+ "signal": "BUY" or "SELL" or "NO TRADE" or "UNREADABLE",
+ "confidence": 0-100 integer,
+ "entry": number,
+ "stop_loss": number,
+ "take_profit_1": number,
+ "take_profit_2": number,
+ "trend": "1-2 Hinglish sentences on the dominant trend and current structure",
+ "support": [up to 3 numeric support levels, nearest first],
+ "resistance": [up to 3 numeric resistance levels, nearest first],
+ "reasoning": "2-3 Hinglish sentences on why this direction, citing what you see",
+ "invalidation": "the single price level or condition that kills this setup, in Hinglish",
+ "counter_trade": "2-3 Hinglish sentences on the opposite case \u2014 what would have to happen for the other direction to work, with rough entry and stop"
+}
+
+Rules:
+- Every price must be a plain number, no currency symbols or thousands separators.
+- Stop loss and take profits must sit on the correct side of the entry for the direction given.
+- Size the stop and targets to fit the ${st.label} style stated above.
+- Confidence must reflect genuine chart quality. If structure is unclear, score it low.
+- Be honest. If the setup is poor, return "NO TRADE" with your reasoning.`;
+}
+
+const shotIn = $('shotIn');
+if(shotIn) shotIn.addEventListener('change', async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if(!f) return;
+  if(!S.gKey){ toast('Settings me Gemini API key daalo'); openSheet('setSheet'); return }
+  if(f.size > 12 * 1024 * 1024){ toast('Image bahut badi hai \u2014 12 MB se chhoti chuno'); return }
+
+  const box = $('shotBox');
+  $('shotState').textContent = 'chart padh raha hoon\u2026';
+  box.innerHTML = '<p class="hint"><span class="spin"></span> Image taiyaar ho rahi hai\u2026</p>';
+
+  try{
+    const img = await shrinkImage(f, 1280);
+    box.innerHTML = '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai\u2026</p>';
+    const d = await gVision(shotPrompt(), img.b64, (m, wait) => {
+      box.innerHTML = `<p class="hint"><span class="spin"></span> ` +
+        (wait ? `Rate limit \u2014 ${wait}s ruk raha hoon (${m})` : `${m} se padh raha hoon\u2026`) + `</p>`;
+    });
+
+    d.at = Date.now();
+    d.style = S.style;
+    d.sym = matchSymbol(d.symbol);
+    S.shot = d; save();
+    renderShot();
+    $('shotState').textContent = 'ho gaya';
+    if(d.signal === 'BUY' || d.signal === 'SELL') toast(`${d.signal} \u00b7 ${d.confidence}% confidence`);
+  }catch(err){
+    $('shotState').textContent = 'fail';
+    box.innerHTML = `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:12px">
+      <b style="color:var(--dn);font-size:11.5px;letter-spacing:1.2px">ANALYSIS FAIL</b>
+      <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${err.message}</p></div>`;
+  }
+});
+
+/* model ne jo naam bola use apne symbol pe map karo */
+function matchSymbol(raw){
+  if(!raw) return null;
+  const q = String(raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  for(const p of PAIRS) if(SPECS[p].n.replace(/[^A-Z0-9]/g,'') === q) return p;
+  for(const p of PAIRS) if(q.startsWith(SPECS[p].n.replace(/[^A-Z0-9]/g,''))) return p;
+  if(/^(GOLD|XAUUSD)/.test(q)) return 'XAU/USD';
+  if(/^(BITCOIN|BTC)/.test(q)) return 'BTC/USD';
+  if(/^(ETHEREUM|ETH)/.test(q)) return 'ETH/USD';
+  if(/^(DOW|US30|DJI)/.test(q)) return 'US30';
+  return null;
+}
+
+function rrLine(d){
+  const e = +d.entry, sl = +d.stop_loss, tp = +d.take_profit_1;
+  if(!isFinite(e) || !isFinite(sl) || !isFinite(tp)) return '';
+  const risk = Math.abs(e - sl), rew = Math.abs(tp - e);
+  if(!risk) return '';
+  const rr = rew / risk;
+  const be = 100 / (1 + rr);
+  const c = rr >= 1.5 ? 'var(--up)' : rr >= 1 ? 'var(--gold)' : 'var(--dn)';
+  return `<span style="color:${c}">R:R 1:${rr.toFixed(2)}</span> \u00b7 breakeven ke liye ${be.toFixed(0)}% win rate chahiye`;
+}
+
+function renderShot(){
+  const box = $('shotBox'); if(!box) return;
+  const d = S.shot;
+  if(!d){ box.innerHTML = ''; return }
+
+  const sym = d.sym;
+  const P = v => (sym && isFinite(v)) ? fmt(sym, v) : (isFinite(v) ? (+v).toString() : '\u2014');
+  const dir = d.signal;
+  const isTrade = dir === 'BUY' || dir === 'SELL';
+  const col = dir === 'BUY' ? 'var(--up)' : dir === 'SELL' ? 'var(--dn)' : 'var(--gold)';
+  const conf = Math.max(0, Math.min(100, +d.confidence || 0));
+  const ccol = conf >= 70 ? 'var(--up)' : conf >= 45 ? 'var(--gold)' : 'var(--dn)';
+  const lvls = a => (Array.isArray(a) ? a : []).filter(x => isFinite(x)).slice(0,3).map(P).join(' \u00b7 ') || '\u2014';
+
+  if(dir === 'UNREADABLE'){
+    box.innerHTML = `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.07);border-radius:6px;padding:12px">
+      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.2px">\u26a0 CHART PADHA NAHI GAYA</b>
+      <p class="hint" style="margin:5px 0 0">${d.reasoning || 'Image saaf nahi thi.'}</p>
+      <p class="hint" style="margin:8px 0 0">Aisa screenshot lo jisme price axis aur pair ka naam dono dikhe.</p></div>`;
+    return;
+  }
+
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;background:${dir==='BUY'?'rgba(18,201,138,.10)':dir==='SELL'?'rgba(242,84,91,.10)':'rgba(255,184,0,.08)'};
+         border:1px solid ${col};border-radius:11px;padding:11px 13px;margin-bottom:12px">
+      <b class="shine ${dir==='BUY'?'up':dir==='SELL'?'dn':'gd'}" style="font-size:17px;letter-spacing:.5px">${dir}</b>
+      <span class="mono" style="font-size:13px">${sym ? SPECS[sym].n : (d.symbol || '\u2014')}</span>
+      <span class="gr" style="margin-left:auto">${d.timeframe || ''}</span>
+    </div>
+
+    <div class="lbl" style="margin-bottom:4px"><span>Confidence</span><b class="mono" style="color:${ccol}">${conf}%</b></div>
+    <div style="height:6px;background:var(--bg);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-bottom:12px">
+      <div style="height:100%;width:${conf}%;background:${ccol}"></div>
+    </div>
+
+    ${isTrade ? `
+      <div class="lvls" style="margin-bottom:10px">
+        <div class="lvl"><span>ENTRY</span><b class="mono">${P(d.entry)}</b></div>
+        <div class="lvl sl"><span>STOP LOSS</span><b class="mono">${P(d.stop_loss)}</b></div>
+        <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono">${P(d.take_profit_1)}</b>
+          ${isFinite(d.take_profit_2) ? `<small style="display:block;font-size:10.5px;color:var(--mut);font-weight:600">TP2 ${P(d.take_profit_2)}</small>` : ''}</div>
+      </div>
+      <p class="hint" style="margin:0 0 12px">${rrLine(d)}</p>` : ''}
+
+    <div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
+      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udcc8 TREND &amp; STRUCTURE</b>
+      <p class="hint" style="margin:5px 0 8px">${d.trend || '\u2014'}</p>
+      <div class="lbl"><span>Resistance</span><b class="mono" style="font-size:11px">${lvls(d.resistance)}</b></div>
+      <div class="lbl"><span>Support</span><b class="mono" style="font-size:11px">${lvls(d.support)}</b></div>
+    </div>
+
+    <div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
+      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udcad WAJAH</b>
+      <p class="hint" style="margin:5px 0 0">${d.reasoning || '\u2014'}</p>
+    </div>
+
+    ${d.invalidation ? `<div style="border:1px solid var(--gold);border-radius:6px;padding:11px;margin-bottom:10px;background:rgba(255,184,0,.05)">
+      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83c\udfaf SETUP KAB KHATAM</b>
+      <p class="hint" style="margin:5px 0 0">${d.invalidation}</p></div>` : ''}
+
+    ${d.counter_trade ? `<div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
+      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udd04 ULTA CASE</b>
+      <p class="hint" style="margin:5px 0 0">${d.counter_trade}</p></div>` : ''}
+
+    ${(() => {
+      /* Agar levels live price ke aas-paas hi nahi hain to model ne
+         galat instrument padha hai. Chup rehna tracking ko todta hai,
+         isliye saaf bata do. */
+      if(!sym || !isFinite(d.entry)) return '';
+      const live = prices[sym] && prices[sym].p;
+      if(!live) return '';
+      const off = Math.abs(d.entry - live) / live;
+      if(off < 0.25) return '';
+      return `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.12);border-radius:6px;padding:11px;margin-bottom:12px">
+        <b style="color:var(--dn);font-size:10.5px;letter-spacing:1.2px">\u26a0 GALAT PAIR?</b>
+        <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">
+        Ye levels live ${SPECS[sym].n} price ${fmt(sym,live)} se ${(off*100).toFixed(0)}% door hain.
+        Shayad pair galat padha gaya. Isko track mat karo \u2014 aisa screenshot do jisme pair ka naam saaf dikhe.</p></div>`;
+    })()}
+    <div style="border:1px solid var(--dn);background:rgba(255,68,68,.07);border-radius:6px;padding:10px;margin-bottom:12px">
+      <p class="hint" style="color:#ffb3b3;font-weight:600;margin:0">Ye levels tumhare screenshot se padhe gaye hain, live data se nahi. Trade lene se pehle current price se milaao.</p>
+    </div>
+
+    ${isTrade && sym ? `<button class="btn gold" style="margin-bottom:8px" onclick="startTrack()">\u26a1 IS SETUP KO TRACK KARO</button>` : ''}
+    ${!sym && isTrade ? `<p class="hint" style="color:var(--gold);margin-bottom:8px">Ye instrument app ke kisi pair se match nahi hua, isliye live tracking nahi ho sakti.</p>` : ''}
+    <div class="grid2">
+      <button class="btn ghost sm" onclick="shareShot()">\ud83d\udcac SHARE</button>
+      <button class="btn ghost sm" onclick="clearShot()">\u2715 HATAO</button>
+    </div>`;
+}
+
+function clearShot(){
+  S.shot = null; save(); renderShot();
+  $('shotState').textContent = 'screenshot upload karo';
+}
+
+function shotText(){
+  const d = S.shot; if(!d) return '';
+  const sym = d.sym;
+  const P = v => (sym && isFinite(v)) ? fmt(sym, v) : v;
+  const L = [];
+  L.push(`\ud83d\udcca CHART ANALYSIS \u2014 ${sym ? SPECS[sym].n : d.symbol}`);
+  L.push(`${d.signal} \u00b7 ${d.confidence}% confidence \u00b7 ${STYLES[d.style] ? STYLES[d.style].label : ''}`);
+  L.push('');
+  if(d.signal === 'BUY' || d.signal === 'SELL'){
+    L.push(`Entry  ${P(d.entry)}`);
+    L.push(`SL     ${P(d.stop_loss)}`);
+    L.push(`TP1    ${P(d.take_profit_1)}`);
+    if(isFinite(d.take_profit_2)) L.push(`TP2    ${P(d.take_profit_2)}`);
+    L.push('');
+  }
+  if(d.trend){ L.push('\ud83d\udcc8 ' + d.trend); L.push('') }
+  if(d.reasoning){ L.push(d.reasoning); L.push('') }
+  if(d.invalidation){ L.push('\ud83c\udfaf Khatam agar: ' + d.invalidation); L.push('') }
+  if(d.counter_trade){ L.push('\ud83d\udd04 ' + d.counter_trade); L.push('') }
+  L.push('Levels screenshot se padhe gaye \u2014 live price se verify karo.');
+  L.push('\u2014 SamuSignal');
+  return L.join('\n');
+}
+function shareShot(){
+  if(!S.shot){ toast('Pehle koi chart analyze karo'); return }
+  if(S.tgTok && S.tgId) tgSend(shotText().replace(/</g,'&lt;'));
+  window.open('https://wa.me/?text=' + encodeURIComponent(shotText()), '_blank');
+}
+
+/* ================= LIVE TRACKING (ek pair, uploaded chart wala) =================
+   Har check pe 1 API credit lagta hai aur ye sirf app khuli hone par chalta hai.
+   PWA background me poll nahi kar sakti — isliye ye saaf likha hua hai. */
+
+function startTrack(){
+  const d = S.shot;
+  if(!d || !d.sym){ toast('Track karne layak pair nahi mila'); return }
+  if(S.track && S.track.sym !== d.sym &&
+     !confirm(`Abhi ${SPECS[S.track.sym].n} track ho raha hai.\n\nIsko ${SPECS[d.sym].n} se badal dein?`)) return;
+
+  S.track = {
+    sym: d.sym, dir: d.signal, style: d.style,
+    entry: +d.entry, sl: +d.stop_loss,
+    tp1: +d.take_profit_1, tp2: +d.take_profit_2,
+    conf: +d.confidence || 0,
+    startedAt: Date.now(), lastAt: 0, last: null,
+    hit: {}, done: false
+  };
+  save(); renderTrack();
+  toast(`${SPECS[d.sym].n} track ho raha hai`);
+  askNotif().catch(()=>{});
+  trackCheck(true);
+}
+function stopTrack(){
+  if(!S.track) return;
+  if(!confirm('Tracking band kar dein?')) return;
+  S.track = null; save(); renderTrack(); toast('Tracking band');
+}
+
+/* kitna paas aana "entry pe pahunch gaya" maana jaye — instrument ke hisaab se */
+function entryZone(sym, entry, sl){
+  const d = Math.abs(entry - sl);
+  return d ? Math.max(d * 0.12, SPECS[sym].pip * 2) : SPECS[sym].pip * 5;
+}
+
+let trackBusy = false;
+async function trackCheck(force){
+  const t = S.track;
+  if(!t || t.done || trackBusy) return;
+  if(!S.key) return;
+  const gap = Math.max(2, +S.trackMin || 5) * 60000;
+  if(!force && Date.now() - t.lastAt < gap) return;
+  if(!force && creditsLeft() < 3) return;
+
+  trackBusy = true;
+  try{
+    const p = await getPrice(t.sym);
+    if(!isFinite(p) || !p) return;
+    t.last = p; t.lastAt = Date.now();
+
+    const up = t.dir === 'BUY';
+    const N = SPECS[t.sym].n;
+    const fire = (key, title, body, speakTxt) => {
+      if(t.hit[key]) return;
+      t.hit[key] = Date.now();
+      notify(title, body, 'track-' + key);
+      if(S.tts && speakTxt) speak(speakTxt);
+      if(S.tgAuto) tgSend(`<b>${title}</b>\n${body}\n\u23f0 ${t12(Date.now())}`, true);
+      toast(title);
+    };
+
+    /* entry zone */
+    if(isFinite(t.entry) && Math.abs(p - t.entry) <= entryZone(t.sym, t.entry, t.sl))
+      fire('entry', `\ud83d\udd14 Entry zone \u2014 ${N}`,
+           `${t.dir} setup apne entry pe hai. Price ${fmt(t.sym,p)}, plan wali entry ${fmt(t.sym,t.entry)}.`,
+           `${N.split('').join(' ')} entry zone pe aa gaya hai.`);
+
+    /* stop loss */
+    if(isFinite(t.sl) && (up ? p <= t.sl : p >= t.sl)){
+      fire('sl', `\ud83d\uded1 Stop level \u2014 ${N}`,
+           `Price ${fmt(t.sym,p)} ne ${fmt(t.sym,t.sl)} wali SL chhu li. Ye setup khatam.`,
+           `${N.split('').join(' ')} stop loss pe lag gaya.`);
+      t.done = true;
+    }
+
+    /* targets */
+    if(isFinite(t.tp1) && (up ? p >= t.tp1 : p <= t.tp1))
+      fire('tp1', `\ud83c\udfaf TP1 lag gaya \u2014 ${N}`,
+           `Price ${fmt(t.sym,p)} ne pehla target ${fmt(t.sym,t.tp1)} chhu liya.`,
+           `${N.split('').join(' ')} target one pe pahunch gaya.`);
+
+    if(isFinite(t.tp2) && (up ? p >= t.tp2 : p <= t.tp2)){
+      fire('tp2', `\ud83c\udfaf TP2 lag gaya \u2014 ${N}`,
+           `Price ${fmt(t.sym,p)} ne doosra target ${fmt(t.sym,t.tp2)} chhu liya.`,
+           `${N.split('').join(' ')} target two pe pahunch gaya.`);
+      t.done = true;
+    }
+
+    save();
+    if(!$('pgAlerts').classList.contains('hide')) renderTrack();
+  }catch(e){
+    /* price check fail hona itna bada nahi ki user ko toka jaye */
+  }finally{ trackBusy = false }
+}
+
+setInterval(() => {
+  if(document.hidden) return;
+  trackCheck(false);
+}, 30000);
+
+function renderTrack(){
+  const box = $('trackBox'), st = $('trackState');
+  if(!box) return;
+  const t = S.track;
+  if(!t){
+    if(st) st.textContent = 'band';
+    box.innerHTML = '<p class="hint">Upar koi chart analyze karo, phir IS SETUP KO TRACK KARO dabao — app us pair ko entry, SL aur target ke liye dekhti rahegi.</p>';
+    return;
+  }
+  const N = SPECS[t.sym].n;
+  if(st) st.textContent = t.done ? 'poora hua' : N;
+  const p = t.last;
+  const up = t.dir === 'BUY';
+  const live = isFinite(p) ? fmt(t.sym, p) : '\u2014';
+  const pl = (isFinite(p) && isFinite(t.entry))
+    ? ((up ? p - t.entry : t.entry - p) / SPECS[t.sym].pip)
+    : null;
+
+  const row = (key, label, val, icon) => {
+    const on = !!t.hit[key];
+    return `<div class="hist" style="padding:8px 0">
+      <div class="ic ${on ? 'w' : 'm'}" style="font-size:11px">${icon}</div>
+      <div class="in"><b style="font-size:12px;${on?'color:var(--up)':''}">${label}</b>
+        <small>${val}${on ? ' \u00b7 laga ' + t12(t.hit[key]) : ''}</small></div>
+    </div>`;
+  };
+
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <b class="shine ${up?'up':'dn'}" style="font-size:15px">${t.dir}</b>
+      <span class="mono" style="font-size:13px">${N}</span>
+      <span class="gr" style="margin-left:auto">${STYLES[t.style] ? STYLES[t.style].label : ''}</span>
+    </div>
+
+    <div class="lbl"><span>Live price</span><b class="mono">${live}</b></div>
+    <div class="lbl"><span>Entry se doori</span><b class="mono">${
+      (isFinite(p) && isFinite(t.entry)) ? Math.abs((p - t.entry) / SPECS[t.sym].pip).toFixed(1) + ' pips' : '\u2014'
+    }</b></div>
+    ${pl !== null ? `<div class="lbl"><span>Entry level se move</span><b class="mono ${pl>=0?'up':'dn'}">${pl>=0?'+':''}${pl.toFixed(1)} pips</b></div>` : ''}
+    <div class="lbl"><span>Last check</span><b class="mono">${t.lastAt ? ago(t.lastAt) : 'abhi nahi'}</b></div>
+
+    <div style="margin:10px 0 4px">
+      ${row('entry','Entry zone', fmt(t.sym,t.entry), '\ud83d\udd14')}
+      ${row('sl','Stop loss', fmt(t.sym,t.sl), '\ud83d\uded1')}
+      ${isFinite(t.tp1) ? row('tp1','Target 1', fmt(t.sym,t.tp1), '\ud83c\udfaf') : ''}
+      ${isFinite(t.tp2) ? row('tp2','Target 2', fmt(t.sym,t.tp2), '\ud83c\udfaf') : ''}
+    </div>
+
+    ${t.done ? `<p class="hint" style="color:var(--gold);margin:8px 0">Ye setup poora ho gaya. Tracking band karke slot khaali kar do.</p>` : ''}
+
+    <div style="border:1px solid var(--line);border-radius:6px;padding:10px;margin:10px 0">
+      <p class="hint" style="margin:0">Har ${S.trackMin} minute pe check hota hai aur har check pe 1 API credit lagta hai.
+      <b style="color:var(--gold)">Tracking sirf tab chalti hai jab ye app khuli ho</b> \u2014 phone background me web app ko jaga nahi sakta.</p>
+    </div>
+
+    <div class="grid2">
+      <button class="btn ghost sm" onclick="trackCheck(true)">\u27f3 ABHI CHECK KARO</button>
+      <button class="btn ghost sm" style="color:var(--dn)" onclick="stopTrack()">\u2715 TRACKING BAND</button>
+    </div>`;
+}
+
+
+/* ================= IN-APP GUIDE =================
+   Markup ki jagah data ke roop me likha hai taaki ek hi jagah se edit ho.
+   PDF ki jagah yahi behtar hai: PDF save hone ke baad update nahi hoti,
+   aur phone pe reader ko app se bahar le jaati hai. */
+
+const GUIDE = [
+{ id:'start', t:'Shuru Karo', body:[
+  ['h','Ye app hai kya'],
+  ['p','SamuSignal market ko 50 rule-based agents aur classic indicators se padhta hai, phir batata hai ki usko kya dikh raha hai aur kitna bharosa hai. Ye analysis aur journal ka tool hai — order tum khud lagate ho, chahe app se ya MT5 bridge se.'],
+  ['h','Sabse zaroori setup'],
+  ['p','TwelveData API key. Iske bina koi price load nahi hoga aur kuch kaam nahi karega. Free hai aur do minute lagte hain — API Keys tab dekho.'],
+  ['h','Pehla analysis'],
+  ['n',['SETTINGS kholo, TwelveData key paste karo, SAVE dabao.',
+        'SIGNALS page pe pair aur timeframe chuno.',
+        'ANALYZE dabao.',
+        'Upar SIGNAL card padho, phir neeche ANALYSIS card me poori wajah.']],
+  ['h','Number ka matlab'],
+  ['t',[['Quality','0-100. Kitni cheezein ek line me hain. 60 se neeche kamzor.'],
+        ['Verdict','LE LO, WAIT ya CHHOD DO — app ka final nichod.'],
+        ['Grade','A/B/C — wahi baat chhote roop me.'],
+        ['R:R','Reward bhaag risk. 1:1 se neeche matlab ganit tumhare khilaaf hai.']]],
+  ['w','Yahan kuch bhi financial advice nahi hai. Zyada score ka matlab guarantee nahi. Faisla hamesha khud lo.']
+]},
+
+{ id:'keys', t:'API Keys', body:[
+  ['h','TwelveData — zaroori'],
+  ['p','Isse live price aur candles aati hain. Free plan me 800 credits/day milte hain, kaafi hai.'],
+  ['n',['twelvedata.com kholo aur email se sign up karo.',
+        'Email pe aaye link se verify karo.',
+        'Sign in karke Dashboard kholo, left menu me API Keys dekho.',
+        'Ek key pehle se bani hoti hai — copy kar lo.',
+        'App me: SETTINGS \u2192 TwelveData API Key \u2192 paste \u2192 SAVE.']],
+  ['p','Ab header me "API connected" dikhna chahiye.'],
+  ['h','Credits kahan kharch hote hain'],
+  ['t',[['Ek Analyze','1-3 credits, timeframe ke hisaab se'],
+        ['Ek Scan','Watchlist ke har pair ka 1 credit'],
+        ['Open trades','Har pair ka 1 credit, har refresh pe'],
+        ['Chart tracking','Har check pe 1 credit']]],
+  ['p','Daily cap default 700 hai taaki asli 800 limit se neeche buffer bacha rahe. Credits 00:00 UTC pe reset hote hain.'],
+  ['w','Free plan me XAUUSD jaise metals aur kuch exotic crosses block rehte hain — wo "locked" dikhte hain. Major pairs hamesha chalte hain.'],
+  ['h','Google Gemini — optional'],
+  ['p','Sirf do cheezon ke liye chahiye: signal ka aasan bhasha me explanation, aur chart screenshot padhna. Baaki sab iske bina bhi chalta hai.'],
+  ['n',['aistudio.google.com kholo aur Google account se sign in karo.',
+        'Get API key \u2192 Create API key dabao.',
+        'Key copy karo.',
+        'App me: SETTINGS \u2192 AI Analysis \u2192 paste \u2192 SAVE.',
+        'SHOW MODELS dabakar check karo ki key chal rahi hai.']]
+]},
+
+{ id:'signals', t:'Signals', body:[
+  ['h','Main page'],
+  ['p','Pair chuno, timeframe chuno, ANALYZE dabao. Direction, quality score, entry, SL, TP aur har indicator ka likha hua breakdown milta hai.'],
+  ['h','HTF Confluence Filter'],
+  ['p','On rehne pe signal tabhi valid mana jaata hai jab 4H aur Daily bias bhi saath ho. Signal kam milenge par achhe milenge. Jaanbujh ke counter-trend scalp na kar rahe ho to on hi rakho.'],
+  ['h','Analysis card kaise padhein'],
+  ['p','Har line ek check hai: trend structure, Supertrend, RSI, MACD, ADX, price apni recent range me kahan hai, Bollinger position, aur SL volatility ke hisaab se kaafi chaudi hai ya nahi. Hara matlab trade ke paksh me, laal matlab khilaaf.'],
+  ['h','Setup galat kab sabit hota hai'],
+  ['p','Neeche app wo exact price batata hai jahan setup khatam ho jaata hai. Us par close ho gaya to idea mar gaya — SL ka intezaar mat karo, nikal jao.'],
+  ['h','ASK THE AI'],
+  ['p','Saare number Gemini ko bhejta hai aur trader wali summary laata hai: wo kya karta, kis baat se darta, aur doosri taraf ka case kya hai. Iske liye Gemini key chahiye.'],
+  ['h','News warning'],
+  ['p','Koi high-impact release paas hone pe laal patti aati hai. News ke aas-paas spread chaudi hoti hai aur SL slip hoti hai — ya ruk jao ya SL chaudi rakho.']
+]},
+
+{ id:'scan', t:'Scan', body:[
+  ['h','Kai pairs me setup dhundhna'],
+  ['p','Scan wahi engine poori watchlist pe chalata hai aur result rank karke deta hai, taaki ek-ek pair khud na dekhna pade.'],
+  ['n',['CHANGE dabakar watchlist chuno — 12 pairs tak.',
+        'Minimum strength set karo. 60% se shuru karna theek rehta hai.',
+        'RUN SCAN dabao.']],
+  ['h','Kharcha'],
+  ['p','Har pair ka 1 credit. App chalane se pehle cost dikha deta hai, aur budget kam ho to warning bhi.'],
+  ['h','Result gayab kyun ho jaate hain'],
+  ['p','Paanch minute baad result saaf ho jaate hain. Price chalta rehta hai, aur purana entry level na hone se bhi bura hai. Wapas aake dobara scan karo.'],
+  ['h','Fast vs Deep'],
+  ['p','Deep mode Daily bias bhi check karta hai — har pair ka ek extra credit lagta hai par counter-trend shor kaafi kam ho jaata hai.']
+]},
+
+{ id:'votes', t:'Votes & Backtest', body:[
+  ['h','50 agents'],
+  ['p','Har agent ek technical rule hai — moving average cross, RSI condition, channel break waghairah. Ye AI nahi hain. Har ek BUY, SELL ya HOLD vote deta hai aur panel tally dikhata hai.'],
+  ['h','Tally kyun maayne rakhti hai'],
+  ['p','Jab signal card BUY bole aur agents SELL bolein, kuch to gadbad hai. Aise me ruk jaana hi aksar behtar trade hota hai.'],
+  ['h','Live record'],
+  ['p','Jaise-jaise analyze kiye signal apne TP/SL pe pahunchte hain, har agent ka asli win rate banta hai. Kuch sau votes hone tak isko mat maano — us se pehle ye sirf shor hai.'],
+  ['h','Backtest'],
+  ['p','Ek pair ke purane candles pe 50 agents chalakar batata hai kaun sach me kaam kar raha tha. Ek pair ka 1 credit lagta hai aur hazaron samples milte hain.'],
+  ['w','Ek pair aur ek timeframe ka backtest bahut kam sabit karta hai. Bharosa karne se pehle teen-chaar chalao. Agent tabhi sach me kamzor hai jab har jagah kamzor ho.']
+]},
+
+{ id:'market', t:'Market', body:[
+  ['h','Live rates'],
+  ['p','Majors, crosses, metals, index aur crypto me baante hue current prices. Har group ke har symbol ka 1 credit lagta hai.'],
+  ['h','Pip calculator'],
+  ['p','Pair aur lot size daalo, ek pip ki dollar value dikh jayegi. Size set karne se pehle kaam ka hai, khaaskar gold aur index me jahan value seedhi nahi dikhti.'],
+  ['h','Minimum lot size'],
+  ['t',[['Zyadatar pairs','0.01'],['BTCUSD','0.02'],['ETHUSD','0.10']]],
+  ['p','App lot box ko in par khud clamp kar deta hai. Neeche jaane pe broker order reject kar dega.']
+]},
+
+{ id:'trades', t:'Trades', body:[
+  ['h','Tumhara journal'],
+  ['p','Yahan log kiye trades tumhare apne hain. Signal pe "Maine Ye Trade Liya" dabao, ya kahin aur liya trade ho to "+ Add Manual Trade".'],
+  ['h','Live P&L'],
+  ['p','Open trades live price se refresh hote hain aur abhi ka profit/loss dikhate hain. TP/SL hit 5-minute candle ke high/low se pakda jaata hai, isliye chhoo kar palta hua level bhi ginta hai.'],
+  ['h','MT5 Bridge'],
+  ['p','Signal ya quick trade se "MT5 pe Lagao" dabane par order Firebase ke through VPS wale EA tak jaata hai. Settings \u2192 MT5 Bridge me Firebase URL, order type aur limit offset set hote hain, aur TEST BRIDGE se connection check hota hai.'],
+  ['h','SL ka size'],
+  ['t',[['Fixed dollar','Har pair pe same dollar risk. Simple, par gold pe bahut tight.'],
+        ['ATR based','SL market ki asli chaal ke hisaab se. Gold pe chaudi, EURUSD pe tight.']]],
+  ['p','ATR mode me Auto Lot on karo — dollar risk fix rahega aur lot size khud adjust hoga.'],
+  ['h','Per-0.01-lot value'],
+  ['p','TP aur SL har 0.01 lot ke hisaab se set hote hain. Lot badhane pe dollar amount khud scale hota hai — price distance wahi rehti hai.'],
+  ['h','Correlation hedge'],
+  ['p','Trade ulta pad jaye to ye ulta chalne wale pairs suggest karta hai, loss ko offset karne layak size ke saath.'],
+  ['w','Hedge loss ko freeze karta hai, mitata nahi — aur dono trades pe spread aur swap lagta hai. News ke aas-paas correlation toot bhi jaati hai.'],
+  ['h','Sachhi stats'],
+  ['p','History card tumhara asli win rate dikhata hai aur saath me wo win rate jo sirf breakeven ke liye chahiye. Doosra number pehle se bada hai to system paisa haar raha hai, chahe feel achha ho.']
+]},
+
+{ id:'alerts', t:'Alerts & Chart AI', body:[
+  ['h','Telegram alerts'],
+  ['p','Alert ka sabse bharosemand tareeka, kyunki app band hone par bhi pahunchta hai.'],
+  ['n',['Telegram me @BotFather kholo aur /newbot bhejo.',
+        'Koi bhi naam do, phir "bot" pe khatam hone wala username.',
+        'Jo token mile use copy karo.',
+        'Apna naya bot kholo, Start dabao, phir koi bhi message bhejo.',
+        'App me token paste karke TEST BHEJO dabao.',
+        'Kuch na aaye to @userinfobot se chat ID lekar wo bhi paste karo.']],
+  ['w','Apne bot pe pehle Start dabana zaroori hai. Jab tak tum bot se baat na karo, Telegram usko message bhejne nahi deta.'],
+  ['h','Phone notification'],
+  ['p','Installed (wrapped) app me ye nahi milta — wrapped web app ko phone ke notification system tak pahunch nahi hoti. Telegram use karo, wo waise bhi behtar hai.'],
+  ['h','Chart screenshot analysis'],
+  ['n',['Trading style chuno: Scalping, Day ya Swing. Isse SL aur target ki chaudai badalti hai.',
+        'CHART SCREENSHOT UPLOAD KARO dabao aur gallery se image chuno.',
+        'Kuch second analysis ka intezaar karo.']],
+  ['p','Jawab me direction, entry, SL, do target, confidence score, trend aur structure, support-resistance, wajah, setup kab khatam, aur ulta case — sab milta hai.'],
+  ['w','Levels tumhari picture se padhe jaate hain, live data se nahi. Price axis aur pair ka naam dono saaf dikhne chahiye. Levels live price se bahut door hue to app khud warning deta hai — matlab pair galat padha gaya.'],
+  ['h','Live tracking'],
+  ['p','IS SETUP KO TRACK KARO dabao — app us ek pair ko dekhta rahega aur entry zone, SL aur har target pe alert dega. Har check pe 1 credit.'],
+  ['w','Tracking sirf app khuli hone par chalti hai. Phone background me web app ko jaga nahi sakta.']
+]},
+
+{ id:'data', t:'Data & Backup', body:[
+  ['h','Data kahan rehta hai'],
+  ['p','Sab kuch isi device pe. Trades, keys aur history sirf tumhare paas hain.'],
+  ['h','Cloud backup'],
+  ['p','ALERTS \u2192 Data Suraksha me wahi Firebase use hota hai jo MT5 bridge me hai. Auto backup on rakho, ya ABHI BACKUP / CLOUD SE LAAO khud dabao. Har phone ka apna alag backup rehta hai.'],
+  ['h','File backup'],
+  ['p','ALERTS \u2192 File Backup \u2192 FILE BANAO se sab kuch ek file me aa jaata hai: trades, history, settings aur keys. FILE SE LAAO usko wapas daal deta hai.'],
+  ['w','App uninstall karne ya browser data clear karne se sab kuch hamesha ke liye mit jaata hai. Backup file regular banate raho.'],
+  ['h','DATA LOCK KARO'],
+  ['p','Ye browser se kehta hai ki is app ka data khud se delete na kare. App ko home screen pe install karne ke baad iske milne ka chance zyada hota hai.']
+]}
+];
+
+let gTab = 'start';
+
+function renderGuide(){
+  const tabs = $('gTabs'), body = $('gBody');
+  if(!tabs || !body) return;
+  tabs.innerHTML = GUIDE.map(g =>
+    `<button class="chip ${g.id===gTab?'on gold':''}" onclick="gGo('${g.id}')">${g.t}</button>`).join('');
+
+  const sec = GUIDE.find(g => g.id === gTab) || GUIDE[0];
+  body.innerHTML = sec.body.map(([k, v]) => {
+    if(k === 'h') return `<p class="ttl" style="margin:16px 0 8px">${v}</p>`;
+    if(k === 'p') return `<p class="hint" style="margin:0 0 10px">${v}</p>`;
+    if(k === 'n') return `<ol style="margin:0 0 12px;padding-left:20px">` +
+      v.map(x => `<li class="hint" style="margin:0 0 6px">${x}</li>`).join('') + `</ol>`;
+    if(k === 't') return `<div style="border:1px solid var(--line);border-radius:8px;padding:4px 11px;margin:0 0 12px">` +
+      v.map(([a,b]) => `<div class="lbl" style="align-items:flex-start"><span style="flex:0 0 92px">${a}</span><b style="font-weight:600">${b}</b></div>`).join('') + `</div>`;
+    if(k === 'w') return `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.06);border-radius:8px;padding:11px;margin:0 0 12px">
+      <p class="hint" style="color:var(--gold);margin:0">\u26a0 ${v}</p></div>`;
+    return '';
+  }).join('');
+
+  const i = GUIDE.findIndex(g => g.id === gTab);
+  body.innerHTML += `<div class="grid2" style="margin-top:18px">
+    ${i > 0 ? `<button class="btn ghost sm" onclick="gGo('${GUIDE[i-1].id}')">\u2039 ${GUIDE[i-1].t}</button>` : '<span></span>'}
+    ${i < GUIDE.length-1 ? `<button class="btn ghost sm" onclick="gGo('${GUIDE[i+1].id}')">${GUIDE[i+1].t} \u203a</button>` : '<span></span>'}
+  </div>`;
+}
+function gGo(id){
+  gTab = id; renderGuide();
+  const sh = $('guideSheet');
+  if(sh){ const b = sh.querySelector('.sh-b'); if(b) b.scrollTop = 0 }
+}
+
 function boot(){
   fillPairs();
-  $('inLots').value = S.lots;
-  $('inLots').onchange = e => { S.lots = +e.target.value||0.01; save() };
+  $('inLots').value = fixLot(S.pair, S.lots);
+  $('inLots').onchange = e => {
+    const m = minLot(S.pair);
+    const v = fixLot(S.pair, e.target.value);
+    if((+e.target.value || 0) < m) toast(`${SPECS[S.pair].n} ka minimum lot ${m} hai`);
+    e.target.value = v; S.lots = v; save();
+  };
 
   $('tfChips').innerHTML = TFS.map(t=>`<button class="chip ${t.id===S.tf?'on gold':''}" data-tf="${t.id}">${t.l}</button>`).join('');
   $('tfChips').onclick = e => {
@@ -5059,11 +6276,12 @@ function boot(){
   $('scanMin').onchange = e => { S.scanMin = +e.target.value; save(); drawScanRows(); renderScan() };
   $('scanDeep').onchange = e => { S.scanDeep = e.target.value === '1'; save(); renderScan() };
   renderScan();
-  $('swNotif').classList.toggle('on', S.notif && ('Notification' in window) && Notification.permission==='granted');
+  $('swNotif').classList.toggle('on', S.notif && !noNotif() && Notification.permission==='granted');
   $('swTts').classList.toggle('on', S.tts);
   $('swTgAuto').classList.toggle('on', S.tgAuto);
   document.querySelectorAll('[data-th]').forEach(b => b.classList.toggle('on', b.dataset.th === S.theme));
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
+  $('setTrackMin').value = S.trackMin;
   $('setNewsMin').value = S.newsMin; $('setNewsImp').value = S.newsImp;
   $('setMode').value = S.slMode; $('setAtrSL').value = S.atrSL;
   $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
@@ -5083,17 +6301,36 @@ function boot(){
 
   $('verTag').textContent = 'v' + VERSION;
   $('verBig').textContent = 'SamuSignal v' + VERSION;
+  applyTheme();
   $('verMode').textContent = S.mt5Type;
   setChart(S.pair);
     buildTicker();
   renderSignal();
   renderTrades();
   renderLog();
+  paintStyle();
+  renderShot();
+  renderTrack();
+  renderStorage();
   showCredits();
   setTimeout(() => loadNews(false), 900);   /* din me ek baar, API credits nahi lagte */
   if(S.key){ refreshOpen(true); setTimeout(()=>refreshTicker(false), 1200); }
 }
 boot();
+
+/* ---------------- header: scroll pe chhup jaata hai ---------------- */
+/* Neeche scroll karo to header slide hokar hat jaata hai, upar karte hi
+   wapas aa jaata hai — chhoti screen pe zyada jagah milti hai. */
+let lastY = 0;
+window.addEventListener('scroll', () => {
+  const hd = document.querySelector('header');
+  if(!hd || hd.classList.contains('hide')) return;
+  const y = window.scrollY || 0;
+  if(y < 60){ hd.classList.remove('up'); lastY = y; return }
+  if(Math.abs(y - lastY) < 8) return;
+  hd.classList.toggle('up', y > lastY);
+  lastY = y;
+}, {passive:true});
 
 /* ---------------- offline ---------------- */
 function netState(){
