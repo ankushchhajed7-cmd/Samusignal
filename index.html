@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AMC">
-<link rel="manifest" href="./manifest.json">
+<link rel="manifest" href="./manifest.json?v=620" id="mfLink">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <style>
 :root{
@@ -928,7 +928,7 @@ body.t-navy{
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '6.2.0';
+const VERSION = '6.2.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -5128,10 +5128,27 @@ document.addEventListener('touchend', e => {
 
 /* ---------------- install prompt ---------------- */
 let deferred = null;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('btnInstall').style.color = 'var(--gold)'; });
+function installed(){
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.navigator.standalone === true;
+}
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferred = e;
+  const b = $('btnInstall');
+  b.style.color = 'var(--gold)';
+  b.style.borderColor = 'var(--gold)';
+});
 $('btnInstall').onclick = async () => {
-  if(deferred){ deferred.prompt(); await deferred.userChoice; deferred = null; }
-  else toast('Browser menu → "Add to Home screen" dabao');
+  if(installed()){ toast('App already install hai'); return }
+  if(deferred){ deferred.prompt(); await deferred.userChoice; deferred = null; return }
+  alert('Chrome ne abhi Install option nahi diya.\n\n' +
+    'Aisa tab hota hai jab purana version cache me ho. Ye karo:\n\n' +
+    '1. Purana app home screen se uninstall karo\n' +
+    '2. Chrome me site kholo (installed app me nahi)\n' +
+    '3. 🔒 icon → Site settings → Delete data\n' +
+    '4. Page reload → 15-20 sec ruko\n' +
+    '5. Phir Install dabao\n\n' +
+    'Phir bhi na aaye to Chrome menu → Add to Home screen chalega — kaam wahi hai.');
 };
 window.addEventListener('appinstalled', ()=> toast('SamuSignal install ho gaya'));
 
@@ -5159,7 +5176,12 @@ if('serviceWorker' in navigator){
       reg.update().catch(()=>{});
       setInterval(() => reg.update().catch(()=>{}), 10*60000);
     }catch(e){}
-    if(killed) console.log('[SamuSignal] purane cache hatae:', killed);
+    if(killed) console.log('[AMC] purane cache hatae:', killed);
+    /* manifest dobara padhwao — Chrome ko naya naam/icon mile */
+    try{
+      const l = document.getElementById('mfLink');
+      if(l){ const u = './manifest.json?v=' + VERSION.replace(/\./g,''); if(l.href.indexOf(u) < 0) l.href = u; }
+    }catch(e){}
   });
   /* naya SW aane pe ek hi baar reload */
   let reloaded = false;

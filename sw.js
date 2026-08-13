@@ -1,11 +1,12 @@
 /* SamuSignal service worker — network first, offline fallback */
-const CACHE = 'samusignal-v6-2-0';
+const CACHE = 'amc-v6-2-1';
 const SHELL = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './icon-maskable-512.png'
 ];
 
 /* v4.4.2 — cache name VERSION se juda hai, isliye har release pe purana khud hat jaata hai */
@@ -47,6 +48,16 @@ self.addEventListener('fetch', e => {
           return r;
         })
         .catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
+    );
+    return;
+  }
+
+  // manifest + icons: hamesha network se (naya naam/icon turant mile)
+  if (/manifest\.json|icon-.*\.png/.test(url.pathname)) {
+    e.respondWith(
+      fetch(req, {cache:'no-store'})
+        .then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(req, c)); return r })
+        .catch(() => caches.match(req))
     );
     return;
   }
