@@ -1,5 +1,5 @@
 /* SamuSignal service worker — network first, offline fallback */
-const CACHE = 'amc-v9-1-0';
+const CACHE = 'amc-v9-1-1';
 const SHELL = [
   './',
   './index.html',

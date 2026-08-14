@@ -1419,7 +1419,7 @@ th{border-bottom:2px solid var(--gold) !important}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.1.0';
+const VERSION = '9.1.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1528,7 +1528,11 @@ function calcLevels(sym, price, lots, atr, opt){
     if(o.autoLot !== undefined ? o.autoLot : S.autoLot){
       const want = lotsForRisk(sym, price, slDist, o.riskUsd !== undefined ? o.riskUsd : S.riskUsd);
       L = Math.max(0.01, want);
-      if(want < 0.01) clamped = want;   /* broker minimum se neeche — risk badh jayega */
+      /* asli risk target se kitna upar gaya — sirf lot ka size dekhna kaafi nahi,
+         kyunki 0.006 lot round hokar 0.01 ban jaata hai aur risk chup-chaap badh jaata hai */
+      const wantR = o.riskUsd !== undefined ? o.riskUsd : S.riskUsd;
+      const realRisk = slDist * usdPerPoint(sym, price, L);
+      if(realRisk > wantR * 1.1) clamped = Math.max(want, 0.001);
     }
   } else {
     slDist = dollarsToDist(sym, price, L, o.slD !== undefined ? o.slD : defSL(sym, L));
