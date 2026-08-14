@@ -1419,7 +1419,7 @@ th{border-bottom:2px solid var(--gold) !important}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.1.1';
+const VERSION = '9.2.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2424,13 +2424,18 @@ async function getQuotes(syms, note, ttl){
   return out;
 }
 
-async function getPrice(sym){
+/* strict = true ho to fail hone par error phenko, purana price mat lautao.
+   Warna caller ko lagta hai naya rate mila hai jabki wo purana hi hai. */
+async function getPrice(sym, strict){
   try{
     const j = await td(`/price?symbol=${encodeURIComponent(apiSym(sym))}`, 1, sym);
     const p = +j.price;
     if(isFinite(p) && p>0){ prices[sym] = Object.assign(prices[sym]||{}, {p}); return p }
-  }catch(e){}
-  return prices[sym] ? prices[sym].p : null;
+    throw new Error('API ne price nahi bheja');
+  }catch(e){
+    if(strict) throw e;
+    return prices[sym] ? prices[sym].p : null;
+  }
 }
 
 /* ---------------- indicators ---------------- */
@@ -5991,19 +5996,30 @@ function entryZone(sym, entry, sl){
 }
 
 let trackBusy = false;
+function trackSkip(reason){
+  const t = S.track; if(!t) return;
+  t.why = reason; t.whyAt = Date.now();
+  if(!$('pgAlerts').classList.contains('hide')) renderTrack();
+}
 async function trackCheck(force){
   const t = S.track;
   if(!t || t.done || trackBusy) return;
-  if(!S.key) return;
+  if(!S.key){ trackSkip('API key nahi hai'); return }
+  if(S.day && S.day.blocked){ trackSkip('Aaj ke API credits khatam'); return }
   const gap = Math.max(2, +S.trackMin || 5) * 60000;
   if(!force && Date.now() - t.lastAt < gap) return;
-  if(!force && creditsLeft() < 3) return;
+  if(!force && creditsLeft() < 2){
+    trackSkip('Ek minute ki API limit — agle check pe hoga'); return;
+  }
 
   trackBusy = true;
   try{
-    const p = await getPrice(t.sym);
-    if(!isFinite(p) || !p) return;
+    const p = await getPrice(t.sym, true);        /* strict: purana price mat lo */
+    if(!isFinite(p) || !p) throw new Error('Price nahi mila');
+    const same = (t.last === p);
     t.last = p; t.lastAt = Date.now();
+    t.why = null;
+    t.sameCount = same ? (t.sameCount || 0) + 1 : 0;
 
     const up = t.dir === 'BUY';
     const N = SPECS[t.sym].n;
@@ -6046,14 +6062,40 @@ async function trackCheck(force){
     save();
     if(!$('pgAlerts').classList.contains('hide')) renderTrack();
   }catch(e){
-    /* price check fail hona itna bada nahi ki user ko toka jaye */
+    /* pehle ye chup-chaap nigal jaata tha aur price frozen dikhta tha */
+    t.why = e.message || 'Price check fail';
+    t.whyAt = Date.now();
+    save();
+    if(!$('pgAlerts').classList.contains('hide')) renderTrack();
+    if(force) toast(t.why);
   }finally{ trackBusy = false }
 }
 
 setInterval(() => {
   if(document.hidden) return;
   trackCheck(false);
-}, 30000);
+}, 20000);
+/* app wapas saamne aaye to turant check — background me 5 min nikal chuke honge */
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden) trackCheck(false);
+});
+
+let trackTick = null;
+function trackCountdown(){
+  const el = $('trackNext'); const t = S.track;
+  if(!el || !t || t.done) return;
+  if(!t.lastAt){ el.textContent = 'abhi'; return }
+  const gap = Math.max(2, +S.trackMin || 5) * 60000;
+  const left = Math.max(0, gap - (Date.now() - t.lastAt));
+  const sec = Math.ceil(left / 1000);
+  el.textContent = left <= 0 ? 'abhi hoga'
+    : `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+  el.style.color = left <= 0 ? 'var(--up)' : '';
+}
+setInterval(() => {
+  if(!$('pgAlerts') || $('pgAlerts').classList.contains('hide')) return;
+  trackCountdown();
+}, 1000);
 
 function renderTrack(){
   const box = $('trackBox'), st = $('trackState');
@@ -6095,6 +6137,15 @@ function renderTrack(){
     }</b></div>
     ${pl !== null ? `<div class="lbl"><span>Entry level se move</span><b class="mono ${pl>=0?'up':'dn'}">${pl>=0?'+':''}${pl.toFixed(1)} pips</b></div>` : ''}
     <div class="lbl"><span>Last check</span><b class="mono">${t.lastAt ? ago(t.lastAt) : 'abhi nahi'}</b></div>
+    <div class="lbl"><span>Agla check</span><b class="mono" id="trackNext">—</b></div>
+    ${t.why ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);
+        border-radius:6px;padding:9px 11px;margin:9px 0">
+      <b style="color:var(--dn);font-size:10px;letter-spacing:1.2px">CHECK NAHI HO PAYA</b>
+      <p class="hint" style="color:#f99;margin:4px 0 0">${t.why}
+        ${t.whyAt ? '· ' + ago(t.whyAt) : ''}</p></div>` : ''}
+    ${(t.sameCount || 0) >= 3 ? `<p class="hint" style="color:var(--gold);margin:8px 0">
+      Pichhle ${t.sameCount} check me price bilkul same aaya. Market band ho sakta hai
+      (weekend / off-hours), ya ye pair abhi bahut shaant hai.</p>` : ''}
 
     <div style="margin:10px 0 4px">
       ${row('entry','Entry zone', fmt(t.sym,t.entry), '\ud83d\udd14')}
@@ -6114,6 +6165,7 @@ function renderTrack(){
       <button class="btn ghost sm" onclick="trackCheck(true)">\u27f3 ABHI CHECK KARO</button>
       <button class="btn ghost sm" style="color:var(--dn)" onclick="stopTrack()">\u2715 TRACKING BAND</button>
     </div>`;
+  trackCountdown();
 }
 
 

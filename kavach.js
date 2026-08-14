@@ -53,6 +53,8 @@ const PIECES = [
   ['minStop',       /function minStop\([\s\S]*?\n\}/],
   ['checkStops',    /function checkStops\([\s\S]*?\n\}/],
   ['mt5Payload',    /function mt5Payload\([\s\S]*?\n\}/],
+  ['getPrice',      /async function getPrice\([\s\S]*?\n\}/],
+  ['entryZone',     /function entryZone\([\s\S]*?\n\}/],
   ['ema',           /function ema\([\s\S]*?\n\}/],
   ['rsi',           /function rsi\([\s\S]*?\n\}/],
   ['atr',           /function atr\([\s\S]*?\n\}/],
@@ -98,6 +100,7 @@ const B = globalThis.B, SE = globalThis.SE, H = globalThis.H;
 globalThis.TFS = [
   {id:'5min',l:'5m'},{id:'15min',l:'15m'},{id:'1h',l:'1H'},{id:'4h',l:'4H'},{id:'1day',l:'1D'}
 ];
+globalThis.apiSym = sym => sym;
 globalThis.newsRisk = () => null;
 globalThis.nextNews = () => null;
 globalThis.t12 = d => new Date(d).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true});
@@ -132,7 +135,7 @@ const EXPORTS = [
   'minStop','checkStops','mt5Payload','ema','rsi','atr','supertrend','macdH',
   'last','sma','hh','ll','stdev','stoch','cci','adx','psarUp','tfBias',
   'AGENTS','runAgents','analyse','finalCall','structCorr','pearson',
-  'jsonRescue','P_UP','P_DN','P_HI','paint','hasOwnDef'
+  'jsonRescue','P_UP','P_DN','P_HI','paint','hasOwnDef','getPrice','entryZone'
 ];
 try {
   const glue = EXPORTS.map(n =>
@@ -553,7 +556,44 @@ eq('TP$5/SL$2.5 → 33% chahiye', +beWR(5,2.5).toFixed(1), 33.3, 0.1);
 ok('R:R jitna behtar, utna kam win rate chahiye',
    beWR(1,2.5) > beWR(2.5,2.5) && beWR(2.5,2.5) > beWR(5,2.5));
 
+/* ============ Q. live tracking ============ */
+G('Q. Live tracking (silent-fail bug)');
+resetState();
+globalThis.S.key = 'test';
+
+/* getPrice strict mode: fail ho to purana price NAHI lautana chahiye */
+globalThis.prices['EUR/USD'] = { p: 1.10000 };
+globalThis.td = async () => { throw new Error('network down') };
+
+(async () => {
+  let threw = false, got = null;
+  try { got = await getPrice('EUR/USD', true) } catch(e){ threw = true }
+  ok('strict mode: fail hone par error phenkta hai (purana price nahi)', threw,
+     threw ? '' : 'mila ' + got);
+
+  const loose = await getPrice('EUR/USD');
+  ok('normal mode: fail hone par purana price deta hai (backward compatible)',
+     loose === 1.10000, 'mila ' + loose);
+
+  /* naya price mile to wahi laut'na chahiye */
+  globalThis.td = async () => ({ price: '1.10500' });
+  const fresh = await getPrice('EUR/USD', true);
+  eq('strict mode: naya price sahi mila', fresh, 1.10500, 0.00001);
+
+  /* entryZone: SL ke faasle ke hisaab se, kabhi 0 nahi */
+  ok('entry zone kabhi zero nahi', entryZone('EUR/USD', 1.10, 1.0975) > 0);
+  ok('entry zone SL doori ke saath badhta hai',
+     entryZone('EUR/USD', 1.10, 1.0950) > entryZone('EUR/USD', 1.10, 1.0990));
+  ok('SL entry ke barabar ho to bhi zone banta hai',
+     entryZone('EUR/USD', 1.10, 1.10) > 0);
+  ok('gold pe zone bada hai (pip bada hai)',
+     entryZone('XAU/USD', 3300, 3292) > entryZone('EUR/USD', 1.10, 1.0975));
+
+  report();
+})();
+
 /* ============ report ============ */
+function report(){
 const total = pass + fail;
 console.log('\n' + '─'.repeat(46));
 if (fail === 0) {
@@ -566,3 +606,4 @@ if (fail === 0) {
 }
 console.log('─'.repeat(46));
 process.exit(fail === 0 ? 0 : 1);
+}
