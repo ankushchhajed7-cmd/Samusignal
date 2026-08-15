@@ -237,9 +237,12 @@ eq('0.02 lot → TP $2', defTP('EUR/USD',0.02), 2);
 eq('0.03 lot → TP $3', defTP('EUR/USD',0.03), 3);
 eq('0.03 lot → SL $7.50', defSL('EUR/USD',0.03), 7.5);
 eq('0.10 lot → SL $25', defSL('EUR/USD',0.10), 25);
-eq('gold 0.01 → TP $5 (apna default)', defTP('XAU/USD',0.01), 5);
-eq('gold 0.03 → TP $15', defTP('XAU/USD',0.03), 15);
+eq('gold 0.01 → TP $12 (apna default)', defTP('XAU/USD',0.01), 12);
+eq('gold 0.03 → TP $36', defTP('XAU/USD',0.03), 36);
 eq('gold 0.03 → SL $24', defSL('XAU/USD',0.03), 24);
+ok('gold ka R:R 1 se behtar hai',
+   defTP('XAU/USD',0.01) / defSL('XAU/USD',0.01) >= 1.4,
+   '1:' + (defTP('XAU/USD',0.01)/defSL('XAU/USD',0.01)).toFixed(2));
 
 /* price distance lot se nahi badalni chahiye */
 const d1 = calcLevels('EUR/USD',1.09,0.01,0.0002,{slD:defSL('EUR/USD',0.01),tpD:defTP('EUR/USD',0.01)});
@@ -248,6 +251,14 @@ eq('lot badle par SL pips wahi', d3.slPips, d1.slPips, 0.2);
 eq('lot badle par TP pips wahi', d3.tpPips, d1.tpPips, 0.2);
 ok('lot 3x → dollar risk 3x', Math.abs(d3.slD - d1.slD*3) < 0.05,
    `${d1.slD} → ${d3.slD}`);
+
+/* har pair ka default R:R kam se kam 1:1 ho — warna ganit khud khilaaf hai */
+resetState();
+for (const sym of ['XAU/USD','US30','BTC/USD']) {
+  const rr = baseTP(sym) / baseSL(sym);
+  ok(`${SPECS[sym].n} ka default R:R 1 se kam nahi`, rr >= 1.0,
+     '1:' + rr.toFixed(2) + ' → breakeven ' + (100/(1+rr)).toFixed(0) + '%');
+}
 
 /* ============ D. broker minimum stops ============ */
 G('D. Broker minimum stops (error 10016 se bachav)');
@@ -407,6 +418,24 @@ ok('score 0-100 ke beech', a.pct >= 0 && a.pct <= 100);
 ok('har check ka ok 0/1/2 hai', a.O.every(x => [0,1,2].includes(x.ok)));
 ok('har check ka text hai', a.O.every(x => x.t && x.t.length > 20));
 ok('invalidation line hai', !!a.inval && a.inval.length > 20);
+ok('R:R ka check maujood hai',
+   a.O.some(x => x.h === 'RISK / REWARD'),
+   'checks: ' + a.O.map(x=>x.h).join(', '));
+
+/* kharab R:R pe analyst ka score girna chahiye */
+const goodRR = analyse('EUR/USD', upBars,
+  runAgents(upBars,{'1h':'BUY','4h':'BUY','1day':'BUY'},upBars[upBars.length-1].c),
+  {...mkSig('EUR/USD','BUY',upBars), slPips:20, tpPips:40});
+const badRR = analyse('EUR/USD', upBars,
+  runAgents(upBars,{'1h':'BUY','4h':'BUY','1day':'BUY'},upBars[upBars.length-1].c),
+  {...mkSig('EUR/USD','BUY',upBars), slPips:80, tpPips:50});
+ok('achha R:R → RISK/REWARD paas',
+   (goodRR.O.find(x=>x.h==='RISK / REWARD')||{}).ok === 2);
+ok('kharab R:R → RISK/REWARD fail',
+   (badRR.O.find(x=>x.h==='RISK / REWARD')||{}).ok === 0);
+ok('kharab R:R se pura score gira',
+   badRR.pct < goodRR.pct,
+   `${badRR.pct}% vs ${goodRR.pct}%`);
 
 /* ============ I. final verdict ============ */
 G('I. LE LO / WAIT / CHHOD DO');
@@ -441,6 +470,15 @@ ok('RSI extreme → WAIT', r.t === 'WAIT', r.t);
 
 r = callWith(sigOK, {sym:'EUR/USD',verdict:'BUY',conf:40,buy:20,sell:18,hold:12}, goodAn);
 ok('agents bate hue → WAIT', r.t === 'WAIT', r.t);
+
+r = callWith({...sigOK, slPips:80, tpPips:50},
+             {sym:'EUR/USD',verdict:'BUY',conf:72,buy:36,sell:8,hold:6}, goodAn);
+ok('R:R 1:0.63 → CHHOD DO (chart chahe achha ho)', r.t === 'CHHOD DO',
+   r.t + ' | ' + r.why);
+
+r = callWith({...sigOK, slPips:20, tpPips:40},
+             {sym:'EUR/USD',verdict:'BUY',conf:72,buy:36,sell:8,hold:6}, goodAn);
+ok('R:R 1:2 + sab theek → LE LO', r.t === 'LE LO', r.t);
 
 ok('har verdict ke saath wajah hoti hai',
    ['LE LO','WAIT','CHHOD DO'].every(() => true) && !!r.why && r.why.length > 5);

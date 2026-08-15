@@ -977,6 +977,7 @@ th{border-bottom:2px solid var(--gold) !important}
 
   <div class="card" id="anCard">
     <p class="ttl">Chart Analysis <span class="sp" id="anT">—</span></p>
+    <p class="hint" style="margin:-4px 0 10px">Ye sirf chart ki technical haalat batata hai — trade lena hai ya nahi, wo upar SIGNAL card ka faisla hai.</p>
     <div id="anBox"><p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p></div>
   </div>
 
@@ -1419,7 +1420,7 @@ th{border-bottom:2px solid var(--gold) !important}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.2.0';
+const VERSION = '9.3.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2661,6 +2662,19 @@ function analyse(sym, bars, v, s){
       : `⚠ ATR ${atrPips.toFixed(1)} pips hai par SL sirf ${slPips} pips door. Market ki normal hilne-dulne se hi SL lag sakti hai, signal sahi hone ke bawajood.`
   });
 
+  /* --- 6b. R:R — ye check pehle tha hi nahi, isliye 1:0.63 pe bhi score achha aa jaata tha --- */
+  const rrv = (s.slPips > 0) ? s.tpPips / s.slPips : 0;
+  const beW = rrv > 0 ? 100 / (1 + rrv) : 100;
+  O.push({
+    h:'RISK / REWARD',
+    ok: rrv >= 1.5 ? 2 : rrv >= 1 ? 1 : 0,
+    t: rrv >= 1.5
+      ? `TP ${s.tpPips} pips aur SL ${s.slPips} pips — R:R 1:${rrv.toFixed(2)}. Sirf ${beW.toFixed(0)}% trades jeetne par bhi profit banega, ganit tumhare paksh me hai.`
+      : rrv >= 1
+      ? `R:R 1:${rrv.toFixed(2)} — barabar rehne ke liye ${beW.toFixed(0)}% win rate chahiye. Chal jayega, par gunjaish kam hai.`
+      : `⚠ TP sirf ${s.tpPips} pips aur SL ${s.slPips} pips — R:R 1:${rrv.toFixed(2)}. Ek SL ${(1/(rrv||1)).toFixed(1)} TP kha jaata hai. Barabar rehne ke liye hi ${beW.toFixed(0)}% win rate chahiye, jo bahut mushkil hai. Chart chahe kitna achha ho, ye ganit haarne wala hai.`
+  });
+
   /* --- 7. HTF --- */
   const agree = s.tfs.filter(x => x.b === d).length;
   O.push({
@@ -2698,7 +2712,7 @@ function analyse(sym, bars, v, s){
   const maxS = O.length * 2;
   const pct = Math.round(score/maxS*100);
   const bad = O.filter(x => x.ok === 0);
-  const verdict = pct>=75 ? 'ACHHA SETUP' : pct>=55 ? 'THEEK-THAAK' : pct>=40 ? 'KAMZOR' : 'MAT LO';
+  const verdict = pct>=75 ? 'CHART ACHHA' : pct>=55 ? 'CHART THEEK' : pct>=40 ? 'CHART KAMZOR' : 'CHART KHARAB';
   const vcol = pct>=75 ? 'var(--up)' : pct>=55 ? 'var(--gold)' : 'var(--dn)';
 
   /* invalidation */
@@ -2938,7 +2952,7 @@ function tierOf(pct, kind){
     return pct>=75 ? {t:'STRONG',   c:'var(--up)'}
          : pct>=55 ? {t:'THEEK',    c:'var(--gold)'}
          : pct>=40 ? {t:'KAMZOR',   c:'var(--dn)'}
-         :           {t:'MAT LO',   c:'var(--dn)'};
+         :           {t:'KHARAB', c:'var(--dn)'};
   }
   return pct>=70 ? {t:'STRONG', c:'var(--up)'}
        : pct>=50 ? {t:'MEDIUM', c:'var(--gold)'}
@@ -2983,6 +2997,12 @@ function finalCall(s){
     }
   }
   if(lastAn && lastAn.pct < 40){ block++; R.push('technical bahut kamzor') }
+  /* R:R 1 se kam = ganit khud khilaaf hai, chart chahe jaisa bhi ho */
+  if(s.tpPips > 0 && s.slPips > 0){
+    const rr2 = s.tpPips / s.slPips;
+    if(rr2 < 0.8){ block++; R.push(`R:R 1:${rr2.toFixed(2)} — ganit hi khilaaf hai`) }
+    else if(rr2 < 1){ warn++; R.push(`R:R sirf 1:${rr2.toFixed(2)}`) }
+  }
   if(lastAn){
     const st = lastAn.O.find(x => x.h === 'SUPERTREND');
     const loc = lastAn.O.find(x => x.h === 'ENTRY LOCATION');
@@ -4772,9 +4792,9 @@ function fbEndpoint(){
 const MIN_DEF = {'XAU/USD':50, 'BTC/USD':300, 'US30':60};
 /* jin pairs pe global $1/$2.50 chalta hi nahi — inke apne default */
 const DEF_TPSL = {
-  'XAU/USD': {tp:5,  sl:8},
-  'BTC/USD': {tp:30, sl:50},
-  'US30':    {tp:6,  sl:10}
+  'XAU/USD': {tp:12, sl:8},
+  'BTC/USD': {tp:75, sl:50},
+  'US30':    {tp:15, sl:10}
 };
 /* base values 0.01 lot ke liye hain — lots badhe to $ bhi utna hi badhta hai.
    Price distance wahi rehti hai, sirf risk scale hota hai. */
