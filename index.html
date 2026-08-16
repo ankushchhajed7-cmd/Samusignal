@@ -869,6 +869,18 @@ th{border-bottom:2px solid var(--gold) !important}
 .hist{border-bottom:2px solid var(--line) !important}
 .hist:last-child{border-bottom:0 !important}
 
+/* ---- sheet ab poori screen ----
+   Pehle upar 8vh ka gap bacha rehta tha (max-height:92vh + flex-end).
+   Ab sheet screen ke bilkul upar se shuru hoti hai, header status bar
+   ke neeche safe area me rehta hai. */
+.ov{align-items:stretch}
+.sheet{
+  max-height:none !important; height:100%;
+  border-radius:0 !important; border-top:0 !important;
+  border-left:0 !important; border-right:0 !important;
+}
+.sh-h{padding-top:calc(15px + env(safe-area-inset-top)) !important}
+
 /* ---- sheet khuli ho to background scroll na ho ---- */
 body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 .sheet{overscroll-behavior:contain}
@@ -1203,6 +1215,15 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 </nav>
 
 <!-- ============ SHEETS ============ -->
+<div class="ov" id="testSheet"><div class="sheet">
+  <div class="sh-h"><h3>Self Test</h3><button onclick="closeSheet('testSheet')">×</button></div>
+  <div class="sh-b">
+    <p class="hint" style="margin:0 0 12px">Ye app ko khud check karta hai — har page aur har sheet ko khol kar dekhta hai ki koi cheez screen se bahar to nahi ja rahi, koi button chhota to nahi, aur settings ke number sahi hain ya nahi. Kuch bhi badalta nahi, sirf batata hai.</p>
+    <button class="btn gold sm" style="margin-bottom:12px" onclick="runSelfTest()">🩺 TEST CHALAO</button>
+    <div id="testOut"></div>
+  </div>
+</div></div>
+
 <div class="ov" id="autoSheet"><div class="sheet">
   <div class="sh-h"><h3>Auto MT5</h3><button onclick="closeSheet('autoSheet')">×</button></div>
   <div class="sh-b">
@@ -1307,6 +1328,10 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
     <div>Bhejne se pehle taza price lo<small>1 credit lagta hai, par stale rate se order fail nahi hoga</small></div>
   </div>
   <p class="hint" style="margin-bottom:16px">Gold, US30 aur BTC pe global $1/$2.50 kaam nahi karta — inke apne default already set hain. Error 10016 aaye to min pips badha do.</p>
+
+  <p class="ttl">App Check</p>
+  <button class="btn ghost sm" style="margin-bottom:8px" onclick="closeSheet('setSheet');openSheet('testSheet')">🩺 SELF TEST CHALAO</button>
+  <p class="hint" style="margin-bottom:16px">Update ke baad ek baar chala lena — layout bigda ho ya koi button screen se bahar nikla ho to yahan pakda jayega.</p>
 
   <p class="ttl">API Budget</p>
   <div class="grid2" style="margin-bottom:6px">
@@ -6583,6 +6608,178 @@ function autoJournal(t){
 }
 
 setInterval(autoTick, 30000);
+
+
+/* ================= SELF TEST =================
+   Har chhoti layout galti haath se dhoondhna mushkil hai, isliye app
+   khud check karti hai. Ye asli browser me chalta hai, isliye wahi
+   cheezein pakadta hai jo screenshot me dikhti hain — button screen se
+   bahar, text kata hua, knob apni patti se bahar, chhote tap target.
+
+   Kuch badalta nahi: page badal kar naapta hai, phir jahan the wahin
+   chhod deta hai. */
+
+const TEST_SKIP = ['tick','tickwrap','chips','sheet','sh-b','tvbox','plist','tbl','scroll','seg','segs','bar'];
+
+function tName(el){
+  if(el.id) return '#' + el.id;
+  const c = (el.className || '').toString().trim().split(/\s+/).filter(Boolean).slice(0,2).join('.');
+  const txt = (el.textContent || '').trim().replace(/\s+/g,' ').slice(0,22);
+  return (el.tagName.toLowerCase() + (c ? '.' + c : '')) + (txt ? ` "${txt}"` : '');
+}
+function tSkip(el){
+  for(let n = el; n && n !== document.body; n = n.parentElement){
+    const cl = (n.className || '').toString();
+    if(TEST_SKIP.some(k => cl.split(/\s+/).includes(k))) return true;
+    const ov = getComputedStyle(n).overflowX;
+    if(ov === 'auto' || ov === 'scroll') return true;
+  }
+  return false;
+}
+
+/* ek subtree naapo */
+function tScan(root, where, out){
+  const W = window.innerWidth;
+  root.querySelectorAll('*').forEach(el => {
+    const cs = getComputedStyle(el);
+    if(cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'fixed') return;
+    const r = el.getBoundingClientRect();
+    if(r.width < 1 || r.height < 1) return;
+
+    /* 1. screen se bahar */
+    if(!tSkip(el)){
+      if(r.right > W + 1.5) out.push(['fail', where, `${tName(el)} screen se ${Math.round(r.right - W)}px bahar hai`]);
+      else if(r.left < -1.5) out.push(['fail', where, `${tName(el)} left se ${Math.round(-r.left)}px bahar hai`]);
+    }
+
+    /* 2. content apne dabbe se bahar (text kat raha hai) */
+    if(!tSkip(el) && el.scrollWidth > el.clientWidth + 2 && cs.overflowX === 'visible' && el.children.length === 0)
+      out.push(['warn', where, `${tName(el)} ka text kat raha hai (${el.scrollWidth - el.clientWidth}px)`]);
+
+    /* 3. parent se bahar nikla hua child */
+    const p = el.parentElement;
+    if(p && !tSkip(el) && p !== document.body){
+      const pr = p.getBoundingClientRect();
+      const pcs = getComputedStyle(p);
+      if(pcs.overflow === 'visible' && pr.width > 4 && r.right > pr.right + 2 && cs.position === 'static')
+        out.push(['warn', where, `${tName(el)} apne card se ${Math.round(r.right - pr.right)}px bahar hai`]);
+    }
+
+    /* 4. chhota tap target */
+    if((el.tagName === 'BUTTON' || el.tagName === 'SELECT' || el.tagName === 'INPUT') && r.height > 0 && r.height < 30)
+      out.push(['warn', where, `${tName(el)} sirf ${Math.round(r.height)}px ooncha hai (36px+ theek rehta hai)`]);
+  });
+}
+
+async function runSelfTest(){
+  const box = $('testOut');
+  box.innerHTML = '<p class="hint"><span class="spin"></span> Test chal raha hai…</p>';
+  const out = [];
+  const t0 = performance.now();
+
+  /* --- A. har page ka layout --- */
+  const pages = ['Signals','Scan','Votes','Market','Trades','Alerts'];
+  const wasOn = pages.find(p => !$('pg'+p).classList.contains('hide')) || 'Signals';
+  const sheetOpen = [...document.querySelectorAll('.ov.on')].map(o => o.id);
+  sheetOpen.forEach(id => $(id).classList.remove('on'));
+
+  for(const p of pages){
+    pages.forEach(x => $('pg'+x).classList.toggle('hide', x !== p));
+    await new Promise(r => requestAnimationFrame(r));
+    tScan($('pg'+p), p, out);
+  }
+  pages.forEach(x => $('pg'+x).classList.toggle('hide', x !== wasOn));
+
+  /* --- B. har sheet ka layout --- */
+  for(const ov of document.querySelectorAll('.ov')){
+    if(ov.id === 'testSheet') continue;
+    ov.classList.add('on');
+    await new Promise(r => requestAnimationFrame(r));
+    tScan(ov, ov.id.replace('Sheet',''), out);
+    ov.classList.remove('on');
+  }
+  sheetOpen.forEach(id => { if(id !== 'testSheet') $(id).classList.add('on') });
+
+  /* --- C. DOM sehat --- */
+  const seen = {}, dup = [];
+  document.querySelectorAll('[id]').forEach(el => {
+    if(seen[el.id]) dup.push(el.id); else seen[el.id] = 1;
+  });
+  if(dup.length) out.push(['warn','DOM', 'ek jaisi id do jagah: ' + [...new Set(dup)].join(', ')]);
+
+  const need = ['selPair','inLots','btnAnalyze','cardSignal','pgTrades','openBox','histBox',
+                'setFb','setMtype','swAuto','setAQual','shotIn','trackBox','logBox','autoMini'];
+  /* openBox = Trades page ka container */
+  const miss = need.filter(id => !$(id));
+  if(miss.length) out.push(['fail','DOM', 'ye zaroori element gayab hain: ' + miss.join(', ')]);
+
+  /* --- D. settings ke number --- */
+  if(!S.key) out.push(['warn','Setup','TwelveData key nahi hai — kuch bhi analyze nahi hoga']);
+  if(!S.gKey) out.push(['warn','Setup','Gemini key nahi hai — AI aur chart analysis band rahegi']);
+  if(!fbEndpoint()) out.push(['warn','Setup','Firebase URL nahi hai — MT5 pe order nahi jayega']);
+  if(S.cap < 50 || S.cap > 800) out.push(['fail','Setup',`Daily cap ${S.cap} theek nahi (50–800 rakho)`]);
+  if(S.watch.length === 0) out.push(['fail','Setup','Watchlist khaali hai — Scan aur Auto dono kuch nahi karenge']);
+  if(S.watch.length > 12) out.push(['fail','Setup',`Watchlist me ${S.watch.length} pairs — 12 se zyada nahi hone chahiye`]);
+  if(S.autoOn){
+    if(S.autoEvery < 5) out.push(['fail','Auto','Cycle 5 min se kam hai — credits minute me hi khatam ho jayenge']);
+    const perDay = Math.floor((16*60) / S.autoEvery) * 4;
+    if(perDay > S.cap - 100) out.push(['warn','Auto',`Auto ~${perDay} credits kha jayega, cap ${S.cap} hai — cycle bada karo`]);
+    if(!fbEndpoint()) out.push(['fail','Auto','Auto chalu hai par Firebase URL nahi — order kahin nahi jayega']);
+  }
+  if(S.dLot <= 0) out.push(['fail','Setup','Default lot 0 hai']);
+
+  /* --- E. khuli trades --- */
+  S.open.forEach(t => {
+    const bad = checkStops(t.sym, t.dir, t.entry, t.sl, t.tp);
+    if(bad.length) out.push(['fail','Trades', `${SPECS[t.sym] ? SPECS[t.sym].n : t.sym}: ${bad[0]}`]);
+    if(!SPECS[t.sym]) out.push(['fail','Trades', `${t.sym} ab app me hai hi nahi — is trade ka P&L galat aayega`]);
+  });
+  if(S.open.length > 6) out.push(['warn','Trades', `${S.open.length} trades khuli hain — har refresh me ${S.open.length} credits lagenge`]);
+
+  /* --- F. storage --- */
+  try{
+    const kb = Math.round(JSON.stringify(S).length / 1024);
+    if(kb > 3500) out.push(['fail','Storage', `Data ${kb} KB ho gaya — 5 MB limit paas hai, purani history hatao`]);
+    else if(kb > 2000) out.push(['warn','Storage', `Data ${kb} KB — history badi ho rahi hai`]);
+  }catch(e){ out.push(['fail','Storage','State save nahi ho pa raha — data bahut bada hai']) }
+  if(S.hist.length > 400) out.push(['warn','Storage', `${S.hist.length} closed trades — 400 se zyada`]);
+
+  /* --- report --- */
+  const ms = Math.round(performance.now() - t0);
+  const fails = out.filter(x => x[0] === 'fail');
+  const warns = out.filter(x => x[0] === 'warn');
+
+  const row = ([lvl, where, msg]) => {
+    const c = lvl === 'fail' ? 'var(--dn)' : 'var(--gold)';
+    return `<div class="hist" style="padding:9px 0">
+      <div class="ic ${lvl === 'fail' ? 'l' : 'm'}" style="font-size:11px">${lvl === 'fail' ? '✕' : '!'}</div>
+      <div class="in"><b style="font-size:12px;color:${c}">${where}</b><small>${msg}</small></div>
+    </div>`;
+  };
+
+  box.innerHTML = `
+    <div class="lvls" style="margin-bottom:12px">
+      <div class="lvl"><span>CHECKS</span><b class="mono">${ms} ms</b></div>
+      <div class="lvl sl"><span>FAIL</span><b class="mono" style="color:${fails.length?'var(--dn)':'var(--mut)'}">${fails.length}</b></div>
+      <div class="lvl tp"><span>WARNING</span><b class="mono" style="color:${warns.length?'var(--gold)':'var(--mut)'}">${warns.length}</b></div>
+    </div>
+    ${!out.length ? '<div class="empty"><div>✅</div>Sab theek hai — koi layout ya setup problem nahi mili.</div>' : ''}
+    ${fails.map(row).join('')}
+    ${warns.map(row).join('')}
+    ${out.length ? `<button class="btn ghost sm" style="margin-top:12px" onclick="shareTest()">📋 REPORT COPY KARO</button>` : ''}`;
+
+  lastTest = {at: Date.now(), ms, out};
+  logAdd(`Self test: ${fails.length} fail, ${warns.length} warning`);
+}
+
+let lastTest = null;
+function shareTest(){
+  if(!lastTest) return;
+  const txt = `SamuSignal v${VERSION} self test — ${dt12(lastTest.at)}\n` +
+    lastTest.out.map(([l,w,m]) => `${l === 'fail' ? '[FAIL]' : '[WARN]'} ${w}: ${m}`).join('\n');
+  navigator.clipboard ? navigator.clipboard.writeText(txt).then(() => toast('Report copy ho gaya'))
+                      : toast('Copy support nahi hai');
+}
 
 function boot(){
   fillPairs();
