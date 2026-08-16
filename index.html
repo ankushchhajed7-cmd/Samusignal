@@ -1432,8 +1432,11 @@ SPECS['US30']    = {n:'US30', d:1, pip:1, contract:1, tv:'CAPITALCOM:US30', ccy:
 const PAIRS = Object.keys(SPECS);
 const MAJORS = ['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','XAU/USD'];
 
-/* Broker ka minimum lot — iske neeche order reject ho jaata hai */
-const MIN_LOT = {'ETH/USD':0.10, 'BTC/USD':0.02};
+/* Broker ka minimum lot — iske neeche order reject ho jaata hai.
+   Exness pe crypto ka minimum bhi 0.01 hai, isliye yahan kuch force
+   nahi hota. Kisi symbol pe broker zyada maange to yahan add karo,
+   jaise 'BTC/USD':0.02 — tabhi app lot ko upar khichega. */
+const MIN_LOT = {};
 function minLot(sym){ return MIN_LOT[sym] || 0.01 }
 /* Lot ko us instrument ke valid step pe round karo */
 function fixLot(sym, lots){
