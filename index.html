@@ -1244,6 +1244,22 @@ th{border-bottom:2px solid var(--gold) !important}
   <button class="btn ghost sm" style="margin-bottom:6px" onclick="lastOrderShow()">📄 Aakhri Bheja Order Dekho</button>
   <p class="hint" style="margin-bottom:16px">FXBridgeEA wahi <code>fxbridge/order.json</code> padhta hai. EA khud broker suffix (Exness = "m") lagata hai, isliye yahan sirf XAUUSD bhejo.</p>
 
+  <p class="ttl">Auto MT5</p>
+  <div class="sw" id="swAuto" onclick="toggleAuto(this)">
+    <div class="tg"></div>
+    <div>Signal khud MT5 pe bhejo<small>Sirf "LE LO" wale signal — baaki sab chhod diye jayenge</small></div>
+  </div>
+  <div class="grid2" style="margin:10px 0 6px">
+    <div><label>Minimum quality (%)</label><input class="mono" id="setAQual" type="number" step="5" min="50" max="95"></div>
+    <div><label>Har kitne minute</label><input class="mono" id="setAEvery" type="number" step="5" min="5"></div>
+    <div><label>Max order / din</label><input class="mono" id="setAMax" type="number" step="1" min="1"></div>
+    <div><label>Same pair cooldown (min)</label><input class="mono" id="setACool" type="number" step="15" min="15"></div>
+  </div>
+  <p class="hint" id="autoState" style="margin-bottom:10px">—</p>
+  <div style="border:1px solid var(--gold);background:rgba(255,184,0,.06);border-radius:8px;padding:11px;margin-bottom:16px">
+    <p class="hint" style="color:var(--gold);margin:0">⚠ Auto sirf tab chalta hai jab ye app khuli aur screen pe ho — phone lock ya app band matlab koi order nahi. Watchlist wale pairs hi check hote hain aur har cycle me sirf ek pair (credits bachane ke liye). 24/7 chahiye to scanning server pe le jaani padegi.</p>
+  </div>
+
   <p class="ttl">Per-Pair Settings</p>
   <div style="margin-bottom:10px"><label>Pair</label>
     <button class="pick" id="minPairBtn" onclick="openPick('minstop')"></button></div>
@@ -1563,6 +1579,15 @@ let S = {
   btFwd:  LS.get('btFwd',24),   /* per-symbol minimum SL/TP distance */
   freshPx: LS.get('freshPx',true),
   mt5Auto: LS.get('mt5Auto',true),
+
+  /* ---- Auto MT5 ---- default band. On karne pe app khud analyze karke
+     order bhej sakti hai, isliye har guard yahin se control hota hai. */
+  autoOn:     LS.get('autoOn',false),
+  autoQual:   LS.get('autoQual',75),    /* minimum quality % */
+  autoEvery:  LS.get('autoEvery',15),   /* har kitne minute pe ek cycle */
+  autoMaxDay: LS.get('autoMaxDay',3),   /* ek din me max auto order */
+  autoCool:   LS.get('autoCool',60),    /* ek hi pair pe dobara kitni der baad */
+  autoLog:    LS.get('autoLog',{d:'', n:0, last:{}, why:'', at:0}),
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
   mktG:  LS.get('mktG','Majors'),
@@ -1599,7 +1624,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
@@ -5418,6 +5443,10 @@ function saveSettings(){
   showMode(); if($('verMode')) $('verMode').textContent = S.mt5Type;
   S.autoM = +$('setAuto').value;
   S.trackMin = Math.max(2, +$('setTrackMin').value || 5);
+  S.autoQual   = Math.min(95, Math.max(50, +$('setAQual').value  || 75));
+  S.autoEvery  = Math.max(5,  +$('setAEvery').value || 15);
+  S.autoMaxDay = Math.max(1,  +$('setAMax').value   || 3);
+  S.autoCool   = Math.max(15, +$('setACool').value  || 60);
   $('inLots').value = S.dLot; S.lots = S.dLot;
   save(); closeSheet('setSheet');
   $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
@@ -6223,6 +6252,9 @@ const GUIDE = [
   ['p','Yahan log kiye trades tumhare apne hain. Signal pe "Maine Ye Trade Liya" dabao, ya kahin aur liya trade ho to "+ Add Manual Trade".'],
   ['h','Live P&L'],
   ['p','Open trades live price se refresh hote hain aur abhi ka profit/loss dikhate hain. TP/SL hit 5-minute candle ke high/low se pakda jaata hai, isliye chhoo kar palta hua level bhi ginta hai.'],
+  ['h','Auto MT5'],
+  ['p','Settings \u2192 Auto MT5 me toggle on karne par app khud har X minute me watchlist ka ek pair analyze karti hai. Order tabhi jaata hai jab verdict "LE LO" ho, quality tumhare set kiye gaye %+ ho, us pair pe koi trade khuli na ho aur cooldown paar ho chuka ho. Har order Alert Log aur Telegram dono me likha jaata hai.'],
+  ['w','Auto sirf app khuli aur screen pe hone par chalta hai \u2014 phone lock ya app band matlab kuch nahi hoga. Max order per din aur per-pair cooldown zaroor set rakho, aur Trades page pe nazar rakho.'],
   ['h','MT5 Bridge'],
   ['p','Signal ya quick trade se "MT5 pe Lagao" dabane par order Firebase ke through VPS wale EA tak jaata hai. Settings \u2192 MT5 Bridge me Firebase URL, order type aur limit offset set hote hain, aur TEST BRIDGE se connection check hota hai.'],
   ['h','SL ka size'],
@@ -6307,6 +6339,154 @@ function gGo(id){
   if(sh){ const b = sh.querySelector('.sh-b'); if(b) b.scrollTop = 0 }
 }
 
+
+/* ================= AUTO MT5 =================
+   App khud analyze karke order bhej sakti hai. Ye pura block guards se
+   bhara hua hai — auto trading me ek galat signal bhi bina puche paisa
+   laga deta hai, isliye har condition fail hone pe cycle chup-chaap ruk
+   jaata hai aur wajah Alert Log me likhi jaati hai.
+
+   Chalne ki shart: app khuli ho, screen visible ho, koi analysis pehle
+   se na chal rahi ho. PWA background me nahi chalti — ye limitation
+   Settings me bhi saaf likhi hai. */
+
+let autoLastRun = 0;
+let autoIdx = 0;        /* watchlist me round-robin */
+let autoBusy = false;
+
+function autoDay(){
+  const d = utcDay();
+  if(S.autoLog.d !== d){ S.autoLog = {d, n:0, last:{}, why:'', at:0}; save() }
+  return S.autoLog;
+}
+
+function autoNote(why){
+  const a = autoDay();
+  a.why = why; a.at = Date.now(); save();
+  const el = $('autoState'); if(el) autoState();
+}
+
+function autoState(){
+  const el = $('autoState'); if(!el) return;
+  const a = autoDay();
+  if(!S.autoOn){ el.textContent = 'Auto band hai — signal sirf tumhare tap se hi jayega.'; return }
+  const left = Math.max(0, S.autoMaxDay - a.n);
+  const next = autoLastRun ? Math.max(0, S.autoEvery*60000 - (Date.now()-autoLastRun)) : 0;
+  el.innerHTML = `<b style="color:var(--up)">Auto chalu</b> · aaj ${a.n}/${S.autoMaxDay} order` +
+    ` · ${left ? (next ? `agla check ${Math.ceil(next/60000)} min me` : 'agla check abhi') : 'aaj ki limit poori'}` +
+    (a.why ? `<br>Aakhri: ${a.why} · ${t12(a.at)}` : '');
+}
+setInterval(autoState, 15000);
+
+function toggleAuto(el){
+  if(!S.autoOn){
+    if(!fbEndpoint()){ toast('Pehle Firebase URL daalo, warna order kahin nahi jayega'); return }
+    if(!S.key){ toast('Pehle TwelveData API key daalo'); return }
+    const ok = confirm(
+      'Auto MT5 chalu karein?\n\n' +
+      `• Har ${S.autoEvery} min me watchlist ka ek pair analyze hoga\n` +
+      `• Sirf "LE LO" verdict aur quality ${S.autoQual}%+ pe order jayega\n` +
+      `• Aaj max ${S.autoMaxDay} order, ek pair par ${S.autoCool} min me sirf ek baar\n` +
+      '• Order seedha MT5 bridge pe jayega — koi confirm screen nahi aayegi\n\n' +
+      'App khuli rehni chahiye. Aage badhein?');
+    if(!ok) return;
+  }
+  S.autoOn = !S.autoOn;
+  el.classList.toggle('on', S.autoOn);
+  save(); autoState();
+  logAdd('Auto MT5 ' + (S.autoOn ? 'ON' : 'OFF'));
+  toast(S.autoOn ? 'Auto MT5 chalu' : 'Auto MT5 band');
+}
+
+/* agla pair jo sach me try karne layak hai */
+function autoPick(){
+  const list = S.watch.filter(x => !isBad(x));
+  if(!list.length) return null;
+  const a = autoDay();
+  for(let i = 0; i < list.length; i++){
+    const sym = list[(autoIdx + i) % list.length];
+    if(S.open.some(t => t.sym === sym)) continue;           /* pehle se trade khuli hai */
+    if(mt5Has(sym)) continue;                                /* MT5 pe pehle se bheja hua */
+    const last = a.last[sym] || 0;
+    if(Date.now() - last < S.autoCool * 60000) continue;     /* cooldown */
+    autoIdx = (autoIdx + i + 1) % list.length;
+    return sym;
+  }
+  return null;
+}
+
+async function autoTick(){
+  if(!S.autoOn || autoBusy) return;
+  if(document.hidden) return;                 /* screen pe nahi ho to kuch nahi */
+  if(busy) return;                            /* manual analysis chal rahi hai */
+  if(Date.now() - autoLastRun < S.autoEvery * 60000) return;
+  if(!S.key || !fbEndpoint()){ autoNote('setup adhura — key ya Firebase URL nahi'); return }
+
+  const a = autoDay();
+  if(a.n >= S.autoMaxDay){ autoNote(`aaj ki limit (${S.autoMaxDay}) poori`); return }
+  dayCheck();
+  if(S.day.blocked || creditsLeft() < 8){ autoNote('credits kam hain'); return }
+
+  const sym = autoPick();
+  if(!sym){ autoNote('koi pair khaali nahi — sab pe trade ya cooldown'); return }
+
+  autoBusy = true;
+  autoLastRun = Date.now();
+  try{
+    /* wahi engine jo tum haath se chalate ho — pair set karke analyze */
+    S.pair = sym; pickVal.main = sym; save();
+    pickLabel($('selPair'), sym); setChart(sym);
+    await runAnalyze();
+
+    const sig = lastSignal;
+    if(!sig || sig.sym !== sym || sig.dir === 'NEUTRAL'){ autoNote(`${SPECS[sym].n}: koi direction nahi`); return }
+
+    const v = finalCall(sig);
+    if(v.t !== 'LE LO'){ autoNote(`${SPECS[sym].n}: ${v.t} — order nahi bheja`); return }
+    if(sig.q < S.autoQual){ autoNote(`${SPECS[sym].n}: quality ${sig.q}% < ${S.autoQual}%`); return }
+
+    /* Levels wahi use karo jo signal card pe dikh rahe hain — auto aur
+       screen alag-alag number bhejein, isse bura kuch nahi. */
+    if(!sig.slD || !sig.tpD){ autoNote(`${SPECS[sym].n}: SL/TP zero nikla`); return }
+    const lots = fixLot(sym, sig.lots || S.dLot);
+    const sl = sig.sl, tp = sig.tp;
+
+    const ok = await sendMT5(sym, sig.dir, lots, sig.live, sl, tp, S.mt5Type, true);
+    if(!ok){ autoNote(`${SPECS[sym].n}: bridge ne order nahi liya — log dekho`); return }
+
+    /* journal me bhi daalo taaki P&L aur history track ho */
+    autoJournal({
+      sym, dir: sig.dir, lots, entry: sig.live, sl, tp,
+      slD: sig.slD, tpD: sig.tpD, q: sig.q, grade: sig.grade, auto: true
+    });
+
+    a.n++; a.last[sym] = Date.now(); save();
+    autoNote(`${SPECS[sym].n} ${sig.dir} bhej diya (quality ${sig.q}%)`);
+    logAdd(`AUTO: ${sig.dir} ${SPECS[sym].n} ${lots} lot @ ${fmt(sym, sig.live)}`);
+    toast(`Auto: ${SPECS[sym].n} ${sig.dir} MT5 pe laga diya`);
+    notify('Auto MT5 order', `${SPECS[sym].n} ${sig.dir} ${lots} lot @ ${fmt(sym, sig.live)}`, 'auto');
+    if(S.tts) speak(`Auto order ${sig.dir} ${SPECS[sym].n}`);
+  }catch(e){
+    autoNote('cycle fail: ' + (e.message || 'pata nahi'));
+  }finally{
+    autoBusy = false;
+  }
+}
+
+/* addTrade alert dikhata hai aur Trades page pe le jaata hai — auto ke
+   liye wo galat hai, isliye chup-chaap wala version */
+function autoJournal(t){
+  if(S.open.some(x => x.sym === t.sym)) return;
+  t.id = 'T' + Date.now();
+  t.at = Date.now(); t.cur = t.entry; t.pl = 0;
+  S.open.push(t); save();
+  if(!$('pgTrades').classList.contains('hide')) renderTrades();
+  logAdd(`Trade open (auto): ${t.dir} ${t.sym} @ ${fmt(t.sym, t.entry)}`);
+  if(S.tgAuto) tgSend(tradeText(t, 'OPEN'), true);
+}
+
+setInterval(autoTick, 30000);
+
 function boot(){
   fillPairs();
   $('inLots').value = fixLot(S.pair, S.lots);
@@ -6360,6 +6540,10 @@ function boot(){
   document.querySelectorAll('[data-th]').forEach(b => b.classList.toggle('on', b.dataset.th === S.theme));
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
   $('setTrackMin').value = S.trackMin;
+  $('swAuto').classList.toggle('on', S.autoOn);
+  $('setAQual').value = S.autoQual; $('setAEvery').value = S.autoEvery;
+  $('setAMax').value = S.autoMaxDay; $('setACool').value = S.autoCool;
+  autoState();
   $('setNewsMin').value = S.newsMin; $('setNewsImp').value = S.newsImp;
   $('setMode').value = S.slMode; $('setAtrSL').value = S.atrSL;
   $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
