@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>AMC</title>
+<title>SamuSignal</title>
 <meta name="description" content="SamuSignal — AI-powered forex aur gold signal analysis, scanner, chart AI aur trade journal.">
 <meta name="theme-color" content="#0a0704">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="AMC">
-<link rel="manifest" href="./manifest.json?v=901" id="mfLink">
+<meta name="apple-mobile-web-app-title" content="SamuSignal">
+<link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <style>
 :root{
@@ -164,38 +164,10 @@ input:focus,select:focus{border-color:var(--gold)}
 .sumrow .k{font-size:9.5px;color:var(--lbl);letter-spacing:.8px;font-weight:700;width:36px}
 .sumrow .v{font-size:11px;font-weight:700;letter-spacing:.3px;margin-left:auto;text-align:right;flex:1}
 .sumrow .n{font-size:10.5px;font-weight:700;opacity:1}
-.verdictbar{position:relative;display:flex;align-items:center;gap:11px;border-radius:8px;
-  padding:13px 14px;margin-bottom:13px;border:2px solid;overflow:hidden}
-.verdictbar b{font-size:19px;letter-spacing:2.5px;flex:0 0 auto;font-weight:800;z-index:2}
-.verdictbar p{margin:0;font-size:11.5px;line-height:1.55;flex:1;font-weight:600;z-index:2}
-
-/* dhadakti hui roshni — verdict pe dhyan jaye */
-@keyframes vpulse{
-  0%,100%{ box-shadow:0 0 0 0 var(--vg), 0 0 14px 0 var(--vg) inset }
-  50%    { box-shadow:0 0 22px 6px var(--vg), 0 0 26px 2px var(--vg) inset }
-}
-@keyframes vsweep{
-  0%   { transform:translateX(-120%) skewX(-18deg) }
-  55%  { transform:translateX(220%)  skewX(-18deg) }
-  100% { transform:translateX(220%)  skewX(-18deg) }
-}
-.verdictbar.live{ animation:vpulse 1.9s ease-in-out infinite }
-.verdictbar.live::before{
-  content:''; position:absolute; top:0; bottom:0; left:0; width:38%;
-  background:linear-gradient(100deg, transparent, rgba(255,255,255,.16), transparent);
-  animation:vsweep 3.4s ease-in-out infinite; z-index:1; pointer-events:none;
-}
-/* LE LO sabse tez, CHHOD DO tez, WAIT halka */
-.verdictbar.go   { --vg:rgba(0,255,150,.55) }
-.verdictbar.go.live   { animation-duration:1.4s }
-.verdictbar.stop { --vg:rgba(255,68,68,.55) }
-.verdictbar.stop.live { animation-duration:1.6s }
-.verdictbar.hold { --vg:rgba(255,184,0,.45) }
-.verdictbar.hold.live { animation-duration:2.6s }
-@media (prefers-reduced-motion:reduce){
-  .verdictbar.live{animation:none}
-  .verdictbar.live::before{animation:none;display:none}
-}
+.verdictbar{display:flex;align-items:center;gap:9px;border-radius:6px;padding:10px 12px;margin-bottom:11px;
+  border:1px solid}
+.verdictbar b{font-size:14px;letter-spacing:2px;flex:0 0 auto}
+.verdictbar p{margin:0;font-size:10px;line-height:1.5;flex:1}
 .sig-h b{font-size:15px;letter-spacing:1px}
 .tag{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1px}
 .tag.buy{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.5);
@@ -977,7 +949,6 @@ th{border-bottom:2px solid var(--gold) !important}
 
   <div class="card" id="anCard">
     <p class="ttl">Chart Analysis <span class="sp" id="anT">—</span></p>
-    <p class="hint" style="margin:-4px 0 10px">Ye sirf chart ki technical haalat batata hai — trade lena hai ya nahi, wo upar SIGNAL card ka faisla hai.</p>
     <div id="anBox"><p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p></div>
   </div>
 
@@ -1420,7 +1391,7 @@ th{border-bottom:2px solid var(--gold) !important}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.3.0';
+const VERSION = '9.0.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1529,11 +1500,7 @@ function calcLevels(sym, price, lots, atr, opt){
     if(o.autoLot !== undefined ? o.autoLot : S.autoLot){
       const want = lotsForRisk(sym, price, slDist, o.riskUsd !== undefined ? o.riskUsd : S.riskUsd);
       L = Math.max(0.01, want);
-      /* asli risk target se kitna upar gaya — sirf lot ka size dekhna kaafi nahi,
-         kyunki 0.006 lot round hokar 0.01 ban jaata hai aur risk chup-chaap badh jaata hai */
-      const wantR = o.riskUsd !== undefined ? o.riskUsd : S.riskUsd;
-      const realRisk = slDist * usdPerPoint(sym, price, L);
-      if(realRisk > wantR * 1.1) clamped = Math.max(want, 0.001);
+      if(want < 0.01) clamped = want;   /* broker minimum se neeche — risk badh jayega */
     }
   } else {
     slDist = dollarsToDist(sym, price, L, o.slD !== undefined ? o.slD : defSL(sym, L));
@@ -2066,8 +2033,7 @@ function renderAI(){
     <p>${paint(body)}</p></div>` : '';
   $('aiT').innerHTML = `<span data-ago="${d.at}">${ago(d.at)}</span>`;
   $('aiBox').innerHTML = `
-    <div class="verdictbar live ${d.verdict==='LE LO'?'go':d.verdict==='CHHOD DO'?'stop':'hold'}"
-         style="border-color:${col};background:${col.replace('var(--','rgba(').replace(')','')}">
+    <div class="verdictbar" style="border-color:${col};background:${col.replace('var(--','rgba(').replace(')','')}">
       <b class="shine ${d.verdict==='LE LO'?'up':d.verdict==='CHHOD DO'?'dn':'gd'}">${d.verdict}</b>
       <p style="color:${col}">AI confidence ${d.confidence}%</p>
     </div>
@@ -2425,18 +2391,13 @@ async function getQuotes(syms, note, ttl){
   return out;
 }
 
-/* strict = true ho to fail hone par error phenko, purana price mat lautao.
-   Warna caller ko lagta hai naya rate mila hai jabki wo purana hi hai. */
-async function getPrice(sym, strict){
+async function getPrice(sym){
   try{
     const j = await td(`/price?symbol=${encodeURIComponent(apiSym(sym))}`, 1, sym);
     const p = +j.price;
     if(isFinite(p) && p>0){ prices[sym] = Object.assign(prices[sym]||{}, {p}); return p }
-    throw new Error('API ne price nahi bheja');
-  }catch(e){
-    if(strict) throw e;
-    return prices[sym] ? prices[sym].p : null;
-  }
+  }catch(e){}
+  return prices[sym] ? prices[sym].p : null;
 }
 
 /* ---------------- indicators ---------------- */
@@ -2662,19 +2623,6 @@ function analyse(sym, bars, v, s){
       : `⚠ ATR ${atrPips.toFixed(1)} pips hai par SL sirf ${slPips} pips door. Market ki normal hilne-dulne se hi SL lag sakti hai, signal sahi hone ke bawajood.`
   });
 
-  /* --- 6b. R:R — ye check pehle tha hi nahi, isliye 1:0.63 pe bhi score achha aa jaata tha --- */
-  const rrv = (s.slPips > 0) ? s.tpPips / s.slPips : 0;
-  const beW = rrv > 0 ? 100 / (1 + rrv) : 100;
-  O.push({
-    h:'RISK / REWARD',
-    ok: rrv >= 1.5 ? 2 : rrv >= 1 ? 1 : 0,
-    t: rrv >= 1.5
-      ? `TP ${s.tpPips} pips aur SL ${s.slPips} pips — R:R 1:${rrv.toFixed(2)}. Sirf ${beW.toFixed(0)}% trades jeetne par bhi profit banega, ganit tumhare paksh me hai.`
-      : rrv >= 1
-      ? `R:R 1:${rrv.toFixed(2)} — barabar rehne ke liye ${beW.toFixed(0)}% win rate chahiye. Chal jayega, par gunjaish kam hai.`
-      : `⚠ TP sirf ${s.tpPips} pips aur SL ${s.slPips} pips — R:R 1:${rrv.toFixed(2)}. Ek SL ${(1/(rrv||1)).toFixed(1)} TP kha jaata hai. Barabar rehne ke liye hi ${beW.toFixed(0)}% win rate chahiye, jo bahut mushkil hai. Chart chahe kitna achha ho, ye ganit haarne wala hai.`
-  });
-
   /* --- 7. HTF --- */
   const agree = s.tfs.filter(x => x.b === d).length;
   O.push({
@@ -2712,7 +2660,7 @@ function analyse(sym, bars, v, s){
   const maxS = O.length * 2;
   const pct = Math.round(score/maxS*100);
   const bad = O.filter(x => x.ok === 0);
-  const verdict = pct>=75 ? 'CHART ACHHA' : pct>=55 ? 'CHART THEEK' : pct>=40 ? 'CHART KAMZOR' : 'CHART KHARAB';
+  const verdict = pct>=75 ? 'ACHHA SETUP' : pct>=55 ? 'THEEK-THAAK' : pct>=40 ? 'KAMZOR' : 'MAT LO';
   const vcol = pct>=75 ? 'var(--up)' : pct>=55 ? 'var(--gold)' : 'var(--dn)';
 
   /* invalidation */
@@ -2952,7 +2900,7 @@ function tierOf(pct, kind){
     return pct>=75 ? {t:'STRONG',   c:'var(--up)'}
          : pct>=55 ? {t:'THEEK',    c:'var(--gold)'}
          : pct>=40 ? {t:'KAMZOR',   c:'var(--dn)'}
-         :           {t:'KHARAB', c:'var(--dn)'};
+         :           {t:'MAT LO',   c:'var(--dn)'};
   }
   return pct>=70 ? {t:'STRONG', c:'var(--up)'}
        : pct>=50 ? {t:'MEDIUM', c:'var(--gold)'}
@@ -2997,12 +2945,6 @@ function finalCall(s){
     }
   }
   if(lastAn && lastAn.pct < 40){ block++; R.push('technical bahut kamzor') }
-  /* R:R 1 se kam = ganit khud khilaaf hai, chart chahe jaisa bhi ho */
-  if(s.tpPips > 0 && s.slPips > 0){
-    const rr2 = s.tpPips / s.slPips;
-    if(rr2 < 0.8){ block++; R.push(`R:R 1:${rr2.toFixed(2)} — ganit hi khilaaf hai`) }
-    else if(rr2 < 1){ warn++; R.push(`R:R sirf 1:${rr2.toFixed(2)}`) }
-  }
   if(lastAn){
     const st = lastAn.O.find(x => x.h === 'SUPERTREND');
     const loc = lastAn.O.find(x => x.h === 'ENTRY LOCATION');
@@ -3084,8 +3026,7 @@ function renderSignal(){
         <div class="lvl tp"><span>TP · $${s.tpD}</span><b class="mono">${fmt(s.sym,s.tp)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.tpPips} pips</small></div>
       </div>
       ${(() => { const f = finalCall(s); return `
-      <div class="verdictbar live ${f.t==='LE LO'?'go':f.t==='CHHOD DO'?'stop':'hold'}"
-           style="border-color:${f.c};background:${f.bg}">
+      <div class="verdictbar" style="border-color:${f.c};background:${f.bg}">
         <b class="shine ${f.c==='var(--up)'?'up':f.c==='var(--dn)'?'dn':'gd'}">${f.t}</b>
         <p style="color:${f.c}">${f.why}</p>
       </div>`; })()}
@@ -3671,6 +3612,18 @@ function drawLevels(cv, sym, bars, t){
     const mid = (lvLo + lvHi) / 2;
     lo = mid - minSpan/2; hi = mid + minSpan/2;
   }
+  /* Doosri taraf ka bachaav: agar levels candles se bahut door hain
+     (jaise wide SL wala crypto trade) to poori history ek seedhi line
+     ban jaati thi. Candle range ko kam se kam 30% jagah do — jo level
+     bahar reh jaaye usko neeche edge marker se dikhaya jaata hai. */
+  const cSpan = (cHi - cLo) || (SPECS[sym].pip * 10);
+  const maxSpan = cSpan / 0.30;
+  if(hi - lo > maxSpan){
+    const mid = (cLo + cHi) / 2;
+    lo = Math.min(mid - maxSpan/2, Math.min(cLo, cur, t.entry) - cSpan*0.12);
+    hi = Math.max(mid + maxSpan/2, Math.max(cHi, cur, t.entry) + cSpan*0.12);
+  }
+
   const pad = (hi-lo)*0.08;
   lo -= pad; hi += pad;
 
@@ -3708,12 +3661,16 @@ function drawLevels(cv, sym, bars, t){
     {v:t.sl,    c:'#FF4444', txt:'SL ' + fmt(sym,t.sl)}
   ];
   L.forEach(k => {
-    const y = Y(k.v);
-    if(y < -5 || y > H+5) return;
-    x.strokeStyle = k.c; x.lineWidth = 1.2;
-    x.setLineDash(k.dash || []);
+    /* chart ke bahar hai? line edge pe chipka do aur label pe teer laga do,
+       taaki level chupe nahi */
+    const r = (hi - k.v) / (hi - lo);
+    const off = r < 0 ? 'up' : r > 1 ? 'dn' : '';
+    const y = off ? (off === 'up' ? PAD_T + 5 : H - PAD_B - 5) : Y(k.v);
+    x.strokeStyle = k.c; x.lineWidth = off ? 2 : 1.2;
+    x.setLineDash(off ? [2,3] : (k.dash || []));
     x.beginPath(); x.moveTo(0,y); x.lineTo(CW,y); x.stroke();
     x.setLineDash([]);
+    if(off) k.txt = (off === 'up' ? '\u2191 ' : '\u2193 ') + k.txt;
     k.y = y;
   });
 
@@ -4789,12 +4746,17 @@ function fbEndpoint(){
 }
 
 /* broker ka minimum stop distance — pips me. Default suraksha ke liye rakha hai */
-const MIN_DEF = {'XAU/USD':50, 'BTC/USD':300, 'US30':60};
+const MIN_DEF = {'XAU/USD':50, 'BTC/USD':150, 'ETH/USD':10, 'US30':60};
 /* jin pairs pe global $1/$2.50 chalta hi nahi — inke apne default */
 const DEF_TPSL = {
-  'XAU/USD': {tp:12, sl:8},
-  'BTC/USD': {tp:75, sl:50},
-  'US30':    {tp:15, sl:10}
+  'XAU/USD': {tp:5,    sl:8},
+  /* BTC/ETH pe 1 lot = 1 coin hai, isliye 0.01 lot pe $1 = 100 points ban
+     jaata hai. Purane $30/$50 ka matlab 3000/5000 points wali SL nikalti thi
+     — 63k wale BTC pe ~8% stop. Ab BTC ~600 pt SL / 900 pt TP,
+     ETH ~32 pt SL / 48 pt TP, yaani lagbhag 1% aur 1.5%. */
+  'BTC/USD': {tp:9,    sl:6},
+  'ETH/USD': {tp:0.48, sl:0.32},
+  'US30':    {tp:6,    sl:10}
 };
 /* base values 0.01 lot ke liye hain — lots badhe to $ bhi utna hi badhta hai.
    Price distance wahi rehti hai, sirf risk scale hota hai. */
@@ -4984,7 +4946,7 @@ function structCorr(a, b){
   if(A[0] === B[1]) c -= 0.75;   /* ulta position      -> negative */
   if(A[1] === B[0]) c -= 0.75;
   /* metals aur crypto forex se kam judte hain */
-  const odd = x => ['XAU','BTC','US30'].includes(SPECS[x].ccy[0]);
+  const odd = x => ['XAU','BTC','ETH','US30'].includes(SPECS[x].ccy[0]);
   if(odd(a) || odd(b)) c *= 0.5;
   return Math.max(-0.98, Math.min(0.98, +c.toFixed(2)));
 }
@@ -6016,30 +5978,19 @@ function entryZone(sym, entry, sl){
 }
 
 let trackBusy = false;
-function trackSkip(reason){
-  const t = S.track; if(!t) return;
-  t.why = reason; t.whyAt = Date.now();
-  if(!$('pgAlerts').classList.contains('hide')) renderTrack();
-}
 async function trackCheck(force){
   const t = S.track;
   if(!t || t.done || trackBusy) return;
-  if(!S.key){ trackSkip('API key nahi hai'); return }
-  if(S.day && S.day.blocked){ trackSkip('Aaj ke API credits khatam'); return }
+  if(!S.key) return;
   const gap = Math.max(2, +S.trackMin || 5) * 60000;
   if(!force && Date.now() - t.lastAt < gap) return;
-  if(!force && creditsLeft() < 2){
-    trackSkip('Ek minute ki API limit — agle check pe hoga'); return;
-  }
+  if(!force && creditsLeft() < 3) return;
 
   trackBusy = true;
   try{
-    const p = await getPrice(t.sym, true);        /* strict: purana price mat lo */
-    if(!isFinite(p) || !p) throw new Error('Price nahi mila');
-    const same = (t.last === p);
+    const p = await getPrice(t.sym);
+    if(!isFinite(p) || !p) return;
     t.last = p; t.lastAt = Date.now();
-    t.why = null;
-    t.sameCount = same ? (t.sameCount || 0) + 1 : 0;
 
     const up = t.dir === 'BUY';
     const N = SPECS[t.sym].n;
@@ -6082,40 +6033,14 @@ async function trackCheck(force){
     save();
     if(!$('pgAlerts').classList.contains('hide')) renderTrack();
   }catch(e){
-    /* pehle ye chup-chaap nigal jaata tha aur price frozen dikhta tha */
-    t.why = e.message || 'Price check fail';
-    t.whyAt = Date.now();
-    save();
-    if(!$('pgAlerts').classList.contains('hide')) renderTrack();
-    if(force) toast(t.why);
+    /* price check fail hona itna bada nahi ki user ko toka jaye */
   }finally{ trackBusy = false }
 }
 
 setInterval(() => {
   if(document.hidden) return;
   trackCheck(false);
-}, 20000);
-/* app wapas saamne aaye to turant check — background me 5 min nikal chuke honge */
-document.addEventListener('visibilitychange', () => {
-  if(!document.hidden) trackCheck(false);
-});
-
-let trackTick = null;
-function trackCountdown(){
-  const el = $('trackNext'); const t = S.track;
-  if(!el || !t || t.done) return;
-  if(!t.lastAt){ el.textContent = 'abhi'; return }
-  const gap = Math.max(2, +S.trackMin || 5) * 60000;
-  const left = Math.max(0, gap - (Date.now() - t.lastAt));
-  const sec = Math.ceil(left / 1000);
-  el.textContent = left <= 0 ? 'abhi hoga'
-    : `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
-  el.style.color = left <= 0 ? 'var(--up)' : '';
-}
-setInterval(() => {
-  if(!$('pgAlerts') || $('pgAlerts').classList.contains('hide')) return;
-  trackCountdown();
-}, 1000);
+}, 30000);
 
 function renderTrack(){
   const box = $('trackBox'), st = $('trackState');
@@ -6157,15 +6082,6 @@ function renderTrack(){
     }</b></div>
     ${pl !== null ? `<div class="lbl"><span>Entry level se move</span><b class="mono ${pl>=0?'up':'dn'}">${pl>=0?'+':''}${pl.toFixed(1)} pips</b></div>` : ''}
     <div class="lbl"><span>Last check</span><b class="mono">${t.lastAt ? ago(t.lastAt) : 'abhi nahi'}</b></div>
-    <div class="lbl"><span>Agla check</span><b class="mono" id="trackNext">—</b></div>
-    ${t.why ? `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);
-        border-radius:6px;padding:9px 11px;margin:9px 0">
-      <b style="color:var(--dn);font-size:10px;letter-spacing:1.2px">CHECK NAHI HO PAYA</b>
-      <p class="hint" style="color:#f99;margin:4px 0 0">${t.why}
-        ${t.whyAt ? '· ' + ago(t.whyAt) : ''}</p></div>` : ''}
-    ${(t.sameCount || 0) >= 3 ? `<p class="hint" style="color:var(--gold);margin:8px 0">
-      Pichhle ${t.sameCount} check me price bilkul same aaya. Market band ho sakta hai
-      (weekend / off-hours), ya ye pair abhi bahut shaant hai.</p>` : ''}
 
     <div style="margin:10px 0 4px">
       ${row('entry','Entry zone', fmt(t.sym,t.entry), '\ud83d\udd14')}
@@ -6185,7 +6101,6 @@ function renderTrack(){
       <button class="btn ghost sm" onclick="trackCheck(true)">\u27f3 ABHI CHECK KARO</button>
       <button class="btn ghost sm" style="color:var(--dn)" onclick="stopTrack()">\u2715 TRACKING BAND</button>
     </div>`;
-  trackCountdown();
 }
 
 
@@ -6500,33 +6415,17 @@ document.addEventListener('touchend', e => {
 
 /* ---------------- install prompt ---------------- */
 let deferred = null;
-function installed(){
-  return window.matchMedia('(display-mode: standalone)').matches ||
-         window.navigator.standalone === true;
-}
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault(); deferred = e;
-  const b = $('btnInstall');
-  b.style.color = 'var(--gold)'; b.style.borderColor = 'var(--gold)';
-});
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('btnInstall').style.color = 'var(--gold)'; });
 $('btnInstall').onclick = async () => {
-  if(installed()){ toast('App already install hai'); return }
-  if(deferred){ deferred.prompt(); await deferred.userChoice; deferred = null; return }
-  alert('Chrome ne abhi Install option nahi diya.\n\n' +
-    'Aisa tab hota hai jab purana version cache me ho. Ye karo:\n\n' +
-    '1. Purana app home screen se uninstall karo\n' +
-    '2. Chrome me site kholo (installed app me nahi)\n' +
-    '3. Lock icon > Site settings > Delete data\n' +
-    '4. Page reload > 15-20 sec ruko\n' +
-    '5. Phir Install dabao\n\n' +
-    'Phir bhi na aaye to Chrome menu > Add to Home screen chalega - kaam wahi hai.');
+  if(deferred){ deferred.prompt(); await deferred.userChoice; deferred = null; }
+  else toast('Browser menu → "Add to Home screen" dabao');
 };
 window.addEventListener('appinstalled', ()=> toast('SamuSignal install ho gaya'));
 
 /* ---------------- service worker (relative scope — 404 fix) ---------------- */
 /* Page khud purana cache saaf karta hai — sw.js purani ho to bhi.
    index.html hamesha naya aata hai, isliye ye jaal se bahar nikal aata hai. */
-const CACHE_TAG = 'amc-v' + VERSION.replace(/\./g,'-');
+const CACHE_TAG = 'samusignal-v' + VERSION.replace(/\./g,'-');
 
 async function purgeOldCaches(){
   if(!window.caches) return 0;
@@ -6548,10 +6447,6 @@ if('serviceWorker' in navigator){
       setInterval(() => reg.update().catch(()=>{}), 10*60000);
     }catch(e){}
     if(killed) console.log('[SamuSignal] purane cache hatae:', killed);
-    try{
-      const l = document.getElementById('mfLink');
-      if(l){ const u = './manifest.json?v=' + VERSION.replace(/\./g,''); if(l.href.indexOf(u) < 0) l.href = u; }
-    }catch(e){}
   });
   /* naya SW aane pe ek hi baar reload */
   let reloaded = false;
