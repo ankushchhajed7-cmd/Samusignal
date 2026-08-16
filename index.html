@@ -930,24 +930,13 @@ th{border-bottom:2px solid var(--gold) !important}
 
 <!-- ============ SIGNALS ============ -->
 <section id="pgSignals">
-  <div class="card" id="autoCard">
-    <p class="ttl">Auto MT5 <span class="sp" id="autoTag">band</span></p>
-    <div class="sw" id="swAuto" onclick="toggleAuto(this)">
-      <div class="tg"></div>
-      <div>Signal khud MT5 pe bhejo<small>Sirf "LE LO" verdict wale signal jayenge</small></div>
+  <div class="card" id="autoCard" style="padding:11px 13px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+      <b class="shine gd" style="font-size:12.5px;letter-spacing:1.6px">AUTO MT5</b>
+      <span class="gr" id="autoTag" style="margin-left:auto">band</span>
     </div>
-    <div class="grid2" style="margin:12px 0 4px">
-      <div><label>Minimum quality (%)</label><input class="mono" id="setAQual" type="number" step="5" min="50" max="95"></div>
-      <div><label>Har kitne minute</label><input class="mono" id="setAEvery" type="number" step="5" min="5"></div>
-      <div><label>Max order / din</label><input class="mono" id="setAMax" type="number" step="1" min="1"></div>
-      <div><label>Fail hone par dobara (min)</label><input class="mono" id="setACool" type="number" step="15" min="15"></div>
-    </div>
-    <p class="hint" style="margin:6px 0 10px">Ek pair pe poore din me sirf ek order. "Max order / din" saare pairs ka total hai. Watchlist wale pairs hi check hote hain — har cycle me ek.</p>
-    <button class="btn gold sm" style="margin-bottom:10px" onclick="saveAuto()">💾 AUTO SETTINGS SAVE KARO</button>
-    <p class="hint" id="autoState" style="margin:0 0 10px">—</p>
-    <div style="border:1px solid var(--gold);background:rgba(255,184,0,.06);border-radius:8px;padding:11px">
-      <p class="hint" style="color:var(--gold);margin:0">⚠ Auto sirf tab chalta hai jab ye app khuli aur screen pe ho — phone lock ya app band matlab koi order nahi jayega.</p>
-    </div>
+    <button class="btn ghost sm" onclick="openSheet('autoSheet')">⚡ AUTO MT5 KHOLO</button>
+    <p class="hint" id="autoMini" style="margin:9px 0 0">—</p>
   </div>
   <div class="card" id="dayBar"></div>
   <div class="card">
@@ -1200,6 +1189,32 @@ th{border-bottom:2px solid var(--gold) !important}
 </nav>
 
 <!-- ============ SHEETS ============ -->
+<div class="ov" id="autoSheet"><div class="sheet">
+  <div class="sh-h"><h3>Auto MT5</h3><button onclick="closeSheet('autoSheet')">×</button></div>
+  <div class="sh-b">
+    <div class="sw" id="swAuto" onclick="toggleAuto(this)">
+      <div class="tg"></div>
+      <div>Signal khud MT5 pe bhejo<small>Sirf "LE LO" verdict wale signal jayenge</small></div>
+    </div>
+
+    <div class="grid2" style="margin:14px 0 4px">
+      <div><label>Minimum quality (%)</label><input class="mono" id="setAQual" type="number" step="5" min="50" max="95"></div>
+      <div><label>Har kitne minute</label><input class="mono" id="setAEvery" type="number" step="5" min="5"></div>
+      <div><label>Max order / din</label><input class="mono" id="setAMax" type="number" step="1" min="1"></div>
+      <div><label>Fail hone par dobara (min)</label><input class="mono" id="setACool" type="number" step="15" min="15"></div>
+    </div>
+    <p class="hint" style="margin:6px 0 12px">Ek pair pe poore din me sirf ek order. "Max order / din" saare pairs ka total hai. Watchlist wale pairs hi check hote hain — har cycle me ek.</p>
+
+    <button class="btn gold sm" style="margin-bottom:12px" onclick="saveAuto()">💾 AUTO SETTINGS SAVE KARO</button>
+    <p class="hint" id="autoState" style="margin:0 0 12px">—</p>
+
+    <div style="border:1px solid var(--gold);background:rgba(255,184,0,.06);border-radius:8px;padding:11px;margin-bottom:12px">
+      <p class="hint" style="color:var(--gold);margin:0">⚠ Auto sirf tab chalta hai jab ye app khuli aur screen pe ho — phone lock ya app band matlab koi order nahi jayega.</p>
+    </div>
+    <p class="hint" style="margin:0 0 8px">Order tabhi jaata hai jab verdict LE LO ho, quality bar paar ho, us pair pe aaj koi auto order na gaya ho, aur credits bache hon. Har order Alert Log, Telegram aur Trades journal — teeno me likha jaata hai.</p>
+  </div>
+</div></div>
+
 <div class="ov" id="guideSheet"><div class="sheet">
   <div class="sh-h"><h3>Kaise Use Kare</h3><button onclick="closeSheet('guideSheet')">×</button></div>
   <div class="sh-b">
@@ -2170,6 +2185,7 @@ let tmr;
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tmr); tmr=setTimeout(()=>t.classList.remove('on'),2600); }
 function openSheet(id){
   if(id === 'guideSheet') renderGuide();
+  if(id === 'autoSheet') autoFill();
   $(id).classList.add('on');
 }
 function closeSheet(id){ $(id).classList.remove('on') }
@@ -6258,7 +6274,7 @@ const GUIDE = [
   ['h','Live P&L'],
   ['p','Open trades live price se refresh hote hain aur abhi ka profit/loss dikhate hain. TP/SL hit 5-minute candle ke high/low se pakda jaata hai, isliye chhoo kar palta hua level bhi ginta hai.'],
   ['h','Auto MT5'],
-  ['p','Signals page ke sabse upar Auto MT5 card hai. Wahan toggle on karne par app khud har X minute me watchlist ka ek pair analyze karti hai. Order tabhi jaata hai jab verdict "LE LO" ho, quality tumhare set kiye gaye %+ ho, us pair pe aaj tak koi auto order gaya na ho (ek pair = ek din me ek hi order). Har order Alert Log aur Telegram dono me likha jaata hai. Chaaron setting badalne ke baad usi card ka SAVE button dabana zaroori hai.'],
+  ['p','Signals page ke sabse upar AUTO MT5 KHOLO button hai — usse Auto MT5 screen khulti hai. Wahan toggle on karne par app khud har X minute me watchlist ka ek pair analyze karti hai. Order tabhi jaata hai jab verdict "LE LO" ho, quality tumhare set kiye gaye %+ ho, us pair pe aaj tak koi auto order gaya na ho (ek pair = ek din me ek hi order). Har order Alert Log aur Telegram dono me likha jaata hai. Chaaron setting badalne ke baad usi card ka SAVE button dabana zaroori hai.'],
   ['w','Auto sirf app khuli aur screen pe hone par chalta hai \u2014 phone lock ya app band matlab kuch nahi hoga. Max order per din aur per-pair cooldown zaroor set rakho, aur Trades page pe nazar rakho.'],
   ['h','MT5 Bridge'],
   ['p','Signal ya quick trade se "MT5 pe Lagao" dabane par order Firebase ke through VPS wale EA tak jaata hai. Settings \u2192 MT5 Bridge me Firebase URL, order type aur limit offset set hote hain, aur TEST BRIDGE se connection check hota hai.'],
@@ -6372,13 +6388,24 @@ function autoNote(why){
 }
 
 function autoState(){
+  const a = autoDay();
   const tag = $('autoTag');
   if(tag){
     tag.textContent = S.autoOn ? 'chalu' : 'band';
     tag.style.color = S.autoOn ? 'var(--up)' : 'var(--mut)';
   }
+
+  /* Signals page wali patli patti — ek line me haal */
+  const mini = $('autoMini');
+  if(mini){
+    mini.innerHTML = !S.autoOn
+      ? 'Band hai — order sirf tumhare tap se jayega.'
+      : `<b style="color:var(--up)">Chalu</b> · aaj ${a.n}/${S.autoMaxDay} order` +
+        (a.why ? ` · ${a.why}` : '');
+  }
+
+  /* sheet ke andar poora haal */
   const el = $('autoState'); if(!el) return;
-  const a = autoDay();
   if(!S.autoOn){ el.textContent = 'Auto band hai — signal sirf tumhare tap se hi jayega.'; return }
   const left = Math.max(0, S.autoMaxDay - a.n);
   const next = autoLastRun ? Math.max(0, S.autoEvery*60000 - (Date.now()-autoLastRun)) : 0;
@@ -6388,7 +6415,15 @@ function autoState(){
 }
 setInterval(autoState, 15000);
 
-/* Auto MT5 card ka apna save — Settings sheet se alag */
+/* sheet khulne par current values dikhao */
+function autoFill(){
+  $('swAuto').classList.toggle('on', S.autoOn);
+  $('setAQual').value = S.autoQual; $('setAEvery').value = S.autoEvery;
+  $('setAMax').value = S.autoMaxDay; $('setACool').value = S.autoCool;
+  autoState();
+}
+
+/* Auto MT5 sheet ka apna save — Settings sheet se alag */
 function saveAuto(){
   S.autoQual   = Math.min(95, Math.max(50, +$('setAQual').value  || 75));
   S.autoEvery  = Math.max(5,  +$('setAEvery').value || 15);
