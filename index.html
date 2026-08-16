@@ -869,6 +869,17 @@ th{border-bottom:2px solid var(--gold) !important}
 .hist{border-bottom:2px solid var(--line) !important}
 .hist:last-child{border-bottom:0 !important}
 
+/* ---- trade card ke action buttons screen se bahar nikal rahe the ----
+   Skin ka `.btn.sm{padding:10px; font-size:12.5px}` zyada specific hai,
+   isliye wo `.acts button` wali chhoti padding ko haraa deta tha aur
+   chhe buttons ki line card se bahar chali jaati thi. Yahan wapas
+   compact kiya, aur jagah kam pade to line wrap ho jayegi (cut nahi hogi). */
+.acts{flex-wrap:wrap}
+.acts button{
+  flex:1 1 0; min-width:54px; white-space:nowrap;
+  padding:9px 3px !important; font-size:10.5px !important; letter-spacing:.2px;
+}
+
 /* ---- pair picker: "CHANGE" text overlap fix (Pro jaisa ek line me) ---- */
 .pick{display:flex; align-items:center; gap:8px; padding:12px 11px}
 .pick>span:first-child{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
