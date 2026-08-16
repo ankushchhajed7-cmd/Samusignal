@@ -880,8 +880,10 @@ th{border-bottom:2px solid var(--gold) !important}
   margin-left:auto; padding:0 !important;
 }
 .ttl .sp button{
-  min-height:36px; padding:0 8px; display:inline-flex; align-items:center;
-  margin:-8px -8px -8px 0;
+  /* tap area sirf upar-neeche aur baayein badhao — right side pe negative
+     margin card ki edge ke bahar nikal jaata tha (self test ne pakda) */
+  min-height:36px; padding:0 0 0 10px; display:inline-flex; align-items:center;
+  margin:-8px 0;
 }
 
 /* ---- sheet ab poori screen ----
