@@ -869,6 +869,14 @@ th{border-bottom:2px solid var(--gold) !important}
 .hist{border-bottom:2px solid var(--line) !important}
 .hist:last-child{border-bottom:0 !important}
 
+/* ---- pair list ab poori sheet me ----
+   Sheet full-screen hone ke baad .plist ka 58vh cap galat lagne laga:
+   pehla group (8 Majors) dikhta tha aur baaki 24 pairs ke liye ek chhote
+   se andar wale box me scroll karna padta tha. Ab list poori sheet ke
+   saath scroll hoti hai, aur search upar chipki rehti hai. */
+.plist{max-height:none !important; overflow:visible !important}
+#pickSearch{position:sticky; top:0; z-index:2; background:var(--bg)}
+
 /* ---- tap target ----
    Self test ne pakda: sheet ka close (\u00d7) 26px ka tha aur card ke
    corner wale chhote text buttons 14-15px ke. Ungli ke liye 40px ka
