@@ -986,7 +986,10 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
     <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
     <div class="grid2" style="margin-bottom:10px">
       <div><label>Pair</label><button class="pick" id="selPair" onclick="openPick('main')"></button></div>
-      <div><label>Lots</label><input class="mono" id="inLots" type="number" step="0.01" value="0.01"></div>
+      <div><label>Lots <span style="color:var(--gold)">🔒</span></label>
+        <input class="mono" id="inLots" type="number" step="0.01" value="0.01" readonly
+               onclick="toast('Lot Settings → Default Trade Size me badalta hai')"
+               style="opacity:.75"></div>
     </div>
     <label>Timeframe</label>
     <div class="chips" id="tfChips" style="margin-bottom:12px"></div>
@@ -1421,12 +1424,13 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
   </div>
   <p class="hint" style="margin-bottom:16px">ATR mode me SL market ki chaal ke hisaab se lagti hai — gold pe chaudi, EURUSD pe patli. Dollar value trade lete waqt dikh jayegi.</p>
 
-  <p class="ttl">Default Trade Size <span class="sp">per 0.01 lot</span></p>
+  <p class="ttl">Default Trade Size <span class="sp">yahi lot har jagah chalega</span></p>
   <div class="grid3" style="margin-bottom:6px">
-    <div><label>TP ($)</label><input class="mono" id="setTp" type="number" step="0.5" value="1" oninput="lotScaleNote()"></div>
+    <div><label>TP ($)</label><input class="mono" id="setTp" type="number" step="0.5" value="4" oninput="lotScaleNote()"></div>
     <div><label>SL ($)</label><input class="mono" id="setSl" type="number" step="0.5" value="2.5" oninput="lotScaleNote()"></div>
     <div><label>Lots</label><input class="mono" id="setLot" type="number" step="0.01" value="0.01"></div>
   </div>
+  <p class="hint" style="margin:6px 0 0">Lot sirf yahan se badalta hai — Signals page aur quick trade dono me wo locked rehta hai, taaki har trade ka risk ek jaisa rahe. TP/SL upar wale lot ke hisaab se hain: 0.01 lot pe $4 / $2.50, 0.02 pe $8 / $5.</p>
   <div id="rrWarn"></div>
   <p class="hint" id="lotScaleNote" style="margin-bottom:14px"></p>
   <div class="grid2" style="margin-bottom:8px">
@@ -1712,6 +1716,15 @@ if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); L
 /* v9.1: TP $1 / SL $2.50 ka matlab R:R 1:0.4 tha — usme breakeven ke liye
    71% win rate chahiye. Jo device abhi tak purane default pe hai usko ek
    baar 1:1.6 pe le aao; jisne apna number set kiya hai use chhod do. */
+/* Pehle ek galat MIN_LOT (ETH 0.10 / BTC 0.02) lot ko upar khinch deta tha.
+   Wo hata diya gaya, par device pe 0.1 save reh gaya. Ek baar 0.01 par
+   wapas laao — koi aur value ho to chhod do, wo user ki apni chuni hui hai. */
+if(!LS.get('mig92', false)){
+  S.lots = 0.01; LS.set('lots', 0.01);
+  S.dLot = 0.01; LS.set('dLot', 0.01);
+  LS.set('mig92', true);
+}
+
 if(!LS.get('mig91', false)){
   if(S.dTp === 1 && S.dSl === 2.5){ S.dTp = 4; LS.set('dTp', 4) }
   if(S.symDef && S.symDef['XAU/USD'] && S.symDef['XAU/USD'].tp === 5 && S.symDef['XAU/USD'].sl === 8){
@@ -3383,14 +3396,7 @@ async function runScan(){
 
 /* scan result se seedha poora analysis */
 async function openScanned(sym){
-  S.pair = sym; pickVal.main = sym;
-  const lv = fixLot(sym, S.lots);
-  if(lv !== S.lots){
-    S.lots = lv;
-    if($('inLots')) $('inLots').value = lv;
-    toast(`${SPECS[sym].n} ka minimum lot ${minLot(sym)} hai`);
-  }
-  save();
+  S.pair = sym; pickVal.main = sym; save();
   fillPairs(); setChart(sym);
   lastSignal = null; lastVotes = null; lastAn = null;
   go('Signals', document.querySelector('nav button[data-pg="Signals"]'));
@@ -4335,8 +4341,9 @@ function drawQuick(){
       <div class="grid3" style="margin-bottom:10px">
         <div><label>TP ($)</label><input class="mono" id="qTp" type="number" step="0.5" value="${q.tpD}" oninput="qtSet('tpD',+this.value,1)"></div>
         <div><label>SL ($)</label><input class="mono" id="qSl" type="number" step="0.5" value="${q.slD}" oninput="qtSet('slD',+this.value,1)"></div>
-        <div><label>Lots</label><input class="mono" id="qLot" type="number" step="0.01" value="${q.lots}"
-             oninput="qtLotType(this.value)" onchange="qtLotDone(this)"></div>
+        <div><label>Lots 🔒</label><input class="mono" id="qLot" type="number" step="0.01" value="${q.lots}"
+             readonly style="opacity:.75"
+             onclick="toast('Lot Settings → Default Trade Size me badalta hai')"></div>
       </div>
     `}
 
@@ -5583,9 +5590,11 @@ function saveSettings(){
   const oldKey = S.key;
   S.key = $('setKey').value.trim();
   if(S.key !== oldKey) dayReset(true);   /* naya key = naya quota */
-  S.dTp = +$('setTp').value || 5;
+  S.dTp = +$('setTp').value || 4;
   S.dSl = +$('setSl').value || 2.5;
   S.dLot = +$('setLot').value || 0.01;
+  S.lots = S.dLot;                       /* locked box isi ko dikhata hai */
+  if($('inLots')) $('inLots').value = S.dLot;
   lotScaleNote();
   S.cap  = Math.max(50, +$('setCap').value || 700);
   S.newsMin = Math.max(0, +$('setNewsMin').value || 30);
@@ -5612,8 +5621,8 @@ function saveSettings(){
   toast('Settings save ho gayi');
   }
 function resetCalc(){
-  S.dTp = 1; S.dSl = 2.5; S.dLot = 0.01;
-  $('setTp').value = 1; $('setSl').value = 2.5; $('setLot').value = 0.01;
+  S.dTp = 4; S.dSl = 2.5; S.dLot = 0.01;      /* R:R 1:1.6 */
+  $('setTp').value = 4; $('setSl').value = 2.5; $('setLot').value = 0.01;
   $('inLots').value = 0.01; S.lots = 0.01;
   save(); if(lastSignal) renderSignal();
   toast('Calculator default pe reset');
@@ -5682,10 +5691,7 @@ function choosePick(sym){
   pickVal[pickCtx] = sym;
   closeSheet('pickSheet');
   if(pickCtx === 'main'){
-    S.pair = sym;
-    const lv2 = fixLot(sym, S.lots);
-    if(lv2 !== S.lots){ S.lots = lv2; if($('inLots')) $('inLots').value = lv2 }
-    save(); pickLabel($('selPair'), sym);
+    S.pair = sym; save(); pickLabel($('selPair'), sym);
     setChart(sym); lastSignal = null; renderSignal();
   } else if(pickCtx === 'manual'){
     pickLabel($('mtPair'), sym);
@@ -6863,13 +6869,11 @@ function shareTest(){
 
 function boot(){
   fillPairs();
-  $('inLots').value = fixLot(S.pair, S.lots);
-  $('inLots').onchange = e => {
-    const m = minLot(S.pair);
-    const v = fixLot(S.pair, e.target.value);
-    if((+e.target.value || 0) < m) toast(`${SPECS[S.pair].n} ka minimum lot ${m} hai`);
-    e.target.value = v; S.lots = v; save();
-  };
+  /* Lot ab Settings se hi badalta hai — Signals page pe wo locked hai,
+     taaki har trade ka risk ek jaisa rahe aur TP/SL ka dollar figure
+     har baar badalta na rahe. */
+  S.lots = S.dLot;
+  $('inLots').value = S.dLot;
 
   $('tfChips').innerHTML = TFS.map(t=>`<button class="chip ${t.id===S.tf?'on gold':''}" data-tf="${t.id}">${t.l}</button>`).join('');
   $('tfChips').onclick = e => {
