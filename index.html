@@ -869,6 +869,20 @@ th{border-bottom:2px solid var(--gold) !important}
 .hist{border-bottom:2px solid var(--line) !important}
 .hist:last-child{border-bottom:0 !important}
 
+/* ---- sheet khuli ho to background scroll na ho ---- */
+body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
+.sheet{overscroll-behavior:contain}
+
+/* ---- sheet ka header upar chipka rahe ----
+   Settings jaisi lambi sheet me scroll karte hi close (\u00d7) button
+   upar chala jaata tha. Ab title aur \u00d7 hamesha screen pe rehte hain. */
+.sheet{padding-top:0 !important}
+.sh-h{
+  position:sticky; top:0; z-index:3;
+  background:var(--panel);
+  margin:0 -14px 14px; padding:15px 14px !important;
+}
+
 /* ---- trade card ke action buttons screen se bahar nikal rahe the ----
    Skin ka `.btn.sm{padding:10px; font-size:12.5px}` zyada specific hai,
    isliye wo `.acts button` wali chhoti padding ko haraa deta tha aur
@@ -2183,13 +2197,36 @@ function speakSignal(s){
 /* ---------- ui helpers ---------- */
 let tmr;
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tmr); tmr=setTimeout(()=>t.classList.remove('on'),2600); }
+/* Sheet khuli ho to peeche wala page scroll nahi hona chahiye. Sirf
+   overflow:hidden mobile Chrome pe kaafi nahi hota, isliye body ko fix
+   karke scroll position yaad rakhi jaati hai aur band karte waqt wapas
+   usi jagah chhod dete hain. */
+let lockY = 0;
+function syncLock(){
+  const open = !!document.querySelector('.ov.on');
+  const b = document.body;
+  if(open && !b.classList.contains('nosc')){
+    lockY = window.scrollY || 0;
+    b.style.top = (-lockY) + 'px';
+    b.classList.add('nosc');
+  } else if(!open && b.classList.contains('nosc')){
+    b.classList.remove('nosc');
+    b.style.top = '';
+    window.scrollTo(0, lockY);
+  }
+}
+
 function openSheet(id){
   if(id === 'guideSheet') renderGuide();
   if(id === 'autoSheet') autoFill();
   $(id).classList.add('on');
+  const sh = $(id).querySelector('.sheet'); if(sh) sh.scrollTop = 0;
+  syncLock();
 }
-function closeSheet(id){ $(id).classList.remove('on') }
-document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('on') }));
+function closeSheet(id){ $(id).classList.remove('on'); syncLock(); }
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{
+  if(e.target===o){ o.classList.remove('on'); syncLock() }
+}));
 function go(pg,btn){
   ['Signals','Scan','Votes','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   /* header sirf Signals page pe — baaki pages pe poori screen milti hai */
