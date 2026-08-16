@@ -1340,6 +1340,12 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
   </div>
   <p class="hint" id="pairDefNote" style="margin-bottom:8px"></p>
   <button class="btn ghost sm" style="margin-bottom:10px" onclick="resetPairDef()">↺ Is pair ko default pe wapas</button>
+  <div class="sw" id="swBe" onclick="toggleSw(this,'beOn')">
+    <div class="tg"></div>
+    <div>1R par SL breakeven<small>Profit SL jitna ho jaye to SL entry par — trade risk-free</small></div>
+  </div>
+  <p class="hint" style="margin:-2px 0 12px">Ye sirf app ke journal me hota hai. MT5 wale order ki SL wahin ki wahin rahegi — wo kaam EA me karna padega.</p>
+
   <div class="sw" id="swFresh" onclick="toggleSw(this,'freshPx')">
     <div class="tg"></div>
     <div>Bhejne se pehle taza price lo<small>1 credit lagta hai, par stale rate se order fail nahi hoga</small></div>
@@ -1636,8 +1642,9 @@ let S = {
   atrRR: LS.get('atrRR',2),
   autoLot: LS.get('autoLot',false),
   riskUsd: LS.get('riskUsd',1.75),
-  dTp:   LS.get('dTp',1),
+  dTp:   LS.get('dTp',4),      /* R:R 1:1.6 — 1:0.4 pe 71% win chahiye tha */
   dSl:   LS.get('dSl',2.5),
+  beOn:  LS.get('beOn',true),  /* 1R par SL breakeven pe (sirf app journal) */
   fbUrl: LS.get('fbUrl',''),
   fbAuth:LS.get('fbAuth',''),
   mt5Type: LS.get('mt5Type','MARKET'),
@@ -1697,11 +1704,22 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','beOn','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
    tha usko ek baar shift karo — jaanbujh ke chuni gayi theme nahi badlegi. */
+/* v9.1: TP $1 / SL $2.50 ka matlab R:R 1:0.4 tha — usme breakeven ke liye
+   71% win rate chahiye. Jo device abhi tak purane default pe hai usko ek
+   baar 1:1.6 pe le aao; jisne apna number set kiya hai use chhod do. */
+if(!LS.get('mig91', false)){
+  if(S.dTp === 1 && S.dSl === 2.5){ S.dTp = 4; LS.set('dTp', 4) }
+  if(S.symDef && S.symDef['XAU/USD'] && S.symDef['XAU/USD'].tp === 5 && S.symDef['XAU/USD'].sl === 8){
+    delete S.symDef['XAU/USD']; LS.set('symDef', S.symDef);
+  }
+  LS.set('mig91', true);
+}
+
 if(!LS.get('mig90', false)){
   if(!LS.get('themePicked', false) && S.theme === 'terminal'){
     S.theme = 'gold'; LS.set('theme','gold');
@@ -4529,6 +4547,7 @@ function addTrade(t){
   t.at = Date.now();
   t.cur = t.entry;
   t.pl = 0;
+  t.r0 = Math.abs(t.entry - t.sl);   /* 1R ki doori — breakeven isi se nikalta hai */
   S.open.push(t); save();
   renderTrades(); go('Trades', document.querySelector('nav button[data-pg="Trades"]'));
   toast(`App journal me add ho gaya — ${t.dir} ${t.sym} @ ${fmt(t.sym,t.entry)}`);
@@ -4545,22 +4564,59 @@ function closeTrade(id, reason){
   const i = S.open.findIndex(t=>t.id===id); if(i<0) return;
   const t = S.open[i];
   const cur = t.cur || t.entry;
-  const exit = reason==='TP' ? t.tp : reason==='SL' ? t.sl : cur;
+  const exit = reason==='TP' ? t.tp : (reason==='SL' || reason==='BE') ? t.sl : cur;
   const pl = tradePL(t, exit);
   const rec = Object.assign({}, t, {exit, pl, reason, closedAt: Date.now()});
   S.open.splice(i,1); S.hist.unshift(rec); S.hist = S.hist.slice(0,300); save();
   renderTrades();
-  const word = reason==='TP'?'TP HIT ✅':reason==='SL'?'SL HIT ❌':'Manual close';
+  const word = reason==='TP'?'TP HIT ✅':reason==='SL'?'SL HIT ❌':reason==='BE'?'BREAKEVEN 🛡':'Manual close';
   toast(`${t.sym} ${word} · ${money(pl)}`);
   if(mt5Has(t.sym)){ delete S.mt5sent[t.sym]; save() }
   if(reason !== 'MANUAL'){
-    notify(`${reason==='TP'?'🎯 TP HIT':'🛑 SL HIT'} — ${SPECS[t.sym].n}`,
+    notify(`${reason==='TP'?'🎯 TP HIT':reason==='BE'?'🛡 BREAKEVEN':'🛑 SL HIT'} — ${SPECS[t.sym].n}`,
       `${t.dir} ${t.lots} lot · ${money(pl)}`, 'close');
-    if(S.tts) speak(`${SPECS[t.sym].n.split('').join(' ')} ${reason==='TP'?'target hit':'stop loss hit'}. ${pl>=0?'Profit':'Loss'} ${Math.abs(pl).toFixed(2)} dollars.`);
+    if(S.tts) speak(`${SPECS[t.sym].n.split('').join(' ')} ${reason==='TP'?'target hit':reason==='BE'?'closed at breakeven':'stop loss hit'}. ${pl>=0?'Profit':'Loss'} ${Math.abs(pl).toFixed(2)} dollars.`);
   }
   logAdd(`${word} — ${t.sym} ${money(pl)}`);
   if(S.tgAuto) tgSend(tradeText(rec, reason), true);
 }
+/* ---------------- 1R par breakeven ----------------
+   Trade jab apni SL jitni doori profit me chali jaati hai (1R), tab SL
+   ko entry par utha diya jaata hai — trade risk-free ho jaati hai.
+
+   Ye sirf app ke journal me hota hai. MT5 pe SL modify karne ke liye
+   bridge ko order badalna aata hi nahi (wo naya order bhejta hai), wo
+   kaam FXBridgeEA me hoga. */
+function riskDist(t){
+  if(t.r0) return t.r0;                    /* creation par yaad rakhi doori */
+  const d = Math.abs(t.entry - t.sl);      /* purani trades ke liye */
+  if(d) t.r0 = d;
+  return d;
+}
+
+function beCheck(t, px){
+  if(!S.beOn || t.be || !isFinite(px)) return false;
+  const r = riskDist(t);
+  if(!r) return false;
+  const gain = t.dir === 'BUY' ? px - t.entry : t.entry - px;
+  /* 0.9999 ka tolerance: 1.1025 - 1.1000 float me 0.00249999... nikalta hai,
+     aur seedhi tulna me theek 1R par trigger miss ho jaata tha */
+  if(gain < r * 0.9999) return false;      /* abhi 1R nahi hua */
+
+  t.be = true;
+  t.slWas = t.sl;
+  t.sl = t.entry;
+  t.slD = 0;
+  logAdd(`Breakeven: ${SPECS[t.sym].n} ki SL entry par (${fmt(t.sym, t.entry)})`);
+  notify(`🛡 Breakeven — ${SPECS[t.sym].n}`,
+    `1R paar hua, SL entry par le aaye. Ab is trade me loss nahi hoga.`, 'be-' + t.id);
+  toast(`${SPECS[t.sym].n}: SL breakeven par`);
+  if(S.tgAuto) tgSend(`🛡 <b>BREAKEVEN — ${SPECS[t.sym].n}</b>\n\n` +
+    `${t.dir} ${t.lots} lot\nSL ab entry par: <code>${fmt(t.sym, t.entry)}</code>\n` +
+    `Is trade me ab loss nahi hoga.\n⏰ ${t12(Date.now())}`, true);
+  return true;
+}
+
 function closeManualBtn(id){ if(confirm('Ye trade band karna hai?')) closeTrade(id,'MANUAL') }
 
 let lastOpenSync = 0, syncBusy = false;
@@ -4600,10 +4656,13 @@ async function refreshOpen(force){
       const d = q[t.sym]; if(!d || !d.p) return;
       okCount++;
       t.cur = d.p; t.pl = tradePL(t, d.p);
+      beCheck(t, d.p);
+      /* BE ke baad SL entry par hai — wo hit hona loss nahi, flat exit hai */
+      const slHit = t.be ? 'BE' : 'SL';
       if(t.dir==='BUY'){
-        if(d.p >= t.tp) hits.push([t.id,'TP']); else if(d.p <= t.sl) hits.push([t.id,'SL']);
+        if(d.p >= t.tp) hits.push([t.id,'TP']); else if(d.p <= t.sl) hits.push([t.id,slHit]);
       } else {
-        if(d.p <= t.tp) hits.push([t.id,'TP']); else if(d.p >= t.sl) hits.push([t.id,'SL']);
+        if(d.p <= t.tp) hits.push([t.id,'TP']); else if(d.p >= t.sl) hits.push([t.id,slHit]);
       }
     });
     lastOpenSync = Date.now();
@@ -4689,7 +4748,7 @@ function renderTrades(){
       <div class="tr-g mono">
         <div><span>ENTRY</span>${fmt(t.sym,t.entry)}</div>
         <div><span>NOW</span>${fmt(t.sym,cur)}</div>
-        <div><span>SL $${t.slD}</span><em class="dn" style="font-style:normal">${fmt(t.sym,t.sl)}</em></div>
+        <div><span>${t.be ? 'SL · BREAKEVEN 🛡' : 'SL $' + t.slD}</span><em class="${t.be?'up':'dn'}" style="font-style:normal">${fmt(t.sym,t.sl)}</em></div>
         <div><span>TP $${t.tpD}</span><em class="up" style="font-style:normal">${fmt(t.sym,t.tp)}</em></div>
       </div>
       <p class="hint" style="margin:0 0 9px">${dt12(t.at)} · Quality ${t.q||0}% ${t.grade?'· '+t.grade:''}</p>
@@ -4707,7 +4766,7 @@ function renderTrades(){
   /* history */
   $('histBox').innerHTML = S.hist.length ? S.hist.slice(0,60).map(t=>{
     const w = t.reason==='TP'?'w':t.reason==='SL'?'l':'m';
-    const ic = t.reason==='TP'?'TP':t.reason==='SL'?'SL':'M';
+    const ic = t.reason==='TP'?'TP':t.reason==='SL'?'SL':t.reason==='BE'?'BE':'M';
     return `<div class="hist">
       <div class="ic ${w}">${ic}</div>
       <div class="in">
@@ -4890,14 +4949,14 @@ function fbEndpoint(){
 const MIN_DEF = {'XAU/USD':50, 'BTC/USD':150, 'ETH/USD':10, 'US30':60};
 /* jin pairs pe global $1/$2.50 chalta hi nahi — inke apne default */
 const DEF_TPSL = {
-  'XAU/USD': {tp:5,    sl:8},
+  'XAU/USD': {tp:13,   sl:8},
   /* BTC/ETH pe 1 lot = 1 coin hai, isliye 0.01 lot pe $1 = 100 points ban
      jaata hai. Purane $30/$50 ka matlab 3000/5000 points wali SL nikalti thi
      — 63k wale BTC pe ~8% stop. Ab BTC ~600 pt SL / 900 pt TP,
      ETH ~32 pt SL / 48 pt TP, yaani lagbhag 1% aur 1.5%. */
   'BTC/USD': {tp:9,    sl:6},
   'ETH/USD': {tp:0.48, sl:0.32},
-  'US30':    {tp:6,    sl:10}
+  'US30':    {tp:6,    sl:4}
 };
 /* base values 0.01 lot ke liye hain — lots badhe to $ bhi utna hi badhta hai.
    Price distance wahi rehti hai, sirf risk scale hota hai. */
@@ -6357,6 +6416,9 @@ const GUIDE = [
   ['w','Auto sirf app khuli aur screen pe hone par chalta hai \u2014 phone lock ya app band matlab kuch nahi hoga. Max order per din aur per-pair cooldown zaroor set rakho, aur Trades page pe nazar rakho.'],
   ['h','MT5 Bridge'],
   ['p','Signal ya quick trade se "MT5 pe Lagao" dabane par order Firebase ke through VPS wale EA tak jaata hai. Settings \u2192 MT5 Bridge me Firebase URL, order type aur limit offset set hote hain, aur TEST BRIDGE se connection check hota hai.'],
+  ['h','1R par breakeven'],
+  ['p','Jab trade utna profit me chali jaye jitni uski SL ki doori thi (1R), tab app SL ko entry par utha deti hai. Us point ke baad trade me loss nahi ho sakta \u2014 ya to TP lagega ya flat exit. History me aisi trade BE dikhti hai, SL nahi.'],
+  ['w','Ye sirf app ke journal me hota hai. MT5 pe bheja hua order wahin ka wahin rehta hai \u2014 bridge order badalna nahi jaanta, wo kaam FXBridgeEA me karna padega. Settings me isko band bhi kar sakte ho.'],
   ['h','SL ka size'],
   ['t',[['Fixed dollar','Har pair pe same dollar risk. Simple, par gold pe bahut tight.'],
         ['ATR based','SL market ki asli chaal ke hisaab se. Gold pe chaudi, EURUSD pe tight.']]],
@@ -6618,6 +6680,7 @@ function autoJournal(t){
   if(S.open.some(x => x.sym === t.sym)) return;
   t.id = 'T' + Date.now();
   t.at = Date.now(); t.cur = t.entry; t.pl = 0;
+  t.r0 = Math.abs(t.entry - t.sl);
   S.open.push(t); save();
   if(!$('pgTrades').classList.contains('hide')) renderTrades();
   logAdd(`Trade open (auto): ${t.dir} ${t.sym} @ ${fmt(t.sym, t.entry)}`);
@@ -6860,6 +6923,7 @@ function boot(){
   $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
   $('swAutoLot').classList.toggle('on', S.autoLot);
   $('swFresh').classList.toggle('on', S.freshPx);
+  $('swBe').classList.toggle('on', S.beOn);
   loadPairDef(pickVal.minstop || 'XAU/USD');
   $('setGKey').value = S.gKey;
   $('swGAuto').classList.toggle('on', S.gAuto);
