@@ -869,6 +869,21 @@ th{border-bottom:2px solid var(--gold) !important}
 .hist{border-bottom:2px solid var(--line) !important}
 .hist:last-child{border-bottom:0 !important}
 
+/* ---- tap target ----
+   Self test ne pakda: sheet ka close (\u00d7) 26px ka tha aur card ke
+   corner wale chhote text buttons 14-15px ke. Ungli ke liye 40px ka
+   area chahiye, isliye dikhne wala size wahi rakha hai aur sirf tappable
+   area bada kiya gaya hai. */
+.sh-h button{
+  min-width:40px; min-height:40px; line-height:1;
+  display:flex; align-items:center; justify-content:center;
+  margin-left:auto; padding:0 !important;
+}
+.ttl .sp button{
+  min-height:36px; padding:0 8px; display:inline-flex; align-items:center;
+  margin:-8px -8px -8px 0;
+}
+
 /* ---- sheet ab poori screen ----
    Pehle upar 8vh ka gap bacha rehta tha (max-height:92vh + flex-end).
    Ab sheet screen ke bilkul upar se shuru hoti hai, header status bar
