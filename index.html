@@ -1712,11 +1712,12 @@ let S = {
   shot:  LS.get('shot',null),          /* last chart analysis */
   track: LS.get('track',null),         /* jo setup track ho raha hai */
   trackMin: LS.get('trackMin',5),      /* kitne minute pe price check */
+  trackAuto: LS.get('trackAuto',false), /* entry zone pe khud MT5 order */
   open:  LS.get('open',[]),
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','beOn','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
@@ -1914,10 +1915,24 @@ async function renderCloud(){
 /* ================= AI EXPLAIN (Gemini) =================
    Screenshot nahi — asli numbers bhejte hain, isliye guess-work zero. */
 const G_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+/* Sirf fallback list hai — asli list key se aati hai (gList). Google purane
+   model band karta rehta hai, isliye pasand ab naam se nahi, version number
+   se tay hoti hai: jo naya hai wo pehle. */
 const G_MODELS = [
-  'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash',
-  'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'
+  'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.5-flash-lite',
+  'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'
 ];
+
+/* bada number = pehle try hoga */
+function modelRank(m){
+  const v = parseFloat((m.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+  let r = v * 10;
+  if(/latest/.test(m))               r += 25;  /* alias hamesha current rehta hai */
+  if(/lite/.test(m))                 r -= 3;
+  if(/preview|exp|thinking/.test(m)) r -= 8;
+  if(/pro/.test(m))                  r -= 12;  /* pro ka free quota bahut kam */
+  return r;
+}
 
 let gAvail = null;
 async function gList(){
@@ -1937,10 +1952,16 @@ async function gList(){
 async function gCandidates(){
   const names = await gList();
   const bad = S.gBad || [];
-  const pool = names.length ? names : G_MODELS;
-  const pref = G_MODELS.filter(m => pool.includes(m));
-  const rest = pool.filter(m => /flash|lite/.test(m) && !pref.includes(m));
-  return [...pref, ...rest].filter(m => !bad.includes(m));
+  const pool = (names.length ? names : G_MODELS).filter(m => /flash|lite/.test(m));
+  const live = pool.filter(m => !bad.includes(m)).sort((a,b) => modelRank(b) - modelRank(a));
+  if(live.length) return live;
+  /* sab bad mark ho chuke — shayad purane naam the. Ek baar list saaf karke
+     nayi mangwao, warna app hamesha fail dikhata rahega. */
+  S.gBad = []; save(); gAvail = null;
+  const fresh = await gList();
+  return (fresh.length ? fresh : G_MODELS)
+    .filter(m => /flash|lite/.test(m))
+    .sort((a,b) => modelRank(b) - modelRank(a));
 }
 function gMarkBad(m){
   if(!m) return;
@@ -1999,7 +2020,12 @@ async function gOnce(model, prompt){
     const e = new Error(msg || ('HTTP ' + r.status));
     e.code = r.status;
     e.retry = retry;
-    /* limit: 0 = ye model is key pe hai hi nahi */
+    /* dead = ye model is key pe chalega hi nahi: 404/400, "limit: 0", ya
+       Google ne usko retire kar diya. Aise model ko bad mark karke agla
+       try karo — pehle ye line ek patch me galti se ud gayi thi, isliye
+       deprecated model par app seedha fail dikha raha tha. */
+    e.dead = r.status === 404 || r.status === 400 || /limit:\s*0/.test(msg)
+             || /no longer available|deprecat|not found|update your code/i.test(msg);
     /* 5xx ya "high demand" = ye model abhi bheed me hai. Ye key ki galti
        nahi, sirf us model ka server busy hai — doosra model turant chal
        jaata hai, isliye ise mar-jaane wali error mat maano. */
@@ -5881,6 +5907,12 @@ async function gVisionOnce(model, prompt, b64){
     }catch(e){}
     const e = new Error(msg || ('HTTP ' + r.status));
     e.code = r.status; e.retry = retry;
+    /* dead = ye model is key pe chalega hi nahi: 404/400, "limit: 0", ya
+       Google ne usko retire kar diya. Aise model ko bad mark karke agla
+       try karo — pehle ye line ek patch me galti se ud gayi thi, isliye
+       deprecated model par app seedha fail dikha raha tha. */
+    e.dead = r.status === 404 || r.status === 400 || /limit:\s*0/.test(msg)
+             || /no longer available|deprecat|not found|update your code/i.test(msg);
     /* 5xx ya "high demand" = ye model abhi bheed me hai. Ye key ki galti
        nahi, sirf us model ka server busy hai — doosra model turant chal
        jaata hai, isliye ise mar-jaane wali error mat maano. */
@@ -6218,6 +6250,48 @@ function startTrack(){
   askNotif().catch(()=>{});
   trackCheck(true);
 }
+function toggleTrackAuto(el){
+  if(!S.trackAuto){
+    if(!fbEndpoint()){ toast('Pehle Settings me Firebase URL daalo'); return }
+    if(!confirm('Entry zone pe pahunchte hi MT5 order chala jayega — koi confirm screen nahi aayegi.\n\nEk setup ka sirf ek order. Aage badhein?')) return;
+  }
+  S.trackAuto = !S.trackAuto;
+  el.classList.toggle('on', S.trackAuto);
+  save(); renderTrack();
+  toast(S.trackAuto ? 'Entry pe auto order chalu' : 'Auto order band');
+}
+
+/* Chart analysis wale levels se seedha order — entry, SL, TP1 wahi jaate
+   hain jo screen pe dikh rahe hain. Ek setup, ek order. */
+async function trackSend(silent){
+  const t = S.track;
+  if(!t){ if(!silent) toast('Koi setup track nahi ho raha'); return false }
+  if(t.sent){ if(!silent) toast('Is setup ka order pehle hi ja chuka hai'); return false }
+  if(!fbEndpoint()){ if(!silent){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet') } return false }
+  if(!SPECS[t.sym]){ if(!silent) toast('Ye pair app me nahi hai'); return false }
+
+  const entry = t.entry, sl = t.sl, tp = isFinite(t.tp1) ? t.tp1 : null;
+  if(!isFinite(entry) || !isFinite(sl) || !tp){ if(!silent) toast('Entry/SL/TP poore nahi hain'); return false }
+
+  if(!silent && !confirm(
+      `MT5 pe order bhejein?\n\n${t.dir} ${SPECS[t.sym].n} ${S.dLot} lot\n` +
+      `Entry ${fmt(t.sym, entry)}\nSL ${fmt(t.sym, sl)}\nTP ${fmt(t.sym, tp)}\n\n` +
+      'Ye levels chart screenshot se padhe gaye hain, live data se nahi.')) return false;
+
+  /* sendMT5 khud bhi duplicate aur SL/TP ki jaanch karta hai */
+  const ok = await sendMT5(t.sym, t.dir, S.dLot, entry, sl, tp, S.mt5Type, !!silent);
+  if(!ok) return false;
+
+  t.sent = Date.now(); save();
+  autoJournal({sym: t.sym, dir: t.dir, lots: S.dLot, entry, sl, tp,
+               slD: 0, tpD: 0, q: t.conf || 0, grade: '—', fromChart: true});
+  logAdd(`Chart setup MT5 pe: ${t.dir} ${SPECS[t.sym].n} @ ${fmt(t.sym, entry)}`);
+  notify('MT5 order', `${SPECS[t.sym].n} ${t.dir} ${S.dLot} lot @ ${fmt(t.sym, entry)}`, 'chart-order');
+  toast(`${SPECS[t.sym].n} ${t.dir} MT5 pe bhej diya`);
+  renderTrack();
+  return true;
+}
+
 function stopTrack(){
   if(!S.track) return;
   if(!confirm('Tracking band kar dein?')) return;
@@ -6298,6 +6372,43 @@ setInterval(() => {
   trackCheck(false);
 }, 30000);
 
+/* ---------------- direction ka apna record ----------------
+   Ye tumhare khud ke band ho chuke trades se banta hai — koi bahar ka
+   number nahi. Isliye jab tak 5-6 trades na hon, ye kuch nahi batata. */
+function dirStats(dir, sym){
+  const all = S.hist.filter(t => t.dir === dir);
+  const one = sym ? all.filter(t => t.sym === sym) : [];
+  const calc = list => {
+    if(!list.length) return null;
+    const w = list.filter(t => t.pl > 0).length;
+    const pl = list.reduce((a,t) => a + (t.pl || 0), 0);
+    return {n: list.length, w, pct: Math.round(w / list.length * 100), pl};
+  };
+  return {all: calc(all), one: calc(one)};
+}
+
+function dirLine(dir, sym){
+  const st = dirStats(dir, sym);
+  const bit = (x, label) => {
+    if(!x) return `<span style="color:var(--dim)">${label} —</span>`;
+    const c = x.n < 5 ? 'var(--mut)' : x.pct >= 50 ? 'var(--up)' : 'var(--dn)';
+    return `<span>${label} <b style="color:${c}">${x.pct}%</b> <span style="color:var(--dim)">(${x.w}/${x.n})</span></span>`;
+  };
+  return `${bit(st.all, dir)} &nbsp;·&nbsp; ${bit(st.one, sym ? SPECS[sym].n : '')}`;
+}
+
+function trackStatsBox(sym){
+  const b = dirStats('BUY', sym).all, se = dirStats('SELL', sym).all;
+  const total = (b ? b.n : 0) + (se ? se.n : 0);
+  if(!total) return `<p class="hint" style="margin:10px 0 0">Abhi koi band trade nahi — kuch trades ke baad yahan BUY aur SELL ka apna success rate dikhne lagega.</p>`;
+  return `<div style="border:1px solid var(--line);border-radius:8px;padding:11px;margin:12px 0">
+      <b style="color:var(--gold);font-size:10.5px;letter-spacing:1.5px">TUMHARA RECORD</b>
+      <div class="lbl" style="margin-top:6px"><span>BUY</span><b>${dirLine('BUY', sym)}</b></div>
+      <div class="lbl"><span>SELL</span><b>${dirLine('SELL', sym)}</b></div>
+      ${total < 10 ? `<p class="hint" style="margin:7px 0 0">Sirf ${total} trades ka data hai — 20-30 ke baad hi ye number kuch matlab rakhta hai.</p>` : ''}
+    </div>`;
+}
+
 function renderTrack(){
   const box = $('trackBox'), st = $('trackState');
   if(!box) return;
@@ -6332,6 +6443,16 @@ function renderTrack(){
       <span class="gr" style="margin-left:auto">${STYLES[t.style] ? STYLES[t.style].label : ''}</span>
     </div>
 
+    <button class="btn ${t.sent ? 'ghost' : 'gold'}" style="margin-bottom:8px${t.sent ? ';opacity:.6' : ''}"
+            onclick="trackSend()">${t.sent
+              ? '\u2713 ORDER JA CHUKA HAI \u00b7 ' + t12(t.sent)
+              : '\ud83d\ude80 MT5 PE LAGAO'}</button>
+
+    <div class="sw ${S.trackAuto ? 'on' : ''}" onclick="toggleTrackAuto(this)" style="margin-bottom:12px">
+      <div class="tg"></div>
+      <div>Entry zone pe khud order<small>${t.sent ? 'Is setup ka order ja chuka hai' : 'Price entry pe aate hi MT5 order chala jayega'}</small></div>
+    </div>
+
     <div class="lbl"><span>Live price</span><b class="mono">${live}</b></div>
     <div class="lbl"><span>Entry se doori</span><b class="mono">${
       (isFinite(p) && isFinite(t.entry)) ? Math.abs((p - t.entry) / SPECS[t.sym].pip).toFixed(1) + ' pips' : '\u2014'
@@ -6347,6 +6468,8 @@ function renderTrack(){
     </div>
 
     ${t.done ? `<p class="hint" style="color:var(--gold);margin:8px 0">Ye setup poora ho gaya. Tracking band karke slot khaali kar do.</p>` : ''}
+
+    ${trackStatsBox(t.sym)}
 
     <div style="border:1px solid var(--line);border-radius:6px;padding:10px;margin:10px 0">
       <p class="hint" style="margin:0">Har ${S.trackMin} minute pe check hota hai aur har check pe 1 API credit lagta hai.
