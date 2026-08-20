@@ -2000,7 +2000,10 @@ async function gOnce(model, prompt){
     e.code = r.status;
     e.retry = retry;
     /* limit: 0 = ye model is key pe hai hi nahi */
-    e.dead = r.status === 404 || r.status === 400 || /limit:\s*0/.test(msg);
+    /* 5xx ya "high demand" = ye model abhi bheed me hai. Ye key ki galti
+       nahi, sirf us model ka server busy hai — doosra model turant chal
+       jaata hai, isliye ise mar-jaane wali error mat maano. */
+    e.busy = r.status >= 500 || /high demand|overload|unavailable|try again later/i.test(msg);
     throw e;
   }
   const j = await r.json();
@@ -2045,6 +2048,10 @@ async function gAsk(prompt, onNote){
       lastErr = e;
       if(e.dead){ gMarkBad(model); continue }              /* model hai hi nahi -> agla */
       if(e.soft) continue;                                  /* jawab bekaar -> doosra model */
+      if(e.busy){                                           /* server busy -> doosra model */
+        if(onNote) onNote(model + ' busy, doosra try kar raha hoon');
+        continue;
+      }
       if(e.code === 429){
         if(e.retry && e.retry <= 30 && !waited){           /* asli rate limit -> ek baar ruko */
           waited = 1;
@@ -2059,9 +2066,11 @@ async function gAsk(prompt, onNote){
     }
   }
   const lm = (lastErr && lastErr.message) || 'AI nahi chala';
-  const m = /quota|limit/i.test(lm)
-    ? 'Aaj ka Gemini quota khatam — kal reset hoga. Ya aistudio.google.com pe naya key banao.'
-    : lm + (lastErr && lastErr.raw ? '\n\nModel ne bheja: ' + lastErr.raw : '');
+  const m = (lastErr && lastErr.busy)
+    ? 'Google ke models abhi bheed me hain (high demand). Thodi der baad dobara try karo.'
+    : /quota|limit/i.test(lm)
+      ? 'Aaj ka Gemini quota khatam — kal reset hoga. Ya aistudio.google.com pe naya key banao.'
+      : lm + (lastErr && lastErr.raw ? '\n\nModel ne bheja: ' + lastErr.raw : '');
   throw new Error(m);
 }
 
@@ -5872,7 +5881,10 @@ async function gVisionOnce(model, prompt, b64){
     }catch(e){}
     const e = new Error(msg || ('HTTP ' + r.status));
     e.code = r.status; e.retry = retry;
-    e.dead = r.status === 404 || r.status === 400 || /limit:\s*0/.test(msg);
+    /* 5xx ya "high demand" = ye model abhi bheed me hai. Ye key ki galti
+       nahi, sirf us model ka server busy hai — doosra model turant chal
+       jaata hai, isliye ise mar-jaane wali error mat maano. */
+    e.busy = r.status >= 500 || /high demand|overload|unavailable|try again later/i.test(msg);
     throw e;
   }
   const j = await r.json();
@@ -5907,6 +5919,10 @@ async function gVision(prompt, b64, onNote){
       lastErr = e;
       if(e.dead){ gMarkBad(model); continue }
       if(e.soft) continue;
+      if(e.busy){
+        if(onNote) onNote(model + ' busy, doosra try kar raha hoon');
+        continue;
+      }
       if(e.code === 429){
         if(e.retry && e.retry <= 30 && !waited){
           waited = true;
