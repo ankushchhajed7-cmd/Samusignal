@@ -6165,32 +6165,11 @@ function renderShot(){
     </div>
 
     ${isTrade && sym ? `<button class="btn gold" style="margin-bottom:8px" onclick="startTrack()">\u26a1 IS SETUP KO TRACK KARO</button>` : ''}
-    ${isTrade && sym ? `<button class="btn ghost" style="margin-bottom:8px" onclick="shotToMt5()">\ud83d\ude80 SEEDHA MT5 PE LAGAO</button>` : ''}
     ${!sym && isTrade ? `<p class="hint" style="color:var(--gold);margin-bottom:8px">Ye instrument app ke kisi pair se match nahi hua, isliye live tracking nahi ho sakti.</p>` : ''}
     <div class="grid2">
       <button class="btn ghost sm" onclick="shareShot()">\ud83d\udcac SHARE</button>
       <button class="btn ghost sm" onclick="clearShot()">\u2715 HATAO</button>
     </div>`;
-}
-
-/* Track kiye bina hi chart wale levels MT5 pe. Andar se wahi rasta use
-   hota hai jo tracking ka hai, taaki dono jagah ek hi jaanch chale. */
-async function shotToMt5(){
-  const d = S.shot;
-  if(!d || !d.sym){ toast('Pehle koi chart analyze karo'); return }
-  if(!S.track || S.track.sym !== d.sym || S.track.entry !== +d.entry){
-    S.track = {
-      sym: d.sym, dir: d.signal, style: d.style,
-      entry: +d.entry, sl: +d.stop_loss,
-      tp1: +d.take_profit_1, tp2: +d.take_profit_2,
-      conf: +d.confidence || 0,
-      startedAt: Date.now(), lastAt: 0, last: null,
-      hit: {}, done: false
-    };
-    save();
-  }
-  const ok = await trackSend(false);
-  if(ok) renderTrack();
 }
 
 function clearShot(){
