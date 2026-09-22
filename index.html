@@ -1003,7 +1003,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
     <div class="chips" id="tfChips" style="margin-bottom:12px"></div>
     <div class="sw" id="swHtf" onclick="toggleSw(this,'htf')">
       <div class="tg"></div>
-      <div>HTF Confluence Filter<small>Sirf 4H + 1D bias se match karne wale signal</small></div>
+      <div>HTF Confluence Filter<small>Dono HTF ulte hon to signal block; ek match ho to strong setup chal sakta hai</small></div>
     </div>
     <div class="grid2">
       <button class="btn gold" id="btnAnalyze" onclick="runAnalyze()">Analyze Karo</button>
@@ -1509,7 +1509,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.0.0';
+const VERSION = '9.1.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1654,7 +1654,7 @@ let S = {
   atrRR: LS.get('atrRR',2),
   autoLot: LS.get('autoLot',false),
   riskUsd: LS.get('riskUsd',1.75),
-  dTp:   LS.get('dTp',4),      /* R:R 1:1.6 — 1:0.4 pe 71% win chahiye tha */
+  dTp:   LS.get('dTp',5),      /* default R:R 1:2 — 33% win rate se breakeven */
   dSl:   LS.get('dSl',2.5),
   beOn:  LS.get('beOn',true),  /* 1R par SL breakeven pe (sirf app journal) */
   fbUrl: LS.get('fbUrl',''),
@@ -1722,9 +1722,8 @@ function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','t
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
    tha usko ek baar shift karo — jaanbujh ke chuni gayi theme nahi badlegi. */
-/* v9.1: TP $1 / SL $2.50 ka matlab R:R 1:0.4 tha — usme breakeven ke liye
-   71% win rate chahiye. Jo device abhi tak purane default pe hai usko ek
-   baar 1:1.6 pe le aao; jisne apna number set kiya hai use chhod do. */
+/* v9.1: fixed-dollar default ab R:R 1:2 hai. Sirf purane app defaults ko
+   migrate karo; user ne apna custom TP/SL set kiya ho to use mat chhedo. */
 /* Pehle ek galat MIN_LOT (ETH 0.10 / BTC 0.02) lot ko upar khinch deta tha.
    Wo hata diya gaya, par device pe 0.1 save reh gaya. Ek baar 0.01 par
    wapas laao — koi aur value ho to chhod do, wo user ki apni chuni hui hai. */
@@ -1741,6 +1740,15 @@ if(!LS.get('mig91', false)){
   }
   LS.set('mig91', true);
 }
+if(!LS.get('mig93', false)){
+  /* v9.0/v9.1 ke known defaults $4/$2.50 ya $1/$2.50 the.
+     Inko $5/$2.50 (1:2) karo.
+     Custom ratio ko bina user ke chune overwrite nahi karna. */
+  if((S.dTp === 4 || S.dTp === 1) && S.dSl === 2.5){
+    S.dTp = 5; LS.set('dTp', 5);
+  }
+  LS.set('mig93', true);
+}
 
 if(!LS.get('mig90', false)){
   if(!LS.get('themePicked', false) && S.theme === 'terminal'){
@@ -1748,7 +1756,9 @@ if(!LS.get('mig90', false)){
   }
   LS.set('mig90', true);
 }
-if(!LS.get('mig21', false)){ S.dTp = 1; S.dSl = 2.5; LS.set('mig21', true); LS.set('dTp',1); LS.set('dSl',2.5); }
+/* v2.1 ka purana migration fresh install par default ko galti se $1
+   kar deta tha. Marker rakho, lekin ab user ka TP/SL overwrite mat karo. */
+if(!LS.get('mig21', false)){ LS.set('mig21', true); }
 
 let lastSignal = null;
 let lastVotes = null;
@@ -2135,7 +2145,7 @@ INDICATORS (${s.tf}):
 - 30-candle range: ${P(ll(c,30))} se ${P(hh(c,30))}
 
 HIGHER TIMEFRAME BIAS: ${s.tfs.map(t=>t.l+' '+t.b).join(', ')}
-${s.htfOk ? '(sab match kar rahe hain)' : '(4H/1D match NAHI kar rahe)'}
+${s.htfStrict ? '(4H aur 1D dono match kar rahe hain)' : s.htfOk ? '(ek HTF match, ek mismatch)' : '(4H/1D dono match NAHI kar rahe)'}
 
 50 STRATEGY AGENTS: ${v ? `BUY ${v.buy}, HOLD ${v.hold}, SELL ${v.sell} -> ${v.verdict} (${v.conf}% consensus)
 Category wise: ${Object.entries(grp).map(([g,z])=>`${g} ${z.B}B/${z.S}S/${z.H}H`).join(', ')}` : 'nahi chale'}
@@ -3064,7 +3074,13 @@ async function runAnalyze(){
     }
     q = Math.max(0, Math.min(100, Math.round(q)));
 
-    const htfOk = !S.htf || (h4 && d1 && h4.bias===dir && d1.bias===dir);
+    /* Ek HTF mismatch ko akela WAIT mat banao. 4H aur 1D dono ulte hon
+       tabhi HTF hard blocker hai; strong lower-TF confluence me ek aligned
+       HTF kaafi hai. */
+    const htfItems = [h4, d1].filter(Boolean);
+    const htfAgree = htfItems.filter(x => x.bias === dir).length;
+    const htfOk = !S.htf || (htfItems.length > 0 && htfAgree >= Math.ceil(htfItems.length/2));
+    const htfStrict = !S.htf || (htfItems.length === 2 && htfAgree === 2);
     const grade = q>=80?'A+':q>=70?'A':q>=60?'B':q>=45?'C':'D';
 
     /* --- levels from default $ risk --- */
@@ -3077,7 +3093,7 @@ async function runAnalyze(){
     lastSignal = {
       sym, dir, q, grade, live, sl, tp, lots,
       slD:lv.slD, tpD:lv.tpD, slPips:lv.slPips, tpPips:lv.tpPips, mode:S.slMode, htfOk, tf:S.tf,
-      atr: base.atr, rsi: base.rsi,
+      atr: base.atr, rsi: base.rsi, htfAgree, htfCount: htfItems.length, htfStrict,
       tfs: TFS.filter(t=>res[t.id]).map(t=>({l:t.l, b:res[t.id].bias})),
       at: Date.now()
     };
@@ -3087,12 +3103,13 @@ async function runAnalyze(){
     if(!lastAI || lastAI.sym !== sym) lastAI = null;
     renderAnalyst(); renderSignal(); renderAI();
     if(S.gAuto && S.gKey && dir !== 'NEUTRAL') runAI();
-    if(dir !== 'NEUTRAL' && htfOk){
+    const fc = finalCall(lastSignal);
+    if(dir !== 'NEUTRAL' && fc.t === 'LE LO'){
       notify(`${s0q(dir)} ${SPECS[sym].n} · ${q}%`,
         `Entry ${fmt(sym,live)} · SL ${fmt(sym,sl)} · TP ${fmt(sym,tp)}`, 'sig');
       speakSignal(lastSignal);
     }
-    if(S.tgAuto && dir!=='NEUTRAL' && htfOk) tgSend(fullReport(true), true);
+    if(S.tgAuto && dir!=='NEUTRAL' && fc.t === 'LE LO') tgSend(fullReport(true), true);
   }catch(e){
     if(e.code === 404){ markBad(sym); }
     const tip = e.code === 404
@@ -3142,48 +3159,66 @@ function sumColumn(s){
     </div>`).join('') + `</div>`;
 }
 
-/* teeno cheezein milakar ek faisla: LE LO / WAIT / CHHOD DO */
+/* Teeno checks ko hard aur soft rules me baanto.
+   Purana bug: ek bhi warning aate hi WAIT ho jaata tha, isliye strong
+   signal + strong vote + strong technical setup bhi trade nahi ban raha tha. */
 function finalCall(s){
-  const R = [];                       /* wajah */
-  let block = 0, warn = 0;
+  const reject = [], blockers = [], notes = [];
+  const v = lastVotes && lastVotes.sym === s.sym ? lastVotes : null;
+  const a = lastAn;
+  const rr = s.slD > 0 ? s.tpD / s.slD : 0;
 
-  /* --- CHHOD DO ke karan --- */
-  if(lastVotes && lastVotes.sym === s.sym){
-    const v = lastVotes;
-    if(v.verdict !== s.dir && v.verdict !== 'HOLD'){
-      block++; R.push(`agents ${v.verdict} bol rahe hain`);
-    }
+  /* --- CHHOD DO: actual contradiction ya invalid setup --- */
+  if(v && v.verdict !== s.dir && v.verdict !== 'HOLD'){
+    reject.push(`agents ${v.verdict} bol rahe hain`);
   }
-  if(lastAn && lastAn.pct < 40){ block++; R.push('technical bahut kamzor') }
-  if(lastAn){
-    const st = lastAn.O.find(x => x.h === 'SUPERTREND');
-    const loc = lastAn.O.find(x => x.h === 'ENTRY LOCATION');
-    const str = lastAn.O.find(x => x.h === 'STRUCTURE');
-    if(str && str.ok === 0){ block++; R.push('counter-trend hai') }
-    if(st && st.ok === 0){ warn++; R.push('supertrend ulta') }
-    if(loc && loc.ok === 0){ warn++; R.push('entry range ke kinare pe') }
-    const sv = lastAn.O.find(x => x.h === 'SL vs VOLATILITY');
-    if(sv && sv.ok === 0){ warn++; R.push('SL volatility se patli') }
+  if(a && a.pct < 40) reject.push('technical bahut kamzor');
+  if(a){
+    const st = a.O.find(x => x.h === 'SUPERTREND');
+    const loc = a.O.find(x => x.h === 'ENTRY LOCATION');
+    const str = a.O.find(x => x.h === 'STRUCTURE');
+    const sv = a.O.find(x => x.h === 'SL vs VOLATILITY');
+    if(str && str.ok === 0) reject.push('counter-trend structure');
+    if(st && st.ok === 0) notes.push('supertrend ulta');
+    if(loc && loc.ok === 0) notes.push('entry range ke kinare pe');
+    if(sv && sv.ok === 0) notes.push('SL volatility ke hisaab se tight');
   }
 
-  /* --- WAIT ke karan --- */
+  /* --- WAIT: setup ko invalidate nahi karte, par timing/quality rok sakti hai --- */
   const nr = newsRisk(s.sym);
-  if(nr){ warn++; R.push(`${nr.c} news ${t12(nr.d)} pe`) }
-  if(!s.htfOk){ warn++; R.push('4H/1D bias match nahi') }
-  if(s.q < 60){ warn++; R.push(`quality sirf ${s.q}%`) }
-  if(lastVotes && lastVotes.sym === s.sym && lastVotes.conf < 50){
-    warn++; R.push(`agents bate hue (${lastVotes.conf}%)`);
+  if(nr) blockers.push(`${nr.c} news ${t12(nr.d)} pe`);
+  if(s.htfCount === 0 || (S.htf && s.htfAgree === 0)){
+    blockers.push('4H/1D dono signal ke khilaaf');
   }
-  if(s.rsi > 75 || s.rsi < 25){ warn++; R.push(`RSI ${s.rsi.toFixed(0)} extreme pe`) }
+  if(s.q < 55) blockers.push(`quality sirf ${s.q}%`);
+  if(v && v.verdict === s.dir && v.conf < 50) blockers.push(`agents bate hue (${v.conf}%)`);
+  if(rr > 0 && rr < 2) blockers.push(`R:R sirf 1:${rr.toFixed(2)} — 1:2 minimum chahiye`);
+  if(s.rsi > 75 || s.rsi < 25) notes.push(`RSI ${s.rsi.toFixed(0)} extreme pe`);
+  if(!s.htfStrict && s.htfOk) notes.push('ek HTF mismatch');
 
-  if(block) return {t:'CHHOD DO', c:'var(--dn)', bg:'rgba(255,68,68,.08)',
-    why: R.slice(0,3).join(' · ') + ' — intezaar se ye theek nahi hoga, doosra pair dekho'};
-  if(warn >= 2) return {t:'WAIT', c:'var(--gold)', bg:'rgba(255,184,0,.08)',
-    why: R.slice(0,3).join(' · ') + ' — thoda ruk kar dobara analyze karo'};
-  if(warn === 1) return {t:'WAIT', c:'var(--gold)', bg:'rgba(255,184,0,.08)',
-    why: R[0] + ' — baaki sab theek hai, chaho to chhote size me lo'};
-  return {t:'LE LO', c:'var(--up)', bg:'rgba(0,255,150,.08)',
-    why: `Quality ${s.q}%${lastAn?`, technical ${lastAn.pct}%`:''}${lastVotes&&lastVotes.sym===s.sym?`, ${Math.max(lastVotes.buy,lastVotes.sell)}/50 agents saath`:''} — sab paksh me hai`};
+  if(reject.length) return {t:'CHHOD DO', c:'var(--dn)', bg:'rgba(255,68,68,.08)',
+    why: reject.slice(0,3).join(' · ') + ' — intezaar se ye theek nahi hoga, doosra pair dekho'};
+  if(blockers.length) return {t:'WAIT', c:'var(--gold)', bg:'rgba(255,184,0,.08)',
+    why: blockers.slice(0,3).join(' · ') + ' — condition saaf hone par dobara analyze karo'};
+
+  /* LE LO ke liye teen core confirmations zaroori hain. Notes akeli
+     strong setup ko block nahi karengi; isi se false WAIT bug fix hota hai. */
+  const voteStrong = !!(v && v.verdict === s.dir && v.conf >= 55);
+  const techStrong = !!(a && a.pct >= 65);
+  const structureSafe = !a || !a.O.some(x => x.h === 'STRUCTURE' && x.ok === 0);
+  const core = s.q >= 70 && techStrong && voteStrong && structureSafe && rr >= 2;
+  if(core){
+    return {t:'LE LO', c:'var(--up)', bg:'rgba(0,255,150,.08)',
+      why: `Core rules pass — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy,v.sell)}/50 agents saath` +
+        (notes.length ? ` · note: ${notes.slice(0,2).join(', ')}` : '')};
+  }
+  const why = [
+    s.q < 70 ? `quality ${s.q}% (70%+ chahiye)` : '',
+    a && a.pct < 65 ? `technical ${a.pct}% (65%+ chahiye)` : '',
+    !voteStrong ? 'vote kaafi aligned nahi' : ''
+  ].filter(Boolean);
+  return {t:'WAIT', c:'var(--gold)', bg:'rgba(255,184,0,.08)',
+    why: (why.slice(0,3).join(' · ') || 'core confirmations poore nahi') + ' — setup aur clear hone do'};
 }
 
 function renderSignal(){
@@ -3211,7 +3246,11 @@ function renderSignal(){
         ? `<p class="hint" style="color:var(--gold);margin-top:8px">🗓 ${nx.c} ${nx.t} — ${t12(nx.d)} (${Math.round((nx.d-Date.now())/60000)} min me)</p>`
         : '');
   const weak = s.q < 70 ? `<p class="hint" style="color:var(--gold);margin-top:8px">Ye ${tier} signal hai (${s.q}%). Tum sirf strong lete ho — 70%+ ka intezaar karo.</p>` : '';
-  const warn = !s.htfOk ? `<p class="hint" style="color:var(--gold);margin-top:8px">⚠ HTF filter ON hai aur 4H/1D bias match nahi kar raha. Ye trade skip karna behtar.</p>` : '';
+  const warn = S.htf && !s.htfOk
+    ? `<p class="hint" style="color:var(--gold);margin-top:8px">⚠ 4H aur 1D dono signal ke khilaaf hain — ye trade skip karo.</p>`
+    : S.htf && !s.htfStrict
+      ? `<p class="hint" style="color:var(--gold);margin-top:8px">ℹ Ek higher timeframe match nahi hai, lekin core rules strong hain; size normal se bada mat karo.</p>`
+      : '';
   $('cardSignal').innerHTML = `
     <p class="ttl">Signal <span class="sp" data-ago="${s.at}">${ago(s.at)}</span></p>
     <div class="sig ${cls}">
@@ -4467,7 +4506,7 @@ function qtLevels(){
           <p class="hint" style="color:#f99;margin:4px 0 0">Ek SL ${(1/rr).toFixed(1)} TP kha jaata hai.
           Barabar rehne ke liye <b>${beW.toFixed(0)}%</b> win rate chahiye — spread milaakar aur zyada.
           TP badhao ya SL chhoti karo.</p></div>`
-      : rr >= 1.5
+      : rr >= 2
       ? `<p class="hint" style="color:var(--up);margin-top:8px">✓ R:R 1:${rr.toFixed(2)} — sirf ${beW.toFixed(0)}% win rate se profit</p>`
       : `<p class="hint" style="color:var(--gold);margin-top:8px">R:R 1:${rr.toFixed(2)} — ${beW.toFixed(0)}% win rate chahiye</p>`;
   }
@@ -4997,16 +5036,16 @@ function fbEndpoint(){
 
 /* broker ka minimum stop distance — pips me. Default suraksha ke liye rakha hai */
 const MIN_DEF = {'XAU/USD':50, 'BTC/USD':150, 'ETH/USD':10, 'US30':60};
-/* jin pairs pe global $1/$2.50 chalta hi nahi — inke apne default */
+/* jin pairs pe global $5/$2.50 chalta hi nahi — inke apne 1:2 defaults */
 const DEF_TPSL = {
-  'XAU/USD': {tp:13,   sl:8},
+  'XAU/USD': {tp:16,   sl:8},
   /* BTC/ETH pe 1 lot = 1 coin hai, isliye 0.01 lot pe $1 = 100 points ban
      jaata hai. Purane $30/$50 ka matlab 3000/5000 points wali SL nikalti thi
-     — 63k wale BTC pe ~8% stop. Ab BTC ~600 pt SL / 900 pt TP,
-     ETH ~32 pt SL / 48 pt TP, yaani lagbhag 1% aur 1.5%. */
-  'BTC/USD': {tp:9,    sl:6},
-  'ETH/USD': {tp:0.48, sl:0.32},
-  'US30':    {tp:6,    sl:4}
+     — 63k wale BTC pe ~8% stop. Ab BTC ~600 pt SL / 1200 pt TP,
+     ETH ~32 pt SL / 64 pt TP, yaani lagbhag 1% aur 2%. */
+  'BTC/USD': {tp:12,   sl:6},
+  'ETH/USD': {tp:0.64, sl:0.32},
+  'US30':    {tp:8,    sl:4}
 };
 /* base values 0.01 lot ke liye hain — lots badhe to $ bhi utna hi badhta hai.
    Price distance wahi rehti hai, sirf risk scale hota hai. */
@@ -5431,7 +5470,8 @@ function fullReport(html){
   L.push('');
   L.push('━━━ HTF BIAS ━━━');
   s.tfs.forEach(t => L.push(`${t.l.padEnd(4)} : ${t.b}`));
-  if(!s.htfOk) L.push('⚠ 4H/1D bias match nahi kar raha');
+  if(!s.htfOk) L.push('⚠ 4H/1D dono bias signal ke khilaaf hain');
+  else if(!s.htfStrict) L.push('ℹ Ek HTF bias mismatch hai, par ek higher timeframe signal ke saath hai');
 
   const nr = newsRisk(s.sym) || nextNews(s.sym);
   if(nr){
@@ -5619,9 +5659,12 @@ function lotScaleNote(){
           <b style="color:var(--dn);font-size:11px;letter-spacing:1px">⚠ R:R 1:${rr.toFixed(2)}</b>
           <p class="hint" style="color:#f99;margin:5px 0 0">
           Barabar rehne ke liye <b>${be.toFixed(0)}%</b> win rate chahiye. Achhe systems 55-65% pe rehte hain.<br><br>
-          Suggestion: TP <b>$${l}</b> (R:R 1:1, ${(100/2).toFixed(0)}% chahiye) ya TP <b>$${(l*1.5).toFixed(1)}</b> (R:R 1:1.5, 40% chahiye).</p></div>`
-      : `<p class="hint" style="color:${rr>=1.5?'var(--up)':'var(--gold)'};margin:6px 0">
-          R:R 1:${rr.toFixed(2)} — ${be.toFixed(0)}% win rate se profit</p>`;
+          Suggestion: TP <b>$${(l*2).toFixed(2)}</b> (R:R 1:2, 33% chahiye) rakho.</p></div>`
+      : rr < 2
+        ? `<p class="hint" style="color:var(--gold);margin:6px 0">
+            R:R 1:${rr.toFixed(2)} — target ko risk ka 2x, yani 1:2, rakho</p>`
+        : `<p class="hint" style="color:var(--up);margin:6px 0">
+            ✓ R:R 1:${rr.toFixed(2)} — ${be.toFixed(0)}% win rate se profit</p>`;
   }
   const rows = [0.01, 0.02, 0.03, 0.05, 0.10].map(x =>
     `${x.toFixed(2)} → TP <b class="up">$${(t*x/0.01).toFixed(2)}</b> · SL <b class="dn">$${(l*x/0.01).toFixed(2)}</b>`);
@@ -5633,14 +5676,15 @@ function saveSettings(){
   const oldKey = S.key;
   S.key = $('setKey').value.trim();
   if(S.key !== oldKey) dayReset(true);   /* naya key = naya quota */
-  S.dTp = +$('setTp').value || 4;
+  S.dTp = +$('setTp').value || 5;
   S.dSl = +$('setSl').value || 2.5;
   S.dLot = +$('setLot').value || 0.01;
   S.lots = S.dLot;                       /* locked box isi ko dikhata hai */
   if($('inLots')) $('inLots').value = S.dLot;
   lotScaleNote();
   S.cap  = Math.max(50, +$('setCap').value || 700);
-  S.newsMin = Math.max(0, +$('setNewsMin').value || 30);
+  const newsWindow = +$('setNewsMin').value;
+  S.newsMin = isFinite(newsWindow) ? Math.max(0, newsWindow) : 30;
   S.newsImp = $('setNewsImp').value;
   S.slMode = $('setMode').value;
   S.atrSL = Math.max(0.1, +$('setAtrSL').value || 1.5);
@@ -5664,8 +5708,8 @@ function saveSettings(){
   toast('Settings save ho gayi');
   }
 function resetCalc(){
-  S.dTp = 4; S.dSl = 2.5; S.dLot = 0.01;      /* R:R 1:1.6 */
-  $('setTp').value = 4; $('setSl').value = 2.5; $('setLot').value = 0.01;
+  S.dTp = 5; S.dSl = 2.5; S.dLot = 0.01;      /* R:R 1:2 */
+  $('setTp').value = 5; $('setSl').value = 2.5; $('setLot').value = 0.01;
   $('inLots').value = 0.01; S.lots = 0.01;
   save(); if(lastSignal) renderSignal();
   toast('Calculator default pe reset');
@@ -5829,12 +5873,12 @@ const STYLES = {
   SCALP: {
     label: 'Scalping',
     note:  'Minute se kuch ghante. Tight SL, jaldi target, M1–M15 structure.',
-    brief: 'SCALPING: minute se lekar do-teen ghante ka hold. Sabse chhote visible timeframe ka structure padho. SL tight rakho aur pehla target paas — lagbhag 1:1 se 1:1.5 reward.'
+    brief: 'SCALPING: minute se lekar do-teen ghante ka hold. Sabse chhote visible timeframe ka structure padho. SL tight rakho aur target ko kam se kam 1:2 reward par rakho.'
   },
   DAY: {
     label: 'Day trading',
     note:  'Intraday. Usi session me entry aur exit, M15–H1 structure.',
-    brief: 'DAY TRADING: usi session me entry aur exit. Intraday structure se kaam karo. Lagbhag 1:1.5 se 1:2 reward, SL sabse paas wale saaf swing ke peeche.'
+    brief: 'DAY TRADING: usi session me entry aur exit. Intraday structure se kaam karo. Target 1:2 reward, SL sabse paas wale saaf swing ke peeche.'
   },
   SWING: {
     label: 'Swing trading',
@@ -6077,7 +6121,7 @@ function rrLine(d){
   if(!risk) return '';
   const rr = rew / risk;
   const be = 100 / (1 + rr);
-  const c = rr >= 1.5 ? 'var(--up)' : rr >= 1 ? 'var(--gold)' : 'var(--dn)';
+  const c = rr >= 2 ? 'var(--up)' : rr >= 1 ? 'var(--gold)' : 'var(--dn)';
   return `<span style="color:${c}">R:R 1:${rr.toFixed(2)}</span> \u00b7 breakeven ke liye ${be.toFixed(0)}% win rate chahiye`;
 }
 
@@ -6482,7 +6526,7 @@ const GUIDE = [
   ['t',[['Quality','0-100. Kitni cheezein ek line me hain. 60 se neeche kamzor.'],
         ['Verdict','LE LO, WAIT ya CHHOD DO — app ka final nichod.'],
         ['Grade','A/B/C — wahi baat chhote roop me.'],
-        ['R:R','Reward bhaag risk. 1:1 se neeche matlab ganit tumhare khilaaf hai.']]],
+        ['R:R','Reward bhaag risk. Default 1:2 hai — 33% win rate par breakeven.']]],
   ['w','Yahan kuch bhi financial advice nahi hai. Zyada score ka matlab guarantee nahi. Faisla hamesha khud lo.']
 ]},
 
@@ -6513,9 +6557,9 @@ const GUIDE = [
 
 { id:'signals', t:'Signals', body:[
   ['h','Main page'],
-  ['p','Pair chuno, timeframe chuno, ANALYZE dabao. Direction, quality score, entry, SL, TP aur har indicator ka likha hua breakdown milta hai.'],
+  ['p','Pair chuno, timeframe chuno, ANALYZE dabao. Direction, quality score, entry, SL, TP (default R:R 1:2) aur har indicator ka likha hua breakdown milta hai.'],
   ['h','HTF Confluence Filter'],
-  ['p','On rehne pe signal tabhi valid mana jaata hai jab 4H aur Daily bias bhi saath ho. Signal kam milenge par achhe milenge. Jaanbujh ke counter-trend scalp na kar rahe ho to on hi rakho.'],
+  ['p','On rehne par 4H aur Daily dono ulte hon to signal block hota hai. Sirf ek HTF mismatch akela strong lower-timeframe setup ko WAIT nahi banata; counter-trend risk ke liye filter on hi rakho.'],
   ['h','Analysis card kaise padhein'],
   ['p','Har line ek check hai: trend structure, Supertrend, RSI, MACD, ADX, price apni recent range me kahan hai, Bollinger position, aur SL volatility ke hisaab se kaafi chaudi hai ya nahi. Hara matlab trade ke paksh me, laal matlab khilaaf.'],
   ['h','Setup galat kab sabit hota hai'],
