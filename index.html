@@ -356,6 +356,8 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 .pressure-box{margin-top:10px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:11px 10px}
 .pressure-head{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--gold);font-size:11px;letter-spacing:1px}
 .pressure-head small{color:var(--mut);font-size:9px;letter-spacing:.3px;text-transform:none}
+.pressure-status{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 8px;padding:7px 8px;border:1px solid var(--line);border-radius:5px;color:var(--mut);font-size:10px;font-weight:700}
+.pressure-status.live{border-color:var(--up);color:var(--up)} .pressure-status.old{border-color:var(--gold);color:var(--gold)}
 .pressure-legend{display:flex;gap:12px;margin:8px 0;color:var(--mut);font-size:10px;font-weight:700}
 .pressure-legend b{font-weight:800}
 .pressure-legend .pb{color:var(--up)} .pressure-legend .ps{color:var(--dn)}
@@ -1528,7 +1530,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.2.0';
+const VERSION = '9.2.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2580,10 +2582,10 @@ function nextAlt(sym){
 async function getSeries(sym, interval, n, note){
   let j;
   try{
-    j = await td(`/time_series?symbol=${encodeURIComponent(apiSym(sym))}&interval=${interval}&outputsize=${n||120}&order=ASC`, 1, sym, note);
+    j = await td(`/time_series?symbol=${encodeURIComponent(apiSym(sym))}&interval=${interval}&outputsize=${n||120}&order=ASC&timezone=Asia%2FKolkata`, 1, sym, note);
   }catch(e){
     if(e.code === 404 && nextAlt(sym)){
-      j = await td(`/time_series?symbol=${encodeURIComponent(apiSym(sym))}&interval=${interval}&outputsize=${n||120}&order=ASC`, 1, sym, note);
+      j = await td(`/time_series?symbol=${encodeURIComponent(apiSym(sym))}&interval=${interval}&outputsize=${n||120}&order=ASC&timezone=Asia%2FKolkata`, 1, sym, note);
     } else throw e;
   }
   if(!j.values || !j.values.length) throw new Error('Data nahi mila: ' + sym);
@@ -4338,9 +4340,34 @@ function pressureNum(v){
   if(n >= 1000) return (n/1000).toFixed(1) + 'K';
   return String(Math.round(n));
 }
+/* TwelveData ko IST timezone dene ke baad bhi plain datetime ko manually
+   parse karo, taaki user ke phone/browser timezone se display na badle. */
+function pressureDate(v){
+  const s = String(v || '').trim();
+  if(/[zZ]$|[+-]\d\d:?\d\d$/.test(s)) return new Date(s);
+  const m = s.match(/^(\d{4})[-/](\d{2})[-/](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if(m){
+    const utc = Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0));
+    return new Date(utc - 330*60000); /* Asia/Kolkata = UTC+5:30 */
+  }
+  return new Date(s);
+}
 function pressureTime(v){
-  const d = new Date(v);
-  return isNaN(d) ? String(v || '—') : d.toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true});
+  const d = pressureDate(v);
+  return isNaN(d) ? String(v || '—') : d.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true});
+}
+function pressureFreshness(k, tfId){
+  const d = pressureDate(k && k.t);
+  const mins = ({'5min':5,'15min':15,'1h':60,'4h':240,'1day':1440}[tfId]) || 15;
+  const age = (Date.now() - d.getTime()) / 60000;
+  if(!isFinite(age)) return {cls:'old', label:'TIME UNKNOWN', detail:'timestamp samajh nahi aaya'};
+  if(age >= -2 && age < mins){
+    return {cls:'live', label:'LIVE WINDOW', detail:`latest candle ${Math.max(0,Math.floor(age))} min purani · close abhi ban raha ho sakta hai`};
+  }
+  if(age >= -2 && age < mins*2 + 3){
+    return {cls:'', label:'LAST CLOSED', detail:`latest candle ${Math.max(0,Math.floor(age))} min pehle start hui`};
+  }
+  return {cls:'old', label:'OLD DATA', detail:`latest candle ${Math.max(0,Math.floor(age/60))}h purani · market/API update check karo`};
 }
 /* FX me exchange ka real buyer-count nahi milta. Candle ke close-location,
    body aur available volume se directional pressure ka estimate banta hai. */
@@ -4364,10 +4391,14 @@ function renderPressure(sym, tv, bars){
   const vals = rows.map(candlePressure);
   const avgBuy = Math.round(vals.reduce((a,x)=>a+x.buy,0)/vals.length);
   const tf = TFS.find(x=>x.tv===tv);
+  const fresh = pressureFreshness(rows[0], tf && tf.id);
   box.innerHTML = `
     <div class="pressure-head">
       <span>${tf ? tf.l : tv} BUYER / SELLER PRESSURE</span>
-      <small>last ${rows.length} candles · estimate</small>
+      <small>IST · last ${rows.length} candles · estimate</small>
+    </div>
+    <div class="pressure-status ${fresh.cls}">
+      <b>${fresh.label}</b><span>${fresh.detail}</span>
     </div>
     <p class="hint" style="margin:5px 0 7px">
       Exact buyers/sellers count nahi—candle close, body aur available volume se pressure estimate hai.
