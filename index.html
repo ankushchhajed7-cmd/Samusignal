@@ -353,6 +353,21 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
   background:var(--panel);border:1px solid var(--gold);color:var(--gold);border-radius:6px;
   padding:9px 13px;font-size:11px;font-weight:700;letter-spacing:1px}
 .tvbox iframe{width:100%;height:100%;border:0;display:block}
+.pressure-box{margin-top:10px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:11px 10px}
+.pressure-head{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--gold);font-size:11px;letter-spacing:1px}
+.pressure-head small{color:var(--mut);font-size:9px;letter-spacing:.3px;text-transform:none}
+.pressure-legend{display:flex;gap:12px;margin:8px 0;color:var(--mut);font-size:10px;font-weight:700}
+.pressure-legend b{font-weight:800}
+.pressure-legend .pb{color:var(--up)} .pressure-legend .ps{color:var(--dn)}
+.pressure-list{max-height:390px;overflow-y:auto;padding-right:3px}
+.pressure-row{padding:8px 0;border-top:1px solid var(--line)}
+.pressure-meta,.pressure-foot{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700}
+.pressure-meta{color:var(--lbl)} .pressure-meta .mono{margin-left:auto;color:var(--txt)}
+.pressure-meta .bull{color:var(--up)} .pressure-meta .bear{color:var(--dn)}
+.pressure-track{height:8px;display:flex;overflow:hidden;border-radius:99px;background:#27231b;margin:6px 0 4px}
+.pressure-track i{display:block;height:100%}.pressure-track .buy{background:var(--up)}.pressure-track .sell{background:var(--dn)}
+.pressure-foot{justify-content:space-between;color:var(--mut);font-size:9px}
+.pressure-foot .buytxt{color:var(--up)} .pressure-foot .selltxt{color:var(--dn)}
 
 .spin{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--gold);
   border-radius:50%;animation:sp .7s linear infinite;display:inline-block;vertical-align:-3px}
@@ -1039,6 +1054,10 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
     <p class="ttl">Chart <span class="sp" id="chartSym">—</span></p>
     <div class="chips" id="chartTf" style="margin-bottom:10px"></div>
     <div class="tvbox" id="tvBox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
+    <div class="pressure-box" id="pressureBox">
+      <div class="pressure-head"><span>BUYER / SELLER PRESSURE</span><small>approx. candle estimate</small></div>
+      <p class="hint">Chart select karne ke baad yahan latest candles ka pressure dikhega.</p>
+    </div>
     <button class="btn ghost sm" style="margin-top:10px" onclick="chartBig()">⛶ Full Screen</button>
     <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
   </div>
@@ -1509,7 +1528,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.1.0';
+const VERSION = '9.2.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2570,7 +2589,8 @@ async function getSeries(sym, interval, n, note){
   if(!j.values || !j.values.length) throw new Error('Data nahi mila: ' + sym);
   return j.values.map(v => ({
     t: v.datetime,
-    o:+v.open, h:+v.high, l:+v.low, c:+v.close
+    o:+v.open, h:+v.high, l:+v.low, c:+v.close,
+    v: +(v.volume ?? v.vol ?? v.tick_volume ?? 0) || 0
   })).filter(b => isFinite(b.c));
 }
 
@@ -4309,10 +4329,108 @@ async function refreshTicker(force){
 })();
 
 /* ---------------- chart ---------------- */
+const pressureCache = {};
+let pressureSeq = 0;
+
+function pressureNum(v){
+  const n = +v || 0;
+  if(n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if(n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return String(Math.round(n));
+}
+function pressureTime(v){
+  const d = new Date(v);
+  return isNaN(d) ? String(v || '—') : d.toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true});
+}
+/* FX me exchange ka real buyer-count nahi milta. Candle ke close-location,
+   body aur available volume se directional pressure ka estimate banta hai. */
+function candlePressure(k){
+  const range = Math.max(0, k.h-k.l);
+  if(!isFinite(range) || range <= 0) return {buy:50, sell:50, bull:null};
+  const closePos = Math.max(0, Math.min(1, (k.c-k.l)/range));
+  const body = Math.min(1, Math.abs(k.c-k.o)/range);
+  const side = k.c >= k.o ? 1 : -1;
+  const buy = Math.round(Math.max(5, Math.min(95, 50 + (closePos-.5)*80 + side*body*20)));
+  return {buy, sell:100-buy, bull:k.c >= k.o};
+}
+function renderPressure(sym, tv, bars){
+  const box = $('pressureBox');
+  if(!box) return;
+  if(!bars || bars.length < 2){
+    box.innerHTML = '<div class="pressure-head"><span>BUYER / SELLER PRESSURE</span><small>data nahi mila</small></div>';
+    return;
+  }
+  const rows = bars.slice(-30).reverse();
+  const vals = rows.map(candlePressure);
+  const avgBuy = Math.round(vals.reduce((a,x)=>a+x.buy,0)/vals.length);
+  const tf = TFS.find(x=>x.tv===tv);
+  box.innerHTML = `
+    <div class="pressure-head">
+      <span>${tf ? tf.l : tv} BUYER / SELLER PRESSURE</span>
+      <small>last ${rows.length} candles · estimate</small>
+    </div>
+    <p class="hint" style="margin:5px 0 7px">
+      Exact buyers/sellers count nahi—candle close, body aur available volume se pressure estimate hai.
+    </p>
+    <div class="pressure-legend">
+      <span><b class="pb">BUYERS ${avgBuy}% avg</b></span>
+      <span><b class="ps">SELLERS ${100-avgBuy}% avg</b></span>
+    </div>
+    <div class="pressure-list">
+      ${rows.map((k,i) => {
+        const p = vals[i];
+        const vol = k.v > 0 ? 'Vol ' + pressureNum(k.v) : 'Vol data nahi';
+        return `<div class="pressure-row">
+          <div class="pressure-meta">
+            <span>${pressureTime(k.t)}</span>
+            <b class="${p.bull === null ? '' : p.bull ? 'bull' : 'bear'}">${p.bull === null ? 'DOJI' : p.bull ? 'BULL' : 'BEAR'}</b>
+            <span class="mono">${fmt(sym,k.c)}</span>
+          </div>
+          <div class="pressure-track"><i class="buy" style="width:${p.buy}%"></i><i class="sell" style="width:${p.sell}%"></i></div>
+          <div class="pressure-foot"><span class="buytxt">Buyers ${p.buy}%</span><span class="selltxt">Sellers ${p.sell}%</span><span>${vol}</span></div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+async function loadPressure(sym, tv, force){
+  const box = $('pressureBox');
+  const tf = TFS.find(x=>x.tv===tv);
+  if(!box || !tf) return;
+  const seq = ++pressureSeq;
+  const key = sym + '|' + tv;
+  const cached = pressureCache[key];
+  if(!force && cached && Date.now()-cached.at < 60000){
+    renderPressure(sym,tv,cached.bars); return;
+  }
+  /* Analyze ke dauran isi timeframe ka data aa chuka ho to extra credit mat lo. */
+  if(!force && tf.id === S.tf && barCache[sym] && barCache[sym].length){
+    pressureCache[key] = {at:Date.now(), bars:barCache[sym]};
+    renderPressure(sym,tv,barCache[sym]); return;
+  }
+  if(!S.key){
+    box.innerHTML = `<div class="pressure-head"><span>${tf.l} BUYER / SELLER PRESSURE</span><small>API key required</small></div>
+      <p class="hint">Settings me TwelveData key save karo; tab har candle ka pressure estimate yahan load hoga.</p>`;
+    return;
+  }
+  box.innerHTML = `<p class="hint"><span class="spin"></span> ${tf.l} candles ka pressure load ho raha hai…</p>`;
+  try{
+    const bars = await getSeries(sym,tf.id,120,sec => {
+      if(seq === pressureSeq && box) box.innerHTML = `<p class="hint"><span class="spin"></span> API limit—${sec}s ruk raha hoon…</p>`;
+    });
+    if(seq !== pressureSeq) return;
+    pressureCache[key] = {at:Date.now(), bars};
+    renderPressure(sym,tv,bars);
+  }catch(e){
+    if(seq !== pressureSeq) return;
+    box.innerHTML = `<div class="pressure-head"><span>${tf.l} BUYER / SELLER PRESSURE</span><small>load failed</small></div>
+      <p class="hint" style="color:var(--dn)">${e.message || 'Pressure data nahi mila'}</p>`;
+  }
+}
 function setChart(sym){
   const s = SPECS[sym]; if(!s) return;
   $('chartSym').textContent = s.n + ' · ' + (TFS.find(t=>t.tv===S.chartTf)||{l:''}).l;
   $('tvFrame').src = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(s.tv)}&interval=${S.chartTf}&theme=dark&style=1&timezone=Asia/Kolkata&hidesidetoolbar=1&hidetoptoolbar=0&withdateranges=0&saveimage=0&studies=STD%3BSupertrend&locale=en`;
+  loadPressure(sym,S.chartTf);
 }
 
 function chartBig(){
@@ -5705,6 +5823,7 @@ function saveSettings(){
   $('inLots').value = S.dLot; S.lots = S.dLot;
   save(); closeSheet('setSheet');
   $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
+  if(S.key) loadPressure(S.pair,S.chartTf,true);
   toast('Settings save ho gayi');
   }
 function resetCalc(){
