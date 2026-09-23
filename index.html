@@ -1165,6 +1165,21 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
   </div>
 
   <div class="card">
+    <p class="ttl">Virtual Balance <span class="sp" id="balGrow">—</span></p>
+    <div class="ptot" style="padding:15px">
+      <b class="shine mono" id="balNow">$500.00</b>
+      <span>ABHI KA BALANCE</span>
+    </div>
+    <div class="stat3" style="margin:10px 0 0">
+      <div class="st"><span>Start</span><b class="mono" id="balStart">$500.00</b></div>
+      <div class="st"><span>Closed</span><b class="mono" id="balClosed">$0.00</b></div>
+      <div class="st"><span>Open</span><b class="mono" id="balOpen">$0.00</b></div>
+    </div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="setVBal()">Balance Badlo</button>
+    <p class="hint" style="margin-top:7px">Sirf hisaab ke liye. Closed P/L aur open trades ka live P/L isme jud kar abhi ka balance banta hai.</p>
+  </div>
+
+  <div class="card">
     <p class="ttl">Open Trades <span class="sp" id="openT">0 open</span></p>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <button class="btn gold sm" style="flex:1" onclick="refreshOpen(true)">⟳ Rates Refresh Karo</button>
@@ -1678,6 +1693,7 @@ let S = {
   atrRR: LS.get('atrRR',2),
   autoLot: LS.get('autoLot',false),
   riskUsd: LS.get('riskUsd',1.75),
+  vbal:  LS.get('vbal',500),   /* virtual account balance — sirf app ke hisaab ke liye */
   dTp:   LS.get('dTp',5),      /* default R:R 1:2 — 33% win rate se breakeven */
   dSl:   LS.get('dSl',2.5),
   beOn:  LS.get('beOn',true),  /* 1R par SL breakeven pe (sirf app journal) */
@@ -1741,7 +1757,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
@@ -4987,6 +5003,20 @@ function renderTrades(){
   $('stClosed').textContent = money(closed);
   $('stClosed').className = 'mono glow ' + (closed>=0?'up':'dn');
   $('stWr').textContent = S.hist.length ? Math.round(wins/S.hist.length*100)+'%' : '0%';
+
+  /* virtual balance */
+  const bStart = (+S.vbal >= 0 ? +S.vbal : 0);
+  const bNow   = bStart + closed + live;
+  const grow   = bStart > 0 ? ((bNow - bStart) / bStart * 100) : 0;
+  $('balStart').textContent  = money(bStart);
+  $('balClosed').textContent = money(closed);
+  $('balClosed').className   = 'mono ' + (closed>=0?'up':'dn');
+  $('balOpen').textContent   = money(live);
+  $('balOpen').className     = 'mono ' + (live>=0?'up':'dn');
+  $('balNow').textContent    = money(bNow);
+  $('balNow').className      = 'shine mono ' + (bNow>=bStart?'up':'dn');
+  $('balGrow').textContent   = (grow>=0?'+':'') + grow.toFixed(2) + '%';
+  $('balGrow').style.color   = grow>=0 ? 'var(--up)' : 'var(--dn)';
   $('openT').textContent = S.open.length + ' open';
   const uniq = [...new Set(S.open.map(t=>t.sym))].length;
   /* MT5 pe bheje hue orders */
@@ -5158,6 +5188,13 @@ function editTrade(id){
   t.slD = +distToDollars(t.sym,t.entry,t.lots,t.entry-nsl).toFixed(2);
   t.tpD = +distToDollars(t.sym,t.entry,t.lots,ntp-t.entry).toFixed(2);
   save(); renderTrades(); toast('SL/TP update ho gaya');
+}
+function setVBal(){
+  const v = prompt('Virtual balance (USD)', S.vbal);
+  if(v === null) return;
+  const n = parseFloat(v);
+  if(!isFinite(n) || n < 0){ toast('Sahi number daalo'); return }
+  S.vbal = n; save(); renderTrades(); toast('Balance set: ' + money(n));
 }
 function clearHistory(){ if(confirm('Poori history delete kar dein?')){ S.hist=[]; save(); renderTrades(); toast('History clear') } }
 
