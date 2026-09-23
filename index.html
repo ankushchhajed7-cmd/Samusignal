@@ -1548,7 +1548,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.3.0';
+const VERSION = '9.4.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -4930,6 +4930,36 @@ async function checkTouch(sym, since){
   return bars.filter(b => new Date(b.t).getTime() >= from - 300000);
 }
 
+/* ---------------- max floating (MAE / MFE) ----------------
+   Har baar jab open trade ka rate aata hai, ye dekhta hai ki trade us
+   waqt kitni door ulti gayi thi aur kitni door apne favour me. TP hit
+   hone ke baad pata chalta hai ki us jeet se pehle kitna floating loss
+   sehna pada tha.
+
+   Imaandari se: ye sirf un pal ka price hai jab app ne rate check kiya.
+   Do check ke beech ka spike isme nahi aata, isliye asli max floating
+   isse thoda zyada ho sakta hai — kam kabhi nahi. */
+function trackExcursion(t, px){
+  if(!isFinite(px)) return;
+  const pl = tradePL(t, px);
+  if(t.mae === undefined || pl < t.mae){ t.mae = +pl.toFixed(2); t.maePx = px; t.maeAt = Date.now() }
+  if(t.mfe === undefined || pl > t.mfe){ t.mfe = +pl.toFixed(2); t.mfePx = px; t.mfeAt = Date.now() }
+  t.chk = (t.chk || 0) + 1;
+}
+
+/* MAE ko R me badlo — "SL ka kitna hissa kha gaya tha" */
+function maeR(t){
+  const risk = Math.abs(t.slD || 0) || Math.abs(tradePL(t, t.sl0 || t.sl));
+  if(!risk || t.mae === undefined) return null;
+  return Math.abs(t.mae) / risk;
+}
+
+function maeText(t){
+  if(t.mae === undefined) return '';
+  const r = maeR(t);
+  return `${money(t.mae)}${r !== null ? ` · SL ka ${Math.round(r*100)}%` : ''}`;
+}
+
 async function refreshOpen(force){
   if(syncBusy) return;
   if(!S.open.length || !S.key) return;
@@ -4957,6 +4987,7 @@ async function refreshOpen(force){
       const d = q[t.sym]; if(!d || !d.p) return;
       okCount++;
       t.cur = d.p; t.pl = tradePL(t, d.p);
+      trackExcursion(t, d.p);
       beCheck(t, d.p);
       /* BE ke baad SL entry par hai — wo hit hona loss nahi, flat exit hai */
       const slHit = t.be ? 'BE' : 'SL';
@@ -5067,6 +5098,9 @@ function renderTrades(){
         <div><span>TP $${t.tpD}</span><em class="up" style="font-style:normal">${fmt(t.sym,t.tp)}</em></div>
       </div>
       <p class="hint" style="margin:0 0 9px">${dt12(t.at)} · Quality ${t.q||0}% ${t.grade?'· '+t.grade:''}</p>
+      ${t.mae !== undefined ? `<p class="hint" style="margin:-4px 0 9px">
+        Max floating: <b class="dn">${maeText(t)}</b> · best <b class="up">${money(t.mfe)}</b>
+        <span style="color:var(--dim)">· ${t.chk||0} checks</span></p>` : ''}
       <div class="acts">
         <button class="btn ghost sm" onclick="editTrade('${t.id}')">SL/TP</button>
         <button class="btn ${pl<0?'gold':'ghost'} sm" onclick="openHedge('${t.id}')">⚖ Against</button>
@@ -5087,10 +5121,41 @@ function renderTrades(){
       <div class="in">
         <b class="mono">${t.sym} <span class="${t.dir==='BUY'?'up':'dn'}" style="font-size:11px">${t.dir}</span></b>
         <small>${dt12(t.closedAt)} · ${fmt(t.sym,t.entry)} → ${fmt(t.sym,t.exit)} · ${t.lots} lot</small>
+        ${t.mae !== undefined && t.mae < 0 ? `<small style="color:var(--dn)">Max floating ${maeText(t)}</small>` : ''}
       </div>
       <div class="amt mono ${t.pl>=0?'up':'dn'}">${money(t.pl)}</div>
     </div>`;
   }).join('') : '<div class="empty"><div>📜</div>History khaali hai.</div>';
+}
+
+/* Jeetne wali trades ne jeetne se pehle kitna floating loss dikhaya tha.
+   Agar ye number SL ke bahut paas pahunch raha hai, to TP to lag raha hai
+   par har trade balaal se bacha hai — SL thodi chaudi ya entry behtar
+   chahiye. */
+function maeBox(H, win){
+  const withMae = H.filter(t => t.mae !== undefined);
+  if(!withMae.length){
+    return `<p class="hint" style="margin:14px 0 0">Max floating tracking is version se shuru hui hai — jo trades ab band hongi, unka data yahan aayega.</p>`;
+  }
+  const w = win.filter(t => t.mae !== undefined);
+  const avg = list => list.length ? list.reduce((a,t) => a + t.mae, 0) / list.length : 0;
+  const worst = list => list.length ? Math.min(...list.map(t => t.mae)) : 0;
+  const worstT = w.length ? w.reduce((a,t) => t.mae < a.mae ? t : a) : null;
+  const rAvg = w.filter(t => maeR(t) !== null);
+  const avgR = rAvg.length ? rAvg.reduce((a,t) => a + maeR(t), 0) / rAvg.length : null;
+
+  return `
+    <p class="ttl" style="margin:16px 0 8px">Max Floating <span class="sp">jeet se pehle kitna neeche gaya</span></p>
+    <div class="perf">
+      <div class="pb"><b class="dn" style="font-size:15px">${money(avg(w))}</b><span>AVG · WINNERS</span>
+        <em>${w.length} trades</em></div>
+      <div class="pb"><b class="dn" style="font-size:15px">${money(worst(w))}</b><span>WORST · WINNER</span>
+        <em>${worstT ? (SPECS[worstT.sym] ? SPECS[worstT.sym].n : worstT.sym) : '—'}</em></div>
+      <div class="pb"><b style="font-size:15px">${avgR !== null ? Math.round(avgR*100) + '%' : '—'}</b><span>SL KA HISSA</span>
+        <em>avg</em></div>
+    </div>
+    <p class="hint" style="margin-top:8px">Ye rate sirf tab naapa jaata hai jab app open trades ka bhaav check karti hai. Do check ke beech ka spike isme nahi aata — asli max floating isse thoda zyada ho sakta hai, kam nahi.</p>
+    ${avgR !== null && avgR > 0.7 ? `<p class="hint" style="color:var(--gold);margin-top:8px">⚠ Jeetne wali trades bhi average ${Math.round(avgR*100)}% SL tak neeche ja rahi hain — matlab TP to lag raha hai, par har trade baal-baal bach rahi hai. Entry thodi behtar chahiye, ya SL thodi chaudi.</p>` : ''}`;
 }
 
 function renderPerf(){
@@ -5160,6 +5225,7 @@ function renderPerf(){
       <div class="pb"><b class="dn" style="font-size:15px">${money(avgL)}</b><span>AVG LOSS</span></div>
       <div class="pb"><b style="font-size:15px">${beWR.toFixed(0)}%</b><span>BREAKEVEN WR</span></div>
     </div>
+    ${maeBox(H, win)}
     <div class="ptot">
       <b class="shine ${total>=0?'up':'dn'}">${total>=0?'+':''}${money(total)}</b>
       <span>TOTAL P/L</span>
