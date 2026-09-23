@@ -358,6 +358,9 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 .pressure-head small{color:var(--mut);font-size:9px;letter-spacing:.3px;text-transform:none}
 .pressure-status{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 8px;padding:7px 8px;border:1px solid var(--line);border-radius:5px;color:var(--mut);font-size:10px;font-weight:700}
 .pressure-status.live{border-color:var(--up);color:var(--up)} .pressure-status.old{border-color:var(--gold);color:var(--gold)}
+.pressure-actions{display:flex;align-items:center;gap:8px;margin:7px 0 8px}
+.pressure-actions button{padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--gold);font-size:9px;font-weight:800;letter-spacing:.5px}
+.pressure-actions span{color:var(--mut);font-size:9px;font-weight:700}
 .pressure-legend{display:flex;gap:12px;margin:8px 0;color:var(--mut);font-size:10px;font-weight:700}
 .pressure-legend b{font-weight:800}
 .pressure-legend .pb{color:var(--up)} .pressure-legend .ps{color:var(--dn)}
@@ -1530,7 +1533,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.2.1';
+const VERSION = '9.3.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2761,6 +2764,15 @@ const TFS = [
   {id:'4h',   l:'4H',  tv:'240'},
   {id:'1day', l:'1D',  tv:'D'}
 ];
+function completedBars(bars, tfId){
+  if(!bars || bars.length < 25) return bars;
+  const d = pressureDate(bars[bars.length-1].t);
+  const mins = pressureIntervalMinutes(tfId);
+  const age = (Date.now() - d.getTime()) / 60000;
+  /* Current/incomplete candle ko technical calculation se hatao, lekin
+     raw bars pressure panel ke liye alag cache me rakhe jayenge. */
+  return isFinite(age) && age >= -2 && age < mins ? bars.slice(0,-1) : bars;
+}
 
 /* ================= CHART ANALYST =================
    Har number se ek saaf wajah banata hai — kyun BUY, kyun SELL */
@@ -3058,16 +3070,21 @@ async function runAnalyze(){
     const wanted = S.htf ? ['15min','1h','4h','1day'] : ['1h','4h'];
     if(!wanted.includes(S.tf)) wanted.unshift(S.tf);
     const res = {};
-    let barsBase = null, done = 0;
+    let barsBase = null, rawBase = null, done = 0;
     for(const tf of wanted){
-      const bars = await getSeries(sym, tf, 120, note);
-      if(tf === S.tf || wanted[0] === tf){ barsBase = barsBase || bars; barCache[sym] = bars; }
+      const rawBars = await getSeries(sym, tf, 120, note);
+      const bars = completedBars(rawBars, tf);
+      if(tf === S.tf || wanted[0] === tf){
+        barsBase = barsBase || bars;
+        rawBase = rawBase || rawBars;
+        barCache[sym] = rawBars;
+      }
       res[tf] = tfBias(bars);
       done++;
       btn.innerHTML = `<span class="spin"></span> ${done}/${wanted.length} timeframe`;
     }
     const base0 = res[S.tf] || res[wanted[0]];
-    const live = base0.price;                 /* last close use karo — 1 credit bachta hai */
+    const live = rawBase && rawBase.length ? rawBase[rawBase.length-1].c : base0.price;
     prices[sym] = Object.assign(prices[sym]||{}, {p:live});
     S.px[sym] = Object.assign({}, S.px[sym]||{}, {p:live, t:Date.now()});
     LS.set('px', S.px); buildTicker();
@@ -3116,6 +3133,7 @@ async function runAnalyze(){
       sym, dir, q, grade, live, sl, tp, lots,
       slD:lv.slD, tpD:lv.tpD, slPips:lv.slPips, tpPips:lv.tpPips, mode:S.slMode, htfOk, tf:S.tf,
       atr: base.atr, rsi: base.rsi, htfAgree, htfCount: htfItems.length, htfStrict,
+      closedOnly: true,
       tfs: TFS.filter(t=>res[t.id]).map(t=>({l:t.l, b:res[t.id].bias})),
       at: Date.now()
     };
@@ -3305,7 +3323,7 @@ function renderSignal(){
       <div class="tfrow">
         ${s.tfs.map(t=>`<div class="tfp ${t.b==='BUY'?'up':t.b==='SELL'?'dn':'nu'}"><span>${t.l}</span><b>${t.b==='NEUTRAL'?'—':t.b}</b></div>`).join('')}
       </div>
-      <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)}</p>
+       <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)} · <span style="color:var(--up)">✓ closed candle confirmed</span></p>
       ${newsBox}${weak}${warn}
       ${lastVotes && lastVotes.sym===s.sym ? `<div style="display:flex;align-items:center;gap:8px;background:var(--panel);
         border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-top:10px" onclick="go('Votes',document.querySelector('nav button[data-pg=Votes]'))">
@@ -3418,21 +3436,22 @@ async function runScan(){
     const sym = list[i];
     btn.innerHTML = `<span class="spin"></span> ${i+1}/${list.length} · ${SPECS[sym].n}`;
     try{
-      const res = {}; let base = null;
+      const res = {}; let base = null, rawBase = null;
       for(const tf of uniq){
-        const bars = await getSeries(sym, tf, 120, sec => {
+        const rawBars = await getSeries(sym, tf, 120, sec => {
           const m = Math.floor(sec/60), ss = String(sec%60).padStart(2,'0');
           btn.innerHTML = `<span style="letter-spacing:2px">⏳ ${m}:${ss}</span>
             <small style="display:block;font-size:9px;opacity:.7;letter-spacing:.5px">API limit — ruk kar khud chalu hoga</small>`;
         });
-        if(!base){ base = bars; barCache[sym] = bars; }
+        const bars = completedBars(rawBars, tf);
+        if(!base){ base = bars; rawBase = rawBars; barCache[sym] = rawBars; }
         res[tf] = tfBias(bars);
       }
       const b0 = res[uniq[0]];
       const dir = b0.bias;
       if(dir === 'NEUTRAL'){ rows.push(null); continue }
 
-      const live = b0.price;
+      const live = rawBase && rawBase.length ? rawBase[rawBase.length-1].c : b0.price;
       prices[sym] = Object.assign(prices[sym]||{}, {p:live});
       S.px[sym] = {p:live, chg:(S.px[sym]||{}).chg||0, t:Date.now()};
 
@@ -4333,6 +4352,7 @@ async function refreshTicker(force){
 /* ---------------- chart ---------------- */
 const pressureCache = {};
 let pressureSeq = 0;
+let pressureTimer = 0;
 
 function pressureNum(v){
   const n = +v || 0;
@@ -4369,6 +4389,26 @@ function pressureFreshness(k, tfId){
   }
   return {cls:'old', label:'OLD DATA', detail:`latest candle ${Math.max(0,Math.floor(age/60))}h purani · market/API update check karo`};
 }
+function pressureIntervalMinutes(tfId){
+  return ({'5min':5,'15min':15,'1h':60,'4h':240,'1day':1440}[tfId]) || 15;
+}
+function schedulePressureRefresh(sym, tv, fresh){
+  clearTimeout(pressureTimer);
+  pressureTimer = 0;
+  if(!S.key || fresh.label === 'OLD DATA') return;
+  const tf = TFS.find(x=>x.tv===tv);
+  if(!tf) return;
+  const ms = pressureIntervalMinutes(tf.id) * 60000;
+  const now = Date.now();
+  const next = Math.floor(now/ms + 1) * ms + 3000;
+  pressureTimer = setTimeout(() => {
+    if(S.pair === sym && S.chartTf === tv) loadPressure(sym,tv,true);
+  }, Math.max(3000,next-now));
+}
+function refreshPressureNow(){
+  if(!S.key){ toast('Pehle TwelveData API key save karo'); return }
+  loadPressure(S.pair,S.chartTf,true);
+}
 /* FX me exchange ka real buyer-count nahi milta. Candle ke close-location,
    body aur available volume se directional pressure ka estimate banta hai. */
 function candlePressure(k){
@@ -4389,9 +4429,12 @@ function renderPressure(sym, tv, bars){
   }
   const rows = bars.slice(-30).reverse();
   const vals = rows.map(candlePressure);
-  const avgBuy = Math.round(vals.reduce((a,x)=>a+x.buy,0)/vals.length);
   const tf = TFS.find(x=>x.tv===tv);
   const fresh = pressureFreshness(rows[0], tf && tf.id);
+  const closedVals = fresh.label === 'LIVE WINDOW' ? vals.slice(1) : vals;
+  const avgBuy = Math.round((closedVals.length ? closedVals : vals).reduce((a,x)=>a+x.buy,0)/(closedVals.length ? closedVals : vals).length);
+  const latest = vals[0];
+  schedulePressureRefresh(sym,tv,fresh);
   box.innerHTML = `
     <div class="pressure-head">
       <span>${tf ? tf.l : tv} BUYER / SELLER PRESSURE</span>
@@ -4403,9 +4446,13 @@ function renderPressure(sym, tv, bars){
     <p class="hint" style="margin:5px 0 7px">
       Exact buyers/sellers count nahi—candle close, body aur available volume se pressure estimate hai.
     </p>
+    <div class="pressure-actions">
+      <button onclick="refreshPressureNow()">⟳ REFRESH NOW</button>
+      <span>Auto refresh next candle boundary par · current ${latest.buy}/${latest.sell}</span>
+    </div>
     <div class="pressure-legend">
-      <span><b class="pb">BUYERS ${avgBuy}% avg</b></span>
-      <span><b class="ps">SELLERS ${100-avgBuy}% avg</b></span>
+      <span><b class="pb">CLOSED BUYERS ${avgBuy}% avg</b></span>
+      <span><b class="ps">CLOSED SELLERS ${100-avgBuy}% avg</b></span>
     </div>
     <div class="pressure-list">
       ${rows.map((k,i) => {
