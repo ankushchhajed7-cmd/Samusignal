@@ -1066,6 +1066,14 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
     <button class="btn ghost sm" style="margin-top:10px" onclick="chartBig()">⛶ Full Screen</button>
     <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
   </div>
+
+  <div class="card">
+    <p class="ttl">EMA 9 / 21 / 55 <span class="sp" id="emaTf">—</span></p>
+    <canvas id="emaChart" style="width:100%;height:230px;display:block;
+      background:var(--bg);border:1px solid var(--line);border-radius:6px"></canvas>
+    <div id="emaBox"><p class="hint" style="margin-top:10px">Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.</p></div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="loadEma(true)">⟳ EMA REFRESH · 1 credit</button>
+  </div>
 </section>
 
 <!-- ============ SCAN ============ -->
@@ -1548,7 +1556,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.4.0';
+const VERSION = '9.5.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -4525,6 +4533,198 @@ function setChart(sym){
   $('chartSym').textContent = s.n + ' · ' + (TFS.find(t=>t.tv===S.chartTf)||{l:''}).l;
   $('tvFrame').src = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(s.tv)}&interval=${S.chartTf}&theme=dark&style=1&timezone=Asia/Kolkata&hidesidetoolbar=1&hidetoptoolbar=0&withdateranges=0&saveimage=0&studies=STD%3BSupertrend&locale=en`;
   loadPressure(sym,S.chartTf);
+  loadEma(false);
+}
+
+/* ================= EMA 9 / 21 / 55 =================
+   Teen EMA aur unke crossover. Cross wale point par circle lagti hai:
+   hari = fast line upar gayi, laal = neeche. Data wahi hai jo analysis
+   me aata hai (barCache), isliye normally koi extra credit nahi lagta.
+
+   Crossover ek pichhli candle ka confirm hua fact hai, agli candle ka
+   vaada nahi — isliye neeche "kitni candle pehle" bhi likha jaata hai. */
+const EMA_SET = [
+  {len:9,  c:'#00CCFF', name:'EMA 9'},
+  {len:21, c:'#FFB800', name:'EMA 21'},
+  {len:55, c:'#FF66CC', name:'EMA 55'}
+];
+
+/* do EMA lines ke beech ke saare cross nikalo */
+function emaCrosses(a, b, bars, from){
+  const out = [];
+  for(let i = Math.max(1, from); i < bars.length; i++){
+    const prev = a[i-1] - b[i-1], now = a[i] - b[i];
+    if(prev === 0 || now === 0) continue;
+    if((prev < 0) !== (now < 0)) out.push({i, up: now > 0, px: bars[i].c});
+  }
+  return out;
+}
+
+function drawEma(cv, sym, bars){
+  if(!cv || !bars || bars.length < 60) return null;
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if(!W || !H) return null;
+  cv.width = W*dpr; cv.height = H*dpr;
+  const x = cv.getContext('2d');
+  x.setTransform(dpr,0,0,dpr,0,0);
+  x.clearRect(0,0,W,H);
+
+  const close = bars.map(k => k.c);
+  const lines = EMA_SET.map(e => ({...e, v: ema(close, e.len)}));
+
+  /* sirf aakhri 60 candles dikhao, par EMA poori history se bani hai */
+  const n = Math.min(bars.length, 60);
+  const st = bars.length - n;
+  const b = bars.slice(st);
+
+  const PAD_R = 62, PAD_T = 10, PAD_B = 14;
+  const vis = [];
+  b.forEach(k => { vis.push(k.h, k.l) });
+  lines.forEach(L => { for(let i = st; i < bars.length; i++) vis.push(L.v[i]) });
+  let lo = Math.min(...vis), hi = Math.max(...vis);
+  const pad = (hi - lo) * 0.08 || SPECS[sym].pip;
+  lo -= pad; hi += pad;
+
+  const CW = W - PAD_R, CH = H - PAD_T - PAD_B;
+  const Y = v => PAD_T + (hi - v) / (hi - lo) * CH;
+  const bw = CW / n;
+  const X = i => (i - st) * bw + bw/2;
+
+  x.save(); x.beginPath(); x.rect(0, 0, CW, H); x.clip();
+
+  /* candles halke rang me — asli kahani EMA lines hain */
+  b.forEach((k,i) => {
+    const cx = i*bw + bw/2;
+    const grn = k.c >= k.o;
+    x.strokeStyle = grn ? 'rgba(0,255,150,.35)' : 'rgba(255,68,68,.35)';
+    x.fillStyle = x.strokeStyle;
+    x.lineWidth = 1;
+    x.beginPath(); x.moveTo(cx, Y(k.h)); x.lineTo(cx, Y(k.l)); x.stroke();
+    const bh = Math.max(1, Math.abs(Y(k.o)-Y(k.c)));
+    x.fillRect(cx - Math.max(1,bw*0.26), Math.min(Y(k.o),Y(k.c)), Math.max(2,bw*0.52), bh);
+  });
+
+  /* EMA lines */
+  lines.forEach(L => {
+    x.strokeStyle = L.c; x.lineWidth = 1.8;
+    x.beginPath();
+    for(let i = st; i < bars.length; i++){
+      const px = X(i), py = Y(L.v[i]);
+      i === st ? x.moveTo(px, py) : x.lineTo(px, py);
+    }
+    x.stroke();
+  });
+
+  /* crossover circles — sirf woh jo dikhne wali range me hain */
+  const pairs = [[0,1],[0,2],[1,2]];
+  const marks = [];
+  pairs.forEach(([a,b2]) => {
+    emaCrosses(lines[a].v, lines[b2].v, bars, st).forEach(c => {
+      marks.push({...c, a, b: b2});
+    });
+  });
+  marks.forEach(m => {
+    const px = X(m.i), py = Y(lines[m.a].v[m.i]);
+    const col = m.up ? '#00FF96' : '#FF4444';
+    x.beginPath(); x.arc(px, py, 7, 0, Math.PI*2);
+    x.fillStyle = m.up ? 'rgba(0,255,150,.18)' : 'rgba(255,68,68,.18)';
+    x.fill();
+    x.strokeStyle = col; x.lineWidth = 2; x.stroke();
+    /* 9×21 sabse zaroori cross hai — usko bharaa hua dot bhi do */
+    if(m.a === 0 && m.b === 1){
+      x.beginPath(); x.arc(px, py, 2.6, 0, Math.PI*2);
+      x.fillStyle = col; x.fill();
+    }
+  });
+  x.restore();
+
+  /* right side ke labels */
+  x.font = '600 10px ui-monospace,monospace';
+  x.textAlign = 'left'; x.textBaseline = 'middle';
+  lines.forEach(L => {
+    const v = L.v[bars.length-1], py = Y(v);
+    x.fillStyle = L.c;
+    x.fillRect(CW, py-8, PAD_R, 16);
+    x.fillStyle = '#04120d';
+    x.fillText(fmt(sym, v), CW+4, py);
+  });
+
+  return {lines, marks, bars, st};
+}
+
+function emaSummary(sym, r){
+  if(!r) return '';
+  const {lines, marks, bars} = r;
+  const i = bars.length - 1;
+  const e9 = lines[0].v[i], e21 = lines[1].v[i], e55 = lines[2].v[i];
+  const px = bars[i].c;
+
+  /* stack — teeno ek hi kram me hain to trend saaf hai */
+  const bull = e9 > e21 && e21 > e55 && px > e9;
+  const bear = e9 < e21 && e21 < e55 && px < e9;
+  const stack = bull ? {t:'BULLISH STACK', c:'var(--up)', d:'9 &gt; 21 &gt; 55 aur price sabse upar'}
+              : bear ? {t:'BEARISH STACK', c:'var(--dn)', d:'9 &lt; 21 &lt; 55 aur price sabse neeche'}
+              : {t:'MIXED', c:'var(--gold)', d:'EMA aapas me uljhi hain — trend saaf nahi'};
+
+  /* aakhri 9x21 cross */
+  const key = marks.filter(m => m.a === 0 && m.b === 1);
+  const last9 = key.length ? key[key.length-1] : null;
+  const ago = last9 ? (bars.length - 1 - last9.i) : null;
+
+  const row = (L, v) => `<div class="lbl">
+      <span><span style="display:inline-block;width:10px;height:3px;background:${L.c};vertical-align:middle;margin-right:6px"></span>${L.name}</span>
+      <b class="mono">${fmt(sym, v)}</b></div>`;
+
+  return `
+    <div style="border:1px solid ${stack.c};border-radius:8px;padding:11px;margin:10px 0">
+      <b style="color:${stack.c};font-size:11.5px;letter-spacing:1.4px">${stack.t}</b>
+      <p class="hint" style="margin:4px 0 0">${stack.d}</p>
+    </div>
+    ${row(lines[0], e9)}${row(lines[1], e21)}${row(lines[2], e55)}
+    <div class="lbl"><span>Price</span><b class="mono">${fmt(sym, px)}</b></div>
+    ${last9 ? `<div class="lbl"><span>Aakhri 9×21 cross</span>
+      <b class="mono" style="color:${last9.up?'var(--up)':'var(--dn)'}">${last9.up?'UP':'DOWN'} · ${ago === 0 ? 'abhi wali candle' : ago + ' candle pehle'} · ${fmt(sym, last9.px)}</b></div>`
+      : `<div class="lbl"><span>Aakhri 9×21 cross</span><b class="mono" style="color:var(--dim)">dikhne wali range me nahi</b></div>`}
+    <p class="hint" style="margin-top:9px">Circle wahan lagti hai jahan do EMA ek doosre ko kaatti hain — hari matlab tez line upar nikli, laal matlab neeche. Bhari hui dot sirf 9×21 ke liye hai.</p>
+    ${last9 && ago <= 1 ? `<p class="hint" style="color:var(--gold);margin-top:6px">⚠ Cross abhi-abhi hua hai. Taza cross sabse zyada fail hota hai — ek candle band hone ka intezaar karna behtar rehta hai.</p>` : ''}`;
+}
+
+/* chart wale timeframe ka apna cache. barCache me analysis ka timeframe
+   hota hai — usme doosre TF ki candles likhna signal chart aur trade ke
+   level charts dono ko galat kar deta, isliye alag rakha hai. */
+const emaCache = {};
+
+async function loadEma(force){
+  const sym = S.pair, cv = $('emaChart'), box = $('emaBox');
+  if(!cv || !box) return;
+  const tf = TFS.find(t => t.tv === S.chartTf) || TFS.find(t => t.id === S.tf) || {l:'', id:S.tf};
+  $('emaTf').textContent = SPECS[sym].n + ' · ' + tf.l;
+
+  const key = sym + '|' + tf.id;
+  const hit = emaCache[key];
+  /* analysis ne abhi isi TF ki candles laayi hain to wahi use karo — free */
+  let bars = (tf.id === S.tf && barCache[sym] && barCache[sym].length >= 60)
+    ? barCache[sym]
+    : (hit && Date.now() - hit.at < 120000 ? hit.bars : null);
+
+  if(force || !bars || bars.length < 60){
+    if(!S.key){ box.innerHTML = '<p class="hint" style="color:var(--dn);margin-top:10px">Pehle Settings me TwelveData key daalo.</p>'; return }
+    box.innerHTML = '<p class="hint" style="margin-top:10px"><span class="spin"></span> Candles aa rahi hain…</p>';
+    try{
+      bars = await getSeries(sym, tf.id, 200);
+      emaCache[key] = {at: Date.now(), bars};
+    }catch(e){
+      box.innerHTML = `<p class="hint" style="color:var(--dn);margin-top:10px">${e.message || 'Data nahi mila'}</p>`;
+      return;
+    }
+  }
+  if(!bars || bars.length < 60){
+    box.innerHTML = '<p class="hint" style="margin-top:10px">EMA 55 ke liye kam se kam 60 candles chahiye — REFRESH dabao.</p>';
+    return;
+  }
+  const r = drawEma(cv, sym, bars);
+  box.innerHTML = emaSummary(sym, r);
 }
 
 function chartBig(){
