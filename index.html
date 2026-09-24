@@ -1157,6 +1157,48 @@ body.ds-gold .gVerdict:not(:empty){display:flex;align-items:center;gap:16px;back
   border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin:0 0 12px}
 body.ds-gold .gVerdict b{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:600;line-height:1;white-space:nowrap}
 body.ds-gold .gVerdict p{margin:0;font-size:13px;color:var(--mut);line-height:1.45}
+
+/* ==================================================================
+   GOLD RESERVE — preview se milaan (v9.7.2)
+   ================================================================== */
+.gOnlyB,.sigMoreBtn,.gWarn{display:none}
+
+/* header: poora dikhe, button 44x44 */
+body.ds-gold header{padding-top:calc(12px + env(safe-area-inset-top)) !important;padding-bottom:10px !important}
+body.ds-gold .hrow .ib{align-self:center;max-height:44px}
+
+/* pair / lot */
+body.ds-gold .plGrid .pick{font-family:'Manrope',system-ui,sans-serif !important;font-weight:700 !important;
+  font-size:17px !important;letter-spacing:0}
+body.ds-gold .plGrid .pick i{display:none !important}
+body.ds-gold .plGrid input.mono{font-family:'DM Mono',ui-monospace,monospace !important;font-weight:400 !important;font-size:17px !important}
+
+/* HTF switch Signals screen pe nahi (Settings me hai) */
+body.ds-gold #swHtf{display:none !important}
+body.ds-gold #tfChips{margin-bottom:14px !important}
+
+/* buttons: Analyze + MT5 */
+body.ds-gold .cOnly{display:none !important}
+body.ds-gold .gOnlyB{display:flex !important;align-items:center;justify-content:center;gap:9px}
+body.ds-gold .gOnlyB .dsi{display:block}
+
+/* signal card */
+body.ds-gold .tag.buy{background:var(--up) !important;color:#082214 !important;border:0 !important;padding:5px 14px !important}
+body.ds-gold .tag.sell{background:var(--dn) !important;color:#2A0B07 !important;border:0 !important;padding:5px 14px !important}
+body.ds-gold #cardSignal .sig-h{margin-bottom:14px}
+body.ds-gold .gWarn:not(:empty){display:block}
+body.ds-gold .sigMore{display:none}
+body.ds-gold .cWarn{display:none}
+body.ds-gold .sig.open .sigMore{display:block}
+body.ds-gold .sigMoreBtn{display:flex;width:100%;height:44px;align-items:center;justify-content:center;
+  background:transparent;border:0;border-top:1px solid var(--line);margin-top:4px;
+  color:var(--mut);font-family:'Manrope',system-ui,sans-serif;font-size:12.5px;font-weight:700}
+body.ds-gold .sigMoreBtn .ml{display:none}
+body.ds-gold .sig.open .sigMoreBtn .mm{display:none}
+body.ds-gold .sig.open .sigMoreBtn .ml{display:inline}
+
+/* verdict: "Le lo" ek line me */
+body.ds-gold .gVerdict b{font-size:32px}
 </style>
 </head>
 <body>
@@ -1221,20 +1263,21 @@ body.ds-gold .gVerdict p{margin:0;font-size:13px;color:var(--mut);line-height:1.
     <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
     <div class="grid2 plGrid" style="margin-bottom:10px">
       <div><label>Pair</label><button class="pick" id="selPair" onclick="openPick('main')"></button></div>
-      <div><label>Lots <span class="em" style="color:var(--gold)">🔒</span><span class="gonly">· locked</span></label>
+      <div><label>Lot <span class="em" style="color:var(--gold)">🔒</span><span class="gonly">· locked</span></label>
         <input class="mono" id="inLots" type="number" step="0.01" value="0.01" readonly
                onclick="toast('Lot Settings → Default Trade Size me badalta hai')"
                style="opacity:.75"></div>
     </div>
     <label class="tfLab">Timeframe</label>
     <div class="chips" id="tfChips" style="margin-bottom:12px"></div>
-    <div class="sw" id="swHtf" onclick="toggleSw(this,'htf')">
+    <div class="sw" id="swHtf" onclick="setHtf()">
       <div class="tg"></div>
       <div>HTF Confluence Filter<small>Dono HTF ulte hon to signal block; ek match ho to strong setup chal sakta hai</small></div>
     </div>
     <div class="grid2 anlBtns">
       <button class="btn gold" id="btnAnalyze" onclick="runAnalyze()">Analyze Karo</button>
-      <button class="btn ghost" onclick="refreshAll()">⟳ Rates Refresh</button>
+      <button class="btn ghost cOnly" onclick="refreshAll()">⟳ Rates Refresh</button>
+      <button class="btn ghost gOnlyB" onclick="sendSignalMT5()"><svg class="dsi" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"></path><path d="M11.5 13.5L20 4"></path></svg><span>MT5 pe Lagao</span></button>
     </div>
   </div>
 
@@ -1555,7 +1598,12 @@ body.ds-gold .gVerdict p{margin:0;font-size:13px;color:var(--mut);line-height:1.
     </div>
     <button class="btn gold sm" style="width:auto;padding:9px 13px" onclick="forceUpdate()">🔄 Update</button>
   </div>
-  <p class="ttl">App Design</p>
+  <div class="sw" id="swHtf2" onclick="setHtf()">
+    <div class="tg"></div>
+    <div>HTF Confluence Filter<small>Dono HTF ulte hon to signal block — Signals page wala switch bhi yahi hai</small></div>
+  </div>
+
+  <p class="ttl" style="margin-top:14px">App Design</p>
   <div class="dsPick" style="margin-bottom:8px">
     <button class="dsCard" data-ds="classic" onclick="setDesign('classic')">
       <span class="dsw" style="background:#0a0704;border-color:#E8B54B"><i style="background:#E8B54B"></i><i style="background:#3a2c14"></i></span>
@@ -1778,7 +1826,7 @@ body.ds-gold .gVerdict p{margin:0;font-size:13px;color:var(--mut);line-height:1.
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.7.1';
+const VERSION = '9.7.2';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2693,6 +2741,12 @@ function setDesign(d){
 }
 /* purana color theme ab nahi hai — Classic hamesha gold */
 function setTheme(t){ setDesign('classic') }
+/* HTF switch do jagah hai (Signals + Settings) — dono ek saath chalein */
+function setHtf(){
+  S.htf = !S.htf; save();
+  ['swHtf','swHtf2'].forEach(id => { const e = $(id); if(e) e.classList.toggle('on', S.htf) });
+  toast(S.htf ? 'HTF filter on' : 'HTF filter off');
+}
 function toggleSw(el,key){ S[key]=!S[key]; el.classList.toggle('on',S[key]); save(); }
 
 /* ---------- 12-hour clock ---------- */
@@ -3631,12 +3685,16 @@ function renderSignal(){
         <b class="shine ${f.c==='var(--up)'?'up':f.c==='var(--dn)'?'dn':'gd'}">${f.t}</b>
         <p style="color:${f.c}">${f.why}</p>
       </div>`; })()}
+      <div class="gWarn">${newsBox}${weak}${warn}</div>
+      <button class="sigMoreBtn" onclick="const c=this.closest('.sig');c.classList.toggle('open');requestAnimationFrame(paintSignalChart)">
+        <span class="mm">Details — chart, timeframe, journal, share</span><span class="ml">Details band karo</span></button>
+      <div class="sigMore">
       ${levelChartHTML('sigChart')}
       <div class="tfrow">
         ${s.tfs.map(t=>`<div class="tfp ${t.b==='BUY'?'up':t.b==='SELL'?'dn':'nu'}"><span>${t.l}</span><b>${t.b==='NEUTRAL'?'—':t.b}</b></div>`).join('')}
       </div>
        <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)} · <span style="color:var(--up)">✓ closed candle confirmed</span></p>
-      ${newsBox}${weak}${warn}
+      <div class="cWarn">${newsBox}${weak}${warn}</div>
       ${lastVotes && lastVotes.sym===s.sym ? `<div style="display:flex;align-items:center;gap:8px;background:var(--panel);
         border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-top:10px" onclick="go('Votes',document.querySelector('nav button[data-pg=Votes]'))">
         <span style="font-size:10px;color:var(--mut);letter-spacing:1px">50 AGENTS</span>
@@ -3652,6 +3710,7 @@ function renderSignal(){
       <div class="acts" style="margin-top:7px">
         <button class="btn ghost sm" onclick="shareWa()">WhatsApp</button>
         <button class="btn ghost sm" onclick="tgSend(fullReport(true))">Telegram</button>
+      </div>
       </div>
     </div>`;
   setChart(s.sym);
@@ -8018,6 +8077,7 @@ function boot(){
   };
 
   $('swHtf').classList.toggle('on', S.htf);
+  if($('swHtf2')) $('swHtf2').classList.toggle('on', S.htf);
   $('swNews').classList.toggle('on', S.newsOn);
   $('btBars').value = S.btBars; $('btFwd').value = S.btFwd;
   $('btBars').onchange = e => { S.btBars = +e.target.value; save() };
