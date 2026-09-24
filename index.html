@@ -1556,7 +1556,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.5.0';
+const VERSION = '9.6.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -4560,6 +4560,86 @@ function emaCrosses(a, b, bars, from){
   return out;
 }
 
+/* candle ka time (TwelveData IST me deta hai: "2026-09-24 14:15:00") */
+function barTime(t){
+  if(!t) return '—';
+  const [d, tm] = String(t).split(' ');
+  const today = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'});
+  const dd = new Date(d + 'T00:00:00').toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+  if(!tm) return dd;                         /* daily candle */
+  const [h, m] = tm.split(':').map(Number);
+  const hm = `${((h + 11) % 12) + 1}:${String(m).padStart(2,'0')} ${h >= 12 ? 'pm' : 'am'}`;
+  return d === today ? hm : `${hm} · ${dd}`;
+}
+
+/* teeno jodiyon ke saare cross, purane se naye */
+function allEmaCrosses(lines, bars){
+  const pairs = [[0,1,'9×21'],[0,2,'9×55'],[1,2,'21×55']];
+  const out = [];
+  pairs.forEach(([a,b,lab]) => {
+    emaCrosses(lines[a].v, lines[b].v, bars, 1).forEach(c => {
+      out.push({...c, a, b, lab, lvl: (lines[a].v[c.i] + lines[b].v[c.i]) / 2});
+    });
+  });
+  return out.sort((x,y) => x.i - y.i);
+}
+
+/* ---------------- EMA trade plan ----------------
+   Seedha niyam, koi jadoo nahi:
+   - Direction: teeno EMA ek kram me hon (9>21>55 BUY, 9<21<55 SELL).
+     Uljhi hon to plan hi nahi banta — WAIT.
+   - Entry: EMA 21 wala pullback zone. Price abhi 9 aur 21 ke beech hai
+     to market, warna EMA 21 pe limit — bhaagte price ke peeche nahi.
+   - SL: EMA 55 aur pichhli 12 candles ke swing me jo door ho, uske peeche
+     0.25 ATR. Kam se kam 0.8 ATR, taaki normal shor me na lage.
+   - TP: 1.6R (app ka default R:R), TP2 2.5R.
+   Ye ek rule-based plan hai, signal engine ka verdict nahi. */
+function emaPlan(sym, bars, lines){
+  const i = bars.length - 1;
+  const e9 = lines[0].v[i], e21 = lines[1].v[i], e55 = lines[2].v[i];
+  const px = bars[i].c;
+  const a = atr(bars, 14)[i] || SPECS[sym].pip * 10;
+  const bull = e9 > e21 && e21 > e55, bear = e9 < e21 && e21 < e55;
+  if(!bull && !bear)
+    return {dir:'WAIT', why:'9, 21 aur 55 ek kram me nahi hain — trend saaf hone do. Uljhi EMA pe entry sabse zyada SL khaati hai.'};
+  /* sideways me EMA pal-bhar ke liye kram me aa jaati hain — isliye 55 ka
+     dhalaan aur 9–55 ki doori bhi chahiye, warna har chop pe plan banega */
+  const slope = e55 - lines[2].v[Math.max(0, i - 10)];
+  if((bull && slope <= 0) || (bear && slope >= 0) || Math.abs(e9 - e55) < 0.3 * a)
+    return {dir:'WAIT', why:'EMA kram me to hain, par EMA 55 flat hai — ye trend nahi, sirf shor hai. Saaf dhalaan ka intezaar karo.'};
+
+  const dir = bull ? 'BUY' : 'SELL';
+  const inZone = bull ? (px <= e9 && px >= e21) : (px >= e9 && px <= e21);
+  const entry = inZone ? px : e21;
+  const kind = inZone ? 'MARKET' : 'LIMIT';
+
+  const look = bars.slice(-12);
+  const swing = bull ? Math.min(...look.map(k => k.l)) : Math.max(...look.map(k => k.h));
+  /* swing aur EMA 55 me se jo entry ke PAAS ho (par sahi taraf), wahi SL ka
+     aadhaar — door wala lene se har baar 3-4 ATR ka SL ban raha tha */
+  const cand = [swing, e55].filter(v => bull ? v < entry : v > entry);
+  const base = cand.length ? (bull ? Math.max(...cand) : Math.min(...cand))
+                           : (bull ? entry - 1.2*a : entry + 1.2*a);
+  let sl = bull ? base - 0.25*a : base + 0.25*a;
+  let risk = Math.abs(entry - sl);
+  if(risk < 0.8*a){ risk = 0.8*a; sl = bull ? entry - risk : entry + risk }
+  const tp  = bull ? entry + 1.6*risk : entry - 1.6*risk;
+  const tp2 = bull ? entry + 2.5*risk : entry - 2.5*risk;
+
+  const upp = usdPerPoint(sym, entry, 0.01), pip = SPECS[sym].pip;
+  const far = Math.abs(px - e9) / a;                   /* price EMA 9 se kitna door */
+  const warn = [];
+  if(risk > 3*a) warn.push(`SL ${ (risk/a).toFixed(1) } ATR door hai — trend bahut phaila hua hai, ye trade chhod dena behtar.`);
+  if(!inZone && far > 1.5) warn.push('Price EMA 9 se kaafi aage bhaag chuka hai — limit tabhi lagegi jab wapas EMA 21 tak aaye. Peeche mat bhaago.');
+  if((bull && px < e21) || (bear && px > e21)) warn.push('Price EMA 21 ke galat taraf hai — trend kamzor ho raha hai.');
+
+  return {dir, kind, entry, sl, tp, tp2, risk, a, px,
+          slPips: risk/pip, tpPips: 1.6*risk/pip,
+          slUsd: risk*upp, tpUsd: 1.6*risk*upp, warn,
+          why: inZone ? 'Price abhi pullback zone (EMA 9–21) me hai — seedhi entry.'
+                      : 'Price zone ke bahar hai — EMA 21 pe pullback ka intezaar, limit order.'};
+}
+
 function drawEma(cv, sym, bars){
   if(!cv || !bars || bars.length < 60) return null;
   const dpr = window.devicePixelRatio || 1;
@@ -4572,18 +4652,21 @@ function drawEma(cv, sym, bars){
 
   const close = bars.map(k => k.c);
   const lines = EMA_SET.map(e => ({...e, v: ema(close, e.len)}));
+  const crosses = allEmaCrosses(lines, bars);
+  const last3 = crosses.slice(-3).reverse();          /* sabse naya pehle */
+  const plan = emaPlan(sym, bars, lines);
 
-  /* sirf aakhri 60 candles dikhao, par EMA poori history se bani hai */
   const n = Math.min(bars.length, 60);
   const st = bars.length - n;
   const b = bars.slice(st);
 
-  const PAD_R = 62, PAD_T = 10, PAD_B = 14;
+  const PAD_R = 62, PAD_T = 12, PAD_B = 14;
   const vis = [];
-  b.forEach(k => { vis.push(k.h, k.l) });
+  b.forEach(k => vis.push(k.h, k.l));
   lines.forEach(L => { for(let i = st; i < bars.length; i++) vis.push(L.v[i]) });
+  if(plan.dir !== 'WAIT') vis.push(plan.sl, plan.tp);
   let lo = Math.min(...vis), hi = Math.max(...vis);
-  const pad = (hi - lo) * 0.08 || SPECS[sym].pip;
+  const pad = (hi - lo) * 0.06 || SPECS[sym].pip;
   lo -= pad; hi += pad;
 
   const CW = W - PAD_R, CH = H - PAD_T - PAD_B;
@@ -4593,19 +4676,23 @@ function drawEma(cv, sym, bars){
 
   x.save(); x.beginPath(); x.rect(0, 0, CW, H); x.clip();
 
-  /* candles halke rang me — asli kahani EMA lines hain */
+  /* plan ka zone: entry se TP hari, entry se SL laal */
+  if(plan.dir !== 'WAIT'){
+    x.fillStyle = 'rgba(0,255,150,.07)';
+    x.fillRect(0, Math.min(Y(plan.entry), Y(plan.tp)), CW, Math.abs(Y(plan.tp) - Y(plan.entry)));
+    x.fillStyle = 'rgba(255,68,68,.08)';
+    x.fillRect(0, Math.min(Y(plan.entry), Y(plan.sl)), CW, Math.abs(Y(plan.sl) - Y(plan.entry)));
+  }
+
   b.forEach((k,i) => {
-    const cx = i*bw + bw/2;
-    const grn = k.c >= k.o;
+    const cx = i*bw + bw/2, grn = k.c >= k.o;
     x.strokeStyle = grn ? 'rgba(0,255,150,.35)' : 'rgba(255,68,68,.35)';
-    x.fillStyle = x.strokeStyle;
-    x.lineWidth = 1;
+    x.fillStyle = x.strokeStyle; x.lineWidth = 1;
     x.beginPath(); x.moveTo(cx, Y(k.h)); x.lineTo(cx, Y(k.l)); x.stroke();
     const bh = Math.max(1, Math.abs(Y(k.o)-Y(k.c)));
     x.fillRect(cx - Math.max(1,bw*0.26), Math.min(Y(k.o),Y(k.c)), Math.max(2,bw*0.52), bh);
   });
 
-  /* EMA lines */
   lines.forEach(L => {
     x.strokeStyle = L.c; x.lineWidth = 1.8;
     x.beginPath();
@@ -4616,78 +4703,121 @@ function drawEma(cv, sym, bars){
     x.stroke();
   });
 
-  /* crossover circles — sirf woh jo dikhne wali range me hain */
-  const pairs = [[0,1],[0,2],[1,2]];
-  const marks = [];
-  pairs.forEach(([a,b2]) => {
-    emaCrosses(lines[a].v, lines[b2].v, bars, st).forEach(c => {
-      marks.push({...c, a, b: b2});
-    });
-  });
-  marks.forEach(m => {
-    const px = X(m.i), py = Y(lines[m.a].v[m.i]);
+  /* plan lines */
+  const hline = (v, col, dash, w) => {
+    x.strokeStyle = col; x.lineWidth = w || 1.3; x.setLineDash(dash || []);
+    x.beginPath(); x.moveTo(0, Y(v)); x.lineTo(CW, Y(v)); x.stroke(); x.setLineDash([]);
+  };
+  if(plan.dir !== 'WAIT'){
+    hline(plan.tp2, 'rgba(0,255,150,.35)', [2,4]);
+    hline(plan.tp,  '#00FF96', [], 1.4);
+    hline(plan.sl,  '#FF4444', [], 1.4);
+    hline(plan.entry, '#FFB800', [6,4], 1.6);
+  }
+
+  /* sirf aakhri 3 cross — numbered, 1 = sabse naya */
+  last3.forEach((m, k) => {
+    if(m.i < st) return;
+    const px = X(m.i), py = Y(m.lvl);
     const col = m.up ? '#00FF96' : '#FF4444';
-    x.beginPath(); x.arc(px, py, 7, 0, Math.PI*2);
-    x.fillStyle = m.up ? 'rgba(0,255,150,.18)' : 'rgba(255,68,68,.18)';
-    x.fill();
-    x.strokeStyle = col; x.lineWidth = 2; x.stroke();
-    /* 9×21 sabse zaroori cross hai — usko bharaa hua dot bhi do */
-    if(m.a === 0 && m.b === 1){
-      x.beginPath(); x.arc(px, py, 2.6, 0, Math.PI*2);
-      x.fillStyle = col; x.fill();
-    }
+    x.beginPath(); x.arc(px, py, 9, 0, Math.PI*2);
+    x.fillStyle = m.up ? 'rgba(0,255,150,.20)' : 'rgba(255,68,68,.20)'; x.fill();
+    x.strokeStyle = col; x.lineWidth = 2.2; x.stroke();
+    x.fillStyle = '#FFFFFF'; x.font = '700 10px ui-monospace,monospace';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(String(k+1), px, py);
   });
+
+  /* plan ke tag left side pe — right side EMA labels ke liye hai */
+  if(plan.dir !== 'WAIT'){
+    x.font = '700 10px ui-monospace,monospace'; x.textAlign = 'left'; x.textBaseline = 'middle';
+    [['TP', plan.tp, '#00FF96'], ['ENTRY', plan.entry, '#FFB800'], ['SL', plan.sl, '#FF4444']].forEach(([t, v, c]) => {
+      const py = Y(v), w = x.measureText(t).width + 10;
+      x.fillStyle = c; x.fillRect(2, py - 8, w, 16);
+      x.fillStyle = '#04120d'; x.fillText(t, 7, py);
+    });
+  }
   x.restore();
 
-  /* right side ke labels */
   x.font = '600 10px ui-monospace,monospace';
   x.textAlign = 'left'; x.textBaseline = 'middle';
   lines.forEach(L => {
     const v = L.v[bars.length-1], py = Y(v);
-    x.fillStyle = L.c;
-    x.fillRect(CW, py-8, PAD_R, 16);
-    x.fillStyle = '#04120d';
-    x.fillText(fmt(sym, v), CW+4, py);
+    x.fillStyle = L.c; x.fillRect(CW, py-8, PAD_R, 16);
+    x.fillStyle = '#04120d'; x.fillText(fmt(sym, v), CW+4, py);
   });
 
-  return {lines, marks, bars, st};
+  return {lines, last3, plan, bars, st};
 }
 
 function emaSummary(sym, r){
   if(!r) return '';
-  const {lines, marks, bars} = r;
+  const {lines, last3, plan, bars} = r;
   const i = bars.length - 1;
   const e9 = lines[0].v[i], e21 = lines[1].v[i], e55 = lines[2].v[i];
-  const px = bars[i].c;
 
-  /* stack — teeno ek hi kram me hain to trend saaf hai */
+  /* ---- plan card ---- */
+  let planHtml;
+  if(plan.dir === 'WAIT'){
+    planHtml = `<div style="border:1px solid var(--gold);border-radius:10px;padding:13px;margin:12px 0">
+      <b style="color:var(--gold);font-size:12px;letter-spacing:1.5px">EMA PLAN · WAIT</b>
+      <p class="hint" style="margin:6px 0 0">${plan.why}</p></div>`;
+  } else {
+    const up = plan.dir === 'BUY', c = up ? 'var(--up)' : 'var(--dn)';
+    planHtml = `<div style="border:1px solid ${c};border-radius:10px;padding:13px;margin:12px 0">
+      <div style="display:flex;align-items:center;gap:10px">
+        <b style="font-size:12px;letter-spacing:1.5px;color:var(--gold)">EMA PLAN</b>
+        <b class="shine ${up?'up':'dn'}" style="font-size:17px">${plan.dir}</b>
+        <span class="gr" style="margin-left:auto">${plan.kind}</span>
+      </div>
+      <div class="lvls" style="margin:12px 0 8px">
+        <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(sym, plan.entry)}</b></div>
+        <div class="lvl sl"><span>SL</span><b class="mono">${fmt(sym, plan.sl)}</b>
+          <small style="display:block;font-size:10.5px;color:var(--mut)">${plan.slPips.toFixed(1)} pips · −${money(plan.slUsd)}</small></div>
+        <div class="lvl tp"><span>TP</span><b class="mono">${fmt(sym, plan.tp)}</b>
+          <small style="display:block;font-size:10.5px;color:var(--mut)">${plan.tpPips.toFixed(1)} pips · +${money(plan.tpUsd)}</small></div>
+      </div>
+      <div class="lbl"><span>TP 2 (2.5R)</span><b class="mono">${fmt(sym, plan.tp2)}</b></div>
+      <div class="lbl"><span>R:R · lot 0.01</span><b class="mono">1 : 1.6</b></div>
+      <p class="hint" style="margin:8px 0 0">${plan.why}</p>
+      ${plan.warn.map(w => `<p class="hint" style="color:var(--gold);margin:6px 0 0">⚠ ${w}</p>`).join('')}
+    </div>`;
+  }
+
+  /* ---- stack ---- */
+  const px = bars[i].c;
   const bull = e9 > e21 && e21 > e55 && px > e9;
   const bear = e9 < e21 && e21 < e55 && px < e9;
-  const stack = bull ? {t:'BULLISH STACK', c:'var(--up)', d:'9 &gt; 21 &gt; 55 aur price sabse upar'}
-              : bear ? {t:'BEARISH STACK', c:'var(--dn)', d:'9 &lt; 21 &lt; 55 aur price sabse neeche'}
-              : {t:'MIXED', c:'var(--gold)', d:'EMA aapas me uljhi hain — trend saaf nahi'};
+  const stack = bull ? ['BULLISH STACK','var(--up)','9 &gt; 21 &gt; 55 aur price sabse upar']
+              : bear ? ['BEARISH STACK','var(--dn)','9 &lt; 21 &lt; 55 aur price sabse neeche']
+              : ['MIXED','var(--gold)','EMA aapas me uljhi hain'];
 
-  /* aakhri 9x21 cross */
-  const key = marks.filter(m => m.a === 0 && m.b === 1);
-  const last9 = key.length ? key[key.length-1] : null;
-  const ago = last9 ? (bars.length - 1 - last9.i) : null;
-
-  const row = (L, v) => `<div class="lbl">
-      <span><span style="display:inline-block;width:10px;height:3px;background:${L.c};vertical-align:middle;margin-right:6px"></span>${L.name}</span>
-      <b class="mono">${fmt(sym, v)}</b></div>`;
+  /* ---- aakhri 3 cross ---- */
+  const crossRows = last3.length ? last3.map((m, k) => {
+    const ago = bars.length - 1 - m.i;
+    const live = ago === 0;
+    return `<div class="hist" style="padding:9px 0">
+      <div class="ic ${m.up ? 'w' : 'l'}" style="font-size:12px">${k+1}</div>
+      <div class="in"><b style="font-size:13px">${m.lab} <span style="color:${m.up?'var(--up)':'var(--dn)'}">${m.up ? 'UP' : 'DOWN'}</span></b>
+        <small>${barTime(bars[m.i].t)} · ${ago === 0 ? 'abhi wali candle' : ago + ' candle pehle'} · ${fmt(sym, m.lvl)}</small>
+        ${live ? '<small style="color:var(--gold)">Candle abhi band nahi hui — cross palat sakta hai</small>' : ''}</div>
+    </div>`;
+  }).join('') : '<p class="hint">Dikhne wali history me koi cross nahi.</p>';
 
   return `
-    <div style="border:1px solid ${stack.c};border-radius:8px;padding:11px;margin:10px 0">
-      <b style="color:${stack.c};font-size:11.5px;letter-spacing:1.4px">${stack.t}</b>
-      <p class="hint" style="margin:4px 0 0">${stack.d}</p>
+    ${planHtml}
+    <div style="display:flex;align-items:center;gap:10px;margin:4px 0 8px">
+      <b style="font-size:11.5px;letter-spacing:1.4px;color:${stack[1]}">${stack[0]}</b>
+      <span class="hint" style="margin:0">${stack[2]}</span>
     </div>
-    ${row(lines[0], e9)}${row(lines[1], e21)}${row(lines[2], e55)}
-    <div class="lbl"><span>Price</span><b class="mono">${fmt(sym, px)}</b></div>
-    ${last9 ? `<div class="lbl"><span>Aakhri 9×21 cross</span>
-      <b class="mono" style="color:${last9.up?'var(--up)':'var(--dn)'}">${last9.up?'UP':'DOWN'} · ${ago === 0 ? 'abhi wali candle' : ago + ' candle pehle'} · ${fmt(sym, last9.px)}</b></div>`
-      : `<div class="lbl"><span>Aakhri 9×21 cross</span><b class="mono" style="color:var(--dim)">dikhne wali range me nahi</b></div>`}
-    <p class="hint" style="margin-top:9px">Circle wahan lagti hai jahan do EMA ek doosre ko kaatti hain — hari matlab tez line upar nikli, laal matlab neeche. Bhari hui dot sirf 9×21 ke liye hai.</p>
-    ${last9 && ago <= 1 ? `<p class="hint" style="color:var(--gold);margin-top:6px">⚠ Cross abhi-abhi hua hai. Taza cross sabse zyada fail hota hai — ek candle band hone ka intezaar karna behtar rehta hai.</p>` : ''}`;
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px">
+      ${lines.map((L, k) => `<div style="border:1px solid var(--line);border-radius:8px;padding:8px">
+        <span style="display:block;font-size:10.5px;color:${L.c};font-weight:700;letter-spacing:1px">${L.name}</span>
+        <b class="mono" style="font-size:12.5px">${fmt(sym, [e9,e21,e55][k])}</b></div>`).join('')}
+    </div>
+    <p class="ttl" style="margin:14px 0 4px">Aakhri 3 Crossover</p>
+    ${crossRows}
+    <p class="hint" style="margin-top:9px">Chart pe number wahi hain jo yahan — 1 sabse naya. Hari circle = tez EMA upar nikli, laal = neeche. Time candle ke shuru hone ka hai (IST).</p>`;
 }
 
 /* chart wale timeframe ka apna cache. barCache me analysis ka timeframe
