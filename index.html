@@ -955,6 +955,143 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 .pick{display:flex; align-items:center; gap:8px; padding:12px 11px}
 .pick>span:first-child{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .pick i{flex:0 0 auto; white-space:nowrap; font-size:10.5px; margin-left:auto}
+
+/* ==================================================================
+   APP DESIGN — shared
+   Design picker ke bits. Naye design ke hisse (svg icons, page title,
+   price ladder) Classic me chhupe rehte hain.
+   ================================================================== */
+.dsi{display:none}
+.pghd{display:none}
+.gr-ladder{display:none}
+.ib .em{font-style:normal;margin-right:4px}
+nav button .nl{display:block}
+.dsPick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dsCard{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px;border-radius:12px;
+  border:1px solid var(--line);background:var(--panel);color:var(--txt);text-align:left;min-height:100px}
+.dsCard b{font-size:12.5px}
+.dsCard small{font-size:10.5px;color:var(--mut)}
+.dsCard.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+.dsw{width:100%;height:34px;border-radius:8px;border:1px solid;display:flex;align-items:flex-end;gap:4px;padding:5px;box-sizing:border-box}
+.dsw i{display:block;width:16px;height:8px;border-radius:2px}
+
+/* ==================================================================
+   APP DESIGN — GOLD RESERVE
+   Preview wala look: shaant sona, Fraunces serif headline, Manrope body,
+   DM Mono number. Classic ke bold 2px kinare yahan patle 1px hain — isliye
+   har override !important ke saath, warna upar wali parat jeet jaati.
+   ================================================================== */
+body.ds-gold{
+  --bg:#0E0C09; --panel:#17140F; --panel2:#1E1A13; --line:#342C1D;
+  --txt:#F3ECDD; --mut:#AEA289; --dim:#857A63; --lbl:#AEA289;
+  --gold:#D9B25F; --acc:#D9B25F; --up:#5BD08A; --dn:#F07161;
+  --shineA:#D9B25F; --shineB:#F0D595; --shineHi:#FFFFFF; --accRGB:217,178,95;
+  background:#0E0C09 !important; color:var(--txt);
+  font-family:'Manrope',system-ui,sans-serif;
+}
+body.ds-gold .mono{font-family:'DM Mono',ui-monospace,monospace}
+
+/* header */
+body.ds-gold header{background:#0E0C09 !important;border-bottom:1px solid var(--line) !important}
+body.ds-gold .hbox{background:transparent !important;border:0 !important;box-shadow:none !important;padding:8px 2px 6px !important}
+body.ds-gold .hbox h1{font-family:'Fraunces',Georgia,serif !important;font-weight:600 !important;font-size:24px !important;
+  letter-spacing:5px !important;color:var(--gold) !important}
+body.ds-gold .hbox p{font-size:10.5px;font-weight:700;letter-spacing:2.4px;color:var(--mut)}
+body.ds-gold .clock b{font-family:'DM Mono',ui-monospace,monospace;font-weight:500;color:var(--txt)}
+body.ds-gold .hrow .ib{height:44px;border-radius:12px !important;background:var(--panel) !important;
+  border:1px solid var(--line) !important;color:var(--gold) !important;font-family:'Manrope',system-ui,sans-serif;
+  font-size:11px;font-weight:800;letter-spacing:.8px;display:flex;align-items:center;justify-content:center;gap:7px;
+  box-shadow:none !important;text-shadow:none !important}
+body.ds-gold .ib .em{display:none}
+body.ds-gold .ib .dsi{display:block;flex:0 0 auto}
+
+/* page title (header sirf Signals pe dikhta hai) */
+body.ds-gold .pghd{display:flex;flex-direction:column;gap:3px;padding:18px 4px 14px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+body.ds-gold .pghd .pn{display:none}
+body.ds-gold .pghd b{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:600;color:var(--gold);line-height:1.05}
+body.ds-gold .pghd small{font-size:12px;color:var(--mut)}
+
+/* cards */
+body.ds-gold .card{background:var(--panel) !important;border:1px solid var(--line) !important;
+  border-radius:18px !important;box-shadow:none !important}
+body.ds-gold .card::before,body.ds-gold .card::after{display:none !important}
+body.ds-gold .card .card{background:var(--panel2) !important}
+body.ds-gold #cardSignal{border-color:var(--gold) !important}
+body.ds-gold .card .ttl{font-family:'Manrope',system-ui,sans-serif !important;font-size:11px !important;font-weight:800 !important;
+  letter-spacing:1.8px !important;text-transform:uppercase;color:var(--gold) !important;
+  border-bottom:0 !important;padding-bottom:0 !important;margin:0 0 12px !important}
+body.ds-gold .ttl .sp{color:var(--mut) !important;font-weight:600;letter-spacing:.4px;text-transform:none}
+body.ds-gold .hint{color:var(--mut)}
+body.ds-gold label{font-family:'Manrope',system-ui,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:1.6px;color:var(--mut)}
+body.ds-gold a{color:var(--gold)}
+
+/* buttons */
+body.ds-gold .btn{border-radius:14px !important;font-family:'Manrope',system-ui,sans-serif;font-weight:800;
+  letter-spacing:.4px;box-shadow:none !important;text-shadow:none !important}
+body.ds-gold .btn.gold{background:var(--gold) !important;border:1px solid var(--gold) !important;color:#1A1408 !important}
+body.ds-gold .btn.ghost{background:transparent !important;border:1px solid var(--gold) !important;color:var(--gold) !important}
+body.ds-gold .btn.g{background:rgba(91,208,138,.14) !important;border:1px solid var(--up) !important;color:var(--up) !important}
+body.ds-gold .btn.r{background:rgba(240,113,97,.14) !important;border:1px solid var(--dn) !important;color:var(--dn) !important}
+
+/* chips + timeframe segmented */
+body.ds-gold .chip{border-radius:12px !important;border:1px solid var(--line) !important;border-width:1px !important;
+  background:transparent !important;color:var(--txt) !important;font-family:'Manrope',system-ui,sans-serif;font-weight:700;box-shadow:none !important}
+body.ds-gold .chip.on,body.ds-gold .chip.on.gold{background:var(--gold) !important;border-color:var(--gold) !important;color:#1A1408 !important}
+body.ds-gold #tfChips{display:flex !important;gap:0 !important;flex-wrap:nowrap;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+body.ds-gold #tfChips .chip{flex:1 1 0;height:44px;border:0 !important;border-right:1px solid var(--line) !important;border-radius:0 !important}
+body.ds-gold #tfChips .chip:last-child{border-right:0 !important}
+
+/* inputs */
+body.ds-gold input,body.ds-gold select,body.ds-gold textarea,body.ds-gold .pick{background:var(--panel2) !important;
+  border:1px solid var(--line) !important;border-radius:12px !important;color:var(--txt) !important;font-family:'Manrope',system-ui,sans-serif}
+body.ds-gold input.mono{font-family:'DM Mono',ui-monospace,monospace}
+body.ds-gold .pick{font-weight:800}
+
+/* toggle */
+body.ds-gold .sw .tg{background:var(--line) !important;border-color:var(--line) !important}
+body.ds-gold .sw.on .tg{background:var(--gold) !important;border-color:var(--gold) !important}
+body.ds-gold .sw .tg::after{background:var(--mut) !important}
+body.ds-gold .sw.on .tg::after{background:#1A1408 !important}
+
+/* signal card */
+body.ds-gold .sig{background:transparent !important;border:0 !important;padding:0 !important}
+body.ds-gold .tag{border-radius:13px !important;font-weight:800}
+body.ds-gold .gr{border-radius:10px !important;background:transparent !important;border:1px solid var(--line) !important;color:var(--gold) !important}
+body.ds-gold .lvl{background:var(--panel2) !important;border:1px solid var(--line) !important;border-radius:12px !important}
+body.ds-gold .lvl.sl{border-color:rgba(240,113,97,.45) !important}
+body.ds-gold .lvl.tp{border-color:rgba(91,208,138,.45) !important}
+body.ds-gold #cardSignal .lvls{display:none}
+body.ds-gold .gr-ladder{display:flex;gap:14px;align-items:stretch;margin:4px 0 14px}
+body.ds-gold .ldr-col{flex:1;display:flex;flex-direction:column;justify-content:space-between}
+body.ds-gold .ldr span{display:block;font-size:10.5px;font-weight:800;letter-spacing:1.6px;color:var(--mut)}
+body.ds-gold .ldr b{display:block;font-size:18px;font-weight:500}
+body.ds-gold .ldr small{display:block;font-size:12px;color:var(--mut)}
+body.ds-gold .verdictbar{border-radius:14px !important}
+body.ds-gold .verdictbar > b{font-family:'Fraunces',Georgia,serif !important;font-size:26px !important;font-weight:600 !important;letter-spacing:0 !important}
+
+/* lists, stats, tables */
+body.ds-gold .hist{border-bottom:1px solid var(--line) !important}
+body.ds-gold th{border-bottom:1px solid var(--line) !important;color:var(--mut)}
+body.ds-gold .ic{border-radius:10px !important}
+body.ds-gold .pb,body.ds-gold .vc,body.ds-gold .st,body.ds-gold .ptot{background:var(--panel2) !important;
+  border:1px solid var(--line) !important;border-radius:14px !important}
+body.ds-gold .tick{border:1px solid var(--line) !important;border-radius:14px}
+body.ds-gold .tvbox{border-radius:14px}
+
+/* nav */
+body.ds-gold nav{background:var(--panel) !important;border-top:1px solid var(--line) !important;box-shadow:none !important}
+body.ds-gold nav button{color:var(--mut) !important;text-shadow:none !important;font-family:'Manrope',system-ui,sans-serif;
+  font-size:10.5px;font-weight:600;letter-spacing:.6px;gap:4px}
+body.ds-gold nav button.on{color:var(--gold) !important;font-weight:800}
+body.ds-gold nav button i{display:none !important}
+body.ds-gold nav button .dsi{display:block}
+
+/* sheets */
+body.ds-gold .sheet{background:var(--bg) !important;border:0 !important}
+body.ds-gold .sh-h{background:var(--panel) !important;border-bottom:1px solid var(--line) !important}
+body.ds-gold .sh-h h3{font-family:'Fraunces',Georgia,serif !important;font-weight:600 !important;font-size:22px !important;
+  color:var(--gold) !important;letter-spacing:0 !important;text-transform:none !important}
+body.ds-gold .dsCard{background:var(--panel2)}
 </style>
 </head>
 <body>
@@ -964,19 +1101,24 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
    khulte waqt default palette ki flash na dikhe. boot() thodi der baad
    isko dobara theek se chalata hai. */
 (function(){
-  var t = 'gold';
+  var d = 'classic';
   /* alag se padho: value kharab ho to bhi neeche wala paint na ruke */
   try{
-    var raw = localStorage.getItem('samu_theme');
-    if(raw) t = JSON.parse(raw);
+    var raw = localStorage.getItem('samu_design');
+    if(raw) d = JSON.parse(raw);
   }catch(e){}
-  if(!{terminal:1, gold:1, emerald:1, royal:1, navy:1}[t]) t = 'gold';
-  var bg = {terminal:'#0d0d0d', gold:'#0a0704', emerald:'#03100e',
-            royal:'#0d0413', navy:'#020a1c'}[t];
+  if(!{classic:1, gold:1}[d]) d = 'classic';
+  var bg = {classic:'#0a0704', gold:'#0E0C09'}[d];
   try{
     var b = document.body;
-    b.className = (t === 'terminal') ? '' : 'lux t-' + t;
+    b.className = (d === 'classic') ? 'lux t-gold' : 'ds-' + d;
     b.style.background = bg;
+    if(d === 'gold'){
+      var l = document.createElement('link');
+      l.id = 'dsFontGold'; l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@500;600;700;800&family=DM+Mono:wght@400;500&display=swap';
+      document.head.appendChild(l);
+    }
     var m = document.querySelector('meta[name="theme-color"]');
     if(m) m.setAttribute('content', bg);
   }catch(e){}
@@ -989,10 +1131,10 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
     <p>FOREX &amp; GOLD SIGNALS · <span id="verTag">v—</span></p>
     <div class="clock"><b id="clkT">--:--</b><span id="clkD">--</span></div>
     <div class="hrow">
-      <button class="ib" id="btnRef" onclick="refreshAll()">⟳ REFRESH</button>
-      <button class="ib" id="btnInstall">⬇ INSTALL</button>
-      <button class="ib" onclick="openSheet('guideSheet')">📘 KAISE USE KARE</button>
-      <button class="ib" onclick="openSheet('setSheet')">⚙ SETTINGS</button>
+      <button class="ib" id="btnRef" onclick="refreshAll()"><i class="em">⟳</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4.5V11h-6.5"></path></svg><span>REFRESH</span></button>
+      <button class="ib" id="btnInstall"><i class="em">⬇</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 20h14"></path></svg><span>INSTALL</span></button>
+      <button class="ib" onclick="openSheet('guideSheet')"><i class="em">📘</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"></path><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20"></path></svg><span>KAISE USE KARE</span></button>
+      <button class="ib" onclick="openSheet('setSheet')"><i class="em">⚙</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.5a7.6 7.6 0 0 0-2.6 1.5l-2.3-.9-2 3.4 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.4 2.3-.9a7.6 7.6 0 0 0 2.6 1.5l.5 2.5h4l.5-2.5a7.6 7.6 0 0 0 2.6-1.5l2.3.9 2-3.4z"></path></svg><span>SETTINGS</span></button>
     </div>
   </div>
 </header>
@@ -1078,6 +1220,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 
 <!-- ============ SCAN ============ -->
 <section id="pgScan" class="hide">
+  <div class="pghd"><span class="pn">02</span><b>Scan</b><small>Watchlist ke saare pairs ek saath</small></div>
   <div class="card">
     <p class="ttl">Setup Scanner <span class="sp" id="scanT">—</span></p>
     <div class="grid2" style="margin-bottom:10px">
@@ -1103,6 +1246,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 
 <!-- ============ VOTES ============ -->
 <section id="pgVotes" class="hide">
+  <div class="pghd"><span class="pn">03</span><b>Votes</b><small>50 rule-based agents aur backtest</small></div>
   <div class="card">
     <p class="ttl">AI Agent Voting <span class="sp" id="voteT">—</span></p>
     <div id="voteBox"></div>
@@ -1145,6 +1289,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 
 <!-- ============ MARKET ============ -->
 <section id="pgMarket" class="hide">
+  <div class="pghd"><span class="pn">04</span><b>Market</b><small>Live rates aur pip calculator</small></div>
   <div class="card">
     <p class="ttl">Market Overview <span class="sp" id="mktT">—</span></p>
     <div class="chips" id="mktChips" style="margin-bottom:12px"></div>
@@ -1166,6 +1311,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 
 <!-- ============ TRADES ============ -->
 <section id="pgTrades" class="hide">
+  <div class="pghd"><span class="pn">05</span><b>Trades</b><small>Journal · lot 0.01 fixed</small></div>
   <div class="stat3">
     <div class="st"><span>Live P&amp;L</span><b class="mono" id="stLive">$0.00</b></div>
     <div class="st"><span>Closed P&amp;L</span><b class="mono" id="stClosed">$0.00</b></div>
@@ -1212,6 +1358,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 
 <!-- ============ ALERTS ============ -->
 <section id="pgAlerts" class="hide">
+  <div class="pghd"><span class="pn">06</span><b>Alerts</b><small>Telegram · chart AI · tracking · backup</small></div>
   <div class="card">
     <p class="ttl">Telegram — SamuSignal</p>
     <div style="margin-bottom:10px"><label>Bot Token</label><input id="tgTok" type="password" placeholder="1234567890:AA..."></div>
@@ -1281,12 +1428,12 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 </main>
 
 <nav>
-  <button class="on" data-pg="Signals" onclick="go('Signals',this)"><i>📡</i>SIGNALS</button>
-  <button data-pg="Scan" onclick="go('Scan',this)"><i>🎯</i>SCAN</button>
-  <button data-pg="Votes" onclick="go('Votes',this)"><i>🗳</i>VOTES</button>
-  <button data-pg="Market" onclick="go('Market',this)"><i>📊</i>MARKET</button>
-  <button data-pg="Trades" onclick="go('Trades',this)"><i>💼</i>TRADES</button>
-  <button data-pg="Alerts" onclick="go('Alerts',this)"><i>🔔</i>ALERTS</button>
+  <button class="on" data-pg="Signals" onclick="go('Signals',this)"><i>📡</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a7 7 0 0 1 7-7"></path><path d="M5 19a12 12 0 0 1 12-12"></path><path d="M5 19a17 17 0 0 1 17-17"></path><circle cx="5" cy="19" r="1.4"></circle></svg><span class="nl">SIGNALS</span></button>
+  <button data-pg="Scan" onclick="go('Scan',this)"><i>🎯</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="1.2"></circle></svg><span class="nl">SCAN</span></button>
+  <button data-pg="Votes" onclick="go('Votes',this)"><i>🗳</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8.5" r="3"></circle><circle cx="16.5" cy="8.5" r="3"></circle><path d="M2.5 19.5c.8-3 2.9-4.5 5.5-4.5s4.7 1.5 5.5 4.5"></path><path d="M11.5 19.5c.8-3 2.4-4.5 5-4.5s4.2 1.5 5 4.5"></path></svg><span class="nl">VOTES</span></button>
+  <button data-pg="Market" onclick="go('Market',this)"><i>📊</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20.5h18"></path><path d="M6 17V11"></path><path d="M11 17V5"></path><path d="M16 17V9"></path><path d="M20 17v-4"></path></svg><span class="nl">MARKET</span></button>
+  <button data-pg="Trades" onclick="go('Trades',this)"><i>💼</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7.5" width="18" height="12.5" rx="2"></rect><path d="M9 7.5V5.5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path><path d="M3 12.5h18"></path></svg><span class="nl">TRADES</span></button>
+  <button data-pg="Alerts" onclick="go('Alerts',this)"><i>🔔</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span class="nl">ALERTS</span></button>
 </nav>
 
 <!-- ============ SHEETS ============ -->
@@ -1342,14 +1489,19 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
     </div>
     <button class="btn gold sm" style="width:auto;padding:9px 13px" onclick="forceUpdate()">🔄 Update</button>
   </div>
-  <p class="ttl">Theme</p>
-  <div class="chips" style="margin-bottom:16px">
-    <button class="chip" data-th="terminal" onclick="setTheme('terminal')">Terminal</button>
-    <button class="chip" data-th="gold" onclick="setTheme('gold')">Gold</button>
-    <button class="chip" data-th="emerald" onclick="setTheme('emerald')">Emerald</button>
-    <button class="chip" data-th="royal" onclick="setTheme('royal')">Royal</button>
-    <button class="chip" data-th="navy" onclick="setTheme('navy')">Navy</button>
+  <p class="ttl">App Design</p>
+  <div class="dsPick" style="margin-bottom:8px">
+    <button class="dsCard" data-ds="classic" onclick="setDesign('classic')">
+      <span class="dsw" style="background:#0a0704;border-color:#E8B54B"><i style="background:#E8B54B"></i><i style="background:#3a2c14"></i></span>
+      <b>Classic</b><small>Abhi wala gold</small></button>
+    <button class="dsCard" data-ds="gold" onclick="setDesign('gold')">
+      <span class="dsw" style="background:#0E0C09;border-color:#342C1D"><i style="background:#D9B25F"></i><i style="background:#17140F"></i></span>
+      <b>Gold Reserve</b><small>Serif, shaant</small></button>
+    <button class="dsCard" data-ds="swiss" onclick="toast('Swiss Mono agle update me aa raha hai')" aria-disabled="true" style="opacity:.5">
+      <span class="dsw" style="background:#FFFFFF;border-color:#0A0A0A"><i style="background:#0A0A0A"></i><i style="background:#00804F"></i></span>
+      <b>Swiss Mono</b><small>Jald aa raha</small></button>
   </div>
+  <p class="hint" style="margin-bottom:16px">Design sirf look badalta hai — signals, trades, MT5 sab waise hi chalte hain.</p>
   <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
   <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
   <p class="ttl">AI Analysis</p>
@@ -1556,7 +1708,7 @@ body.nosc{position:fixed; left:0; right:0; width:100%; overflow:hidden}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.6.0';
+const VERSION = '9.7.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -1742,6 +1894,7 @@ let S = {
   scanMin: LS.get('scanMin',70),
   scan:  LS.get('scan',{at:0,rows:[]}),
   theme: LS.get('theme','gold'),
+  design: LS.get('design','classic'),  /* classic | gold | swiss */
   gKey:  LS.get('gKey',''),
   gModel: LS.get('gModel',''),
   gBad: LS.get('gBad',[]),
@@ -1765,7 +1918,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
@@ -1775,6 +1928,12 @@ if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); L
 /* Pehle ek galat MIN_LOT (ETH 0.10 / BTC 0.02) lot ko upar khinch deta tha.
    Wo hata diya gaya, par device pe 0.1 save reh gaya. Ek baar 0.01 par
    wapas laao — koi aur value ho to chhod do, wo user ki apni chuni hui hai. */
+/* v9.7: color themes hat gaye — Classic hamesha gold */
+if(!LS.get('mig97', false)){
+  S.theme = 'gold'; LS.set('theme', 'gold');
+  LS.set('mig97', true);
+}
+
 if(!LS.get('mig92', false)){
   S.lots = 0.01; LS.set('lots', 0.01);
   S.dLot = 0.01; LS.set('dLot', 0.01);
@@ -2429,21 +2588,41 @@ const THEMES = {
   royal:    {n:'Royal',     bg:'#0d0413'},
   navy:     {n:'Navy',      bg:'#020a1c'}
 };
+/* ---------------- App Design ----------------
+   Color theme ki jagah ab "design" hai. Classic = purana gold look,
+   Gold Reserve = naya serif wala. HTML ek hi hai, sirf CSS ki parat
+   badalti hai — isliye koi feature do jagah nahi likha. */
+const DESIGNS = {
+  classic: {n:'Classic',      bg:'#0a0704'},
+  gold:    {n:'Gold Reserve', bg:'#0E0C09'},
+};
+function dsFonts(d){
+  if(d !== 'gold' || document.getElementById('dsFontGold')) return;
+  const l = document.createElement('link');
+  l.id = 'dsFontGold'; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@500;600;700;800&family=DM+Mono:wght@400;500&display=swap';
+  document.head.appendChild(l);
+}
 function applyTheme(){
-  const t = THEMES[S.theme] ? S.theme : 'gold';
+  const d = DESIGNS[S.design] ? S.design : 'classic';
   const b = document.body;
   b.style.background = '';   /* pre-paint wala inline colour hatao */
-  b.className = b.className.replace(/\bt-\S+|\blux\b/g,'').trim();
-  if(t !== 'terminal') b.classList.add('lux', 't-' + t);
+  b.className = b.className.replace(/\bt-\S+|\blux\b|\bds-\S+/g,'').trim();
+  if(d === 'classic') b.classList.add('lux', 't-gold');
+  else { b.classList.add('ds-' + d); dsFonts(d) }
   const m = document.querySelector('meta[name="theme-color"]');
-  if(m) m.setAttribute('content', THEMES[t].bg);
+  if(m) m.setAttribute('content', DESIGNS[d].bg);
+  document.querySelectorAll('[data-ds]').forEach(x => x.classList.toggle('on', x.dataset.ds === d));
   requestAnimationFrame(() => { paintSignalChart(); paintTradeCharts() });
 }
-function setTheme(t){
-  S.theme = t; LS.set('themePicked', true); save(); applyTheme();
-  document.querySelectorAll('[data-th]').forEach(b => b.classList.toggle('on', b.dataset.th === t));
-  toast((THEMES[t]||THEMES.gold).n + ' theme on');
+function setDesign(d){
+  if(!DESIGNS[d]) return;
+  S.design = d; save(); applyTheme();
+  if(lastSignal) renderSignal();
+  toast(DESIGNS[d].n + ' design on');
 }
+/* purana color theme ab nahi hai — Classic hamesha gold */
+function setTheme(t){ setDesign('classic') }
 function toggleSw(el,key){ S[key]=!S[key]; el.classList.toggle('on',S[key]); save(); }
 
 /* ---------- 12-hour clock ---------- */
@@ -3285,6 +3464,33 @@ function finalCall(s){
     why: (why.slice(0,3).join(' · ') || 'core confirmations poore nahi') + ' — setup aur clear hone do'};
 }
 
+/* ---------------- price ladder (Gold Reserve) ----------------
+   Ek khadi line pe TP, entry, SL aur abhi ka price — ek nazar me dikhe
+   ki trade kahan khada hai. Classic me CSS se chhupa rehta hai. */
+function ladderHTML(s){
+  if(!s || s.dir === 'NEUTRAL' || !isFinite(s.sl) || !isFinite(s.tp)) return '';
+  const up = s.dir === 'BUY';
+  const top = Math.max(s.sl, s.tp), bot = Math.min(s.sl, s.tp);
+  const H = 176, pad = 10;
+  const Y = v => pad + (top - v) / ((top - bot) || 1) * (H - 2*pad);
+  const cur = (prices[s.sym] && prices[s.sym].p) || s.live;
+  const yT = Y(s.tp), yE = Y(s.live), yS = Y(s.sl);
+  const yC = Math.max(pad, Math.min(H - pad, Y(cur)));
+  const seg = (a, b, c) => `<rect x="23" y="${Math.min(a,b)}" width="8" height="${Math.abs(b-a)}" rx="4" fill="${c}"></rect>`;
+  const svg = `<svg width="54" height="${H}" viewBox="0 0 54 ${H}" aria-hidden="true">
+      ${seg(yT, yE, 'rgba(91,208,138,.28)')}${seg(yE, yS, 'rgba(240,113,97,.28)')}
+      <circle cx="27" cy="${yT}" r="6" fill="var(--up)"></circle>
+      <circle cx="27" cy="${yE}" r="6" fill="var(--gold)"></circle>
+      <circle cx="27" cy="${yS}" r="6" fill="var(--dn)"></circle>
+      <path d="M6 ${yC}h42" stroke="var(--txt)" stroke-width="1.4" stroke-dasharray="3 3"></path>
+    </svg>`;
+  const row = (lab, v, sub, c) => `<div class="ldr"><span>${lab}</span><b class="mono" style="color:${c}">${fmt(s.sym, v)}</b><small>${sub}</small></div>`;
+  const rows = up
+    ? row('TARGET', s.tp, `${s.tpPips} pips · +$${s.tpD}`, 'var(--up)') + row('ENTRY', s.live, `abhi ${fmt(s.sym, cur)}`, 'var(--gold)') + row('STOP LOSS', s.sl, `${s.slPips} pips · −$${s.slD}`, 'var(--dn)')
+    : row('STOP LOSS', s.sl, `${s.slPips} pips · −$${s.slD}`, 'var(--dn)') + row('ENTRY', s.live, `abhi ${fmt(s.sym, cur)}`, 'var(--gold)') + row('TARGET', s.tp, `${s.tpPips} pips · +$${s.tpD}`, 'var(--up)');
+  return `<div class="gr-ladder">${svg}<div class="ldr-col">${rows}</div></div>`;
+}
+
 function renderSignal(){
   const s = lastSignal;
   if(!s){ $('cardSignal').innerHTML = '<p class="ttl">Signal</p><p class="hint">Pair chuno aur Analyze dabao.</p>'; return }
@@ -3338,6 +3544,7 @@ function renderSignal(){
         <div class="lvl sl"><span>SL · $${s.slD}</span><b class="mono">${fmt(s.sym,s.sl)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.slPips} pips</small></div>
         <div class="lvl tp"><span>TP · $${s.tpD}</span><b class="mono">${fmt(s.sym,s.tp)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.tpPips} pips</small></div>
       </div>
+      ${ladderHTML(s)}
       ${(() => { const f = finalCall(s); return `
       <div class="verdictbar" style="border-color:${f.c};background:${f.bg}">
         <b class="shine ${f.c==='var(--up)'?'up':f.c==='var(--dn)'?'dn':'gd'}">${f.t}</b>
@@ -5618,6 +5825,7 @@ async function refreshAll(){
   if(refBusy) return;
   refBusy = true;
   const b = $('btnRef');
+  const refOrig = b.innerHTML;
   b.innerHTML = '<span class="spin"></span>';
   b.style.transform = 'none';
   try{
@@ -5648,7 +5856,7 @@ async function refreshAll(){
     if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
     toast(e.message);
   }
-  b.textContent = '⟳';
+  b.innerHTML = refOrig;
   refBusy = false;
 }
 
