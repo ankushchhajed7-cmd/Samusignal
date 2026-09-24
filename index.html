@@ -1092,6 +1092,71 @@ body.ds-gold .sh-h{background:var(--panel) !important;border-bottom:1px solid va
 body.ds-gold .sh-h h3{font-family:'Fraunces',Georgia,serif !important;font-weight:600 !important;font-size:22px !important;
   color:var(--gold) !important;letter-spacing:0 !important;text-transform:none !important}
 body.ds-gold .dsCard{background:var(--panel2)}
+
+/* ==================================================================
+   GOLD RESERVE — Signals screen ka layout (preview jaisa)
+   DOM wahi hai; analysis card "display:contents" ho kar gayab hota hai
+   aur uske tukde flex order se sahi jagah lagte hain:
+   pair/lot → timeframe → HTF → signal → verdict → buttons → baaki cards
+   ================================================================== */
+.gonly,.gq,.gVerdict{display:none}
+
+/* header: refresh | wordmark | settings */
+body.ds-gold .hbox{display:grid !important;grid-template-columns:44px minmax(0,1fr) 44px;
+  grid-template-rows:auto auto;column-gap:10px;row-gap:2px;align-items:center}
+body.ds-gold .hrow{display:contents !important}
+body.ds-gold .hbox h1{grid-column:2;grid-row:1;text-align:center;margin:0 !important;line-height:1.1}
+body.ds-gold .hbox p{display:none !important}
+body.ds-gold .clock{grid-column:2;grid-row:2;display:flex;justify-content:center;margin:0 !important}
+body.ds-gold .clock::before{content:'FOREX & GOLD · ';font-family:'Manrope',system-ui,sans-serif;
+  font-size:10.5px;font-weight:700;letter-spacing:2.4px;color:var(--mut);white-space:pre}
+body.ds-gold .clock b{font-family:'Manrope',system-ui,sans-serif !important;font-size:10.5px !important;
+  font-weight:700 !important;letter-spacing:2.4px;color:var(--mut) !important;text-transform:uppercase}
+body.ds-gold #clkD{display:none}
+body.ds-gold .ib-ref{grid-column:1;grid-row:1 / span 2}
+body.ds-gold .ib-set{grid-column:3;grid-row:1 / span 2}
+body.ds-gold .ib-ins,body.ds-gold .ib-gd{display:none !important}
+body.ds-gold .hrow .ib{width:44px !important;height:44px;padding:0 !important;gap:0 !important}
+body.ds-gold .hrow .ib span{display:none}
+
+/* Signals page ka kram */
+body.ds-gold #pgSignals:not(.hide){display:flex;flex-direction:column}
+body.ds-gold #pgSignals > *{order:20}
+body.ds-gold #anlCard{display:contents !important}
+body.ds-gold #anlCard > .ttl,body.ds-gold #anlCard > .tfLab{display:none !important}
+body.ds-gold .plGrid{order:1;gap:10px;margin:14px 0 10px !important}
+body.ds-gold #tfChips{order:2;margin:0 0 10px !important}
+body.ds-gold #swHtf{order:3;margin:2px 0 14px}
+body.ds-gold #cardSignal{order:4}
+body.ds-gold #gVerdict{order:5}
+body.ds-gold .anlBtns{order:6;margin:0 0 14px}
+body.ds-gold #autoCard{order:7}
+body.ds-gold #dayBar{order:8}
+
+/* pair / lot — label card ke andar */
+body.ds-gold .plGrid > div{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px 9px}
+body.ds-gold .plGrid label{margin:0 0 3px !important;display:block}
+body.ds-gold .plGrid .pick,body.ds-gold .plGrid input{background:transparent !important;border:0 !important;
+  padding:0 !important;min-height:0 !important;height:26px;font-size:17px !important;box-shadow:none !important;opacity:1 !important}
+body.ds-gold .plGrid .pick i{font-size:10px}
+body.ds-gold label .em{display:none}
+body.ds-gold .gonly{display:inline;color:var(--mut)}
+body.ds-gold .anlBtns .btn{height:54px}
+
+/* signal card: header + ladder; meter aur SIG/VOTE boxes hatao */
+body.ds-gold #cardSignal > .ttl{display:none !important}
+body.ds-gold #cardSignal .meter,body.ds-gold #cardSignal .sumcol{display:none !important}
+body.ds-gold #cardSignal .sig-l .gr{display:none !important}
+body.ds-gold .gq{display:inline-block;margin-left:auto;color:var(--gold);font-size:13px}
+body.ds-gold #cardSignal .sig-l{flex:1;display:flex;align-items:center;gap:10px}
+body.ds-gold #cardSignal .sig-l b{font-size:18px !important;font-family:'Manrope',system-ui,sans-serif !important;font-weight:800}
+body.ds-gold #cardSignal .verdictbar{display:none !important}
+
+/* verdict — alag patti */
+body.ds-gold .gVerdict:not(:empty){display:flex;align-items:center;gap:16px;background:var(--panel);
+  border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin:0 0 12px}
+body.ds-gold .gVerdict b{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:600;line-height:1;white-space:nowrap}
+body.ds-gold .gVerdict p{margin:0;font-size:13px;color:var(--mut);line-height:1.45}
 </style>
 </head>
 <body>
@@ -1131,10 +1196,10 @@ body.ds-gold .dsCard{background:var(--panel2)}
     <p>FOREX &amp; GOLD SIGNALS · <span id="verTag">v—</span></p>
     <div class="clock"><b id="clkT">--:--</b><span id="clkD">--</span></div>
     <div class="hrow">
-      <button class="ib" id="btnRef" onclick="refreshAll()"><i class="em">⟳</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4.5V11h-6.5"></path></svg><span>REFRESH</span></button>
-      <button class="ib" id="btnInstall"><i class="em">⬇</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 20h14"></path></svg><span>INSTALL</span></button>
-      <button class="ib" onclick="openSheet('guideSheet')"><i class="em">📘</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"></path><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20"></path></svg><span>KAISE USE KARE</span></button>
-      <button class="ib" onclick="openSheet('setSheet')"><i class="em">⚙</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.5a7.6 7.6 0 0 0-2.6 1.5l-2.3-.9-2 3.4 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.4 2.3-.9a7.6 7.6 0 0 0 2.6 1.5l.5 2.5h4l.5-2.5a7.6 7.6 0 0 0 2.6-1.5l2.3.9 2-3.4z"></path></svg><span>SETTINGS</span></button>
+      <button class="ib ib-ref" id="btnRef" onclick="refreshAll()"><i class="em">⟳</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4.5V11h-6.5"></path></svg><span>REFRESH</span></button>
+      <button class="ib ib-ins" id="btnInstall"><i class="em">⬇</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 20h14"></path></svg><span>INSTALL</span></button>
+      <button class="ib ib-gd" onclick="openSheet('guideSheet')"><i class="em">📘</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"></path><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20"></path></svg><span>KAISE USE KARE</span></button>
+      <button class="ib ib-set" onclick="openSheet('setSheet')"><i class="em">⚙</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.5a7.6 7.6 0 0 0-2.6 1.5l-2.3-.9-2 3.4 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.4 2.3-.9a7.6 7.6 0 0 0 2.6 1.5l.5 2.5h4l.5-2.5a7.6 7.6 0 0 0 2.6-1.5l2.3.9 2-3.4z"></path></svg><span>SETTINGS</span></button>
     </div>
   </div>
 </header>
@@ -1152,28 +1217,29 @@ body.ds-gold .dsCard{background:var(--panel2)}
     <p class="hint" id="autoMini" style="margin:9px 0 0">—</p>
   </div>
   <div class="card" id="dayBar"></div>
-  <div class="card">
+  <div class="card" id="anlCard">
     <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
-    <div class="grid2" style="margin-bottom:10px">
+    <div class="grid2 plGrid" style="margin-bottom:10px">
       <div><label>Pair</label><button class="pick" id="selPair" onclick="openPick('main')"></button></div>
-      <div><label>Lots <span style="color:var(--gold)">🔒</span></label>
+      <div><label>Lots <span class="em" style="color:var(--gold)">🔒</span><span class="gonly">· locked</span></label>
         <input class="mono" id="inLots" type="number" step="0.01" value="0.01" readonly
                onclick="toast('Lot Settings → Default Trade Size me badalta hai')"
                style="opacity:.75"></div>
     </div>
-    <label>Timeframe</label>
+    <label class="tfLab">Timeframe</label>
     <div class="chips" id="tfChips" style="margin-bottom:12px"></div>
     <div class="sw" id="swHtf" onclick="toggleSw(this,'htf')">
       <div class="tg"></div>
       <div>HTF Confluence Filter<small>Dono HTF ulte hon to signal block; ek match ho to strong setup chal sakta hai</small></div>
     </div>
-    <div class="grid2">
+    <div class="grid2 anlBtns">
       <button class="btn gold" id="btnAnalyze" onclick="runAnalyze()">Analyze Karo</button>
       <button class="btn ghost" onclick="refreshAll()">⟳ Rates Refresh</button>
     </div>
   </div>
 
   <div class="card" id="cardSignal"></div>
+  <div class="gVerdict" id="gVerdict"></div>
 
   <div class="card">
     <p class="ttl">AI Analysis <span class="sp" id="aiT">—</span></p>
@@ -1501,7 +1567,11 @@ body.ds-gold .dsCard{background:var(--panel2)}
       <span class="dsw" style="background:#FFFFFF;border-color:#0A0A0A"><i style="background:#0A0A0A"></i><i style="background:#00804F"></i></span>
       <b>Swiss Mono</b><small>Jald aa raha</small></button>
   </div>
-  <p class="hint" style="margin-bottom:16px">Design sirf look badalta hai — signals, trades, MT5 sab waise hi chalte hain.</p>
+  <p class="hint" style="margin-bottom:12px">Design sirf look badalta hai — signals, trades, MT5 sab waise hi chalte hain.</p>
+  <div class="grid2" style="margin-bottom:16px">
+    <button class="btn ghost sm" onclick="$('btnInstall').click()">App Install karo</button>
+    <button class="btn ghost sm" onclick="closeSheet('setSheet');openSheet('guideSheet')">Kaise Use Kare</button>
+  </div>
   <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
   <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
   <p class="ttl">AI Analysis</p>
@@ -1708,7 +1778,7 @@ body.ds-gold .dsCard{background:var(--panel2)}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.7.0';
+const VERSION = '9.7.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -3493,7 +3563,17 @@ function ladderHTML(s){
 
 function renderSignal(){
   const s = lastSignal;
-  if(!s){ $('cardSignal').innerHTML = '<p class="ttl">Signal</p><p class="hint">Pair chuno aur Analyze dabao.</p>'; return }
+  if(!s){
+    $('cardSignal').innerHTML = '<p class="ttl">Signal</p><p class="hint">Pair chuno aur Analyze dabao.</p>';
+    if($('gVerdict')) $('gVerdict').innerHTML = '';
+    return;
+  }
+  /* Gold Reserve me verdict card ke bahar alag patti me dikhta hai */
+  if($('gVerdict')){
+    const f = finalCall(s);
+    $('gVerdict').innerHTML = `<b style="color:${f.c}">${f.t}</b>
+      <p>${f.why}<br><span style="color:var(--dim)" data-ago="${s.at}">${ago(s.at)}</span></p>`;
+  }
   const cls = s.dir==='BUY'?'buy':s.dir==='SELL'?'sell':'';
   /* rang = direction (BUY hara, SELL laal), bharaav = quality */
   const dirCol = s.dir==='BUY' ? 'var(--up)' : s.dir==='SELL' ? 'var(--dn)' : 'var(--mut)';
@@ -3529,6 +3609,7 @@ function renderSignal(){
           <b class="mono" style="font-size:15px;letter-spacing:1px">${s.sym}</b>
           <span class="tag ${cls||'n'}">${s.dir}</span>
           <span class="gr" style="margin-left:0">${s.grade}</span>
+          <span class="gq mono">${s.grade} · ${s.q}%</span>
         </div>
         ${sumColumn(s)}
       </div>
