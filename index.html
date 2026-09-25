@@ -1199,6 +1199,12 @@ body.ds-gold .sig.open .sigMoreBtn .ml{display:inline}
 
 /* verdict: "Le lo" ek line me */
 body.ds-gold .gVerdict b{font-size:32px}
+
+/* Gold: "Maine Ye Trade Liya" card me hamesha dikhe, Details ke andar dobara nahi */
+.gJournal{display:none}
+body.ds-gold .gJournal{display:flex !important;width:100%;height:50px;align-items:center;justify-content:center;
+  margin:12px 0 2px;font-size:14.5px}
+body.ds-gold .sigMore .actMain{display:none !important}
 </style>
 </head>
 <body>
@@ -1826,7 +1832,7 @@ body.ds-gold .gVerdict b{font-size:32px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.7.2';
+const VERSION = '9.7.3';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -3686,6 +3692,7 @@ function renderSignal(){
         <p style="color:${f.c}">${f.why}</p>
       </div>`; })()}
       <div class="gWarn">${newsBox}${weak}${warn}</div>
+      ${s.dir !== 'NEUTRAL' ? `<button class="btn ${s.dir==='SELL'?'r':'g'} gJournal" onclick="openQuick('APP')">✓ Maine Ye Trade Liya</button>` : ''}
       <button class="sigMoreBtn" onclick="const c=this.closest('.sig');c.classList.toggle('open');requestAnimationFrame(paintSignalChart)">
         <span class="mm">Details — chart, timeframe, journal, share</span><span class="ml">Details band karo</span></button>
       <div class="sigMore">
@@ -3703,7 +3710,7 @@ function renderSignal(){
         <span class="mono dn" style="font-size:12px">${lastVotes.sell}S</span>
         <span style="margin-left:auto;font-size:10px;color:var(--gold)">DEKHO ›</span>
       </div>` : ''}
-      <div class="acts">
+      <div class="acts actMain">
         <button class="btn ${s.dir==='SELL'?'r':'g'} sm" style="flex:2" onclick="openQuick('APP')">Maine Ye Trade Liya</button>
         <button class="btn gold sm" onclick="sendSignalMT5()">🚀 MT5 pe Lagao</button>
       </div>
