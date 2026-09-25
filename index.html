@@ -1205,6 +1205,35 @@ body.ds-gold .gVerdict b{font-size:32px}
 body.ds-gold .gJournal{display:flex !important;width:100%;height:50px;align-items:center;justify-content:center;
   margin:12px 0 2px;font-size:14.5px}
 body.ds-gold .sigMore .actMain{display:none !important}
+
+/* ==================================================================
+   CLASSIC · CHAMPAGNE (v9.7.4)
+   Purana gold (#E8B54B) + 2px kinare + glow screen pe chamak raha tha.
+   Champagne: halka, pila-safed sona, 1px 45% kinara, koi glow nahi.
+   Sirf Classic (body.t-gold) pe lagta hai — Gold Reserve alag hai.
+   ================================================================== */
+body.t-gold{
+  --gold:#D9C18C; --acc:#D9C18C; --shineA:#D9C18C; --shineB:#EFE3C4; --accRGB:217,193,140;
+  --pA:#efe3c4; --pB:#d8c18c; --pC:#bba069; --pD:#9d8352; --pE:#e6d6b0; --pG:rgba(217,193,140,.10);
+}
+body.t-gold .card,body.t-gold .hbox{border:1px solid rgba(217,193,140,.45) !important;box-shadow:0 8px 20px rgba(0,0,0,.45) !important}
+body.t-gold header{border-bottom:1px solid rgba(217,193,140,.45) !important}
+body.t-gold nav{border-top:1px solid rgba(217,193,140,.45) !important}
+body.t-gold .card .ttl{border-bottom:1px solid rgba(217,193,140,.36) !important}
+body.t-gold .sheet{border:1px solid rgba(217,193,140,.45) !important}
+body.t-gold .sh-h,body.t-gold th{border-bottom:1px solid rgba(217,193,140,.45) !important}
+body.t-gold .tick{border:1px solid rgba(217,193,140,.45) !important}
+body.t-gold .chip.on,body.t-gold .chip.on.gold{border-width:1px !important;box-shadow:none !important}
+
+/* chamak band: text glow, title glow, button ki roshni */
+body.t-gold *{text-shadow:none !important}
+body.t-gold .ttl{filter:none !important}
+body.t-gold .hbox h1{filter:drop-shadow(0 1px 2px rgba(0,0,0,.6)) !important}
+body.t-gold .btn.gold{box-shadow:none !important}
+
+/* Auto MT5 ka "band/chalu" tag — pehle gold pill pe feeka text tha */
+body.t-gold #autoTag{background:transparent !important;border:1px solid rgba(217,193,140,.45) !important;
+  -webkit-text-fill-color:currentColor}
 </style>
 </head>
 <body>
@@ -1851,7 +1880,7 @@ body.ds-gold .sigMore .actMain{display:none !important}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.7.3';
+const VERSION = '9.7.4';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
