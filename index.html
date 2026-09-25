@@ -1643,6 +1643,24 @@ body.ds-gold .sigMore .actMain{display:none !important}
     <span id="gModelNote"></span></p>
 
   <p class="ttl">MT5 Bridge</p>
+  <div class="sw" id="swMetaOn" onclick="toggleMetaOn(this)">
+    <div class="tg"></div>
+    <div>MetaApi seedha use karo (No VPS)<small>On = cloud API se direct order. Off = purana Firebase/VPS wala EA bridge.</small></div>
+  </div>
+  <div id="metaBox" class="hide">
+    <div style="margin-bottom:10px"><label>MetaApi Token</label>
+      <input id="setMetaToken" type="password" placeholder="MetaApi API Access token"></div>
+    <div style="margin-bottom:10px"><label>MetaApi Account ID</label>
+      <input id="setMetaAccount" placeholder="e2ce8c70-b35a-45c... (MT Accounts page ka ID)"></div>
+    <div style="margin-bottom:10px"><label>MetaApi region host</label>
+      <input id="setMetaHost" placeholder="mt-client-api-v1.london.agiliumtrade.ai"></div>
+    <div style="margin-bottom:10px"><label>Symbol suffix (broker ke hisaab se, jaise Exness = m)</label>
+      <input id="setMetaSuffix" placeholder="m"></div>
+    <button class="btn ghost sm" style="margin-bottom:6px" onclick="testMetaApi()">🔌 MetaApi Test Karo</button>
+    <div id="metaOut" class="mono hide" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto;margin-bottom:10px"></div>
+    <p class="hint" style="margin-bottom:16px">Token aur Account ID app.metaapi.cloud se milte hain (MT Accounts → apna account → API Access). Region host wahi chuno jo account banate waqt select kiya tha (yahan London). Symbol suffix broker ke MT5 se check karo — Exness pe aksar "m" lagta hai.</p>
+  </div>
+  <div id="fbBox">
   <div style="margin-bottom:10px"><label>Firebase URL</label>
     <input id="setFb" placeholder="https://xxx-default-rtdb.firebaseio.com"></div>
   <div style="margin-bottom:10px"><label>Auth secret (optional)</label>
@@ -1662,6 +1680,7 @@ body.ds-gold .sigMore .actMain{display:none !important}
   <div id="fbOut" class="mono hide" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto;margin-bottom:10px"></div>
   <button class="btn ghost sm" style="margin-bottom:6px" onclick="lastOrderShow()">📄 Aakhri Bheja Order Dekho</button>
   <p class="hint" style="margin-bottom:16px">FXBridgeEA wahi <code>fxbridge/order.json</code> padhta hai. EA khud broker suffix (Exness = "m") lagata hai, isliye yahan sirf XAUUSD bhejo.</p>
+  </div>
 
   <p class="ttl">Per-Pair Settings</p>
   <div style="margin-bottom:10px"><label>Pair</label>
@@ -1983,6 +2002,12 @@ let S = {
   beOn:  LS.get('beOn',true),  /* 1R par SL breakeven pe (sirf app journal) */
   fbUrl: LS.get('fbUrl',''),
   fbAuth:LS.get('fbAuth',''),
+  /* ---- MetaApi direct bridge (no VPS) ---- */
+  metaOn: LS.get('metaOn', false),
+  metaToken: LS.get('metaToken',''),
+  metaAccount: LS.get('metaAccount',''),
+  metaHost: LS.get('metaHost','mt-client-api-v1.london.agiliumtrade.ai'),
+  metaSuffix: LS.get('metaSuffix',''),
   mt5Type: LS.get('mt5Type','MARKET'),
   limPips: LS.get('limPips',5),
   minPips: LS.get('minPips',{}),
@@ -2042,7 +2067,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
@@ -2754,6 +2779,11 @@ function setHtf(){
   toast(S.htf ? 'HTF filter on' : 'HTF filter off');
 }
 function toggleSw(el,key){ S[key]=!S[key]; el.classList.toggle('on',S[key]); save(); }
+function toggleMetaOn(el){
+  S.metaOn = !S.metaOn; el.classList.toggle('on', S.metaOn); save();
+  $('metaBox').classList.toggle('hide', !S.metaOn);
+  $('fbBox').classList.toggle('hide', S.metaOn);
+}
 
 /* ---------- 12-hour clock ---------- */
 function t12(d){ return new Date(d).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}); }
@@ -6079,9 +6109,78 @@ function mt5Mark(sym, dir, lots){ S.mt5sent[sym] = {at:Date.now(), dir, lots}; s
 function mt5Clear(sym){ delete S.mt5sent[sym]; save(); renderTrades(); toast(SPECS[sym].n + ' free — ab dobara bhej sakte ho') }
 function mt5ClearAll(){ S.mt5sent = {}; save(); renderTrades(); toast('Sab MT5 lock hata diye') }
 
+/* ================= METAAPI DIRECT BRIDGE (cloud, no VPS) ================= */
+/* MetaApi apne cloud pe MT5 terminal khud host karta hai — is se seedha
+   REST call se order jaata hai, koi VPS ya PC chalu rakhne ki zaroorat nahi. */
+function metaApiHost(){
+  return (S.metaHost || 'mt-client-api-v1.london.agiliumtrade.ai').trim()
+    .replace(/^https?:\/\//,'').replace(/\/+$/, '');
+}
+function metaApiActionType(dir, mode){
+  if(mode === 'LIMIT') return dir === 'BUY' ? 'ORDER_TYPE_BUY_LIMIT' : 'ORDER_TYPE_SELL_LIMIT';
+  if(mode === 'STOP')  return dir === 'BUY' ? 'ORDER_TYPE_BUY_STOP'  : 'ORDER_TYPE_SELL_STOP';
+  return dir === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL';
+}
+async function metaApiSend(sym, dir, lots, entry, sl, tp, mode){
+  const d = SPECS[sym].d;
+  const symbol = SPECS[sym].n + (S.metaSuffix || '');
+  const body = {
+    actionType: metaApiActionType(dir, mode),
+    symbol,
+    volume: +Number(lots).toFixed(2),
+    stopLoss: +Number(sl).toFixed(d),
+    takeProfit: +Number(tp).toFixed(d)
+  };
+  if(mode !== 'MARKET') body.openPrice = +Number(entry).toFixed(d);
+  try{
+    const r = await fetch(`https://${metaApiHost()}/users/current/accounts/${S.metaAccount}/trade`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json','auth-token':S.metaToken},
+      body: JSON.stringify(body)
+    });
+    const j = await r.json().catch(()=>({}));
+    const okCode = !j.stringCode || j.stringCode.includes('DONE') || j.stringCode.includes('PLACED');
+    if(!r.ok || !okCode) return {ok:false, err: (j.message || j.stringCode || ('MetaApi HTTP ' + r.status))};
+    return {ok:true, orderId: j.orderId, raw:j};
+  }catch(e){
+    return {ok:false, err: e.message};
+  }
+}
+async function testMetaApi(){
+  const box = $('metaOut');
+  box.classList.remove('hide');
+  box.scrollIntoView({behavior:'smooth', block:'center'});
+  S.metaToken = $('setMetaToken').value.trim();
+  S.metaAccount = $('setMetaAccount').value.trim();
+  S.metaHost = $('setMetaHost').value.trim() || S.metaHost;
+  S.metaSuffix = $('setMetaSuffix').value.trim();
+  save();
+  if(!S.metaToken || !S.metaAccount){
+    box.textContent = '❌ Token aur Account ID dono bharo.';
+    return;
+  }
+  box.textContent = 'Connect ho raha hai...';
+  try{
+    const r = await fetch(`https://${metaApiHost()}/users/current/accounts/${S.metaAccount}/account-information`, {
+      headers:{'Accept':'application/json','auth-token':S.metaToken}
+    });
+    const txt = await r.text();
+    let pretty = txt; try{ pretty = JSON.stringify(JSON.parse(txt), null, 1) }catch(e){}
+    box.textContent = `GET account-information\nHTTP ${r.status}\n\n${(pretty||'').slice(0,700)}\n\n` +
+      (r.ok ? '✅ MetaApi connected — account info mil gayi.' : '❌ Connect nahi hua. Token/Account ID/Region host check karo.');
+  }catch(e){
+    box.textContent = `❌ Connect nahi hua: ${e.message}\n\nCheck karo:\n• Token sahi hai?\n• Account ID sahi hai (MT Accounts page se copy karo)?\n• Region host sahi hai (jaise mt-client-api-v1.london.agiliumtrade.ai)?`;
+  }
+}
+
 async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
-  const url = fbEndpoint();
-  if(!url){
+  const useMeta = !!S.metaOn;
+  if(useMeta){
+    if(!S.metaToken || !S.metaAccount){
+      if(!silent){ toast('Pehle Settings me MetaApi Token aur Account ID daalo'); openSheet('setSheet') }
+      return false;
+    }
+  } else if(!fbEndpoint()){
     if(!silent){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet') }
     return false;
   }
@@ -6132,14 +6231,19 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
   }
   const body = mt5Payload(sym, dir, lots, entry, sl, tp, mode);
   try{
-    const r = await fetch(url, {
-      method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
-    if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
+    if(useMeta){
+      const res = await metaApiSend(sym, dir, lots, entry, sl, tp, mode);
+      if(!res.ok) throw new Error(res.err);
+    } else {
+      const r = await fetch(fbEndpoint(), {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      });
+      if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
+    }
     LS.set('lastOrder', {t:Date.now(), body, ok:true});
     mt5Mark(sym, dir, body.lots);
-    logAdd(`MT5 bhej diya: ${body.type} ${body.pair} ${body.lots} @ ${body.entry} (id ${body.id})`);
+    logAdd(`MT5 bhej diya (${useMeta?'MetaApi':'Firebase'}): ${body.type} ${body.pair} ${body.lots} @ ${body.entry} (id ${body.id})`);
     if(!silent) toast(body.type.includes('MARKET')
       ? `${body.pair} ${dir} MT5 pe laga diya`
       : `Pending ${body.type} lagi @ ${body.entry}`);
@@ -6679,6 +6783,10 @@ function saveSettings(){
   if(S.gKey !== oldG){ S.gModel = ''; }
   S.fbUrl = $('setFb').value.trim();
   S.fbAuth = $('setFbAuth').value.trim();
+  S.metaToken = $('setMetaToken').value.trim();
+  S.metaAccount = $('setMetaAccount').value.trim();
+  S.metaHost = $('setMetaHost').value.trim() || S.metaHost;
+  S.metaSuffix = $('setMetaSuffix').value.trim();
   S.mt5Type = $('setMtype').value;
   S.limPips = Math.max(1, +$('setLim').value || 5);
   showMode(); if($('verMode')) $('verMode').textContent = S.mt5Type;
@@ -8113,6 +8221,11 @@ function boot(){
   $('swGAuto').classList.toggle('on', S.gAuto);
   $('gModelNote').innerHTML = S.gModel ? `<br>Model: <b class="mono">${S.gModel}</b>` : '';
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
+  $('setMetaToken').value = S.metaToken; $('setMetaAccount').value = S.metaAccount;
+  $('setMetaHost').value = S.metaHost; $('setMetaSuffix').value = S.metaSuffix;
+  $('swMetaOn').classList.toggle('on', S.metaOn);
+  $('metaBox').classList.toggle('hide', !S.metaOn);
+  $('fbBox').classList.toggle('hide', S.metaOn);
   $('setMtype').value = S.mt5Type; $('setLim').value = S.limPips; showMode();
   if($('verMode')) $('verMode').textContent = S.mt5Type;
   renderBanner();
