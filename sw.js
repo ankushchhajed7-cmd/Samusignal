@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.2  — WAIT blink border, sirf Classic design
    v9.9.1  — Telegram fix (no preflight)
 
    Ek hi jagah badalni hoti hai: neeche wala VERSION.
@@ -8,8 +9,8 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.1';
-const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-8-0 */
+const VERSION = '9.9.2';
+const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
 const SHELL = [

@@ -1265,7 +1265,7 @@ body.ds-gold .brand .brandWord{height:24px}
     var raw = localStorage.getItem('samu_design');
     if(raw) d = JSON.parse(raw);
   }catch(e){}
-  if(!{classic:1, gold:1}[d]) d = 'classic';
+  d = 'classic';   /* v9.9.2: ab sirf Classic design hai */
   var bg = {classic:'#0a0704', gold:'#0E0C09'}[d];
   try{
     var b = document.body;
@@ -1782,28 +1782,6 @@ body.ds-gold .brand .brandWord{height:24px}
     </div>
     <button class="btn gold sm" style="width:auto;padding:9px 13px" onclick="forceUpdate()">🔄 Update</button>
   </div>
-  <div class="sw" id="swHtf2" onclick="setHtf()">
-    <div class="tg"></div>
-    <div>HTF Confluence Filter<small>Dono HTF ulte hon to signal block — Signals page wala switch bhi yahi hai</small></div>
-  </div>
-
-  <p class="ttl" style="margin-top:14px">App Design</p>
-  <div class="dsPick" style="margin-bottom:8px">
-    <button class="dsCard" data-ds="classic" onclick="setDesign('classic')">
-      <span class="dsw" style="background:#0a0704;border-color:#E8B54B"><i style="background:#E8B54B"></i><i style="background:#3a2c14"></i></span>
-      <b>Classic</b><small>Abhi wala gold</small></button>
-    <button class="dsCard" data-ds="gold" onclick="setDesign('gold')">
-      <span class="dsw" style="background:#0E0C09;border-color:#342C1D"><i style="background:#D9B25F"></i><i style="background:#17140F"></i></span>
-      <b>Gold Reserve</b><small>Serif, shaant</small></button>
-    <button class="dsCard" data-ds="swiss" onclick="toast('Swiss Mono agle update me aa raha hai')" aria-disabled="true" style="opacity:.5">
-      <span class="dsw" style="background:#FFFFFF;border-color:#0A0A0A"><i style="background:#0A0A0A"></i><i style="background:#00804F"></i></span>
-      <b>Swiss Mono</b><small>Jald aa raha</small></button>
-  </div>
-  <p class="hint" style="margin-bottom:12px">Design sirf look badalta hai — signals, trades, MT5 sab waise hi chalte hain.</p>
-  <div class="grid2" style="margin-bottom:16px">
-    <button class="btn ghost sm" onclick="$('btnInstall').click()">App Install karo</button>
-    <button class="btn ghost sm" onclick="closeSheet('setSheet');openSheet('guideSheet')">Kaise Use Kare</button>
-  </div>
   <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
   <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
   <p class="ttl">AI Analysis</p>
@@ -2029,7 +2007,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.1';
+const VERSION = '9.9.2';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2763,7 +2741,7 @@ function renderAI(){
     <p>${paint(body)}</p></div>` : '';
   $('aiT').innerHTML = `<span data-ago="${d.at}">${ago(d.at)}</span>`;
   $('aiBox').innerHTML = `
-    <div class="verdictbar" style="border-color:${col};background:${col.replace('var(--','rgba(').replace(')','')}">
+    <div class="verdictbar${d.verdict==='WAIT'?' vWait':''}" style="border-color:${col};background:${col.replace('var(--','rgba(').replace(')','')}">
       <b class="shine ${d.verdict==='LE LO'?'up':d.verdict==='CHHOD DO'?'dn':'gd'}">${d.verdict}</b>
       <p style="color:${col}">AI confidence ${d.confidence}%</p>
     </div>
@@ -2921,9 +2899,9 @@ const THEMES = {
    Color theme ki jagah ab "design" hai. Classic = purana gold look,
    Gold Reserve = naya serif wala. HTML ek hi hai, sirf CSS ki parat
    badalti hai — isliye koi feature do jagah nahi likha. */
+/* v9.9.2: Gold Reserve aur Swiss Mono hata diye — sirf Classic */
 const DESIGNS = {
   classic: {n:'Classic',      bg:'#0a0704'},
-  gold:    {n:'Gold Reserve', bg:'#0E0C09'},
 };
 function dsFonts(d){
   if(d !== 'gold' || document.getElementById('dsFontGold')) return;
@@ -2933,7 +2911,8 @@ function dsFonts(d){
   document.head.appendChild(l);
 }
 function applyTheme(){
-  const d = DESIGNS[S.design] ? S.design : 'classic';
+  if(S.design !== 'classic'){ S.design = 'classic'; save() }   /* purana Gold Reserve wala device */
+  const d = 'classic';
   const b = document.body;
   b.style.background = '';   /* pre-paint wala inline colour hatao */
   b.className = b.className.replace(/\bt-\S+|\blux\b|\bds-\S+/g,'').trim();
@@ -3897,7 +3876,7 @@ function renderSignal(){
       </div>
       ${ladderHTML(s)}
       ${(() => { const f = finalCall(s); return `
-      <div class="verdictbar" style="border-color:${f.c};background:${f.bg}">
+      <div class="verdictbar${f.t==='WAIT'?' vWait':''}" style="border-color:${f.c};background:${f.bg}">
         <b class="shine ${f.c==='var(--up)'?'up':f.c==='var(--dn)'?'dn':'gd'}">${f.t}</b>
         <p style="color:${f.c}">${f.why}</p>
       </div>`; })()}
@@ -8548,6 +8527,16 @@ if('serviceWorker' in navigator){
 /* 7 tab aane se chhote phone pe label aapas me na chipke */
 nav button{min-width:0}
 @media (max-width:420px){body.ds-gold nav button{font-size:9.5px;letter-spacing:.1px}}
+
+/* ---- WAIT verdict: hari blink karti border (v9.9.2) ----
+   Animation inline border-color ko haraa deti hai. Motion band ho to
+   seedhi hari border rehti hai. */
+@keyframes waitBlink{
+  0%,100%{border-color:#16E27E;box-shadow:0 0 0 1px rgba(22,226,126,.55),0 0 14px rgba(22,226,126,.45)}
+  50%{border-color:rgba(22,226,126,.12);box-shadow:0 0 0 0 rgba(22,226,126,0)}
+}
+.verdictbar.vWait{border-width:2px !important;border-style:solid !important;animation:waitBlink 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.verdictbar.vWait{animation:none;border-color:#16E27E !important}}
 </style>
 <script>
 /* =====================================================================
