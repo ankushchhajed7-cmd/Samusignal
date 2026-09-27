@@ -2029,7 +2029,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.0';
+const VERSION = '9.9.1';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -6835,15 +6835,35 @@ function shareTradeTg(id){
 async function tgSend(text, silentFail){
   if(!S.tgTok || !S.tgId){ if(!silentFail) toast('Telegram token aur chat ID daalo'); return }
   if(!text){ return }
+  /* v9.9.1: token me beech ka space/enter ya aage "bot" likha ho to saaf karo */
+  const tok = String(S.tgTok).replace(/\s+/g,'').replace(/^bot(?=\d)/i,'');
+  const url = `https://api.telegram.org/bot${tok}/sendMessage`;
+  /* form-encoded = "simple" request — browser pehle OPTIONS (preflight) nahi bhejta,
+     jo kuch network/WebView me atak jaata tha */
+  const body = () => new URLSearchParams({chat_id:String(S.tgId).trim(), text, parse_mode:'HTML', disable_web_page_preview:'true'});
+  let j = null, err = null;
   try{
-    const r = await fetch(`https://api.telegram.org/bot${S.tgTok}/sendMessage`,{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({chat_id:S.tgId, text, parse_mode:'HTML', disable_web_page_preview:true})
-    });
-    const j = await r.json();
-    if(j.ok){ logAdd('Telegram bheja: ' + strip(text).split('\n')[0]); if(!silentFail) toast('Telegram pe chala gaya') }
-    else { logAdd('Telegram fail: ' + (j.description||'')); if(!silentFail) toast('Telegram error: ' + (j.description||'')) }
-  }catch(e){ logAdd('Telegram fail: ' + e.message); if(!silentFail) toast('Telegram nahi gaya — internet check karo') }
+    const r = await fetch(url, {method:'POST', body: body()});
+    j = await r.json();
+  }catch(e){
+    err = e;
+    /* aakhri koshish: no-cors — jawab padh nahi sakte, par message chala jaata hai */
+    try{ await fetch(url, {method:'POST', mode:'no-cors', body: body()}); j = {ok:true, blind:true}; }
+    catch(e2){ err = e2; }
+  }
+  if(j && j.ok){
+    logAdd('Telegram bheja: ' + strip(text).split('\n')[0]);
+    if(!silentFail) toast(j.blind ? 'Telegram bheja (confirm nahi ho saka — chat me dekho)' : 'Telegram pe chala gaya');
+  }else if(j){
+    const d = j.description || ('code ' + (j.error_code||'?'));
+    const hint = j.error_code === 404 || j.error_code === 401 ? ' — Bot Token galat hai, @BotFather se dobara copy karo'
+               : j.error_code === 400 ? ' — Chat ID galat hai, ya bot ko pehle /start bhejo' : '';
+    logAdd('Telegram fail: ' + d + hint);
+    if(!silentFail) toast('Telegram error: ' + d + hint);
+  }else{
+    logAdd('Telegram fail: ' + (err && err.message || 'network'));
+    if(!silentFail) toast('Telegram nahi gaya — ' + (err && err.message || 'internet check karo'));
+  }
 }
 function saveTg(){
   S.tgTok = $('tgTok').value.trim(); S.tgId = $('tgId').value.trim(); save();
