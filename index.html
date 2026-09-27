@@ -1597,6 +1597,126 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 </section>
 
+<!-- ============ COPY TRADE (v9.9.0 — naya, alag system) ============ -->
+<section id="pgCopy" class="hide">
+  <div class="pghd"><span class="pn">07</span><b>Copy Trade</b><small>Investor account · VPS copier</small></div>
+
+  <div class="card">
+    <p class="ttl">Copy Trade <span class="sp" id="cpLive">—</span></p>
+    <div class="sw" id="cpSwOn" onclick="cpToggleOn()">
+      <div class="tg"></div>
+      <div>Copy ON<small id="cpOnNote">ON = source ke naye trades mere VPS account pe khulenge</small></div>
+    </div>
+    <div class="stat3" style="margin:8px 0 10px">
+      <div class="st"><span>Source</span><b class="mono" id="cpStSrc">—</b></div>
+      <div class="st"><span>Copied</span><b class="mono" id="cpStMine">—</b></div>
+      <div class="st"><span>Copy P&amp;L</span><b class="mono" id="cpStPl">—</b></div>
+    </div>
+    <div class="grid2">
+      <div class="cp-acc"><span>SOURCE (INVESTOR)</span><b class="mono" id="cpSrcLogin">—</b><small class="mono" id="cpSrcBal">—</small></div>
+      <div class="cp-acc"><span>MERA VPS ACCOUNT</span><b class="mono" id="cpDstLogin">—</b><small class="mono" id="cpDstBal">—</small></div>
+    </div>
+    <p class="hint" id="cpWarn" style="margin-top:10px">—</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Live Trades <span class="sp" id="cpRowsT">—</span></p>
+    <div id="cpRows"><p class="hint">VPS se abhi data nahi aaya.</p></div>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Source Account</p>
+    <div style="margin-bottom:10px"><label>Login ID</label><input id="cpLogin" class="mono" inputmode="numeric" placeholder="12345678"></div>
+    <div style="margin-bottom:10px"><label>Investor Password</label>
+      <div style="display:flex;gap:8px">
+        <input id="cpPass" type="password" autocomplete="off" placeholder="read-only password" style="flex:1;min-width:0">
+        <button class="btn ghost sm" style="width:auto;min-width:64px" onclick="cpShowPass()" id="cpEye">DIKHAO</button>
+      </div>
+    </div>
+    <div style="margin-bottom:10px"><label>Server</label><input id="cpServer" class="mono" placeholder="Exness-MT5Trial9"></div>
+    <div class="grid2">
+      <button class="btn gold sm" onclick="cpSave(true)">💾 SAVE + BHEJO</button>
+      <button class="btn ghost sm" onclick="cpCopyLogin()">📋 LOGIN COPY</button>
+    </div>
+    <p class="hint">Password sirf is phone me rehta hai — Firebase/VPS pe nahi jaata. VPS pe dusre MT5 me <b>File → Login to Trade Account</b> me yahi ID, password aur server daalo (ek baar). Executor login ID milaata hai — alag account mila to copy ruk jaati hai.</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Lot Setting</p>
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip" id="cpLmSAME"  onclick="cpSetLot('SAME')">Same</button>
+      <button class="chip" id="cpLmMULT"  onclick="cpSetLot('MULT')">Multiplier</button>
+      <button class="chip" id="cpLmFIXED" onclick="cpSetLot('FIXED')">Fixed</button>
+      <button class="chip" id="cpLmRATIO" onclick="cpSetLot('RATIO')">Balance</button>
+    </div>
+    <div class="grid2" style="margin-bottom:10px">
+      <div id="cpMultBox"><label>Multiplier</label><input id="cpMult" class="mono" type="number" step="0.1" min="0.01" onchange="cpSave(false)"></div>
+      <div id="cpFixBox"><label>Fixed Lot</label><input id="cpFix" class="mono" type="number" step="0.01" min="0.01" onchange="cpSave(false)"></div>
+      <div><label>Max Lot / Trade</label><input id="cpMaxLot" class="mono" type="number" step="0.01" min="0.01" onchange="cpSave(false)"></div>
+    </div>
+    <p class="hint" id="cpLotNote" style="margin:0">—</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Suraksha</p>
+    <div class="sw" id="cpSwSltp" onclick="cpToggle('sltp',this)">
+      <div class="tg"></div><div>SL / TP bhi copy<small>Source ka SL/TP badle to yahan bhi badlega</small></div>
+    </div>
+    <div class="sw" id="cpSwRev" onclick="cpToggle('reverse',this)">
+      <div class="tg"></div><div>Ulta copy (Reverse)<small>Source BUY kare to yahan SELL — SL/TP bhi ulte</small></div>
+    </div>
+    <div class="sw" id="cpSwOld" onclick="cpToggle('copyOld',this)">
+      <div class="tg"></div><div>Pehle se khule trades bhi<small>OFF = sirf ON karne ke baad wale naye trades</small></div>
+    </div>
+    <div class="grid2" style="margin:8px 0 10px">
+      <div><label>Max Price Farak</label><input id="cpMaxDev" class="mono" type="number" step="0.1" min="0" placeholder="0 = off" onchange="cpSave(false)"></div>
+      <div><label>Max Positions</label><input id="cpMaxPos" class="mono" type="number" step="1" min="1" onchange="cpSave(false)"></div>
+      <div><label>Copy Loss Limit $</label><input id="cpDD" class="mono" type="number" step="10" min="0" placeholder="0 = off" onchange="cpSave(false)"></div>
+    </div>
+    <div class="sw" id="cpSwDDc" onclick="cpToggle('ddClose',this)">
+      <div class="tg"></div><div>Limit pe sab band<small>OFF = sirf naye copy rukenge, khule trades chalte rahenge</small></div>
+    </div>
+    <p class="hint">Max Price Farak: source ke entry se price itna (jaise gold me 1.0 = $1) bura ho chuka ho to trade skip. Copy loss sirf copied trades ka floating loss ginta hai.</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Symbol Map</p>
+    <label>Source = Mera symbol (har line me ek)</label>
+    <textarea id="cpSymMap" class="mono" rows="3" placeholder="XAUUSD+=XAUUSDm&#10;EURUSD+=EURUSDm" onchange="cpSave(false)"></textarea>
+    <div style="margin:10px 0"><label>Mera broker suffix</label><input id="cpSuffix" class="mono" placeholder="m  /  .sc  /  khaali" onchange="cpSave(false)"></div>
+    <p class="hint" style="margin-top:0">Same broker ho to kuch mat likho. Alag broker ho to Executor khud dhoondta hai (XAUUSD+ → XAUUSDm); na mile to yahan likho.</p>
+    <button class="btn gold" style="margin-top:10px" onclick="cpSave(true)">📤 SETTINGS VPS PE BHEJO</button>
+    <p class="hint" id="cpSent">—</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Control</p>
+    <div class="grid2">
+      <button class="btn r sm" onclick="cpCmd('CLOSEALL')">⛔ SAB COPIED BAND</button>
+      <button class="btn ghost sm" onclick="cpCmd('RESETDD')">↺ LOSS LIMIT RESET</button>
+    </div>
+    <p class="hint">"Sab copied band" sirf is copier ke khole trades band karta hai (magic 770077) — aapke baaki EA ke trades ko haath nahi lagata.</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">VPS Log <span class="sp" id="cpLogT">—</span></p>
+    <div id="cpLog" class="cp-log mono"><p class="hint">Abhi kuch nahi.</p></div>
+  </div>
+
+  <div class="card">
+    <p class="ttl">VPS Setup (ek baar)</p>
+    <ol class="cp-steps">
+      <li>VPS pe <b>doosra MT5</b> install karo alag folder me (jaise <span class="mono">C:\MT5_Source</span>). Source broker alag ho to usi broker ka MT5.</li>
+      <li>Doosre MT5 me upar wale <b>Login ID + Investor Password + Server</b> se login karo.</li>
+      <li>Usme <b>SamuSignal CopyTrade Reader</b> EA kisi bhi chart pe lagao.</li>
+      <li>Apne asli account wale MT5 me <b>SamuSignal CopyTrade Executor</b> ek chart pe lagao. AutoTrading ON.</li>
+      <li>Usi MT5 me doosre chart pe <b>SamuSignal CopyTrade Bridge</b> lagao, input me wahi Firebase URL jo Settings me hai. Tools → Options → Expert Advisors → WebRequest list me Firebase URL add karo.</li>
+      <li>Yahan upar status <b>LIVE</b> dikhe to Copy ON karo.</li>
+    </ol>
+    <p class="hint" id="cpFbNote">—</p>
+  </div>
+</section>
+
 </main>
 
 <nav>
@@ -1606,6 +1726,7 @@ body.ds-gold .brand .brandWord{height:24px}
   <button data-pg="Market" onclick="go('Market',this)"><i>📊</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20.5h18"></path><path d="M6 17V11"></path><path d="M11 17V5"></path><path d="M16 17V9"></path><path d="M20 17v-4"></path></svg><span class="nl">MARKET</span></button>
   <button data-pg="Trades" onclick="go('Trades',this)"><i>💼</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7.5" width="18" height="12.5" rx="2"></rect><path d="M9 7.5V5.5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path><path d="M3 12.5h18"></path></svg><span class="nl">TRADES</span></button>
   <button data-pg="Alerts" onclick="go('Alerts',this)"><i>🔔</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span class="nl">ALERTS</span></button>
+  <button data-pg="Copy" onclick="go('Copy',this)"><i>🔁</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l3.5 3.5L17 10"></path><path d="M3.5 11.5V10a3.5 3.5 0 0 1 3.5-3.5h13.5"></path><path d="M7 21l-3.5-3.5L7 14"></path><path d="M20.5 12.5V14a3.5 3.5 0 0 1-3.5 3.5H3.5"></path></svg><span class="nl">COPY</span></button>
 </nav>
 
 <!-- ============ SHEETS ============ -->
@@ -1908,7 +2029,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.8.0';
+const VERSION = '9.9.0';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2767,7 +2888,7 @@ document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{
   if(e.target===o){ o.classList.remove('on'); syncLock() }
 }));
 function go(pg,btn){
-  ['Signals','Scan','Votes','Market','Trades','Alerts'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
+  ['Signals','Scan','Votes','Market','Trades','Alerts','Copy'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   /* header sirf Signals page pe — baaki pages pe poori screen milti hai */
   const hd = document.querySelector('header');
   hd.classList.toggle('hide', pg !== 'Signals');
@@ -2779,6 +2900,8 @@ function go(pg,btn){
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
   if(pg==='Alerts'){ renderLog(); renderCloud(); renderStorage(); renderShot(); renderTrack() }
+  /* v9.9.0 Copy Trade — naya tab, sirf apna kaam */
+  if(pg==='Copy'){ if(window.cpOnShow) cpOnShow() } else if(window.cpOnHide) cpOnHide();
 }
 async function toggleNotif(el){
   if(!S.notif){
@@ -8108,7 +8231,7 @@ async function runSelfTest(){
   const t0 = performance.now();
 
   /* --- A. har page ka layout --- */
-  const pages = ['Signals','Scan','Votes','Market','Trades','Alerts'];
+  const pages = ['Signals','Scan','Votes','Market','Trades','Alerts','Copy'];
   const wasOn = pages.find(p => !$('pg'+p).classList.contains('hide')) || 'Signals';
   const sheetOpen = [...document.querySelectorAll('.ov.on')].map(o => o.id);
   sheetOpen.forEach(id => $(id).classList.remove('on'));
@@ -8317,7 +8440,7 @@ window.addEventListener('online', () => { netState(); toast('Wapas online') });
 window.addEventListener('offline', netState);
 
 /* ---------------- swipe to switch pages ---------------- */
-const PAGES = ['Signals','Scan','Votes','Market','Trades','Alerts'];
+const PAGES = ['Signals','Scan','Votes','Market','Trades','Alerts','Copy'];
 let tx=0, ty=0, tt=0;
 document.addEventListener('touchstart', e => {
   if(e.touches.length !== 1) return;
@@ -8384,5 +8507,291 @@ if('serviceWorker' in navigator){
 }
 
 </script>
+
+<!-- ============ COPY TRADE module (v9.9.0) — baaki app se bilkul alag ============ -->
+<style>
+.cp-acc{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-width:0}
+.cp-acc span{display:block;font-size:10px;color:var(--lbl);letter-spacing:1px;font-weight:700;margin-bottom:3px}
+.cp-acc b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-acc small{display:block;font-size:11px;color:var(--mut);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-row{border:1px solid var(--line);border-radius:6px;padding:9px 10px;margin-bottom:8px;background:var(--bg)}
+.cp-row .a{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cp-row .a b{font-size:13px}
+.cp-row .b{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;font-size:11.5px}
+.cp-row .b span{display:block;color:var(--lbl);font-size:10px;letter-spacing:.5px;font-weight:700}
+.cp-tag{margin-left:auto;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.cp-up{color:var(--up)} .cp-dn{color:var(--dn)} .cp-gold{color:var(--gold)} .cp-mut{color:var(--mut)}
+.cp-log{font-size:11px;line-height:1.6;max-height:260px;overflow-y:auto;overflow-x:hidden;word-break:break-word}
+.cp-log div{padding:3px 0;border-bottom:1px dashed var(--line)}
+.cp-steps{margin:0;padding-left:20px;font-size:12.5px;line-height:1.75;color:var(--txt)}
+.cp-steps li{margin-bottom:6px}
+/* 7 tab aane se chhote phone pe label aapas me na chipke */
+nav button{min-width:0}
+@media (max-width:420px){body.ds-gold nav button{font-size:9.5px;letter-spacing:.1px}}
+</style>
+<script>
+/* =====================================================================
+   COPY TRADE (v1 — manual investor login on VPS)
+   Firebase:  /copytrade/config  <- app likhta hai (password NAHI jaata)
+              /copytrade/status  <- VPS ka Executor+Bridge likhta hai
+   Is block ke bahar kuch nahi badla — sirf naya tab, naye functions.
+   ===================================================================== */
+(function(){
+  const KEY = 'samu_cp';
+  const DEF = {on:false, srcLogin:'', srcPass:'', srcServer:'', lotMode:'SAME', mult:1, fixLot:0.01,
+    maxLot:1, reverse:false, sltp:true, copyOld:false, maxDev:0, maxPos:50, ddUsd:0, ddClose:false,
+    symMap:'', suffix:'', cmd:'', cmdId:0, at:0};
+  let CP = Object.assign({}, DEF);
+  try{ const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if(v) CP = Object.assign({}, DEF, v); }catch(e){}
+  let ST = null, stAt = 0, timer = null, busy = false, pulled = false, sentAt = 0, lastErr = '';
+  const q = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const num = (v, d) => { const n = parseFloat(v); return isFinite(n) ? n : d; };
+  const money = v => (v < 0 ? '-$' : '$') + Math.abs(+v || 0).toFixed(2);
+  const say = m => { try{ toast(m) }catch(e){} };
+
+  function keep(){ try{ localStorage.setItem(KEY, JSON.stringify(CP)) }catch(e){} }
+
+  function fb(path){
+    let u = (typeof S !== 'undefined' && S.fbUrl ? S.fbUrl : '').trim().replace(/\/+$/, '');
+    if(!u) return '';
+    if(!/^https?:\/\//.test(u)) u = 'https://' + u;
+    const au = (typeof S !== 'undefined' && S.fbAuth) ? '?auth=' + encodeURIComponent(S.fbAuth) : '';
+    return u + '/copytrade/' + path + '.json' + au;
+  }
+
+  /* VPS ko jaane wala config — password kabhi nahi */
+  function cfgOut(){
+    return {on:!!CP.on, srcLogin:String(CP.srcLogin||'').trim(), srcServer:String(CP.srcServer||'').trim(),
+      lotMode:CP.lotMode, mult:+CP.mult, fixLot:+CP.fixLot, maxLot:+CP.maxLot, reverse:!!CP.reverse,
+      sltp:!!CP.sltp, copyOld:!!CP.copyOld, maxDev:+CP.maxDev, maxPos:+CP.maxPos, ddUsd:+CP.ddUsd,
+      ddClose:!!CP.ddClose, symMap:String(CP.symMap||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).join(';'),
+      suffix:String(CP.suffix||'').trim(), cmd:CP.cmd||'', cmdId:+CP.cmdId||0, at:CP.at};
+  }
+
+  async function push(){
+    const u = fb('config');
+    if(!u){ say('Pehle Settings me Firebase URL daalo'); try{ openSheet('setSheet') }catch(e){} return false; }
+    CP.at = Date.now(); keep();
+    try{
+      const r = await fetch(u, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(cfgOut())});
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      sentAt = CP.at; lastErr = '';
+      renderSent();
+      return true;
+    }catch(e){
+      lastErr = e.message; renderSent();
+      say('VPS tak nahi gaya: ' + e.message);
+      return false;
+    }
+  }
+
+  /* dusre phone se badla ho to wahi le lo (password chhod kar) */
+  async function pull(){
+    const u = fb('config'); if(!u) return;
+    try{
+      const r = await fetch(u, {cache:'no-store'}); if(!r.ok) return;
+      const v = await r.json();
+      if(v && typeof v === 'object' && +v.at > +CP.at){
+        const pass = CP.srcPass;
+        Object.keys(DEF).forEach(k => { if(k in v) CP[k] = v[k] });
+        if(typeof CP.symMap === 'string') CP.symMap = CP.symMap.split(';').filter(Boolean).join('\n');
+        CP.srcPass = pass; keep(); fill();
+      }
+      if(v && v.at) sentAt = +v.at;
+    }catch(e){}
+  }
+
+  async function poll(){
+    if(busy) return; busy = true;
+    const u = fb('status');
+    if(!u){ busy = false; renderStatus(); return; }
+    try{
+      const r = await fetch(u, {cache:'no-store'});
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      ST = await r.json(); stAt = Date.now(); lastErr = '';
+    }catch(e){ lastErr = e.message; }
+    busy = false;
+    renderStatus();
+  }
+
+  /* ---------------- form ---------------- */
+  function fill(){
+    q('cpLogin').value = CP.srcLogin || '';
+    q('cpPass').value = CP.srcPass || '';
+    q('cpServer').value = CP.srcServer || '';
+    q('cpMult').value = CP.mult; q('cpFix').value = CP.fixLot; q('cpMaxLot').value = CP.maxLot;
+    q('cpMaxDev').value = CP.maxDev || ''; q('cpMaxPos').value = CP.maxPos; q('cpDD').value = CP.ddUsd || '';
+    q('cpSymMap').value = CP.symMap || ''; q('cpSuffix').value = CP.suffix || '';
+    q('cpSwOn').classList.toggle('on', !!CP.on);
+    q('cpSwSltp').classList.toggle('on', !!CP.sltp);
+    q('cpSwRev').classList.toggle('on', !!CP.reverse);
+    q('cpSwOld').classList.toggle('on', !!CP.copyOld);
+    q('cpSwDDc').classList.toggle('on', !!CP.ddClose);
+    lotUI();
+    const fbOk = !!fb('config');
+    q('cpFbNote').innerHTML = fbOk
+      ? 'Firebase: <span class="mono">' + esc((S.fbUrl||'').replace(/^https?:\/\//,'')) + '</span> — Bridge EA me yahi URL daalna hai.'
+      : '<span class="cp-dn">Firebase URL nahi daala — Settings (⚙) → MT5 Bridge me daalo. Copy Trade usi se chalta hai.</span>';
+  }
+
+  function readForm(){
+    CP.srcLogin = q('cpLogin').value.trim();
+    CP.srcPass = q('cpPass').value;
+    CP.srcServer = q('cpServer').value.trim();
+    CP.mult = Math.max(0.01, num(q('cpMult').value, 1));
+    CP.fixLot = Math.max(0.01, num(q('cpFix').value, 0.01));
+    CP.maxLot = Math.max(0.01, num(q('cpMaxLot').value, 1));
+    CP.maxDev = Math.max(0, num(q('cpMaxDev').value, 0));
+    CP.maxPos = Math.max(1, Math.round(num(q('cpMaxPos').value, 50)));
+    CP.ddUsd = Math.max(0, num(q('cpDD').value, 0));
+    CP.symMap = q('cpSymMap').value;
+    CP.suffix = q('cpSuffix').value.trim();
+  }
+
+  function lotUI(){
+    ['SAME','MULT','FIXED','RATIO'].forEach(m => q('cpLm'+m).classList.toggle('on', CP.lotMode === m));
+    q('cpMultBox').classList.toggle('hide', !(CP.lotMode === 'MULT' || CP.lotMode === 'RATIO'));
+    q('cpFixBox').classList.toggle('hide', CP.lotMode !== 'FIXED');
+    const n = {
+      SAME:  'Source jitna lot, utna hi yahan (0.05 → 0.05).',
+      MULT:  'Source lot × multiplier (0.05 × ' + CP.mult + ' = ' + (0.05*CP.mult).toFixed(2) + ').',
+      FIXED: 'Har trade ' + (+CP.fixLot).toFixed(2) + ' lot — source kitna bhi lagaye.',
+      RATIO: 'Balance ke hisaab se: source lot × (mera balance ÷ source balance) × ' + CP.mult + '.'
+    };
+    q('cpLotNote').textContent = n[CP.lotMode] + ' Max ' + (+CP.maxLot).toFixed(2) + ' lot per trade.';
+  }
+
+  function renderSent(){
+    const el = q('cpSent'); if(!el) return;
+    if(lastErr && !ST){ el.innerHTML = '<span class="cp-dn">Error: ' + esc(lastErr) + '</span>'; return; }
+    if(!sentAt){ el.textContent = 'Abhi tak VPS pe settings nahi bheji.'; return; }
+    const got = ST && +ST.cfgAt >= sentAt;
+    el.innerHTML = 'Bheja: ' + new Date(sentAt).toLocaleTimeString() + ' — ' +
+      (got ? '<span class="cp-up">VPS ne le li ✓</span>' : '<span class="cp-gold">VPS ke lene ka intezaar…</span>');
+  }
+
+  /* ---------------- status ---------------- */
+  const TAG = {
+    'COPY':['✓ Copied','cp-up'], 'RETRY':['Try ho raha','cp-gold'], 'OFF':['Copy OFF','cp-mut'],
+    'LIMIT':['Loss limit','cp-dn'], 'WAIT':['Intezaar','cp-mut'], 'CLOSING':['Band ho raha','cp-gold'],
+    'ORPHAN':['Purana source','cp-gold'], 'SKIP:OLD':['Purana — skip','cp-mut'],
+    'SKIP:NOSYM':['Symbol nahi mila','cp-dn'], 'SKIP:MAXPOS':['Max positions','cp-dn'],
+    'SKIP:DEV':['Price door tha','cp-gold'], 'SKIP:FAIL':['Fail (3 try)','cp-dn'],
+    'SKIP:MYCLOSE':['Mera band hua','cp-mut'], 'SKIP:CLOSED':['Band kiya','cp-mut']
+  };
+
+  function renderStatus(){
+    const live = q('cpLive'); if(!live) return;
+    const now = Date.now() / 1000;
+    const s = ST;
+    let state = 'none', msg = '';
+    if(!fb('status')){ state = 'nofb'; msg = 'Settings me Firebase URL daalo.'; }
+    else if(!s){ state = lastErr ? 'err' : 'none'; msg = lastErr ? ('Firebase error: ' + lastErr) : 'VPS se abhi tak koi status nahi aaya — Bridge EA lagao.'; }
+    else if(!s.br || now - s.br > 15){ state = 'down'; msg = 'Bridge EA se ' + (s.br ? Math.round((now - s.br)/60) + ' min' : 'kabhi') + ' se update nahi — VPS / MT5 / Bridge check karo.'; }
+    else if(s.noExec || !s.at || now - s.at > 15){ state = 'noexec'; msg = 'Bridge chal raha hai par Executor EA ka status nahi — Executor lagao / AutoTrading check karo.'; }
+    else if(!s.src || !s.src.ok){ state = 'nosrc'; msg = 'Reader (source) offline — doosra MT5 aur Reader EA check karo. Copy ruki hui hai.'; }
+    else state = 'live';
+
+    const lab = {live:['● LIVE','cp-up'], nosrc:['● SOURCE OFF','cp-dn'], noexec:['● EXECUTOR OFF','cp-dn'],
+      down:['● VPS OFF','cp-dn'], none:['● INTEZAAR','cp-gold'], err:['● ERROR','cp-dn'], nofb:['● SETUP','cp-gold']}[state];
+    live.innerHTML = '<span class="' + lab[1] + '">' + lab[0] + '</span>';
+
+    const src = (s && s.src) || {}, dst = (s && s.dst) || {};
+    q('cpStSrc').textContent = s ? (src.n ?? 0) : '—';
+    q('cpStMine').textContent = s ? (dst.n ?? 0) : '—';
+    const pl = q('cpStPl'); pl.textContent = s ? money(dst.pl) : '—';
+    pl.className = 'mono ' + (s ? (+dst.pl >= 0 ? 'cp-up' : 'cp-dn') : '');
+    q('cpSrcLogin').textContent = src.login ? src.login : (CP.srcLogin || '—');
+    q('cpSrcBal').textContent = src.login ? ('Bal ' + money(src.bal) + ' · Eq ' + money(src.eq) + (src.inv === false ? ' · MASTER pw!' : '')) : (CP.srcServer || '—');
+    q('cpDstLogin').textContent = dst.login || '—';
+    q('cpDstBal').textContent = dst.login ? ('Bal ' + money(dst.bal) + ' · Eq ' + money(dst.eq)) : '—';
+
+    const warn = [];
+    if(msg) warn.push(msg);
+    if(s && s.warn) warn.push(s.warn);
+    if(s && s.dd) warn.push('LOSS LIMIT hit — naye copy band. "Loss Limit Reset" dabao ya OFF→ON karo.');
+    if(s && s.algo === false) warn.push('VPS MT5 me AutoTrading OFF hai.');
+    if(s && src.login && CP.srcLogin && String(src.login) !== String(CP.srcLogin).trim())
+      warn.push('VPS pe source ' + src.login + ' login hai, app me ' + CP.srcLogin + '.');
+    if(s && s.on !== undefined && !!s.on !== !!CP.on && s.cfgAt < sentAt) warn.push('Naya ON/OFF VPS tak pahunch raha hai…');
+    const w = q('cpWarn');
+    w.innerHTML = warn.length ? warn.map(x => '<span class="cp-dn">⚠ ' + esc(x) + '</span>').join('<br>')
+      : '<span class="cp-up">Sab theek — ' + (CP.on ? 'copy chalu hai.' : 'Copy OFF hai.') + '</span>';
+
+    /* rows */
+    const rows = (s && Array.isArray(s.rows)) ? s.rows : [];
+    q('cpRowsT').textContent = s ? rows.length + ' trade' : '—';
+    q('cpRows').innerHTML = rows.length ? rows.map(r => {
+      const t = TAG[r.st] || [r.st, 'cp-mut'];
+      const side = r.t === 'BUY' ? 'cp-up' : 'cp-dn';
+      return '<div class="cp-row"><div class="a"><b class="' + side + '">' + esc(r.t) + '</b><b class="mono">' +
+        esc(r.sym || r.dsym || '') + '</b><span class="cp-tag ' + t[1] + '">' + esc(t[0]) + '</span></div>' +
+        '<div class="b mono"><div><span>SOURCE' + (r.s ? ' #' + esc(r.s) : '') + '</span>' +
+        (r.sv ? (+r.sv).toFixed(2) + ' lot · <b class="' + (+r.sp >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(r.sp) + '</b>' : '—') + '</div>' +
+        '<div><span>MERA' + (r.d ? ' #' + esc(r.d) : '') + '</span>' +
+        (r.d ? (+r.dv).toFixed(2) + ' lot · <b class="' + (+r.dp >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(r.dp) + '</b>' : '—') + '</div></div></div>';
+    }).join('') : '<p class="hint">' + (s ? 'Source pe abhi koi trade khula nahi.' : 'VPS se abhi data nahi aaya.') + '</p>';
+
+    /* log */
+    const log = (s && Array.isArray(s.log)) ? s.log : [];
+    q('cpLogT').textContent = s && s.at ? new Date(s.at * 1000).toLocaleTimeString() : '—';
+    q('cpLog').innerHTML = log.length ? log.map(x => '<div>' + esc(x) + '</div>').join('') : '<p class="hint">Abhi kuch nahi.</p>';
+
+    q('cpOnNote').textContent = CP.on
+      ? 'ON — source ke naye trades VPS account pe khul rahe hain'
+      : 'OFF — naye trade nahi khulenge (copied trades ka SL/TP/close sync chalta rahega)';
+    renderSent();
+  }
+
+  /* ---------------- actions (global — HTML onclick se) ---------------- */
+  window.cpSave = async function(send){
+    readForm(); lotUI(); keep();
+    if(send){ const ok = await push(); if(ok) say('Settings VPS pe bhej di ✓'); }
+    else say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao');
+  };
+  window.cpToggleOn = async function(){
+    readForm();
+    if(!CP.on && !String(CP.srcLogin).trim()){ say('Pehle source Login ID daalo'); return; }
+    if(!CP.on && !confirm('Copy ON karein?\n\nSource ' + CP.srcLogin + ' ke naye trades aapke VPS account pe asli paise se khulenge.')) return;
+    CP.on = !CP.on; keep();
+    q('cpSwOn').classList.toggle('on', CP.on);
+    const ok = await push();
+    if(ok) say(CP.on ? 'Copy ON ✓' : 'Copy OFF ✓');
+    renderStatus();
+  };
+  window.cpToggle = function(k, el){ CP[k] = !CP[k]; el.classList.toggle('on', CP[k]); keep(); say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao'); };
+  window.cpSetLot = function(m){ readForm(); CP.lotMode = m; keep(); lotUI(); };
+  window.cpShowPass = function(){
+    const i = q('cpPass'); const show = i.type === 'password';
+    i.type = show ? 'text' : 'password'; q('cpEye').textContent = show ? 'CHHUPAO' : 'DIKHAO';
+  };
+  window.cpCopyLogin = async function(){
+    readForm(); keep();
+    const t = 'Login: ' + CP.srcLogin + '\nPassword: ' + CP.srcPass + '\nServer: ' + CP.srcServer;
+    try{ await navigator.clipboard.writeText(t); say('Login details copy ho gaye'); }
+    catch(e){ prompt('Copy karo:', t.replace(/\n/g, ' | ')); }
+  };
+  window.cpCmd = async function(c){
+    const txt = c === 'CLOSEALL'
+      ? 'Is copier ke SAARE copied trades abhi band karein?\n(Source ke trades par koi asar nahi.)'
+      : 'Loss limit reset karke copy phir chalu karein?';
+    if(!confirm(txt)) return;
+    CP.cmd = c; CP.cmdId = Date.now();
+    const ok = await push();
+    if(ok) say(c === 'CLOSEALL' ? 'Command bheja — VPS 2-3 sec me band karega' : 'Reset bheja');
+  };
+
+  /* ---------------- page show / hide (go() se) ---------------- */
+  window.cpOnShow = function(){
+    fill(); renderStatus();
+    if(!pulled){ pulled = true; pull(); }
+    poll();
+    if(!timer) timer = setInterval(() => { if(!document.hidden) poll() }, 3000);
+  };
+  window.cpOnHide = function(){ if(timer){ clearInterval(timer); timer = null; } };
+})();
+</script>
+
 </body>
 </html>
