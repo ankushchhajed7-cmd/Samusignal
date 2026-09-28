@@ -1683,6 +1683,18 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 
   <div class="card">
+    <p class="ttl">Symbol Filter <span class="sp" id="cpFiltT">—</span></p>
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip" id="cpSmALL"   onclick="cpSetSymMode('ALL')">Sab copy</button>
+      <button class="chip" id="cpSmALLOW" onclick="cpSetSymMode('ALLOW')">Sirf ye copy</button>
+      <button class="chip" id="cpSmBLOCK" onclick="cpSetSymMode('BLOCK')">Ye mat copy</button>
+    </div>
+    <div id="cpSymListBox"><label>Symbols (comma se alag)</label>
+      <input id="cpSymList" class="mono" placeholder="XAUUSD, BTCUSD" onchange="cpSave(false)"></div>
+    <p class="hint" id="cpFiltNote">—</p>
+  </div>
+
+  <div class="card">
     <p class="ttl">Symbol Map</p>
     <label>Source = Mera symbol (har line me ek)</label>
     <textarea id="cpSymMap" class="mono" rows="3" placeholder="XAUUSD+=XAUUSDm&#10;EURUSD+=EURUSDm" onchange="cpSave(false)"></textarea>
@@ -2010,7 +2022,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.4';
+const VERSION = '9.9.5';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -8551,7 +8563,7 @@ nav button{min-width:0}
 (function(){
   const KEY = 'samu_cp';
   const DEF = {on:false, srcLogin:'', srcPass:'', srcServer:'', lotMode:'SAME', mult:1, fixLot:0.01,
-    maxLot:1, reverse:false, sltp:true, copyOld:false, copyPend:true, maxDev:0, maxPos:50, ddUsd:0, ddClose:false,
+    maxLot:1, reverse:false, sltp:true, copyOld:false, copyPend:true, symMode:'ALL', symList:'', maxDev:0, maxPos:50, ddUsd:0, ddClose:false,
     symMap:'', suffix:'', cmd:'', cmdId:0, at:0};
   let CP = Object.assign({}, DEF);
   try{ const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if(v) CP = Object.assign({}, DEF, v); }catch(e){}
@@ -8578,7 +8590,7 @@ nav button{min-width:0}
       lotMode:CP.lotMode, mult:+CP.mult, fixLot:+CP.fixLot, maxLot:+CP.maxLot, reverse:!!CP.reverse,
       sltp:!!CP.sltp, copyOld:!!CP.copyOld, copyPend:CP.copyPend !== false, maxDev:+CP.maxDev, maxPos:+CP.maxPos, ddUsd:+CP.ddUsd,
       ddClose:!!CP.ddClose, symMap:String(CP.symMap||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).join(';'),
-      suffix:String(CP.suffix||'').trim(), cmd:CP.cmd||'', cmdId:+CP.cmdId||0, at:CP.at};
+      suffix:String(CP.suffix||'').trim(), symMode:CP.symMode||'ALL', symList:String(CP.symList||'').trim(), cmd:CP.cmd||'', cmdId:+CP.cmdId||0, at:CP.at};
   }
 
   async function push(){
@@ -8635,13 +8647,14 @@ nav button{min-width:0}
     q('cpMult').value = CP.mult; q('cpFix').value = CP.fixLot; q('cpMaxLot').value = CP.maxLot;
     q('cpMaxDev').value = CP.maxDev || ''; q('cpMaxPos').value = CP.maxPos; q('cpDD').value = CP.ddUsd || '';
     q('cpSymMap').value = CP.symMap || ''; q('cpSuffix').value = CP.suffix || '';
+    q('cpSymList').value = CP.symList || '';
     q('cpSwOn').classList.toggle('on', !!CP.on);
     q('cpSwSltp').classList.toggle('on', !!CP.sltp);
     q('cpSwRev').classList.toggle('on', !!CP.reverse);
     q('cpSwOld').classList.toggle('on', !!CP.copyOld);
     q('cpSwPend').classList.toggle('on', CP.copyPend !== false);
     q('cpSwDDc').classList.toggle('on', !!CP.ddClose);
-    lotUI();
+    lotUI(); filtUI();
     const fbOk = !!fb('config');
     q('cpFbNote').innerHTML = fbOk
       ? 'Firebase: <span class="mono">' + esc((S.fbUrl||'').replace(/^https?:\/\//,'')) + '</span> — Bridge EA me yahi URL daalna hai.'
@@ -8660,6 +8673,7 @@ nav button{min-width:0}
     CP.ddUsd = Math.max(0, num(q('cpDD').value, 0));
     CP.symMap = q('cpSymMap').value;
     CP.suffix = q('cpSuffix').value.trim();
+    CP.symList = q('cpSymList').value.trim();
   }
 
   function lotUI(){
@@ -8673,6 +8687,21 @@ nav button{min-width:0}
       RATIO: 'Balance ke hisaab se: source lot × (mera balance ÷ source balance) × ' + CP.mult + '.'
     };
     q('cpLotNote').textContent = n[CP.lotMode] + ' Max ' + (+CP.maxLot).toFixed(2) + ' lot per trade.';
+  }
+
+  function filtUI(){
+    const m = CP.symMode || 'ALL';
+    ['ALL','ALLOW','BLOCK'].forEach(x => q('cpSm'+x).classList.toggle('on', m === x));
+    q('cpSymListBox').classList.toggle('hide', m === 'ALL');
+    const list = String(CP.symList||'').split(/[\s,;]+/).filter(Boolean);
+    const L = list.join(', ');
+    let n, t;
+    if(m === 'ALL'){ n = 'Source ke saare symbols copy honge.'; t = 'sab'; }
+    else if(!list.length){ n = '<span class="cp-dn">⚠ List khaali hai — abhi sab copy hoga. Symbol likho, jaise XAUUSD.</span>'; t = 'list khaali'; }
+    else if(m === 'ALLOW'){ n = 'Sirf <b>' + esc(L) + '</b> copy honge — baaki sab skip.'; t = 'sirf ' + L; }
+    else { n = '<b>' + esc(L) + '</b> copy nahi honge — baaki sab honge.'; t = 'chhodo ' + L; }
+    q('cpFiltNote').innerHTML = n + '<br>Naam ka shuru wala hissa milta hai: XAUUSD = XAUUSD#, XAUUSD+, XAUUSDm, GOLD. Pehle se copied trades pe asar nahi.';
+    q('cpFiltT').textContent = t;
   }
 
   function renderSent(){
@@ -8691,7 +8720,8 @@ nav button{min-width:0}
     'ORPHAN':['Purana source','cp-gold'], 'SKIP:OLD':['Purana — skip','cp-mut'],
     'SKIP:NOSYM':['Symbol nahi mila','cp-dn'], 'SKIP:MAXPOS':['Max positions','cp-dn'],
     'SKIP:DEV':['Price door tha','cp-gold'], 'SKIP:FAIL':['Fail (3 try)','cp-dn'],
-    'SKIP:MYCLOSE':['Mera band hua','cp-mut'], 'SKIP:CLOSED':['Band kiya','cp-mut']
+    'SKIP:MYCLOSE':['Mera band hua','cp-mut'], 'SKIP:CLOSED':['Band kiya','cp-mut'],
+    'SKIP:FILTER':['Filter — skip','cp-mut']
   };
 
   function renderStatus(){
@@ -8741,7 +8771,7 @@ nav button{min-width:0}
       COPY:['✓ Pending copied','cp-up',''], WAIT:['⏳ Pending','cp-gold','Copy ho raha hai…'],
       OFF:['⏳ Copy OFF','cp-mut','Copy ON karne par lagega'], NOCOPY:['⏳ Pending','cp-mut','Pending copy OFF hai — trigger hote hi trade copy hoga'],
       NOPEND:['⏳ Pending','cp-gold','Yahan pending nahi lag saka — trigger hote hi trade copy hoga'],
-      SKIP:['Skip','cp-mut','Ye order copy nahi hoga'], LIMIT:['Loss limit','cp-dn','Loss limit ki wajah se ruka']
+      SKIP:['Skip','cp-mut','Ye order copy nahi hoga'], FILTER:['Filter — skip','cp-mut','Symbol filter me nahi — copy nahi hoga'], LIMIT:['Loss limit','cp-dn','Loss limit ki wajah se ruka']
     };
     const pendHtml = pend.map(o => {
       const side = /^BUY/.test(o.t) ? 'cp-up' : 'cp-dn';
@@ -8778,7 +8808,7 @@ nav button{min-width:0}
 
   /* ---------------- actions (global — HTML onclick se) ---------------- */
   window.cpSave = async function(send){
-    readForm(); lotUI(); keep();
+    readForm(); lotUI(); filtUI(); keep();
     if(send){ const ok = await push(); if(ok) say('Settings VPS pe bhej di ✓'); }
     else say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao');
   };
@@ -8794,6 +8824,7 @@ nav button{min-width:0}
   };
   window.cpToggle = function(k, el){ CP[k] = (k === 'copyPend') ? (CP[k] === false) : !CP[k]; el.classList.toggle('on', CP[k]); keep(); say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao'); };
   window.cpSetLot = function(m){ readForm(); CP.lotMode = m; keep(); lotUI(); };
+  window.cpSetSymMode = function(m){ readForm(); CP.symMode = m; keep(); filtUI(); say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao'); };
   window.cpShowPass = function(){
     const i = q('cpPass'); const show = i.type === 'password';
     i.type = show ? 'text' : 'password'; q('cpEye').textContent = show ? 'CHHUPAO' : 'DIKHAO';
