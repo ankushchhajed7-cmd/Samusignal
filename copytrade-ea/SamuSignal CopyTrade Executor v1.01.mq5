@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  SamuSignal CopyTrade Executor v1.00                              |
+//|  SamuSignal CopyTrade Executor v1.01                              |
 //|  Ankush New Vision                                                |
 //+------------------------------------------------------------------+
 //  KAAM:
@@ -27,6 +27,11 @@
 //     hone par hi yahan band hota hai (galti se close nahi).
 //
 //  CHANGELOG
+//   v1.01  (28-Sep-2026)  Source ke pending orders (Reader v1.01 ki "O|" lines)
+//                         padh kar status.json me "pend" list — app me dikhte
+//                         hain. Pending copy NAHI hote; trigger ho kar position
+//                         bante hi copy hote hain (pehle jaisa). Reader v1.00
+//                         ki purani file bhi chalti hai.
 //   v1.00  (27-Sep-2026)  Pehla build — open/close/partial/SL-TP sync,
 //                         4 lot modes, reverse, symbol mapping + auto
 //                         suffix, purane trades skip, price-deviation
@@ -35,7 +40,7 @@
 //                         state file, status.json for app.
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "1.00"
+#property version   "1.01"
 #property description "SamuSignal CopyTrade — Reader ki file se trades apne account pe copy karta hai. Settings SamuSignal app ke COPY tab se."
 
 #include <Trade\Trade.mqh>
@@ -78,7 +83,7 @@ const string F_MASTER  = "SamuCopy\\master.txt";
 const string F_CONFIG  = "SamuCopy\\config.json";
 const string F_STATUS  = "SamuCopy\\status.json";
 const string F_STTMP   = "SamuCopy\\status.tmp";
-const string EA_VER    = "1.00";
+const string EA_VER    = "1.01";
 
 CTrade trade;
 
@@ -114,6 +119,21 @@ struct SrcPos
   };
 SrcPos SP[];
 int    SPn = 0;
+
+//--- source pending orders (sirf dikhane ke liye)
+struct PendO
+  {
+   ulong  tk;
+   string sym;
+   int    type;
+   double vol;
+   double price;
+   double sl;
+   double tp;
+   long   exp;
+  };
+PendO  PO[];
+int    POn = 0;
 
 //--- map: source ticket -> meri position
 struct MapE
@@ -378,9 +398,10 @@ bool ReadMaster()
    if(StringSplit(lines[0], '|', f) < 11 || f[0] != "H") return false;
    string t[];
    if(StringSplit(lines[nl - 1], '|', t) < 3 || t[0] != "E") return false;
-   int cnt = (int)StringToInteger(f[10]);
+   int cnt  = (int)StringToInteger(f[10]);
+   int pcnt = (ArraySize(f) >= 12) ? (int)StringToInteger(f[11]) : 0;   // Reader v1.00 me ye field nahi
    if((int)StringToInteger(t[1]) != cnt || t[2] != f[1]) return false;   // adhuri file
-   if(nl - 2 != cnt) return false;
+   if(nl - 2 != cnt + pcnt) return false;
 
    // header OK -> ab bharo
    hSeq    = (long)StringToInteger(f[1]);
@@ -394,22 +415,39 @@ bool ReadMaster()
    hTrade  = (f[9] == "1");
 
    ArrayResize(SP, cnt);
+   ArrayResize(PO, pcnt);
    SPn = 0;
-   for(int i = 1; i <= cnt; i++)
+   POn = 0;
+   for(int i = 1; i < nl - 1; i++)
      {
       string p[];
-      if(StringSplit(lines[i], '|', p) < 11 || p[0] != "P") continue;
-      SP[SPn].tk    = (ulong)StringToInteger(p[1]);
-      SP[SPn].sym   = p[2];
-      SP[SPn].type  = (int)StringToInteger(p[3]);
-      SP[SPn].vol   = StringToDouble(p[4]);
-      SP[SPn].open  = StringToDouble(p[5]);
-      SP[SPn].sl    = StringToDouble(p[6]);
-      SP[SPn].tp    = StringToDouble(p[7]);
-      SP[SPn].time  = (long)StringToInteger(p[8]);
-      SP[SPn].magic = (long)StringToInteger(p[9]);
-      SP[SPn].pl    = StringToDouble(p[10]);
-      SPn++;
+      int np = StringSplit(lines[i], '|', p);
+      if(np >= 11 && p[0] == "P" && SPn < cnt)
+        {
+         SP[SPn].tk    = (ulong)StringToInteger(p[1]);
+         SP[SPn].sym   = p[2];
+         SP[SPn].type  = (int)StringToInteger(p[3]);
+         SP[SPn].vol   = StringToDouble(p[4]);
+         SP[SPn].open  = StringToDouble(p[5]);
+         SP[SPn].sl    = StringToDouble(p[6]);
+         SP[SPn].tp    = StringToDouble(p[7]);
+         SP[SPn].time  = (long)StringToInteger(p[8]);
+         SP[SPn].magic = (long)StringToInteger(p[9]);
+         SP[SPn].pl    = StringToDouble(p[10]);
+         SPn++;
+        }
+      else if(np >= 11 && p[0] == "O" && POn < pcnt)
+        {
+         PO[POn].tk    = (ulong)StringToInteger(p[1]);
+         PO[POn].sym   = p[2];
+         PO[POn].type  = (int)StringToInteger(p[3]);
+         PO[POn].vol   = StringToDouble(p[4]);
+         PO[POn].price = StringToDouble(p[5]);
+         PO[POn].sl    = StringToDouble(p[6]);
+         PO[POn].tp    = StringToDouble(p[7]);
+         PO[POn].exp   = (long)StringToInteger(p[10]);
+         POn++;
+        }
      }
    hOk = true;
    return true;
@@ -1072,6 +1110,20 @@ void TrackOnOff()
 //+------------------------------------------------------------------+
 string TypeName(const int t) { return t == 0 ? "BUY" : "SELL"; }
 
+string PendName(const int t)
+  {
+   switch(t)
+     {
+      case 2: return "BUY LIMIT";
+      case 3: return "SELL LIMIT";
+      case 4: return "BUY STOP";
+      case 5: return "SELL STOP";
+      case 6: return "BUY STOP LIMIT";
+      case 7: return "SELL STOP LIMIT";
+     }
+   return "PENDING";
+  }
+
 void WriteStatus()
   {
    string js = "{";
@@ -1093,7 +1145,8 @@ void WriteStatus()
          ",\"inv\":" + (hTrade ? "false" : "true") +
          ",\"bal\":" + DoubleToString(hBal, 2) +
          ",\"eq\":" + DoubleToString(hEq, 2) +
-         ",\"n\":" + IntegerToString(SPn) + "}";
+         ",\"n\":" + IntegerToString(SPn) +
+         ",\"np\":" + IntegerToString(POn) + "}";
 
    js += ",\"dst\":{\"login\":" + IntegerToString(myLogin) +
          ",\"server\":\"" + JEsc(AccountInfoString(ACCOUNT_SERVER)) + "\"" +
@@ -1169,6 +1222,24 @@ void WriteStatus()
      }
    js += "]";
 
+   //--- source ke pending orders (sirf dikhane ke liye)
+   js += ",\"pend\":[";
+   for(int k = 0; k < POn && k < 20; k++)
+     {
+      int dg = (int)SymbolInfoInteger(PO[k].sym, SYMBOL_DIGITS);
+      if(dg <= 0) dg = 2;
+      if(k > 0) js += ",";
+      js += "{\"s\":" + IntegerToString((long)PO[k].tk) +
+            ",\"sym\":\"" + JEsc(PO[k].sym) + "\"" +
+            ",\"t\":\"" + PendName(PO[k].type) + "\"" +
+            ",\"v\":" + DoubleToString(PO[k].vol, 2) +
+            ",\"p\":" + DoubleToString(PO[k].price, dg) +
+            ",\"sl\":" + DoubleToString(PO[k].sl, dg) +
+            ",\"tp\":" + DoubleToString(PO[k].tp, dg) +
+            ",\"exp\":" + IntegerToString(PO[k].exp) + "}";
+     }
+   js += "]";
+
    //--- log (naya pehle)
    js += ",\"log\":[";
    for(int i = LOGn - 1; i >= 0; i--)
@@ -1190,7 +1261,8 @@ void Panel()
    s += "Copy: " + (cOn ? "ON" : "OFF") + (ddTrip ? "  (LOSS LIMIT — ruka)" : "") +
         "   Settings: " + (InpUseAppConfig ? (cLoaded ? "App se" : "App ka intezaar") : "Inputs se") + "\n";
    s += "Source: " + (hOk ? IntegerToString(hLogin) + " @ " + hServer : "—") +
-        "   " + (SourceFresh() ? "LIVE" : "OFFLINE") + "   trades " + IntegerToString(SPn) + "\n";
+        "   " + (SourceFresh() ? "LIVE" : "OFFLINE") + "   trades " + IntegerToString(SPn) +
+        "   pending " + IntegerToString(POn) + "\n";
    s += "Copied: " + IntegerToString(MPn) + "   P/L " + DoubleToString(CopiedPL(), 2) + "\n";
    if(warnMsg != "") s += "! " + warnMsg + "\n";
    if(LOGn > 0) s += "Last: " + LOG[LOGn - 1];

@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  SamuSignal CopyTrade Reader v1.00                                |
+//|  SamuSignal CopyTrade Reader v1.01                                |
 //|  Ankush New Vision                                                |
 //+------------------------------------------------------------------+
 //  KAAM:
@@ -12,11 +12,14 @@
 //   isliye dusre terminal ka "Executor" EA ye file padh leta hai.
 //
 //  CHANGELOG
+//   v1.01  (28-Sep-2026)  Pending orders (Buy/Sell Stop/Limit) bhi file me
+//                         "O|" lines — app me dikhane ke liye. Header me
+//                         pending count. Executor v1.01 ke saath hi chalao.
 //   v1.00  (27-Sep-2026)  Pehla build — positions snapshot, heartbeat,
 //                         atomic write (tmp -> move), chart panel.
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "1.00"
+#property version   "1.01"
 #property description "SamuSignal CopyTrade — SOURCE (investor) account ke trades padh kar Common folder me likhta hai. Trade nahi karta."
 
 input int InpIntervalMs = 200;   // Kitni der me padhe (ms) — 100 se 1000
@@ -29,6 +32,7 @@ long     g_seq       = 0;
 int      g_moveFail  = 0;
 uint     g_lastPanel = 0;
 int      g_lastCount = 0;
+int      g_lastPend  = 0;
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -43,7 +47,7 @@ int OnInit()
       return(INIT_FAILED);
      }
    WriteSnapshot();
-   Print("SamuCopy Reader v1.00 chalu. File: ",
+   Print("SamuCopy Reader v1.01 chalu. File: ",
          TerminalInfoString(TERMINAL_COMMONDATA_PATH), "\\Files\\", F_MASTER);
    return(INIT_SUCCEEDED);
   }
@@ -98,7 +102,33 @@ void WriteSnapshot()
       cnt++;
      }
 
-   // H|seq|localTime|login|server|serverTime|balance|equity|connected|tradeAllowed|count
+   //--- pending orders (sirf dikhane ke liye — copy nahi hote)
+   string pbody = "";
+   int    pcnt  = 0;
+   int    ototal = OrdersTotal();
+   for(int i = 0; i < ototal; i++)
+     {
+      ulong ot = OrderGetTicket(i);
+      if(ot == 0) continue;
+      long otyp = OrderGetInteger(ORDER_TYPE);
+      if(otyp < ORDER_TYPE_BUY_LIMIT || otyp > ORDER_TYPE_SELL_STOP_LIMIT) continue;
+      string osym = OrderGetString(ORDER_SYMBOL);
+      int    odg  = (int)SymbolInfoInteger(osym, SYMBOL_DIGITS);
+      if(odg <= 0) odg = 5;
+      pbody += "O|" + IntegerToString((long)ot) +
+               "|" + osym +
+               "|" + IntegerToString(otyp) +
+               "|" + Num(OrderGetDouble(ORDER_VOLUME_CURRENT), 3) +
+               "|" + Num(OrderGetDouble(ORDER_PRICE_OPEN), odg) +
+               "|" + Num(OrderGetDouble(ORDER_SL), odg) +
+               "|" + Num(OrderGetDouble(ORDER_TP), odg) +
+               "|" + IntegerToString(OrderGetInteger(ORDER_TIME_SETUP)) +
+               "|" + IntegerToString(OrderGetInteger(ORDER_MAGIC)) +
+               "|" + IntegerToString(OrderGetInteger(ORDER_TIME_EXPIRATION)) + "\r\n";
+      pcnt++;
+     }
+
+   // H|seq|localTime|login|server|serverTime|balance|equity|connected|tradeAllowed|count|pendingCount
    string head = "H|" + IntegerToString(g_seq) +
                  "|" + IntegerToString((long)TimeLocal()) +
                  "|" + IntegerToString(login) +
@@ -108,12 +138,13 @@ void WriteSnapshot()
                  "|" + Num(AccountInfoDouble(ACCOUNT_EQUITY), 2) +
                  "|" + (conn ? "1" : "0") +
                  "|" + (canTr ? "1" : "0") +
-                 "|" + IntegerToString(cnt) + "\r\n";
+                 "|" + IntegerToString(cnt) +
+                 "|" + IntegerToString(pcnt) + "\r\n";
    string tail = "E|" + IntegerToString(cnt) + "|" + IntegerToString(g_seq) + "\r\n";
 
    int h = FileOpen(F_TMP, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
    if(h == INVALID_HANDLE) return;
-   FileWriteString(h, head + body + tail);
+   FileWriteString(h, head + body + pbody + tail);
    FileClose(h);
 
    // tmp -> master (poori file ek saath badalti hai, aadhi-adhuri kabhi nahi padhi jaati)
@@ -123,6 +154,7 @@ void WriteSnapshot()
       g_moveFail = 0;
 
    g_lastCount = cnt;
+   g_lastPend  = pcnt;
    if(GetTickCount() - g_lastPanel > 1000)
      {
       g_lastPanel = GetTickCount();
@@ -133,12 +165,12 @@ void WriteSnapshot()
 //+------------------------------------------------------------------+
 void Panel(const long login, const string server, const bool conn, const bool canTr)
   {
-   string s = "SamuSignal CopyTrade — READER v1.00\n";
+   string s = "SamuSignal CopyTrade — READER v1.01\n";
    s += "Source: " + IntegerToString(login) + " @ " + server + "\n";
    s += "Connection: " + (conn ? "OK" : "NAHI — login/internet check karo") + "\n";
    s += "Mode: " + (canTr ? "MASTER password (trade allowed) — investor bhi chalega"
                           : "INVESTOR (read-only) — sahi hai") + "\n";
-   s += "Open positions: " + IntegerToString(g_lastCount) + "\n";
+   s += "Open positions: " + IntegerToString(g_lastCount) + "   Pending: " + IntegerToString(g_lastPend) + "\n";
    s += "Snapshot #" + IntegerToString(g_seq) +
         (g_moveFail > 20 ? "  (file likhne me dikkat!)" : "  (file OK)") + "\n";
    s += "Is terminal me trade NAHI hota. Copy dusre terminal ka Executor karta hai.";

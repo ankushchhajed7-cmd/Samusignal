@@ -2007,7 +2007,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.2';
+const VERSION = '9.9.3';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -8730,8 +8730,20 @@ nav button{min-width:0}
 
     /* rows */
     const rows = (s && Array.isArray(s.rows)) ? s.rows : [];
-    q('cpRowsT').textContent = s ? rows.length + ' trade' : '—';
-    q('cpRows').innerHTML = rows.length ? rows.map(r => {
+    const pend = (s && Array.isArray(s.pend)) ? s.pend : [];
+    q('cpRowsT').textContent = s ? rows.length + ' trade' + (pend.length ? ' · ' + pend.length + ' pending' : '') : '—';
+    const fx = (v, ref) => { const n = +v; if(!n) return '—'; const d = Math.abs(ref||n) >= 1000 ? 2 : Math.abs(ref||n) >= 10 ? 3 : 5; return n.toFixed(d); };
+    const pendHtml = pend.map(o => {
+      const side = /^BUY/.test(o.t) ? 'cp-up' : 'cp-dn';
+      /* expiry broker ke server time me aata hai — waise hi dikhao (UTC format = koi shift nahi) */
+      const exp = +o.exp ? new Date(o.exp * 1000).toLocaleString([], {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'UTC'}) + ' (server)' : '';
+      return '<div class="cp-row"><div class="a"><b class="' + side + '">' + esc(o.t) + '</b><b class="mono">' + esc(o.sym) +
+        '</b><span class="cp-tag cp-gold">⏳ Pending</span></div>' +
+        '<div class="b mono"><div><span>SOURCE #' + esc(o.s) + '</span>' + (+o.v).toFixed(2) + ' lot @ ' + fx(o.p) + '</div>' +
+        '<div><span>SL / TP</span>' + fx(o.sl, o.p) + ' / ' + fx(o.tp, o.p) + '</div></div>' +
+        '<p class="hint" style="margin:6px 0 0;font-size:11px">Trigger hote hi yahan copy hoga' + (exp ? ' · expiry ' + esc(exp) : '') + '</p></div>';
+    }).join('');
+    q('cpRows').innerHTML = (rows.length || pend.length) ? rows.map(r => {
       const t = TAG[r.st] || [r.st, 'cp-mut'];
       const side = r.t === 'BUY' ? 'cp-up' : 'cp-dn';
       return '<div class="cp-row"><div class="a"><b class="' + side + '">' + esc(r.t) + '</b><b class="mono">' +
@@ -8740,7 +8752,7 @@ nav button{min-width:0}
         (r.sv ? (+r.sv).toFixed(2) + ' lot · <b class="' + (+r.sp >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(r.sp) + '</b>' : '—') + '</div>' +
         '<div><span>MERA' + (r.d ? ' #' + esc(r.d) : '') + '</span>' +
         (r.d ? (+r.dv).toFixed(2) + ' lot · <b class="' + (+r.dp >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(r.dp) + '</b>' : '—') + '</div></div></div>';
-    }).join('') : '<p class="hint">' + (s ? 'Source pe abhi koi trade khula nahi.' : 'VPS se abhi data nahi aaya.') + '</p>';
+    }).join('') + pendHtml : '<p class="hint">' + (s ? 'Source pe abhi koi trade ya pending order nahi.' : 'VPS se abhi data nahi aaya.') + '</p>';
 
     /* log */
     const log = (s && Array.isArray(s.log)) ? s.log : [];
