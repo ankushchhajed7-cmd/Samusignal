@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  SamuSignal CopyTrade Executor v1.02                              |
+//|  SamuSignal CopyTrade Executor v1.03                              |
 //|  Ankush New Vision                                                |
 //+------------------------------------------------------------------+
 //  KAAM:
@@ -27,6 +27,11 @@
 //     hone par hi yahan band hota hai (galti se close nahi).
 //
 //  CHANGELOG
+//   v1.03  (28-Sep-2026)  SYMBOL FILTER: "Sirf ye copy" (allow) / "Ye mat copy"
+//                         (block) list app se (symMode / symList). Naam ka base
+//                         milta hai — XAUUSD likho to XAUUSD#, XAUUSD+, XAUUSDm,
+//                         GOLD sab. Trades + pending dono pe. Filter se chhoote
+//                         trade "SKIP:FILTER". Pehle se copied trades pe asar nahi.
 //   v1.02  (28-Sep-2026)  PENDING ORDERS BHI COPY: source ka Buy/Sell Stop/Limit
 //                         apne account pe same price/SL/TP se lagta hai. Source
 //                         price/SL/TP badle -> yahan badle. Source hataye/expire
@@ -47,7 +52,7 @@
 //                         state file, status.json for app.
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "1.02"
+#property version   "1.03"
 #property description "SamuSignal CopyTrade — Reader ki file se trades apne account pe copy karta hai. Settings SamuSignal app ke COPY tab se."
 
 #include <Trade\Trade.mqh>
@@ -83,6 +88,8 @@ input double      InpDDUsd    = 0;            // Copy loss limit $ (0=off)
 input bool        InpDDClose  = false;        // Limit pe sab copied band
 input string      InpSymMap   = "";           // Symbol map: XAUUSD+=XAUUSDm;EURUSD+=EURUSDm
 input string      InpSuffix   = "";           // Mere broker ka suffix (m, .sc ...)
+input int         InpSymMode  = 0;            // Symbol filter: 0=sab, 1=sirf list wale, 2=list wale chhodo
+input string      InpSymList  = "";           // Filter list: XAUUSD,BTCUSD
 input long        InpSrcLogin = 0;            // Source login check (0 = koi bhi)
 
 //---------------------------------------------------------------------
@@ -91,7 +98,7 @@ const string F_MASTER  = "SamuCopy\\master.txt";
 const string F_CONFIG  = "SamuCopy\\config.json";
 const string F_STATUS  = "SamuCopy\\status.json";
 const string F_STTMP   = "SamuCopy\\status.tmp";
-const string EA_VER    = "1.02";
+const string EA_VER    = "1.03";
 
 CTrade trade;
 
@@ -101,6 +108,8 @@ int    cLotMode = 0, cMaxPos = 50;
 double cMult = 1.0, cFix = 0.01, cMaxLot = 1.0, cMaxDev = 0, cDDUsd = 0, cCmdId = 0;
 long   cSrcLogin = 0;
 string cSymMap = "", cSuffix = "", cCmd = "";
+int    cSymMode = 0;          // 0 = sab, 1 = sirf list, 2 = list chhodo
+string cSymList = "";
 bool   cLoaded = false;
 long   cfgAt = 0;
 string cfgRawLast = "";
@@ -353,6 +362,7 @@ void InputsToCfg()
    cMaxDev = InpMaxDev; cMaxPos = InpMaxPos; cDDUsd = InpDDUsd; cDDClose = InpDDClose;
    if(cSymMap != InpSymMap || cSuffix != InpSuffix) SCn = 0;
    cSymMap = InpSymMap; cSuffix = InpSuffix; cSrcLogin = InpSrcLogin;
+   cSymMode = InpSymMode; cSymList = InpSymList;
    cLoaded = true;
   }
 
@@ -383,6 +393,13 @@ void ReadConfig()
    cSymMap  = sm;
    cSuffix  = sf;
    cSrcLogin = (long)StringToInteger(JStr(js, "srcLogin", "0"));
+   string smd = Upper(JStr(js, "symMode", "ALL"));
+   int newMode = (smd == "ALLOW" ? 1 : smd == "BLOCK" ? 2 : 0);
+   string newList = JStr(js, "symList", "");
+   if(newMode != cSymMode || newList != cSymList)
+      Log("Symbol filter: " + (newMode == 1 ? "sirf " + newList : newMode == 2 ? "chhodo " + newList : "sab symbols"));
+   cSymMode = newMode;
+   cSymList = newList;
    cCmd     = Upper(JStr(js, "cmd", ""));
    cCmdId   = JNum(js, "cmdId", 0);
    cfgAt    = (long)JNum(js, "at", 0);
@@ -851,6 +868,61 @@ void WantStops(const int si, double &sl, double &tp)
 //+------------------------------------------------------------------+
 //| TRADE ACTIONS                                                    |
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//| SYMBOL FILTER                                                    |
+//+------------------------------------------------------------------+
+//--- naam ka base: shuru ke A-Z/0-9, bade akshar; GOLD=XAUUSD, SILVER=XAGUSD
+string SymCanon(const string name)
+  {
+   string u = "";
+   for(int i = 0; i < StringLen(name); i++)
+     {
+      ushort c = StringGetCharacter(name, i);
+      bool an = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+      if(!an) break;
+      u += ShortToString(c);
+     }
+   StringToUpper(u);
+   if(StringFind(u, "GOLD") == 0)   return "XAUUSD";
+   if(StringFind(u, "SILVER") == 0) return "XAGUSD";
+   return u;
+  }
+
+bool SymInList(const string sym)
+  {
+   string l = cSymList;
+   StringReplace(l, "\r", ",");
+   StringReplace(l, "\n", ",");
+   StringReplace(l, ";", ",");
+   StringReplace(l, " ", ",");
+   string items[];
+   int n = StringSplit(l, ',', items);
+   string cs = SymCanon(sym);
+   for(int i = 0; i < n; i++)
+     {
+      string ci = SymCanon(Trim(items[i]));
+      if(ci == "") continue;
+      if(StringFind(cs, ci) == 0) return true;     // XAUUSDM shuru hota hai XAUUSD se
+     }
+   return false;
+  }
+
+bool HasFilterList()
+  {
+   string l = cSymList;
+   StringReplace(l, ",", ""); StringReplace(l, ";", ""); StringReplace(l, " ", "");
+   StringReplace(l, "\r", ""); StringReplace(l, "\n", "");
+   return StringLen(l) > 0;
+  }
+
+//--- ye source symbol copy karna hai?
+bool SymAllowed(const string sym)
+  {
+   if(cSymMode == 0 || !HasFilterList()) return true;   // khaali list = koi filter nahi
+   bool inL = SymInList(sym);
+   return cSymMode == 1 ? inL : !inL;
+  }
+
 bool TradingAllowed()
   {
    return TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) != 0 &&
@@ -1044,6 +1116,7 @@ void OpenPending(const int oi)
   {
    ulong src = PO[oi].tk;
    int st = PO[oi].type;
+   if(!SymAllowed(PO[oi].sym)) { AddPSkip(src); return; }           // filter se bahar
    if(st < 2 || st > 5) { AddPSkip(src); return; }                 // stop-limit copy nahi
    if(!cOld && startSrv > 0 && PO[oi].setup < startSrv - 2) { AddPSkip(src); return; }
    string dsym = MapSymbol(PO[oi].sym);
@@ -1106,6 +1179,15 @@ void OpenPending(const int oi)
 void OpenCopy(const int si)
   {
    ulong src = SP[si].tk;
+
+   //--- symbol filter
+   if(!SymAllowed(SP[si].sym))
+     {
+      AddSkip(src, "FILTER");
+      Log("Filter: " + SP[si].sym + " skip — source #" + IntegerToString((long)src));
+      SaveState();
+      return;
+     }
 
    //--- purana trade?
    if(!cOld && startSrv > 0 && SP[si].time < startSrv - 2)
@@ -1459,6 +1541,7 @@ void WriteStatus()
    js += ",\"algo\":" + (TradingAllowed() ? "true" : "false");
    js += ",\"warn\":\"" + JEsc(warnMsg) + "\"";
    js += ",\"cmdDone\":" + DoubleToString(lastCmdDone, 0);
+   js += ",\"symMode\":" + IntegerToString(cSymMode);
 
    long age = hOk ? (long)TimeLocal() - hLocal : -1;
    js += ",\"src\":{\"ok\":" + (SourceFresh() ? "true" : "false") +
@@ -1566,6 +1649,7 @@ void WriteStatus()
       string pst = "WAIT";
       long   pd  = 0;
       if(pm >= 0) { pst = "COPY"; pd = (long)MP[pm].dst; }
+      else if(!SymAllowed(PO[k].sym))   pst = "FILTER";
       else if(FindSkip(PO[k].tk) >= 0)  pst = "SKIP";
       else if(FindPSkip(PO[k].tk) >= 0) pst = "NOPEND";
       else if(!cOn)   pst = "OFF";
