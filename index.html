@@ -1665,6 +1665,9 @@ body.ds-gold .brand .brandWord{height:24px}
     <div class="sw" id="cpSwRev" onclick="cpToggle('reverse',this)">
       <div class="tg"></div><div>Ulta copy (Reverse)<small>Source BUY kare to yahan SELL — SL/TP bhi ulte</small></div>
     </div>
+    <div class="sw" id="cpSwPend" onclick="cpToggle('copyPend',this)">
+      <div class="tg"></div><div>Pending orders bhi copy<small>Source ka Buy/Sell Stop/Limit yahan bhi same price pe lagega</small></div>
+    </div>
     <div class="sw" id="cpSwOld" onclick="cpToggle('copyOld',this)">
       <div class="tg"></div><div>Pehle se khule trades bhi<small>OFF = sirf ON karne ke baad wale naye trades</small></div>
     </div>
@@ -2007,7 +2010,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.3';
+const VERSION = '9.9.4';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -8548,7 +8551,7 @@ nav button{min-width:0}
 (function(){
   const KEY = 'samu_cp';
   const DEF = {on:false, srcLogin:'', srcPass:'', srcServer:'', lotMode:'SAME', mult:1, fixLot:0.01,
-    maxLot:1, reverse:false, sltp:true, copyOld:false, maxDev:0, maxPos:50, ddUsd:0, ddClose:false,
+    maxLot:1, reverse:false, sltp:true, copyOld:false, copyPend:true, maxDev:0, maxPos:50, ddUsd:0, ddClose:false,
     symMap:'', suffix:'', cmd:'', cmdId:0, at:0};
   let CP = Object.assign({}, DEF);
   try{ const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if(v) CP = Object.assign({}, DEF, v); }catch(e){}
@@ -8573,7 +8576,7 @@ nav button{min-width:0}
   function cfgOut(){
     return {on:!!CP.on, srcLogin:String(CP.srcLogin||'').trim(), srcServer:String(CP.srcServer||'').trim(),
       lotMode:CP.lotMode, mult:+CP.mult, fixLot:+CP.fixLot, maxLot:+CP.maxLot, reverse:!!CP.reverse,
-      sltp:!!CP.sltp, copyOld:!!CP.copyOld, maxDev:+CP.maxDev, maxPos:+CP.maxPos, ddUsd:+CP.ddUsd,
+      sltp:!!CP.sltp, copyOld:!!CP.copyOld, copyPend:CP.copyPend !== false, maxDev:+CP.maxDev, maxPos:+CP.maxPos, ddUsd:+CP.ddUsd,
       ddClose:!!CP.ddClose, symMap:String(CP.symMap||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).join(';'),
       suffix:String(CP.suffix||'').trim(), cmd:CP.cmd||'', cmdId:+CP.cmdId||0, at:CP.at};
   }
@@ -8636,6 +8639,7 @@ nav button{min-width:0}
     q('cpSwSltp').classList.toggle('on', !!CP.sltp);
     q('cpSwRev').classList.toggle('on', !!CP.reverse);
     q('cpSwOld').classList.toggle('on', !!CP.copyOld);
+    q('cpSwPend').classList.toggle('on', CP.copyPend !== false);
     q('cpSwDDc').classList.toggle('on', !!CP.ddClose);
     lotUI();
     const fbOk = !!fb('config');
@@ -8708,7 +8712,7 @@ nav button{min-width:0}
 
     const src = (s && s.src) || {}, dst = (s && s.dst) || {};
     q('cpStSrc').textContent = s ? (src.n ?? 0) : '—';
-    q('cpStMine').textContent = s ? (dst.n ?? 0) : '—';
+    q('cpStMine').textContent = s ? (dst.n ?? 0) + (+dst.np ? ' +' + dst.np + 'P' : '') : '—';
     const pl = q('cpStPl'); pl.textContent = s ? money(dst.pl) : '—';
     pl.className = 'mono ' + (s ? (+dst.pl >= 0 ? 'cp-up' : 'cp-dn') : '');
     q('cpSrcLogin').textContent = src.login ? src.login : (CP.srcLogin || '—');
@@ -8733,15 +8737,22 @@ nav button{min-width:0}
     const pend = (s && Array.isArray(s.pend)) ? s.pend : [];
     q('cpRowsT').textContent = s ? rows.length + ' trade' + (pend.length ? ' · ' + pend.length + ' pending' : '') : '—';
     const fx = (v, ref) => { const n = +v; if(!n) return '—'; const d = Math.abs(ref||n) >= 1000 ? 2 : Math.abs(ref||n) >= 10 ? 3 : 5; return n.toFixed(d); };
+    const PT = {
+      COPY:['✓ Pending copied','cp-up',''], WAIT:['⏳ Pending','cp-gold','Copy ho raha hai…'],
+      OFF:['⏳ Copy OFF','cp-mut','Copy ON karne par lagega'], NOCOPY:['⏳ Pending','cp-mut','Pending copy OFF hai — trigger hote hi trade copy hoga'],
+      NOPEND:['⏳ Pending','cp-gold','Yahan pending nahi lag saka — trigger hote hi trade copy hoga'],
+      SKIP:['Skip','cp-mut','Ye order copy nahi hoga'], LIMIT:['Loss limit','cp-dn','Loss limit ki wajah se ruka']
+    };
     const pendHtml = pend.map(o => {
       const side = /^BUY/.test(o.t) ? 'cp-up' : 'cp-dn';
       /* expiry broker ke server time me aata hai — waise hi dikhao (UTC format = koi shift nahi) */
       const exp = +o.exp ? new Date(o.exp * 1000).toLocaleString([], {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'UTC'}) + ' (server)' : '';
       return '<div class="cp-row"><div class="a"><b class="' + side + '">' + esc(o.t) + '</b><b class="mono">' + esc(o.sym) +
-        '</b><span class="cp-tag cp-gold">⏳ Pending</span></div>' +
+        '</b><span class="cp-tag ' + (PT[o.st] || PT.WAIT)[1] + '">' + (PT[o.st] || PT.WAIT)[0] + '</span></div>' +
         '<div class="b mono"><div><span>SOURCE #' + esc(o.s) + '</span>' + (+o.v).toFixed(2) + ' lot @ ' + fx(o.p) + '</div>' +
         '<div><span>SL / TP</span>' + fx(o.sl, o.p) + ' / ' + fx(o.tp, o.p) + '</div></div>' +
-        '<p class="hint" style="margin:6px 0 0;font-size:11px">Trigger hote hi yahan copy hoga' + (exp ? ' · expiry ' + esc(exp) : '') + '</p></div>';
+        '<p class="hint" style="margin:6px 0 0;font-size:11px">' + (+o.d ? 'Mera pending #' + esc(o.d) + ' laga hai' : (PT[o.st] || PT.WAIT)[2]) +
+        (exp ? ' · expiry ' + esc(exp) : '') + '</p></div>';
     }).join('');
     q('cpRows').innerHTML = (rows.length || pend.length) ? rows.map(r => {
       const t = TAG[r.st] || [r.st, 'cp-mut'];
@@ -8781,7 +8792,7 @@ nav button{min-width:0}
     if(ok) say(CP.on ? 'Copy ON ✓' : 'Copy OFF ✓');
     renderStatus();
   };
-  window.cpToggle = function(k, el){ CP[k] = !CP[k]; el.classList.toggle('on', CP[k]); keep(); say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao'); };
+  window.cpToggle = function(k, el){ CP[k] = (k === 'copyPend') ? (CP[k] === false) : !CP[k]; el.classList.toggle('on', CP[k]); keep(); say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao'); };
   window.cpSetLot = function(m){ readForm(); CP.lotMode = m; keep(); lotUI(); };
   window.cpShowPass = function(){
     const i = q('cpPass'); const show = i.type === 'password';
