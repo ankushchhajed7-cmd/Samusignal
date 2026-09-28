@@ -1714,6 +1714,18 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 
   <div class="card">
+    <p class="ttl">Strategy Recorder <span class="sp" id="cpRecT">—</span></p>
+    <p class="hint" style="margin:0 0 10px">Source EA ki har harkat — pending lagana/badalna/hatana, trade khulna/band — us waqt ke market ke saath. Isi se EA ki strategy samjhenge.</p>
+    <div id="cpRecSum"><p class="hint">Abhi koi event nahi. (Reader v1.02 + Bridge v1.01 chahiye)</p></div>
+    <div class="grid2" style="margin:10px 0">
+      <button class="btn gold sm" onclick="cpRecCsv()">⬇ CSV DOWNLOAD</button>
+      <button class="btn ghost sm" onclick="cpRecLoad(true)">⟳ REFRESH</button>
+    </div>
+    <div id="cpRecList" class="cp-log"></div>
+    <p class="hint">App me aakhri 300 events. Poori list aur purani history VPS pe: <span class="mono">Common\Files\SamuCopy\</span> me <span class="mono">recorder_*.csv</span>, <span class="mono">history_orders_*.csv</span>, <span class="mono">history_deals_*.csv</span> — analysis ke liye ye files Claude ko bhejo.</p>
+  </div>
+
+  <div class="card">
     <p class="ttl">VPS Log <span class="sp" id="cpLogT">—</span></p>
     <div id="cpLog" class="cp-log mono"><p class="hint">Abhi kuch nahi.</p></div>
   </div>
@@ -2022,7 +2034,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.5';
+const VERSION = '9.9.6';
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -8539,6 +8551,13 @@ if('serviceWorker' in navigator){
 .cp-log div{padding:3px 0;border-bottom:1px dashed var(--line)}
 .cp-steps{margin:0;padding-left:20px;font-size:12.5px;line-height:1.75;color:var(--txt)}
 .cp-steps li{margin-bottom:6px}
+.cp-rs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:6px}
+.cp-rs div{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0}
+.cp-rs span{display:block;font-size:10px;color:var(--lbl);letter-spacing:.5px;font-weight:700}
+.cp-rs b{display:block;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-ev{padding:6px 0;border-bottom:1px dashed var(--line);font-size:11.5px}
+.cp-ev .h{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cp-ev .e{font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;border:1px solid currentColor}
 /* 7 tab aane se chhote phone pe label aapas me na chipke */
 nav button{min-width:0}
 @media (max-width:420px){body.ds-gold nav button{font-size:9.5px;letter-spacing:.1px}}
@@ -8845,14 +8864,103 @@ nav button{min-width:0}
     if(ok) say(c === 'CLOSEALL' ? 'Command bheja — VPS 2-3 sec me band karega' : 'Reset bheja');
   };
 
+  /* ---------------- Strategy Recorder ---------------- */
+  let EV = [], evAt = 0, evBusy = false, evTimer = null;
+  const EVN = {
+    ORDER_PLACED:['PENDING LAGA','cp-gold'], ORDER_MODIFY:['PENDING BADLA','cp-gold'], ORDER_CANCEL:['PENDING HATA','cp-mut'],
+    ORDER_EXPIRED:['EXPIRE','cp-mut'], ORDER_FILLED:['TRIGGER','cp-up'], POS_OPEN:['TRADE KHULA','cp-up'],
+    POS_MODIFY:['SL/TP BADLA','cp-gold'], POS_PARTIAL:['PARTIAL','cp-gold'], POS_CLOSE:['TRADE BAND','cp-dn'],
+    EXISTING_ORDER:['PEHLE SE PENDING','cp-mut'], EXISTING_POS:['PEHLE SE TRADE','cp-mut']
+  };
+  const avg = a => a.length ? a.reduce((x,y)=>x+y,0) / a.length : 0;
+  const nf = (v, d) => (isFinite(v) && v) ? (+v).toFixed(d) : '—';
+  const dur = s => { s = +s||0; if(s < 60) return s + 's'; if(s < 3600) return Math.round(s/60) + 'm'; if(s < 86400) return (s/3600).toFixed(1) + 'h'; return (s/86400).toFixed(1) + 'd'; };
+
+  window.cpRecLoad = async function(manual){
+    if(evBusy) return; evBusy = true;
+    const u = fb('events');
+    try{
+      if(!u) throw new Error('Firebase URL nahi');
+      const r = await fetch(u, {cache:'no-store'});
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      const v = await r.json();
+      EV = Array.isArray(v) ? v.filter(Boolean) : (v && typeof v === 'object' ? Object.values(v) : []);
+      evAt = Date.now();
+      if(manual) say(EV.length + ' events aaye');
+    }catch(e){ if(manual) say('Recorder: ' + e.message); }
+    evBusy = false;
+    renderRec();
+  };
+
+  function renderRec(){
+    const box = q('cpRecSum'); if(!box) return;
+    q('cpRecT').textContent = EV.length ? EV.length + ' events' : '—';
+    if(!EV.length){ box.innerHTML = '<p class="hint">Abhi koi event nahi. (Reader v1.02 + Bridge v1.01 chahiye)</p>'; q('cpRecList').innerHTML = ''; return; }
+    const by = e => EV.filter(x => x.e === e);
+    const placed = by('ORDER_PLACED'), filled = by('ORDER_FILLED'), cancel = EV.filter(x => x.e === 'ORDER_CANCEL' || x.e === 'ORDER_EXPIRED');
+    const closes = by('POS_CLOSE'), wins = closes.filter(x => +x.pl > 0), mods = by('POS_MODIFY');
+    const net = closes.reduce((a,x) => a + (+x.pl||0), 0);
+    const hrs = {}; placed.concat(by('POS_OPEN')).forEach(x => { const h = String(x.ist||'').slice(11,13); if(h) hrs[h] = (hrs[h]||0) + 1; });
+    const topH = Object.entries(hrs).sort((a,b) => b[1]-a[1]).slice(0,3).map(([h,n]) => h + ':00 (' + n + ')').join(', ') || '—';
+    const why = {}; closes.forEach(x => { why[x.why||'?'] = (why[x.why||'?']||0) + 1; });
+    const whyS = Object.entries(why).map(([k,n]) => k + ' ' + n).join(' · ') || '—';
+    const trail = mods.filter(x => x.why === 'TRAIL').length, be = mods.filter(x => x.why === 'BREAKEVEN').length;
+    const types = {}; placed.forEach(x => { types[x.ty] = (types[x.ty]||0) + 1; });
+    const typeS = Object.entries(types).map(([k,n]) => k + ' ' + n).join(' · ') || '—';
+    const cells = [
+      ['Pending lage', placed.length], ['Trigger / Hate', filled.length + ' / ' + cancel.length],
+      ['Order types', typeS], ['Market se doori (avg)', nf(avg(placed.map(x => Math.abs(+x.dist))), 2)],
+      ['SL doori (avg)', nf(avg(placed.concat(by('POS_OPEN')).filter(x => +x.sld).map(x => +x.sld)), 2)],
+      ['TP doori (avg)', nf(avg(placed.concat(by('POS_OPEN')).filter(x => +x.tpd).map(x => +x.tpd)), 2)],
+      ['Pending umar (hatne tak)', dur(avg(cancel.map(x => +x.life)))], ['Trade umar (avg)', dur(avg(closes.map(x => +x.life)))],
+      ['Trades band / jeete', closes.length + ' / ' + wins.length + (closes.length ? ' (' + Math.round(wins.length*100/closes.length) + '%)' : '')],
+      ['Net P/L (source)', money(net)], ['Band kaise', whyS], ['Trail / Breakeven', trail + ' / ' + be],
+      ['Sabse zyada ghante (IST)', topH], ['ATR M5 (avg)', nf(avg(placed.map(x => +x.atr5).filter(Boolean)), 2)]
+    ];
+    box.innerHTML = '<div class="cp-rs">' + cells.map(c => '<div><span>' + esc(c[0]) + '</span><b class="mono">' + esc(c[1]) + '</b></div>').join('') + '</div>';
+    q('cpRecList').innerHTML = EV.slice(-40).reverse().map(x => {
+      const n = EVN[x.e] || [x.e, 'cp-mut'];
+      let d = esc(x.ty) + ' ' + nf(+x.v, 2) + ' @ ' + esc(x.p);
+      if(+x.sl || +x.tp) d += ' · SL ' + esc(x.sl) + ' TP ' + esc(x.tp);
+      if(x.e === 'ORDER_PLACED') d += ' · doori ' + esc(x.dist);
+      if(x.e === 'ORDER_MODIFY') d += ' · pehle ' + esc(x.op) + ' / ' + esc(x.osl) + ' / ' + esc(x.otp);
+      if(x.e === 'POS_CLOSE') d += ' · <b class="' + (+x.pl >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(x.pl) + '</b>';
+      if(+x.life) d += ' · ' + dur(x.life);
+      if(x.why) d += ' · ' + esc(x.why);
+      return '<div class="cp-ev"><div class="h"><span class="mono cp-mut">' + esc(String(x.ist||'').slice(5)) + '</span><span class="e ' + n[1] + '">' + n[0] +
+        '</span><b class="mono">' + esc(x.sym) + '</b></div><div class="mono">' + d + ' · spr ' + esc(x.spr) + '</div></div>';
+    }).join('');
+  }
+
+  window.cpRecCsv = async function(){
+    if(!EV.length){ await cpRecLoad(false); if(!EV.length){ say('Abhi koi event nahi'); return; } }
+    const cols = ['ist','t','e','tk','sym','ty','v','p','sl','tp','dist','sld','tpd','op','osl','otp','life','pl','why','mg','bid','ask','spr','atr5','atr60','d1h','d1l'];
+    const csv = cols.join(',') + '\n' + EV.map(x => cols.map(c => String(x[c] ?? '').replace(/,/g,' ')).join(',')).join('\n');
+    const name = 'samucopy_recorder_' + new Date().toISOString().slice(0,10) + '.csv';
+    try{
+      const f = new File([csv], name, {type:'text/csv'});
+      if(navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f], title:name}); return; }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = name;
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      say('CSV download ho raha hai');
+    }catch(e){
+      try{ await navigator.clipboard.writeText(csv); say('CSV clipboard me copy ho gaya'); }catch(e2){ say('CSV nahi ban saka: ' + e.message); }
+    }
+  };
+
   /* ---------------- page show / hide (go() se) ---------------- */
   window.cpOnShow = function(){
     fill(); renderStatus();
     if(!pulled){ pulled = true; pull(); }
     poll();
     if(!timer) timer = setInterval(() => { if(!document.hidden) poll() }, 3000);
+    cpRecLoad(false);
+    if(!evTimer) evTimer = setInterval(() => { if(!document.hidden) cpRecLoad(false) }, 15000);
   };
-  window.cpOnHide = function(){ if(timer){ clearInterval(timer); timer = null; } };
+  window.cpOnHide = function(){
+    if(timer){ clearInterval(timer); timer = null; }
+    if(evTimer){ clearInterval(evTimer); evTimer = null; }
+  };
 })();
 </script>
 

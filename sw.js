@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.6  — Copy tab: Strategy Recorder
    v9.9.5  — Copy tab: symbol filter
    v9.9.4  — Copy tab: pending orders copy switch
    v9.9.3  — Copy tab: source pending orders
@@ -12,7 +13,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.5';
+const VERSION = '9.9.6';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
