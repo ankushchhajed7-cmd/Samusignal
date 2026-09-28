@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  SamuSignal CopyTrade Executor v1.01                              |
+//|  SamuSignal CopyTrade Executor v1.02                              |
 //|  Ankush New Vision                                                |
 //+------------------------------------------------------------------+
 //  KAAM:
@@ -27,6 +27,13 @@
 //     hone par hi yahan band hota hai (galti se close nahi).
 //
 //  CHANGELOG
+//   v1.02  (28-Sep-2026)  PENDING ORDERS BHI COPY: source ka Buy/Sell Stop/Limit
+//                         apne account pe same price/SL/TP se lagta hai. Source
+//                         price/SL/TP badle -> yahan badle. Source hataye/expire
+//                         -> yahan delete. Source trigger ho aur yahan na ho ->
+//                         pending delete + market copy. Copy OFF / loss limit
+//                         -> copied pending delete. App me "Pending bhi copy"
+//                         switch (copyPend). Stop-Limit orders copy nahi hote.
 //   v1.01  (28-Sep-2026)  Source ke pending orders (Reader v1.01 ki "O|" lines)
 //                         padh kar status.json me "pend" list — app me dikhte
 //                         hain. Pending copy NAHI hote; trigger ho kar position
@@ -40,7 +47,7 @@
 //                         state file, status.json for app.
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "1.01"
+#property version   "1.02"
 #property description "SamuSignal CopyTrade — Reader ki file se trades apne account pe copy karta hai. Settings SamuSignal app ke COPY tab se."
 
 #include <Trade\Trade.mqh>
@@ -69,6 +76,7 @@ input double      InpMaxLot   = 1.0;          // Ek trade ka max lot
 input bool        InpReverse  = false;        // Ulta copy (BUY->SELL)
 input bool        InpCopySLTP = true;         // SL/TP bhi copy
 input bool        InpCopyOld  = false;        // ON karte waqt khule purane trades bhi copy
+input bool        InpCopyPend = true;         // Pending orders bhi copy
 input double      InpMaxDev   = 0;            // Max price farak (price me, 0=off)
 input int         InpMaxPos   = 50;           // Max copied positions
 input double      InpDDUsd    = 0;            // Copy loss limit $ (0=off)
@@ -83,12 +91,12 @@ const string F_MASTER  = "SamuCopy\\master.txt";
 const string F_CONFIG  = "SamuCopy\\config.json";
 const string F_STATUS  = "SamuCopy\\status.json";
 const string F_STTMP   = "SamuCopy\\status.tmp";
-const string EA_VER    = "1.01";
+const string EA_VER    = "1.02";
 
 CTrade trade;
 
 //--- config
-bool   cOn = false, cReverse = false, cSLTP = true, cOld = false, cDDClose = false;
+bool   cOn = false, cReverse = false, cSLTP = true, cOld = false, cDDClose = false, cPend = true;
 int    cLotMode = 0, cMaxPos = 50;
 double cMult = 1.0, cFix = 0.01, cMaxLot = 1.0, cMaxDev = 0, cDDUsd = 0, cCmdId = 0;
 long   cSrcLogin = 0;
@@ -131,6 +139,7 @@ struct PendO
    double sl;
    double tp;
    long   exp;
+   long   setup;
   };
 PendO  PO[];
 int    POn = 0;
@@ -160,6 +169,14 @@ ulong  FLt[];
 int    FLc[];
 uint   FLa[];
 int    FLn = 0;
+
+//--- pending ke liye alag skip/fail (inse position copy nahi rukti)
+ulong  PKt[];
+int    PKn = 0;
+ulong  PFt[];
+int    PFc[];
+uint   PFa[];
+int    PFn = 0;
 
 //--- symbol cache
 string SCs[];
@@ -332,7 +349,7 @@ bool WriteFileText(const string tmp, const string name, const string text)
 void InputsToCfg()
   {
    cOn = InpCopyOn; cLotMode = (int)InpLotMode; cMult = InpMult; cFix = InpFixLot;
-   cMaxLot = InpMaxLot; cReverse = InpReverse; cSLTP = InpCopySLTP; cOld = InpCopyOld;
+   cMaxLot = InpMaxLot; cReverse = InpReverse; cSLTP = InpCopySLTP; cOld = InpCopyOld; cPend = InpCopyPend;
    cMaxDev = InpMaxDev; cMaxPos = InpMaxPos; cDDUsd = InpDDUsd; cDDClose = InpDDClose;
    if(cSymMap != InpSymMap || cSuffix != InpSuffix) SCn = 0;
    cSymMap = InpSymMap; cSuffix = InpSuffix; cSrcLogin = InpSrcLogin;
@@ -355,6 +372,7 @@ void ReadConfig()
    cReverse = JBool(js, "reverse", false);
    cSLTP    = JBool(js, "sltp", true);
    cOld     = JBool(js, "copyOld", false);
+   cPend    = JBool(js, "copyPend", true);
    cMaxDev  = JNum(js, "maxDev", 0);
    cMaxPos  = (int)JNum(js, "maxPos", 50); if(cMaxPos <= 0) cMaxPos = 50;
    cDDUsd   = MathAbs(JNum(js, "ddUsd", 0));
@@ -446,6 +464,7 @@ bool ReadMaster()
          PO[POn].sl    = StringToDouble(p[6]);
          PO[POn].tp    = StringToDouble(p[7]);
          PO[POn].exp   = (long)StringToInteger(p[10]);
+         PO[POn].setup = (long)StringToInteger(p[8]);
          POn++;
         }
      }
@@ -463,6 +482,49 @@ bool SourceFresh()
 int FindSrc(const ulong tk)
   {
    for(int i = 0; i < SPn; i++) if(SP[i].tk == tk) return i;
+   return -1;
+  }
+
+int FindPend(const ulong tk)
+  {
+   for(int i = 0; i < POn; i++) if(PO[i].tk == tk) return i;
+   return -1;
+  }
+
+string PendName(const int t)
+  {
+   switch(t)
+     {
+      case 2: return "BUY LIMIT";
+      case 3: return "SELL LIMIT";
+      case 4: return "BUY STOP";
+      case 5: return "SELL STOP";
+      case 6: return "BUY STOP LIMIT";
+      case 7: return "SELL STOP LIMIT";
+     }
+   return "PENDING";
+  }
+
+//--- source pe ye ticket abhi hai? (position ya pending)
+bool SrcAny(const ulong tk) { return FindSrc(tk) >= 0 || FindPend(tk) >= 0; }
+
+int FindPSkip(const ulong tk)
+  {
+   for(int i = 0; i < PKn; i++) if(PKt[i] == tk) return i;
+   return -1;
+  }
+
+void AddPSkip(const ulong tk)
+  {
+   if(FindPSkip(tk) >= 0) return;
+   ArrayResize(PKt, PKn + 1);
+   PKt[PKn] = tk;
+   PKn++;
+  }
+
+int FindPFail(const ulong tk)
+  {
+   for(int i = 0; i < PFn; i++) if(PFt[i] == tk) return i;
    return -1;
   }
 
@@ -517,7 +579,7 @@ void PruneSkip()
    int w = 0;
    for(int i = 0; i < SKn; i++)
      {
-      if(FindSrc(SKt[i]) < 0) continue;
+      if(!SrcAny(SKt[i])) continue;
       SKt[w] = SKt[i]; SKw[w] = SKw[i]; w++;
      }
    if(w != SKn)
@@ -569,7 +631,7 @@ void LoadState()
       else if(n >= 6 && p[0] == "M")
         {
          ulong dst = (ulong)StringToInteger(p[2]);
-         if(PositionSelectByTicket(dst))
+         if(PositionSelectByTicket(dst) || OrderSelect(dst))
             AddMap((ulong)StringToInteger(p[1]), dst, StringToDouble(p[3]), StringToDouble(p[4]), p[5]);
         }
       else if(n >= 3 && p[0] == "S") AddSkip((ulong)StringToInteger(p[1]), p[2]);
@@ -596,6 +658,22 @@ void RecoverByComment()
       AddMap(src, tk, 0, v, PositionGetString(POSITION_SYMBOL));
       Log("Purana copied trade wapas joda: #" + IntegerToString((long)tk) + " <- source #" + IntegerToString((long)src));
      }
+   //--- copied pending orders bhi
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+     {
+      ulong ot = OrderGetTicket(i);
+      if(ot == 0) continue;
+      if(OrderGetInteger(ORDER_MAGIC) != InpMagic) continue;
+      string cm = OrderGetString(ORDER_COMMENT);
+      if(StringFind(cm, "CP#") != 0) continue;
+      ulong src = (ulong)StringToInteger(StringSubstr(cm, 3));
+      if(src == 0 || FindMap(src) >= 0) continue;
+      bool known = false;
+      for(int k = 0; k < MPn; k++) if(MP[k].dst == ot) known = true;
+      if(known) continue;
+      AddMap(src, ot, 0, OrderGetDouble(ORDER_VOLUME_CURRENT), OrderGetString(ORDER_SYMBOL));
+      Log("Purana copied pending wapas joda: #" + IntegerToString((long)ot) + " <- source #" + IntegerToString((long)src));
+     }
   }
 
 ulong FindDstByComment(const ulong src)
@@ -607,6 +685,13 @@ ulong FindDstByComment(const ulong src)
       if(tk == 0) continue;
       if(PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
       if(PositionGetString(POSITION_COMMENT) == want) return tk;
+     }
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+     {
+      ulong ot = OrderGetTicket(i);
+      if(ot == 0) continue;
+      if(OrderGetInteger(ORDER_MAGIC) != InpMagic) continue;
+      if(OrderGetString(ORDER_COMMENT) == want) return ot;
      }
    return 0;
   }
@@ -782,6 +867,29 @@ int CountMine()
       ulong tk = PositionGetTicket(i);
       if(tk != 0 && PositionGetInteger(POSITION_MAGIC) == InpMagic) n++;
      }
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+     {
+      ulong ot = OrderGetTicket(i);
+      if(ot != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) n++;
+     }
+   return n;
+  }
+
+int CountMappedPos()
+  {
+   int n = 0;
+   for(int i = 0; i < MPn; i++) if(PositionSelectByTicket(MP[i].dst)) n++;
+   return n;
+  }
+
+int CountMyOrders()
+  {
+   int n = 0;
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+     {
+      ulong ot = OrderGetTicket(i);
+      if(ot != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) n++;
+     }
    return n;
   }
 
@@ -812,13 +920,34 @@ bool CloseDst(const ulong dst, const string why)
    return false;
   }
 
+bool DeleteOrd(const ulong ot, const string why)
+  {
+   if(!OrderSelect(ot)) return true;
+   if(trade.OrderDelete(ot))
+     {
+      Log("PENDING HATAYA #" + IntegerToString((long)ot) + " (" + why + ")");
+      return true;
+     }
+   Log("Pending delete nahi hua #" + IntegerToString((long)ot) + " rc=" + IntegerToString(trade.ResultRetcode()) +
+       " " + trade.ResultRetcodeDescription());
+   return false;
+  }
+
+//--- position ho to band, pending ho to delete
+bool RemoveDst(const ulong dst, const string why)
+  {
+   if(PositionSelectByTicket(dst)) return CloseDst(dst, why);
+   if(OrderSelect(dst)) return DeleteOrd(dst, why);
+   return true;
+  }
+
 void CloseAllCopied(const string why)
   {
    for(int i = MPn - 1; i >= 0; i--)
      {
-      if(CloseDst(MP[i].dst, why))
+      if(RemoveDst(MP[i].dst, why))
         {
-         if(FindSrc(MP[i].src) >= 0) AddSkip(MP[i].src, "CLOSED");
+         if(SrcAny(MP[i].src)) AddSkip(MP[i].src, "CLOSED");
          DelMap(i);
         }
      }
@@ -828,7 +957,150 @@ void CloseAllCopied(const string why)
       ulong tk = PositionGetTicket(i);
       if(tk != 0 && PositionGetInteger(POSITION_MAGIC) == InpMagic) CloseDst(tk, why);
      }
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+     {
+      ulong ot = OrderGetTicket(i);
+      if(ot != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) DeleteOrd(ot, why);
+     }
    SaveState();
+  }
+
+//--- sirf copied PENDING hatao (copy OFF / loss limit pe) — khule trades ko nahi chhoota
+void DeleteCopiedPendings(const string why)
+  {
+   bool ch = false;
+   for(int i = MPn - 1; i >= 0; i--)
+     {
+      if(PositionSelectByTicket(MP[i].dst)) continue;
+      if(!OrderSelect(MP[i].dst)) continue;
+      if(DeleteOrd(MP[i].dst, why)) { DelMap(i); ch = true; }
+     }
+   if(ch) SaveState();
+  }
+
+//+------------------------------------------------------------------+
+//| PENDING COPY                                                     |
+//+------------------------------------------------------------------+
+bool IsBuyType(const int t) { return t == 2 || t == 4; }
+
+int ReverseType(const int t)
+  {
+   if(t == 2) return 5;   // buy limit  -> sell stop
+   if(t == 3) return 4;   // sell limit -> buy stop
+   if(t == 4) return 3;   // buy stop   -> sell limit
+   return 2;              // sell stop  -> buy limit
+  }
+
+//--- pending ka price abhi sahi taraf hai?
+bool PendPriceOK(const string sym, const int t, const double price)
+  {
+   MqlTick k;
+   if(!SymbolInfoTick(sym, k) || k.bid <= 0) return false;
+   double gap = (SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) + 1) * SymbolInfoDouble(sym, SYMBOL_POINT);
+   if(t == 2) return price < k.ask - gap;   // buy limit neeche
+   if(t == 3) return price > k.bid + gap;   // sell limit upar
+   if(t == 4) return price > k.ask + gap;   // buy stop upar
+   if(t == 5) return price < k.bid - gap;   // sell stop neeche
+   return false;
+  }
+
+//--- pending ke SL/TP uske price ke hisaab se sahi jagah?
+void FixPendStops(const string sym, const int t, const double price, double &sl, double &tp)
+  {
+   double gap = (SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) + 1) * SymbolInfoDouble(sym, SYMBOL_POINT);
+   int dg = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+   if(IsBuyType(t))
+     {
+      if(sl > 0 && sl >= price - gap) sl = 0;
+      if(tp > 0 && tp <= price + gap) tp = 0;
+     }
+   else
+     {
+      if(sl > 0 && sl <= price + gap) sl = 0;
+      if(tp > 0 && tp >= price - gap) tp = 0;
+     }
+   if(sl > 0) sl = NormalizeDouble(sl, dg);
+   if(tp > 0) tp = NormalizeDouble(tp, dg);
+  }
+
+void WantPendStops(const int oi, double &sl, double &tp)
+  {
+   sl = 0; tp = 0;
+   if(!cSLTP) return;
+   if(cReverse) { sl = PO[oi].tp; tp = PO[oi].sl; }
+   else         { sl = PO[oi].sl; tp = PO[oi].tp; }
+  }
+
+bool SendPending(const int t, const double lot, const double price, const string sym,
+                 const double sl, const double tp, const string cm)
+  {
+   if(t == 2) return trade.BuyLimit(lot, price, sym, sl, tp, ORDER_TIME_GTC, 0, cm);
+   if(t == 3) return trade.SellLimit(lot, price, sym, sl, tp, ORDER_TIME_GTC, 0, cm);
+   if(t == 4) return trade.BuyStop(lot, price, sym, sl, tp, ORDER_TIME_GTC, 0, cm);
+   return trade.SellStop(lot, price, sym, sl, tp, ORDER_TIME_GTC, 0, cm);
+  }
+
+void OpenPending(const int oi)
+  {
+   ulong src = PO[oi].tk;
+   int st = PO[oi].type;
+   if(st < 2 || st > 5) { AddPSkip(src); return; }                 // stop-limit copy nahi
+   if(!cOld && startSrv > 0 && PO[oi].setup < startSrv - 2) { AddPSkip(src); return; }
+   string dsym = MapSymbol(PO[oi].sym);
+   if(dsym == "") { AddPSkip(src); return; }
+   if(CountMine() >= cMaxPos) return;                                // jagah khali hone ka intezaar
+
+   int pf = FindPFail(src);
+   if(pf >= 0 && GetTickCount() - PFa[pf] < 3000) return;
+
+   int dt = cReverse ? ReverseType(st) : st;
+   int dg = (int)SymbolInfoInteger(dsym, SYMBOL_DIGITS);
+   double price = NormalizeDouble(PO[oi].price, dg);
+   bool ok = false;
+   uint rc = 0;
+   double lot = CalcLot(dsym, PO[oi].vol);
+   if(PendPriceOK(dsym, dt, price))
+     {
+      double sl, tp;
+      WantPendStops(oi, sl, tp);
+      FixPendStops(dsym, dt, price, sl, tp);
+      string cm = "CP#" + IntegerToString((long)src);
+      trade.SetTypeFillingBySymbol(dsym);
+      ok = SendPending(dt, lot, price, dsym, sl, tp, cm);
+      rc = trade.ResultRetcode();
+      if(!ok && rc == TRADE_RETCODE_INVALID_FILL)
+        {
+         trade.SetTypeFilling(ORDER_FILLING_RETURN);
+         ok = SendPending(dt, lot, price, dsym, sl, tp, cm);
+         rc = trade.ResultRetcode();
+        }
+      if(ok && (rc == TRADE_RETCODE_DONE || rc == TRADE_RETCODE_PLACED))
+        {
+         ulong dst = trade.ResultOrder();
+         AddMap(src, dst, PO[oi].vol, lot, dsym);
+         if(mapLogin == 0 || MPn == 1) mapLogin = hLogin;
+         Log("PENDING " + PendName(dt) + " " + DoubleToString(lot, 2) + " " + dsym + " @" +
+             DoubleToString(price, dg) + "  <- source #" + IntegerToString((long)src));
+         SaveState();
+         return;
+        }
+     }
+   //--- fail (price galat taraf / broker ne mana kiya)
+   if(pf < 0)
+     {
+      ArrayResize(PFt, PFn + 1); ArrayResize(PFc, PFn + 1); ArrayResize(PFa, PFn + 1);
+      PFt[PFn] = src; PFc[PFn] = 0; PFa[PFn] = 0;
+      pf = PFn; PFn++;
+     }
+   PFc[pf]++;
+   PFa[pf] = GetTickCount();
+   if(PFc[pf] >= 3)
+     {
+      AddPSkip(src);
+      Log("Pending copy nahi hua #" + IntegerToString((long)src) +
+          (rc > 0 ? " rc=" + IntegerToString(rc) + " " + trade.ResultRetcodeDescription() : " (price abhi galat taraf)") +
+          " — trigger hone par trade copy hoga");
+     }
   }
 
 void OpenCopy(const int si)
@@ -975,19 +1247,29 @@ void Sync()
         }
      }
 
-   //--- 1. mere copied trades
+   //--- copy OFF / loss limit -> copied pending hatao (naye trade na khule)
+   if((!cOn || ddTrip) && TradingAllowed()) DeleteCopiedPendings(!cOn ? "copy OFF" : "loss limit");
+
+   //--- 1. mere copied trades / pendings
    for(int i = MPn - 1; i >= 0; i--)
      {
-      if(!PositionSelectByTicket(MP[i].dst))
+      bool dPos = PositionSelectByTicket(MP[i].dst);
+      bool dOrd = !dPos && OrderSelect(MP[i].dst);
+      if(!dPos && !dOrd)
         {
          ulong f = FindDstByComment(MP[i].src);
-         if(f > 0) { MP[i].dst = f; changed = true; }
+         if(f > 0)
+           {
+            MP[i].dst = f; changed = true;
+            dPos = PositionSelectByTicket(f);
+            dOrd = !dPos && OrderSelect(f);
+           }
          else
            {
-            if(FindSrc(MP[i].src) >= 0)
+            if(SrcAny(MP[i].src))
               {
                AddSkip(MP[i].src, "MYCLOSE");
-               Log("Mera #" + IntegerToString((long)MP[i].dst) + " band hua (SL/TP/manual) — source #" +
+               Log("Mera #" + IntegerToString((long)MP[i].dst) + " band/delete hua (SL/TP/manual) — source #" +
                    IntegerToString((long)MP[i].src) + " dobara copy nahi hoga");
               }
             DelMap(i);
@@ -998,8 +1280,52 @@ void Sync()
       if(!loginSame) continue;
 
       int si = FindSrc(MP[i].src);
+      int oi = FindPend(MP[i].src);
+
+      //--- mera PENDING order
+      if(dOrd)
+        {
+         if(!TradingAllowed()) continue;
+         if(oi >= 0)
+           {
+            MP[i].miss = 0;
+            if(GetTickCount() - MP[i].lastMod > 1000)
+              {
+               int dt = (int)OrderGetInteger(ORDER_TYPE);
+               int dg = (int)SymbolInfoInteger(MP[i].dsym, SYMBOL_DIGITS);
+               double pt = SymbolInfoDouble(MP[i].dsym, SYMBOL_POINT);
+               double wp = NormalizeDouble(PO[oi].price, dg);
+               double sl, tp;
+               WantPendStops(oi, sl, tp);
+               FixPendStops(MP[i].dsym, dt, wp, sl, tp);
+               double cp = OrderGetDouble(ORDER_PRICE_OPEN);
+               double csl = OrderGetDouble(ORDER_SL), ctp = OrderGetDouble(ORDER_TP);
+               if(MathAbs(wp - cp) > pt * 0.5 || MathAbs(sl - csl) > pt * 0.5 || MathAbs(tp - ctp) > pt * 0.5)
+                 {
+                  MP[i].lastMod = GetTickCount();
+                  if(PendPriceOK(MP[i].dsym, dt, wp) &&
+                     trade.OrderModify(MP[i].dst, wp, sl, tp, ORDER_TIME_GTC, 0, 0))
+                     Log("PENDING sync #" + IntegerToString((long)MP[i].dst) + " @" + DoubleToString(wp, dg) +
+                         " SL " + DoubleToString(sl, dg) + " TP " + DoubleToString(tp, dg));
+                 }
+              }
+            continue;
+           }
+         // source ka pending ab nahi: trigger hua (si>=0) ya hataya/expire hua
+         if(newSeq) MP[i].miss++;
+         if(MP[i].miss < 3) continue;
+         if(DeleteOrd(MP[i].dst, si >= 0 ? "source me trigger, yahan nahi — market copy karenge" : "source ne pending hataya"))
+           {
+            DelMap(i);            // si>=0 ho to neeche wala naya-trade loop market copy karega
+            changed = true;
+           }
+         continue;
+        }
+
+      //--- meri POSITION
       if(si < 0)
         {
+         if(oi >= 0) { MP[i].miss = 0; continue; }   // yahan pehle trigger ho gaya, source abhi pending hai
          if(newSeq) MP[i].miss++;
          if(MP[i].miss >= 3 && TradingAllowed())
            {
@@ -1060,6 +1386,16 @@ void Sync()
          if(FindSkip(SP[s].tk) >= 0) continue;
          OpenCopy(s);
         }
+      if(cPend)
+        {
+         for(int o = 0; o < POn; o++)
+           {
+            if(FindMap(PO[o].tk) >= 0) continue;
+            if(FindSkip(PO[o].tk) >= 0) continue;
+            if(FindPSkip(PO[o].tk) >= 0) continue;
+            OpenPending(o);
+           }
+        }
      }
    else if(cOn && !TradingAllowed())
       warnMsg = "Algo Trading band hai — MT5 me AutoTrading button ON karo";
@@ -1110,19 +1446,6 @@ void TrackOnOff()
 //+------------------------------------------------------------------+
 string TypeName(const int t) { return t == 0 ? "BUY" : "SELL"; }
 
-string PendName(const int t)
-  {
-   switch(t)
-     {
-      case 2: return "BUY LIMIT";
-      case 3: return "SELL LIMIT";
-      case 4: return "BUY STOP";
-      case 5: return "SELL STOP";
-      case 6: return "BUY STOP LIMIT";
-      case 7: return "SELL STOP LIMIT";
-     }
-   return "PENDING";
-  }
 
 void WriteStatus()
   {
@@ -1153,7 +1476,8 @@ void WriteStatus()
          ",\"bal\":" + DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE), 2) +
          ",\"eq\":" + DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY), 2) +
          ",\"cur\":\"" + JEsc(AccountInfoString(ACCOUNT_CURRENCY)) + "\"" +
-         ",\"n\":" + IntegerToString(MPn) +
+         ",\"n\":" + IntegerToString(CountMappedPos()) +
+         ",\"np\":" + IntegerToString(CountMyOrders()) +
          ",\"pl\":" + DoubleToString(CopiedPL(), 2) + "}";
 
    //--- rows
@@ -1201,7 +1525,8 @@ void WriteStatus()
    //--- mere trades jinka source ab nahi dikh raha
    for(int i = 0; i < MPn && rows < 40; i++)
      {
-      if(FindSrc(MP[i].src) >= 0) continue;
+      if(SrcAny(MP[i].src)) continue;
+      if(!PositionSelectByTicket(MP[i].dst)) continue;   // pending ki row pend list me hai
       double dv = 0, dp = 0;
       int typ = 0;
       if(PositionSelectByTicket(MP[i].dst))
@@ -1236,7 +1561,17 @@ void WriteStatus()
             ",\"p\":" + DoubleToString(PO[k].price, dg) +
             ",\"sl\":" + DoubleToString(PO[k].sl, dg) +
             ",\"tp\":" + DoubleToString(PO[k].tp, dg) +
-            ",\"exp\":" + IntegerToString(PO[k].exp) + "}";
+            ",\"exp\":" + IntegerToString(PO[k].exp);
+      int pm = FindMap(PO[k].tk);
+      string pst = "WAIT";
+      long   pd  = 0;
+      if(pm >= 0) { pst = "COPY"; pd = (long)MP[pm].dst; }
+      else if(FindSkip(PO[k].tk) >= 0)  pst = "SKIP";
+      else if(FindPSkip(PO[k].tk) >= 0) pst = "NOPEND";
+      else if(!cOn)   pst = "OFF";
+      else if(!cPend) pst = "NOCOPY";
+      else if(ddTrip) pst = "LIMIT";
+      js += ",\"d\":" + IntegerToString(pd) + ",\"st\":\"" + pst + "\"}";
      }
    js += "]";
 
