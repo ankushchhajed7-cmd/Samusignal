@@ -2048,7 +2048,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.7';
+const VERSION = '9.9.8';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -5353,6 +5353,7 @@ function emaSummary(sym, r){
   if(!r) return '';
   const {lines, last3, plan, bars} = r;
   const i = bars.length - 1;
+  window.lastEmaPlan = Object.assign({sym, live: bars[i].c, at: Date.now()}, plan);
   const e9 = lines[0].v[i], e21 = lines[1].v[i], e55 = lines[2].v[i];
 
   /* ---- plan card ---- */
@@ -5384,6 +5385,7 @@ function emaSummary(sym, r){
       <div class="lbl"><span>R:R · lot 0.01</span><b class="mono">1 : 1.6</b></div>
       <p class="hint" style="margin:8px 0 0">${plan.why}</p>
       ${plan.warn.map(w => `<p class="hint" style="color:var(--gold);margin:6px 0 0">⚠ ${w}</p>`).join('')}
+      <button class="btn gold sm" style="margin-top:10px" onclick="emaSendMT5()">🚀 MT5 pe Lagao · ${plan.dir} ${plan.kind}</button>
     </div>`;
   }
 
@@ -6392,7 +6394,7 @@ async function testMetaApi(){
   }
 }
 
-async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
+async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent, exact){
   const useMeta = !!S.metaOn;
   if(useMeta){
     if(!S.metaToken || !S.metaAccount){
@@ -6406,7 +6408,7 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
   const mode = kind || S.mt5Type;
 
   /* MARKET order: taza price lo, warna stale rate se SL/TP galat taraf ja sakti hai */
-  if(mode === 'MARKET' && S.freshPx && S.key && !S.day.blocked){
+  if(mode === 'MARKET' && !exact && S.freshPx && S.key && !S.day.blocked){
     try{
       const fresh = await getPrice(sym);
       if(fresh && isFinite(fresh)){
@@ -6441,7 +6443,7 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
   }
   /* LIMIT: entry ko live price se thoda door karo, warna MT5 reject karega.
      SL/TP bhi utna hi shift hote hain, isliye $ risk bilkul same rehta hai. */
-  if(mode === 'LIMIT' || mode === 'STOP'){
+  if((mode === 'LIMIT' || mode === 'STOP') && !exact){   /* exact = EMA plan ka apna price, shift nahi */
     const off = (S.limPips || 5) * SPECS[sym].pip;
     /* LIMIT: BUY neeche, SELL upar | STOP: BUY upar, SELL neeche */
     const sign = (mode === 'LIMIT') ? -1 : 1;
@@ -6478,6 +6480,29 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent){
 
 /* signal card ka button */
 function sendSignalMT5(){ openQuick('MT5'); }
+
+/* v9.9.8: EMA PLAN card se seedha MT5 — plan ka exact entry/SL/TP */
+async function emaSendMT5(){
+  const p = window.lastEmaPlan;
+  if(!p || p.dir === 'WAIT'){ toast('Abhi koi EMA plan nahi — pehle EMA refresh karo'); return }
+  if(Date.now() - p.at > 15*60000){ toast('EMA plan 15 min purana hai — ⟳ EMA dabake taza karo'); return }
+  const sym = p.sym, dir = p.dir, d = SPECS[sym].d;
+  const live = (prices[sym] && prices[sym].p) || p.live;
+  let kind = p.kind === 'MARKET' ? 'MARKET' : 'LIMIT';
+  if(kind === 'LIMIT'){
+    const ok = dir === 'SELL' ? p.entry > live : p.entry < live;
+    if(!ok){
+      if(!confirm(`Price ${fmt(sym, live)} pehle hi entry ${fmt(sym, p.entry)} paar kar chuka hai —\n${dir} LIMIT yahan nahi lag sakti.\n\nMARKET order bhej doon? (SL/TP wahi rahenge)`)) return;
+      kind = 'MARKET';
+    }
+  }
+  const lots = fixLot(sym, S.lots || 0.01);
+  const msg = `${SPECS[sym].n} · ${dir} ${kind}\n\nLot: ${lots}\nEntry: ${kind === 'MARKET' ? 'market (' + fmt(sym, live) + ')' : fmt(sym, p.entry)}\nSL: ${fmt(sym, p.sl)}\nTP: ${fmt(sym, p.tp)}\n\nMT5 pe bhejein?`;
+  if(!confirm(msg)) return;
+  const entry = kind === 'MARKET' ? live : p.entry;
+  const ok = await sendMT5(sym, dir, lots, entry, p.sl, p.tp, kind, false, true);
+  if(ok) logAdd(`EMA plan → MT5: ${dir} ${kind} ${SPECS[sym].n} @ ${(+entry).toFixed(d)}`);
+}
 
 /* kisi bhi open trade ko dobara MT5 pe bhejo */
 function resendMT5(id){ openMt5FromTrade(id); }
@@ -9054,7 +9079,7 @@ nav button{min-width:0}
     'Band hai — order sirf tumhare tap se jayega.':'Off — orders go only when you tap.',
     'Aaj ka API budget':"Today's API budget",'API key set karo':'Set API key',
     'Dono HTF ulte hon to signal block; ek match ho to strong setup chal sakta hai':'Blocks the signal if both HTFs disagree; if one agrees a strong setup can still pass',
-    'Analyze Karo':'Analyze','MT5 pe Lagao':'Send to MT5','Pair chuno aur Analyze dabao.':'Pick a pair and tap Analyze.',
+    'Analyze Karo':'Analyze','MT5 pe Lagao':'Send to MT5','Abhi koi EMA plan nahi — pehle EMA refresh karo':'No EMA plan yet — refresh EMA first','EMA plan 15 min purana hai — ⟳ EMA dabake taza karo':'EMA plan is over 15 min old — tap ⟳ EMA to refresh','Pair chuno aur Analyze dabao.':'Pick a pair and tap Analyze.',
     '🤖 AI SE SAMJHO':'🤖 EXPLAIN WITH AI',
     'Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.':'After analysis the full reasoning shows here — why this trade and what the risks are.',
     'Sab':'All','sab':'all',
@@ -9186,6 +9211,7 @@ nav button{min-width:0}
 
   /* ---------- tukde / numbers wale (regex) ---------- */
   const R = [
+    [/^🚀 MT5 pe Lagao · (BUY|SELL) (LIMIT|MARKET)$/, '🚀 Send to MT5 · $1 $2'],
     [/^(\d+) pairs chune hain · scan me (\d+) credits lagenge · aaj (\d+) bache hain$/, '$1 pairs selected · scan costs $2 credits · $3 left today'],
     [/^(\d+) bache hain$/, '$1 left'],[/^Ye scan$/, 'This scan uses'],[/^lega · aaj$/, '· today'],
     [/^Is device pe (.+) use ho raha hai$/, '$1 used on this device'],

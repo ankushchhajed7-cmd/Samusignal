@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.8  — EMA plan se MT5 button
    v9.9.7  — Watchlist 1-5, English button, pair blink, EMA refresh upar
    v9.9.6  — Copy tab: Strategy Recorder
    v9.9.5  — Copy tab: symbol filter
@@ -14,7 +15,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.7';
+const VERSION = '9.9.8';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
