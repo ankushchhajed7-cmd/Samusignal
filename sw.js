@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.11 — SL/TP hatane ka option
    v9.9.10 — Trade SL/TP edit sheet
    v9.9.9  — EMA plan SL/TP dollar me (Settings wala)
    v9.9.8  — EMA plan se MT5 button
@@ -17,7 +18,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.10';
+const VERSION = '9.9.11';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
