@@ -2053,7 +2053,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.10';
+const VERSION = '9.9.11';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -4511,8 +4511,11 @@ function drawLevels(cv, sym, bars, t){
   const cur = t.cur || last(b).c;
 
   /* range levels ke aas-paas rakho, warna SL/TP ek line me chipak jaate hain */
-  const lvLo = Math.min(t.sl, t.tp, t.entry, cur);
-  const lvHi = Math.max(t.sl, t.tp, t.entry, cur);
+  /* v9.9.11: SL/TP hata di ho (0) to wo level chart me nahi */
+  const hasSL = t.sl > 0, hasTP = t.tp > 0;
+  const lvs = [t.entry, cur].concat(hasSL ? [t.sl] : [], hasTP ? [t.tp] : []);
+  const lvLo = Math.min(...lvs);
+  const lvHi = Math.max(...lvs);
   const lvSpan = (lvHi - lvLo) || (SPECS[sym].pip * 10);
   const cLo = Math.min(...b.map(k=>k.l)), cHi = Math.max(...b.map(k=>k.h));
 
@@ -4546,10 +4549,14 @@ function drawLevels(cv, sym, bars, t){
   x.save(); x.beginPath(); x.rect(0, 0, CW, H); x.clip();
 
   /* zones */
-  x.fillStyle = 'rgba(255,68,68,.08)';
-  x.fillRect(0, Y(up?t.entry:t.sl), CW, Math.abs(Y(t.sl)-Y(t.entry)));
-  x.fillStyle = 'rgba(0,255,150,.08)';
-  x.fillRect(0, Y(up?t.tp:t.entry), CW, Math.abs(Y(t.tp)-Y(t.entry)));
+  if(hasSL){
+    x.fillStyle = 'rgba(255,68,68,.08)';
+    x.fillRect(0, Y(up?t.entry:t.sl), CW, Math.abs(Y(t.sl)-Y(t.entry)));
+  }
+  if(hasTP){
+    x.fillStyle = 'rgba(0,255,150,.08)';
+    x.fillRect(0, Y(up?t.tp:t.entry), CW, Math.abs(Y(t.tp)-Y(t.entry)));
+  }
 
   /* candles */
   b.forEach((k,i) => {
@@ -4570,7 +4577,7 @@ function drawLevels(cv, sym, bars, t){
     {v:t.entry, c:'#FFB800', txt:fmt(sym,t.entry)},
     {v:cur,     c:'#00CCFF', txt:fmt(sym,cur), dash:[3,3]},
     {v:t.sl,    c:'#FF4444', txt:'SL ' + fmt(sym,t.sl)}
-  ];
+  ].filter(k => k.v > 0);
   L.forEach(k => {
     /* chart ke bahar hai? line edge pe chipka do aur label pe teer laga do,
        taaki level chupe nahi */
@@ -4607,11 +4614,11 @@ function drawLevels(cv, sym, bars, t){
   const pip = SPECS[sym].pip;
   const tpY = (Y(t.entry)+Y(t.tp))/2, slY = (Y(t.entry)+Y(t.sl))/2;
   x.font = '700 9px ui-monospace, Menlo, monospace';
-  if(tpY > 8 && tpY < H-4){
+  if(hasTP && tpY > 8 && tpY < H-4){
     x.fillStyle = 'rgba(0,255,150,.9)';
     x.fillText(`+${(Math.abs(t.tp-t.entry)/pip).toFixed(0)}p`, 5, tpY+3);
   }
-  if(slY > 8 && slY < H-4){
+  if(hasSL && slY > 8 && slY < H-4){
     x.fillStyle = 'rgba(255,68,68,.9)';
     x.fillText(`-${(Math.abs(t.entry-t.sl)/pip).toFixed(0)}p`, 5, slY+3);
   }
@@ -5841,6 +5848,7 @@ function closeTrade(id, reason){
    bridge ko order badalna aata hi nahi (wo naya order bhejta hai), wo
    kaam FXBridgeEA me hoga. */
 function riskDist(t){
+  if(!(t.sl > 0)) return 0;                /* SL hata di — breakeven bhi nahi */
   if(t.r0) return t.r0;                    /* creation par yaad rakhi doori */
   const d = Math.abs(t.entry - t.sl);      /* purani trades ke liye */
   if(d) t.r0 = d;
@@ -5901,6 +5909,7 @@ function trackExcursion(t, px){
 
 /* MAE ko R me badlo — "SL ka kitna hissa kha gaya tha" */
 function maeR(t){
+  if(!(t.sl > 0) && !t.slD) return null;
   const risk = Math.abs(t.slD || 0) || Math.abs(tradePL(t, t.sl0 || t.sl));
   if(!risk || t.mae === undefined) return null;
   return Math.abs(t.mae) / risk;
@@ -5944,9 +5953,9 @@ async function refreshOpen(force){
       /* BE ke baad SL entry par hai — wo hit hona loss nahi, flat exit hai */
       const slHit = t.be ? 'BE' : 'SL';
       if(t.dir==='BUY'){
-        if(d.p >= t.tp) hits.push([t.id,'TP']); else if(d.p <= t.sl) hits.push([t.id,slHit]);
+        if(t.tp > 0 && d.p >= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p <= t.sl) hits.push([t.id,slHit]);
       } else {
-        if(d.p <= t.tp) hits.push([t.id,'TP']); else if(d.p >= t.sl) hits.push([t.id,slHit]);
+        if(t.tp > 0 && d.p <= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p >= t.sl) hits.push([t.id,slHit]);
       }
     });
     lastOpenSync = Date.now();
@@ -6032,7 +6041,7 @@ function renderTrades(){
     const pl = t.pl || 0;
     const cur = t.cur || t.entry;
     const span = Math.abs(t.tp - t.sl) || 1;
-    let prog = (t.dir==='BUY' ? (cur - t.sl) : (t.sl - cur)) / span;
+    let prog = (t.sl > 0 && t.tp > 0) ? (t.dir==='BUY' ? (cur - t.sl) : (t.sl - cur)) / span : 0.5;
     prog = Math.max(0, Math.min(1, prog));
     return `<div class="tr ${t.dir.toLowerCase()}">
       <div class="tr-h">
@@ -6046,8 +6055,8 @@ function renderTrades(){
       <div class="tr-g mono">
         <div><span>ENTRY</span>${fmt(t.sym,t.entry)}</div>
         <div><span>NOW</span>${fmt(t.sym,cur)}</div>
-        <div><span>${t.be ? 'SL · BREAKEVEN 🛡' : 'SL $' + t.slD}</span><em class="${t.be?'up':'dn'}" style="font-style:normal">${fmt(t.sym,t.sl)}</em></div>
-        <div><span>TP $${t.tpD}</span><em class="up" style="font-style:normal">${fmt(t.sym,t.tp)}</em></div>
+        <div><span>${!(t.sl > 0) ? 'SL' : t.be ? 'SL · BREAKEVEN 🛡' : 'SL $' + t.slD}</span><em class="${t.be?'up':'dn'}" style="font-style:normal">${t.sl > 0 ? fmt(t.sym,t.sl) : '⚠ nahi'}</em></div>
+        <div><span>${t.tp > 0 ? 'TP $' + t.tpD : 'TP'}</span><em class="up" style="font-style:normal">${t.tp > 0 ? fmt(t.sym,t.tp) : 'nahi'}</em></div>
       </div>
       <p class="hint" style="margin:0 0 9px">${dt12(t.at)} · Quality ${t.q||0}% ${t.grade?'· '+t.grade:''}</p>
       ${t.mae !== undefined ? `<p class="hint" style="margin:-4px 0 9px">
@@ -6205,8 +6214,8 @@ function editTrade(id){
   $('sltpBody').innerHTML = `
     <p class="hint" style="margin:0 0 12px">${t.dir} ${t.lots} lot · Entry <b class="mono">${fmt(t.sym,t.entry)}</b> · Abhi <b class="mono">${fmt(t.sym,cur)}</b></p>
     <div class="grid2" style="margin-bottom:10px">
-      <div><label style="color:var(--dn)">Stop Loss (price)</label><input id="stSl" class="mono" type="number" step="${step}" value="${(+t.sl).toFixed(d)}" oninput="sltpFrom('p')"></div>
-      <div><label style="color:var(--up)">Take Profit (price)</label><input id="stTp" class="mono" type="number" step="${step}" value="${(+t.tp).toFixed(d)}" oninput="sltpFrom('p')"></div>
+      <div><label style="color:var(--dn)">Stop Loss (price)</label><input id="stSl" class="mono" type="number" step="${step}" placeholder="khaali = SL nahi" value="${t.sl > 0 ? (+t.sl).toFixed(d) : ''}" oninput="sltpFrom('p')"></div>
+      <div><label style="color:var(--up)">Take Profit (price)</label><input id="stTp" class="mono" type="number" step="${step}" placeholder="khaali = TP nahi" value="${t.tp > 0 ? (+t.tp).toFixed(d) : ''}" oninput="sltpFrom('p')"></div>
       <div><label>SL $ (loss)</label><input id="stSlD" class="mono" type="number" step="0.1" min="0" oninput="sltpFrom('d')"></div>
       <div><label>TP $ (profit)</label><input id="stTpD" class="mono" type="number" step="0.1" min="0" oninput="sltpFrom('d')"></div>
     </div>
@@ -6214,6 +6223,8 @@ function editTrade(id){
       <button class="chip" onclick="sltpQuick('be')">SL = Breakeven</button>
       <button class="chip" onclick="sltpQuick('def')">Default $${defSL(t.sym,t.lots)} / $${defTP(t.sym,t.lots)}</button>
       <button class="chip" onclick="sltpQuick('half')">SL aadha karo</button>
+      <button class="chip" onclick="sltpQuick('nosl')">✕ SL hatao</button>
+      <button class="chip" onclick="sltpQuick('notp')">✕ TP hatao</button>
     </div>
     <div id="stPrev" class="mono" style="font-size:12px;line-height:1.7;border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:12px"></div>
     <div class="grid2">
@@ -6231,7 +6242,9 @@ function sltpFrom(src){
   if(src === 'd' && upp > 0){
     const sd = parseFloat($('stSlD').value), td = parseFloat($('stTpD').value);
     if(isFinite(sd) && sd > 0) $('stSl').value = (up ? t.entry - sd/upp : t.entry + sd/upp).toFixed(d);
+    else if($('stSlD').value.trim() === '') $('stSl').value = '';
     if(isFinite(td) && td > 0) $('stTp').value = (up ? t.entry + td/upp : t.entry - td/upp).toFixed(d);
+    else if($('stTpD').value.trim() === '') $('stTp').value = '';
   }
   const sl = parseFloat($('stSl').value), tp = parseFloat($('stTp').value);
   const slRisk = isFinite(sl) ? (up ? t.entry - sl : sl - t.entry) : NaN;   /* + = loss */
@@ -6241,25 +6254,28 @@ function sltpFrom(src){
     $('stTpD').value = isFinite(tpGain) ? (tpGain * upp).toFixed(2) : '';
   }
   const pip = SPECS[t.sym].pip, err = sltpCheck(t, sl, tp);
-  const slTxt = !isFinite(slRisk) ? '—' : slRisk <= 0
+  const slTxt = !isFinite(slRisk) ? '<span style="color:var(--gold)">⚠ koi SL nahi — loss ki koi seema nahi</span>' : slRisk <= 0
     ? `<span style="color:var(--up)">profit lock +${money(-slRisk*upp)}</span> (${(-slRisk/pip).toFixed(1)} pips)`
     : `<span style="color:var(--dn)">−${money(slRisk*upp)}</span> (${(slRisk/pip).toFixed(1)} pips)`;
-  const tpTxt = isFinite(tpGain) ? `<span style="color:var(--up)">+${money(tpGain*upp)}</span> (${(tpGain/pip).toFixed(1)} pips)` : '—';
+  const tpTxt = isFinite(tpGain) ? `<span style="color:var(--up)">+${money(tpGain*upp)}</span> (${(tpGain/pip).toFixed(1)} pips)` : 'koi TP nahi — khud band karna hoga';
   const rr = (slRisk > 0 && tpGain > 0) ? '1 : ' + (tpGain/slRisk).toFixed(1) : '—';
   $('stPrev').innerHTML = `SL: ${slTxt}<br>TP: ${tpTxt}<br>R:R: ${rr}` +
     (err ? `<br><span style="color:var(--dn)">⚠ ${err}</span>` : '');
 }
 function sltpCheck(t, sl, tp){
-  if(!isFinite(sl) || !isFinite(tp) || sl <= 0 || tp <= 0) return 'SL aur TP dono sahi number hone chahiye';
+  /* khaali (NaN) = hata di, chalega. Number hai to sahi taraf hona chahiye */
+  if((isFinite(sl) && sl <= 0) || (isFinite(tp) && tp <= 0)) return 'Price 0 se bada hona chahiye (hatani ho to box khaali karo)';
   const cur = t.cur || t.entry, up = t.dir === 'BUY';
-  if(up ? sl >= cur : sl <= cur) return `SL abhi ke price (${fmt(t.sym,cur)}) ke ${up?'neeche':'upar'} honi chahiye`;
-  if(up ? tp <= cur : tp >= cur) return `TP abhi ke price (${fmt(t.sym,cur)}) ke ${up?'upar':'neeche'} honi chahiye`;
+  if(isFinite(sl) && (up ? sl >= cur : sl <= cur)) return `SL abhi ke price (${fmt(t.sym,cur)}) ke ${up?'neeche':'upar'} honi chahiye`;
+  if(isFinite(tp) && (up ? tp <= cur : tp >= cur)) return `TP abhi ke price (${fmt(t.sym,cur)}) ke ${up?'upar':'neeche'} honi chahiye`;
   return '';
 }
 function sltpQuick(k){
   const t = sltpT(); if(!t) return;
   const d = SPECS[t.sym].d, up = t.dir === 'BUY';
   if(k === 'be'){ $('stSl').value = (+t.entry).toFixed(d); sltpFrom('p'); return }
+  if(k === 'nosl'){ $('stSl').value = ''; sltpFrom('p'); return }
+  if(k === 'notp'){ $('stTp').value = ''; sltpFrom('p'); return }
   if(k === 'def'){ $('stSlD').value = defSL(t.sym, t.lots); $('stTpD').value = defTP(t.sym, t.lots); sltpFrom('d'); return }
   if(k === 'half'){
     const sl = parseFloat($('stSl').value);
@@ -6272,11 +6288,16 @@ function sltpSave(){
   const nsl = parseFloat($('stSl').value), ntp = parseFloat($('stTp').value);
   const err = sltpCheck(t, nsl, ntp);
   if(err){ toast(err); return }
-  t.sl = nsl; t.tp = ntp;
-  t.slD = +distToDollars(t.sym,t.entry,t.lots,t.entry-nsl).toFixed(2);
-  t.tpD = +distToDollars(t.sym,t.entry,t.lots,ntp-t.entry).toFixed(2);
+  if(!isFinite(nsl) && !confirm('SL hata rahe ho — is trade me loss ki koi seema nahi rahegi.\n\nPakka?')) return;
+  const hadSL = t.sl > 0;
+  t.sl = isFinite(nsl) ? nsl : 0;
+  t.tp = isFinite(ntp) ? ntp : 0;
+  t.slD = t.sl > 0 ? +distToDollars(t.sym,t.entry,t.lots,t.entry-t.sl).toFixed(2) : 0;
+  t.tpD = t.tp > 0 ? +distToDollars(t.sym,t.entry,t.lots,t.tp-t.entry).toFixed(2) : 0;
+  if(!(t.sl > 0)) t.r0 = 0;                    /* SL nahi to breakeven bhi nahi */
+  else if(!hadSL) t.r0 = Math.abs(t.entry - t.sl);
   save(); renderTrades(); closeSheet('sltpSheet'); toast('SL/TP update ho gaya');
-  logAdd(`SL/TP badla: ${SPECS[t.sym].n} SL ${fmt(t.sym,nsl)} TP ${fmt(t.sym,ntp)}`);
+  logAdd(`SL/TP badla: ${SPECS[t.sym].n} SL ${t.sl > 0 ? fmt(t.sym,t.sl) : 'nahi'} TP ${t.tp > 0 ? fmt(t.sym,t.tp) : 'nahi'}`);
 }
 function setVBal(){
   const v = prompt('Virtual balance (USD)', S.vbal);
@@ -6328,9 +6349,9 @@ async function refreshAll(){
         const d = q[t.sym]; if(!d || !d.p) return;
         t.cur = d.p; t.pl = tradePL(t, d.p);
         if(t.dir==='BUY'){
-          if(d.p >= t.tp) hits.push([t.id,'TP']); else if(d.p <= t.sl) hits.push([t.id,'SL']);
+          if(t.tp > 0 && d.p >= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p <= t.sl) hits.push([t.id,'SL']);
         } else {
-          if(d.p <= t.tp) hits.push([t.id,'TP']); else if(d.p >= t.sl) hits.push([t.id,'SL']);
+          if(t.tp > 0 && d.p <= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p >= t.sl) hits.push([t.id,'SL']);
         }
       });
       lastOpenSync = Date.now();
@@ -9253,7 +9274,7 @@ nav button{min-width:0}
     'Pehle Firebase URL daalo':'Add Firebase URL first','Pehle Settings me Firebase URL daalo':'Add Firebase URL in Settings first',
     'Pehle TwelveData API key daalo':'Add TwelveData API key first','Pehle watchlist me pair chuno':'Pick pairs in the watchlist first',
     'Settings save ho gayi':'Settings saved','Telegram settings save ho gayi':'Telegram settings saved','Telegram token aur chat ID daalo':'Enter Telegram token and chat ID',
-    'Telegram pe chala gaya':'Sent to Telegram','SL/TP update ho gaya':'SL/TP updated','SL = Breakeven':'SL = Breakeven','SL aadha karo':'Halve SL','Stop Loss (price)':'Stop Loss (price)','Take Profit (price)':'Take Profit (price)','SL $ (loss)':'SL $ (loss)','TP $ (profit)':'TP $ (profit)','✓ Save Karo':'✓ Save','Ye app ke journal me SL/TP badalta hai. MT5 pe laga order waise hi rahega — wahan MT5 app me khud badlo.':'This changes SL/TP in the app journal. The MT5 order stays as it is — change it there in the MT5 app.','SL aur TP dono sahi number hone chahiye':'SL and TP must both be valid numbers','Sahi number daalo':'Enter a valid number','Value galat hai':'Invalid value',
+    'Telegram pe chala gaya':'Sent to Telegram','SL/TP update ho gaya':'SL/TP updated','SL = Breakeven':'SL = Breakeven','SL aadha karo':'Halve SL','✕ SL hatao':'✕ Remove SL','✕ TP hatao':'✕ Remove TP','khaali = SL nahi':'empty = no SL','khaali = TP nahi':'empty = no TP','⚠ koi SL nahi — loss ki koi seema nahi':'⚠ no SL — loss is unlimited','koi TP nahi — khud band karna hoga':'no TP — close it yourself','⚠ nahi':'⚠ none','nahi':'none','Stop Loss (price)':'Stop Loss (price)','Take Profit (price)':'Take Profit (price)','SL $ (loss)':'SL $ (loss)','TP $ (profit)':'TP $ (profit)','✓ Save Karo':'✓ Save','Ye app ke journal me SL/TP badalta hai. MT5 pe laga order waise hi rahega — wahan MT5 app me khud badlo.':'This changes SL/TP in the app journal. The MT5 order stays as it is — change it there in the MT5 app.','SL aur TP dono sahi number hone chahiye':'SL and TP must both be valid numbers','Sahi number daalo':'Enter a valid number','Value galat hai':'Invalid value',
     'Wapas online':'Back online','Tracking band':'Tracking stopped','Report copy ho gaya':'Report copied','Restore ho gaya':'Restored',
     'Scan result purana ho gaya — dobara scan karo':'Scan result expired — scan again','Ye pair tumhare plan me nahi hai':'This pair is not in your plan',
     'Zyada se zyada 12 pairs':'Maximum 12 pairs','Settings me Gemini API key daalo':'Add Gemini API key in Settings',
