@@ -1386,7 +1386,7 @@ body.ds-gold .brand .brandWord{height:24px}
     <canvas id="emaChart" style="width:100%;height:230px;display:block;
       background:var(--bg);border:1px solid var(--line);border-radius:6px"></canvas>
     <div id="emaBox"><p class="hint" style="margin-top:10px">Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.</p></div>
-    <button class="btn ghost sm" style="margin-top:10px" onclick="loadEma(true)">⟳ EMA REFRESH · 1 credit</button>
+    <button class="btn ghost sm" id="emaRefBtn" style="margin-top:10px" onclick="loadEma(true)">⟳ EMA REFRESH · 1 credit</button>
   </div>
 </section>
 
@@ -1408,6 +1408,13 @@ body.ds-gold .brand .brandWord{height:24px}
       </select></div>
     </div>
     <label>Watchlist <span id="wCount" style="color:var(--gold)"></span></label>
+    <div class="chips wlSets" style="margin-bottom:8px">
+      <button class="chip" data-wl="wl1" onclick="watchPreset('wl1')">1 · Majors</button>
+      <button class="chip" data-wl="wl2" onclick="watchPreset('wl2')">2 · EUR Cross</button>
+      <button class="chip" data-wl="wl3" onclick="watchPreset('wl3')">3 · GBP Cross</button>
+      <button class="chip" data-wl="wl4" onclick="watchPreset('wl4')">4 · AUD/NZD</button>
+      <button class="chip" data-wl="wl5" onclick="watchPreset('wl5')">5 · CAD/CHF</button>
+    </div>
     <button class="pick" style="margin-bottom:10px" onclick="openWatch()">
       <span id="wLabel">—</span><i>▼ BADLO</i></button>
     <button class="btn gold" id="btnScan" onclick="runScan()">SCAN KARO</button>
@@ -1992,6 +1999,13 @@ body.ds-gold .brand .brandWord{height:24px}
 <div class="ov" id="watchSheet"><div class="sheet">
   <div class="sh-h"><h3>Watchlist</h3><button onclick="closeSheet('watchSheet')">×</button></div>
   <p class="hint" style="margin:0 0 12px" id="watchCost"></p>
+  <div class="chips wlSets" style="margin-bottom:8px">
+    <button class="chip" data-wl="wl1" onclick="watchPreset('wl1')">1 · Majors</button>
+    <button class="chip" data-wl="wl2" onclick="watchPreset('wl2')">2 · EUR Cross</button>
+    <button class="chip" data-wl="wl3" onclick="watchPreset('wl3')">3 · GBP Cross</button>
+    <button class="chip" data-wl="wl4" onclick="watchPreset('wl4')">4 · AUD/NZD</button>
+    <button class="chip" data-wl="wl5" onclick="watchPreset('wl5')">5 · CAD/CHF</button>
+  </div>
   <div class="chips" style="margin-bottom:12px">
     <button class="chip" onclick="watchPreset('major')">Majors</button>
     <button class="chip" onclick="watchPreset('gold')">Gold + Majors</button>
@@ -2034,7 +2048,9 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.6';
+const VERSION = '9.9.7';
+/* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
+function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
 const LS = {
   get(k,d){ try{ const v=localStorage.getItem('samu_'+k); return v===null?d:JSON.parse(v);}catch(e){return d} },
@@ -2705,7 +2721,7 @@ Ab SIRF JSON do (koi aur text nahi), is shape me. Har field ko chhota rakho — 
 }
 
 Zaroori:
-- Hinglish me likho (Hindi words, English script) - simple, seedha
+- ${aiLangWord() === 'English' ? 'Simple English me likho (Hindi mat use karo)' : 'Hinglish me likho (Hindi words, English script)'} - simple, seedha
 - Number quote karo, gol-mol baat mat karo
 - R:R kharab hai to saaf bolo
 - Cheerleader mat bano - agar setup kamzor hai to CHHOD DO bolo`;
@@ -2899,7 +2915,7 @@ function go(pg,btn){
   hd.classList.toggle('hide', pg !== 'Signals');
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
-  if(pg==='Scan') renderScan();
+  if(pg==='Scan'){ renderScan(); if(typeof wlMark === 'function') wlMark(); }
   if(pg==='Votes'){ renderVotes(); renderSigHist(); renderBt(); renderAgLive();
     $('btTf').textContent = S.tf; $('btT').innerHTML = S.bt ? `<span data-ago="${S.bt.at}">${ago(S.bt.at)}</span>` : '—' }
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
@@ -4140,6 +4156,7 @@ function drawWatch(){
     }).join('');
   }
   $('watchList').innerHTML = html;
+  wlMark();
 }
 function toggleWatch(p){
   if(isBad(p)){ toast('Ye pair tumhare plan me nahi hai'); return }
@@ -4148,13 +4165,25 @@ function toggleWatch(p){
   else { if(S.watch.length >= 12){ toast('Zyada se zyada 12 pairs'); return } S.watch.push(p) }
   save(); drawWatch(); renderScan();
 }
+/* v9.9.7: 5 watchlist — Market page ke GROUPS se hi */
+const WL_SETS = {wl1:'Majors', wl2:'EUR Cross', wl3:'GBP Cross', wl4:'AUD / NZD', wl5:'CAD / CHF'};
+function wlMark(){
+  const cur = (S.watch || []).slice().sort().join(',');
+  document.querySelectorAll('.wlSets .chip').forEach(b => {
+    const g = GROUPS[WL_SETS[b.dataset.wl]] || [];
+    const want = g.filter(x => !isBad(x)).sort().join(',');
+    b.classList.toggle('on', !!want && want === cur);
+  });
+}
 function watchPreset(k){
+  if(WL_SETS[k]) S.watch = (GROUPS[WL_SETS[k]] || []).slice();
   if(k==='major') S.watch = ['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF'];
   if(k==='gold')  S.watch = ['XAU/USD','EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD'];
   if(k==='jpy')   S.watch = ['USD/JPY','EUR/JPY','GBP/JPY','AUD/JPY','CAD/JPY','CHF/JPY'];
   if(k==='clear') S.watch = [];
   S.watch = S.watch.filter(x => !isBad(x));
-  save(); drawWatch(); renderScan();
+  save(); drawWatch(); renderScan(); wlMark();
+  if(WL_SETS[k]) toast('Watchlist ' + k.slice(2) + ' · ' + WL_SETS[k] + ' — ' + S.watch.length + ' pairs');
 }
 
 /* ---------------- signal history ---------------- */
@@ -5330,7 +5359,10 @@ function emaSummary(sym, r){
   let planHtml;
   if(plan.dir === 'WAIT'){
     planHtml = `<div style="border:1px solid var(--gold);border-radius:10px;padding:13px;margin:12px 0">
-      <b style="color:var(--gold);font-size:12px;letter-spacing:1.5px">EMA PLAN · WAIT</b>
+      <div style="display:flex;align-items:center;gap:10px">
+        <b style="color:var(--gold);font-size:12px;letter-spacing:1.5px">EMA PLAN · WAIT</b>
+        <button class="emaRef" style="margin-left:auto" onclick="loadEma(true)" title="EMA refresh · 1 credit">⟳ EMA</button>
+      </div>
       <p class="hint" style="margin:6px 0 0">${plan.why}</p></div>`;
   } else {
     const up = plan.dir === 'BUY', c = up ? 'var(--up)' : 'var(--dn)';
@@ -5339,6 +5371,7 @@ function emaSummary(sym, r){
         <b style="font-size:12px;letter-spacing:1.5px;color:var(--gold)">EMA PLAN</b>
         <b class="shine ${up?'up':'dn'}" style="font-size:17px">${plan.dir}</b>
         <span class="gr" style="margin-left:auto">${plan.kind}</span>
+        <button class="emaRef" onclick="loadEma(true)" title="EMA refresh · 1 credit">⟳ EMA</button>
       </div>
       <div class="lvls" style="margin:12px 0 8px">
         <div class="lvl"><span>ENTRY</span><b class="mono">${fmt(sym, plan.entry)}</b></div>
@@ -7336,8 +7369,8 @@ If it is NOT in that list, report the ticker exactly as printed on the chart.
 Never substitute a different instrument \u2014 reporting an unknown ticker is
 correct, guessing a similar one is not.
 
-Write every text field in simple Hinglish (Hindi written in Roman/English letters,
-the way Indian traders talk). Keep all keys, symbols and numbers in English.
+Write every text field in ${aiLangWord() === 'English' ? 'simple plain English' : `simple Hinglish (Hindi written in Roman/English letters,
+the way Indian traders talk)`}. Keep all keys, symbols and numbers in English.
 
 Reply with JSON ONLY, no other text, in exactly this shape:
 {
@@ -7349,12 +7382,12 @@ Reply with JSON ONLY, no other text, in exactly this shape:
  "stop_loss": number,
  "take_profit_1": number,
  "take_profit_2": number,
- "trend": "1-2 Hinglish sentences on the dominant trend and current structure",
+ "trend": "1-2 ${aiLangWord()} sentences on the dominant trend and current structure",
  "support": [up to 3 numeric support levels, nearest first],
  "resistance": [up to 3 numeric resistance levels, nearest first],
- "reasoning": "2-3 Hinglish sentences on why this direction, citing what you see",
- "invalidation": "the single price level or condition that kills this setup, in Hinglish",
- "counter_trade": "2-3 Hinglish sentences on the opposite case \u2014 what would have to happen for the other direction to work, with rough entry and stop"
+ "reasoning": "2-3 ${aiLangWord()} sentences on why this direction, citing what you see",
+ "invalidation": "the single price level or condition that kills this setup, in ${aiLangWord()}",
+ "counter_trade": "2-3 ${aiLangWord()} sentences on the opposite case \u2014 what would have to happen for the other direction to work, with rough entry and stop"
 }
 
 Rules:
@@ -8571,6 +8604,14 @@ nav button{min-width:0}
 }
 .verdictbar.vWait{border-width:2px !important;border-style:solid !important;animation:waitBlink 1.1s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.verdictbar.vWait{animation:none;border-color:#16E27E !important}}
+/* v9.9.7: jo pair analyze ho raha hai — uska box bhi hara blink */
+#selPair{border-width:2px !important;border-style:solid !important;animation:waitBlink 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){#selPair{animation:none;border-color:#16E27E !important}}
+.emaRef{flex:0 0 auto;min-height:32px;padding:5px 10px;border-radius:6px;border:1px solid var(--gold);
+  color:var(--gold);background:transparent;font-size:11px;font-weight:800;letter-spacing:.6px;white-space:nowrap}
+.emaRef:active{opacity:.6}
+#emaBox:has(.emaRef) ~ #emaRefBtn{display:none}
+.wlSets .chip{font-size:12px}
 </style>
 <script>
 /* =====================================================================
@@ -8961,6 +9002,259 @@ nav button{min-width:0}
     if(timer){ clearInterval(timer); timer = null; }
     if(evTimer){ clearInterval(evTimer); evTimer = null; }
   };
+})();
+</script>
+
+
+<!-- ============ LANGUAGE (v9.9.7) — Hinglish / English ============ -->
+<style>
+.langHdr{display:block;text-align:center;margin-top:6px}
+.langSw{display:inline-flex;border:1px solid var(--gold);border-radius:99px;overflow:hidden;vertical-align:middle}
+.langSw button{min-height:26px;padding:2px 10px;font-size:10.5px;font-weight:800;letter-spacing:.8px;color:var(--gold);background:transparent}
+.langSw button.on{background:var(--gold);color:#140f05}
+.langRow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:14px}
+.langRow .langSw button{min-height:34px;padding:4px 14px;font-size:12px}
+</style>
+<script>
+/* Bhasha badalne pe app reload hoti hai. English me: dikhne wale text ko
+   dictionary se badla jaata hai (andar ki logic/values wahi rehti hain).
+   AI ke jawab bhi English me aate hain (aiLangWord). */
+(function(){
+  const KEY = 'samu_lang';
+  let lang = 'hi';
+  try{ lang = localStorage.getItem(KEY) === 'en' ? 'en' : 'hi' }catch(e){}
+  window.appLang = () => lang;
+  window.setLang = function(l){
+    if(l === lang) return;
+    try{ localStorage.setItem(KEY, l) }catch(e){}
+    location.reload();
+  };
+  const sw = () => '<span class="langSw"><button class="' + (lang==='hi'?'on':'') + '" onclick="setLang(\'hi\')">HINGLISH</button>' +
+                   '<button class="' + (lang==='en'?'on':'') + '" onclick="setLang(\'en\')">ENGLISH</button></span>';
+  function mountButtons(){
+    const vt = document.getElementById('verTag');
+    if(vt && !document.getElementById('langHdr')){
+      const s = document.createElement('span'); s.id = 'langHdr'; s.className = 'langHdr'; s.innerHTML = sw();
+      vt.parentNode.appendChild(s);
+    }
+    const sh = document.querySelector('#setSheet .sh-h');
+    if(sh && !document.getElementById('langSet')){
+      const d = document.createElement('div'); d.id = 'langSet'; d.className = 'langRow';
+      d.innerHTML = '<b style="flex:1;font-size:13px">' + (lang==='en' ? 'Language' : 'Bhasha / Language') + '</b>' + sw();
+      sh.parentNode.insertBefore(d, sh.nextSibling);
+    }
+  }
+  mountButtons();
+  if(lang !== 'en') return;
+  document.documentElement.lang = 'en';
+
+  /* ---------- exact matches (whitespace normalise karke) ---------- */
+  const D = {
+    'KAISE USE KARE':'HOW TO USE','⚡ AUTO MT5 KHOLO':'⚡ OPEN AUTO MT5','Rates Refresh':'Refresh Rates','EMA REFRESH · 1 credit':'EMA REFRESH · 1 credit','Kaise Use Kare':'How to Use','band':'off','Band':'Off',
+    'Band hai — order sirf tumhare tap se jayega.':'Off — orders go only when you tap.',
+    'Aaj ka API budget':"Today's API budget",'API key set karo':'Set API key',
+    'Dono HTF ulte hon to signal block; ek match ho to strong setup chal sakta hai':'Blocks the signal if both HTFs disagree; if one agrees a strong setup can still pass',
+    'Analyze Karo':'Analyze','MT5 pe Lagao':'Send to MT5','Pair chuno aur Analyze dabao.':'Pick a pair and tap Analyze.',
+    '🤖 AI SE SAMJHO':'🤖 EXPLAIN WITH AI',
+    'Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.':'After analysis the full reasoning shows here — why this trade and what the risks are.',
+    'Sab':'All','sab':'all',
+    'News abhi load nahi hui. Neeche Refresh dabao.':'News not loaded yet. Tap Refresh below.',
+    'News ke aas-paas warning':'Warning around news','Signal pe laal chetavni aayegi agar news paas hai':'Signal shows a red warning when news is near',
+    'Settings me TwelveData key save karo; tab har candle ka pressure estimate yahan load hoga.':'Save your TwelveData key in Settings; then the candle pressure estimate loads here.',
+    'Pehle Settings me TwelveData key daalo.':'Add your TwelveData key in Settings first.',
+    'Watchlist ke saare pairs ek saath':'All watchlist pairs at once','Kitna strong':'Min strength',
+    'Sirf 80%+ (bahut kam)':'Only 80%+ (very few)','70%+ strong':'70%+ strong','60%+ theek-thaak':'60%+ decent','Sab dikhao':'Show all',
+    'Fast — 2 credits/pair':'Fast — 2 credits/pair','Deep — 4 credits/pair':'Deep — 4 credits/pair',
+    '▼ BADLO':'▼ CHANGE','SCAN KARO':'SCAN','Abhi tak scan nahi hua.':'No scan yet.',
+    'Watchlist chuno aur SCAN KARO dabao.':'Pick a watchlist and tap SCAN.',
+    'Result 5 minute tak rehta hai — uske baad price badal jaati hai, isliye apne aap hat jaata hai.':'Results stay for 5 minutes — after that prices change, so they clear automatically.',
+    '50 rule-based agents aur backtest':'50 rule-based agents and backtest','Aage kitni candles tak dekhe':'Candles to look ahead',
+    'Live rates aur pip calculator':'Live rates and pip calculator','Refresh dabao':'Tap Refresh','Refresh Karo':'Refresh',
+    'Koi strong jodidar nahi mila — seedha same pair ulti direction hi sabse saaf hedge hai.':'No strong partner found — the same pair in the opposite direction is the cleanest hedge.',
+    'ABHI KA BALANCE':'CURRENT BALANCE','Balance Badlo':'Change Balance',
+    'Sirf hisaab ke liye. Closed P/L aur open trades ka live P/L isme jud kar abhi ka balance banta hai.':'For tracking only. Closed P/L plus live P/L of open trades makes the current balance.',
+    '⟳ Rates Refresh Karo':'⟳ Refresh Rates','Koi open trade nahi.':'No open trades.',
+    'Signal analyze karke "Maine Ye Trade Liya" dabao.':'Analyze a signal and tap "I Took This Trade".',
+    '+ Manual Trade Add Karo':'+ Add Manual Trade','Abhi koi closed trade nahi.':'No closed trades yet.',
+    'Trade band hone par yahan stats aayenge.':'Stats appear here once trades close.','History khaali hai.':'History is empty.',
+    'Har signal aur trade close Telegram pe jaayega':'Every signal and trade close goes to Telegram','Save Karo':'Save','Test Bhejo':'Send Test',
+    'Token @BotFather se banao. Chat ID ke liye apne bot ko koi message bhejo, phir "Test Bhejo" dabao — nahi aaya to @userinfobot se ID lo.':'Create the token with @BotFather. For Chat ID, send any message to your bot, then tap "Send Test" — if it fails, get the ID from @userinfobot.',
+    'screenshot upload karo':'upload a screenshot','Intraday. Usi session me entry aur exit, M15–H1 structure.':'Intraday. Entry and exit in the same session, M15–H1 structure.',
+    '🖼 CHART SCREENSHOT UPLOAD KARO':'🖼 UPLOAD CHART SCREENSHOT',
+    'Gallery se saaf chart screenshot chuno. Price axis aur pair ka naam dikhna zaroori hai.':'Pick a clear chart screenshot from the gallery. The price axis and pair name must be visible.',
+    'Upar koi chart analyze karo, phir IS SETUP KO TRACK KARO dabao — app us pair ko entry, SL aur target ke liye dekhti rahegi.':'Analyze a chart above, then tap TRACK THIS SETUP — the app will watch that pair for entry, SL and target.',
+    '⚠ Browser ye data saaf kar sakta hai':'⚠ The browser may clear this data','✓ Data surakshit hai':'✓ Data is protected',
+    'Firebase pe apne aap — har badlaav ke baad aur roz ek baar':'To Firebase automatically — after every change and once a day',
+    '☁ ABHI BACKUP':'☁ BACKUP NOW','☁ CLOUD SE LAAO':'☁ RESTORE FROM CLOUD','🔒 DATA LOCK KARO':'🔒 LOCK DATA','⬇ FILE BANAO':'⬇ SAVE FILE','⬆ FILE SE LAAO':'⬆ LOAD FILE',
+    'Cloud backup wahi Firebase use karta hai jo MT5 bridge me hai. Har phone ka apna alag backup rehta hai.':'Cloud backup uses the same Firebase as the MT5 bridge. Each phone keeps its own backup.',
+    'Abhi koi alert nahi.':'No alerts yet.','Auto cloud backup':'Auto cloud backup','Data Suraksha':'Data Safety','File Backup':'File Backup',
+    'Telegram — SamuSignal':'Telegram — SamuSignal','Bot Token':'Bot Token','Chat ID':'Chat ID','Auto alert':'Auto alert',
+    'Trading style':'Trading style','Scalping':'Scalping','Day':'Day','Swing':'Swing','Live Tracking':'Live Tracking','Alert Log':'Alert Log',
+    'Ye app ko khud check karta hai — har page aur har sheet ko khol kar dekhta hai ki koi cheez screen se bahar to nahi ja rahi, koi button chhota to nahi, aur settings ke number sahi hain ya nahi. Kuch bhi badalta nahi, sirf batata hai.':'This checks the app itself — opens every page and sheet to see if anything overflows the screen, any button is too small, and whether settings values are valid. It changes nothing, only reports.',
+    '🩺 TEST CHALAO':'🩺 RUN TEST','Self Test':'Self Test',
+    'Signal khud MT5 pe bhejo':'Send signals to MT5 automatically','Sirf "LE LO" verdict wale signal jayenge':'Only signals with a "TAKE" verdict are sent',
+    'Har kitne minute':'Every how many minutes','Fail hone par dobara (min)':'Retry after failure (min)',
+    'Ek pair pe poore din me sirf ek order. "Max order / din" saare pairs ka total hai. Watchlist wale pairs hi check hote hain — har cycle me ek.':'One order per pair per day. "Max orders / day" is the total across pairs. Only watchlist pairs are checked — one per cycle.',
+    '💾 AUTO SETTINGS SAVE KARO':'💾 SAVE AUTO SETTINGS','Auto band hai — signal sirf tumhare tap se hi jayega.':'Auto is off — signals go only when you tap.',
+    '⚠ Auto sirf tab chalta hai jab ye app khuli aur screen pe ho — phone lock ya app band matlab koi order nahi jayega.':'⚠ Auto only runs while this app is open on screen — locked phone or closed app means no orders.',
+    'Order tabhi jaata hai jab verdict LE LO ho, quality bar paar ho, us pair pe aaj koi auto order na gaya ho, aur credits bache hon. Har order Alert Log, Telegram aur Trades journal — teeno me likha jaata hai.':'An order goes only when the verdict is TAKE, quality passes, no auto order went on that pair today, and credits remain. Every order is logged in Alert Log, Telegram and the Trades journal.',
+    'Analyze ke baad khud chalao':'Run automatically after Analyze','Har analysis pe ek AI call — quota dekhte rehna':'One AI call per analysis — watch your quota',
+    '🔍 MODELS DEKHO':'🔍 SHOW MODELS','MetaApi seedha use karo (No VPS)':'Use MetaApi directly (No VPS)',
+    'On = cloud API se direct order. Off = purana Firebase/VPS wala EA bridge.':'On = direct orders via cloud API. Off = the Firebase/VPS EA bridge.',
+    'Symbol suffix (broker ke hisaab se, jaise Exness = m)':'Symbol suffix (per broker, e.g. Exness = m)','🔌 MetaApi Test Karo':'🔌 Test MetaApi',
+    'Token aur Account ID app.metaapi.cloud se milte hain (MT Accounts → apna account → API Access). Region host wahi chuno jo account banate waqt select kiya tha (yahan London). Symbol suffix broker ke MT5 se check karo — Exness pe aksar "m" lagta hai.':'Get the Token and Account ID from app.metaapi.cloud (MT Accounts → your account → API Access). Choose the same region host you picked when creating the account (London here). Check the symbol suffix in your broker MT5 — Exness usually uses "m".',
+    'Limit (pullback pe)':'Limit (on pullback)','Stop (breakout pe)':'Stop (on breakout)',
+    'Limit mode me entry live price se itne pips door lagegi (BUY neeche, SELL upar). SL aur TP bhi utne hi shift honge, to dollar risk exactly wahi rahega.':'In Limit mode the entry is placed this many pips from live price (BUY below, SELL above). SL and TP shift equally, so dollar risk stays exactly the same.',
+    'bhejegi — order turant fill hoga.':'will be sent — the order fills immediately.','🔌 Bridge Test Karo':'🔌 Test Bridge','📄 Aakhri Bheja Order Dekho':'📄 View Last Sent Order',
+    'padhta hai. EA khud broker suffix (Exness = "m") lagata hai, isliye yahan sirf XAUUSD bhejo.':'reads this. The EA adds the broker suffix itself (Exness = "m"), so send just XAUUSD here.',
+    'TP/SL 0.01 lot ke hisaab se — lot badhega to $ apne aap badhega':'TP/SL per 0.01 lot — $ scales up with lot size',
+    '✓ broker minimum se upar':'✓ above broker minimum','Is pair ka apna built-in default':'This pair has its own built-in default','↺ Is pair ko default pe wapas':'↺ Reset this pair to default',
+    '1R par SL breakeven':'Move SL to breakeven at 1R','Profit SL jitna ho jaye to SL entry par — trade risk-free':'When profit equals the SL distance, SL moves to entry — risk-free trade',
+    'Ye sirf app ke journal me hota hai. MT5 wale order ki SL wahin ki wahin rahegi — wo kaam EA me karna padega.':'This only happens in the app journal. The MT5 order SL stays where it is — the EA must handle that.',
+    'Bhejne se pehle taza price lo':'Fetch fresh price before sending','1 credit lagta hai, par stale rate se order fail nahi hoga':'Costs 1 credit, but orders won\'t fail on stale rates',
+    'Gold, US30 aur BTC pe global $1/$2.50 kaam nahi karta — inke apne default already set hain. Error 10016 aaye to min pips badha do.':'The global $1/$2.50 doesn\'t suit Gold, US30 and BTC — they have their own defaults. If you get error 10016, increase min pips.',
+    'Update ke baad ek baar chala lena — layout bigda ho ya koi button screen se bahar nikla ho to yahan pakda jayega.':'Run once after an update — a broken layout or off-screen button gets caught here.',
+    'Band (sirf manual)':'Off (manual only)',
+    'Free plan pe 800 credits/day. Cap 700 rakho taaki buffer rahe. Har open pair ka 1 credit lagta hai — 5 pairs + 5 minute refresh = ~60 credits/ghanta.':'Free plan gives 800 credits/day. Keep the cap at 700 for a buffer. Each open pair costs 1 credit — 5 pairs + 5-minute refresh ≈ 60 credits/hour.',
+    'Har kitni der me price check':'Price check interval','Har check pe 1 API credit lagta hai. Tracking sirf tab chalti hai jab app khuli ho.':'Each check costs 1 API credit. Tracking only runs while the app is open.',
+    'Signal aane pe aur TP/SL hit hone pe':'On new signals and TP/SL hits','Awaaz me batao':'Speak aloud','Sirf High':'High only',
+    'News se itne minute pehle aur baad tak signal pe laal warning aayegi. News din me ek baar apne aap aati hai.':'Signals get a red warning this many minutes before and after news. News loads automatically once a day.',
+    'Fixed dollar (har pair pe same $)':'Fixed dollar (same $ on every pair)','ATR based (volatility ke hisaab se)':'ATR based (by volatility)',
+    'ATR mode me lot auto':'Auto lot in ATR mode','Risk $ fix rahega, lot size khud adjust hoga':'Risk $ stays fixed, lot size adjusts itself',
+    'ATR mode me SL market ki chaal ke hisaab se lagti hai — gold pe chaudi, EURUSD pe patli. Dollar value trade lete waqt dikh jayegi.':'In ATR mode the SL follows market volatility — wide on gold, tight on EURUSD. The dollar value shows when you take the trade.',
+    'Lot sirf yahan se badalta hai — Signals page aur quick trade dono me wo locked rehta hai, taaki har trade ka risk ek jaisa rahe. TP/SL upar wale lot ke hisaab se hain: 0.01 lot pe $4 / $2.50, 0.02 pe $8 / $5.':'Lot changes only here — it stays locked on the Signals page and quick trade so every trade has the same risk. TP/SL follow the lot above: $4 / $2.50 at 0.01, $8 / $5 at 0.02.',
+    '↺ Reset to Default':'↺ Reset to Default','🔓 Locked Pairs Reset Karo':'🔓 Reset Locked Pairs','Sab Data Delete Karo':'Delete All Data',
+    'Maine Ye Trade Liya':'I Took This Trade','Saaf karo':'Clear','Pair Chuno':'Pick Pair','Trade Save Karo':'Save Trade',
+    '⚠ Offline — purana cached data dikh raha hai':'⚠ Offline — showing old cached data',
+    'LE LO':'TAKE IT','CHHOD DO':'SKIP IT','BACKTEST CHALAO':'RUN BACKTEST','Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.':'Analyze first — EMAs use the same data, no extra credit.',
+    'Candles aa rahi hain…':'Loading candles…','Aakhri 3 Crossover':'Last 3 Crossovers','Dikhne wali history me koi cross nahi.':'No crosses in the visible history.',
+    'Chart pe number wahi hain jo yahan — 1 sabse naya. Hari circle = tez EMA upar nikli, laal = neeche. Time candle ke shuru hone ka hai (IST).':'Chart numbers match these — 1 is the newest. Green circle = fast EMA crossed up, red = down. Time is candle open (IST).',
+    'EMA aapas me uljhi hain':'EMAs are tangled','Candle abhi band nahi hui — cross palat sakta hai':'Candle not closed yet — the cross may flip',
+    'abhi wali candle':'current candle','⚠ Entry':'⚠ Entry',
+    /* toasts */
+    'Backup file download ho gayi':'Backup file downloaded','Browser menu → "Add to Home screen" dabao':'Browser menu → tap "Add to Home screen"',
+    'Cloud pe backup ho gaya':'Backed up to cloud','Cloud pe koi backup nahi mila':'No backup found in cloud','Cloud se restore ho gaya':'Restored from cloud',
+    'Data wapas aa gaya':'Data restored','Default values wapas aa gayi':'Defaults restored','Entry aur lots bharo':'Fill entry and lots',
+    'Entry/SL/TP poore nahi hain':'Entry/SL/TP incomplete','File padhi nahi gayi — sahi backup JSON chuno':'Could not read file — pick a valid backup JSON',
+    'Live price update ho gaya':'Live price updated','Pehle analyze karo':'Analyze first','Pehle AI chalao':'Run AI first',
+    'Pehle Firebase URL daalo':'Add Firebase URL first','Pehle Settings me Firebase URL daalo':'Add Firebase URL in Settings first',
+    'Pehle TwelveData API key daalo':'Add TwelveData API key first','Pehle watchlist me pair chuno':'Pick pairs in the watchlist first',
+    'Settings save ho gayi':'Settings saved','Telegram settings save ho gayi':'Telegram settings saved','Telegram token aur chat ID daalo':'Enter Telegram token and chat ID',
+    'Telegram pe chala gaya':'Sent to Telegram','SL/TP update ho gaya':'SL/TP updated','Sahi number daalo':'Enter a valid number','Value galat hai':'Invalid value',
+    'Wapas online':'Back online','Tracking band':'Tracking stopped','Report copy ho gaya':'Report copied','Restore ho gaya':'Restored',
+    'Scan result purana ho gaya — dobara scan karo':'Scan result expired — scan again','Ye pair tumhare plan me nahi hai':'This pair is not in your plan',
+    'Zyada se zyada 12 pairs':'Maximum 12 pairs','Settings me Gemini API key daalo':'Add Gemini API key in Settings',
+    /* Copy tab */
+    'Copy ON':'Copy ON','ON = source ke naye trades mere VPS account pe khulenge':'ON = new source trades open on my VPS account',
+    'VPS se abhi data nahi aaya.':'No data from VPS yet.','DIKHAO':'SHOW','CHHUPAO':'HIDE','💾 SAVE + BHEJO':'💾 SAVE + SEND','📋 LOGIN COPY':'📋 COPY LOGIN',
+    'Password sirf is phone me rehta hai — Firebase/VPS pe nahi jaata. VPS pe dusre MT5 me':'The password stays only on this phone — it never goes to Firebase/VPS. On the VPS, in the second MT5 use',
+    'me yahi ID, password aur server daalo (ek baar). Executor login ID milaata hai — alag account mila to copy ruk jaati hai.':'with this ID, password and server (once). The Executor checks the login ID — a different account pauses copying.',
+    'SL / TP bhi copy':'Copy SL / TP too','Source ka SL/TP badle to yahan bhi badlega':'If the source changes SL/TP, it changes here too',
+    'Ulta copy (Reverse)':'Reverse copy','Source BUY kare to yahan SELL — SL/TP bhi ulte':'Source BUY becomes SELL here — SL/TP swapped too',
+    'Pending orders bhi copy':'Copy pending orders too','Source ka Buy/Sell Stop/Limit yahan bhi same price pe lagega':'Source Buy/Sell Stop/Limit is placed here at the same price',
+    'Pehle se khule trades bhi':'Already-open trades too','OFF = sirf ON karne ke baad wale naye trades':'OFF = only trades opened after turning ON',
+    'Limit pe sab band':'Close all at limit','OFF = sirf naye copy rukenge, khule trades chalte rahenge':'OFF = only new copies stop, open trades keep running',
+    'Max Price Farak: source ke entry se price itna (jaise gold me 1.0 = $1) bura ho chuka ho to trade skip. Copy loss sirf copied trades ka floating loss ginta hai.':'Max Price Gap: skip the trade if price is already this much worse than the source entry (gold 1.0 = $1). Copy loss counts only the floating loss of copied trades.',
+    'Max Price Farak':'Max Price Gap','Copy Loss Limit $':'Copy Loss Limit $','Suraksha':'Safety','Lot Setting':'Lot Setting',
+    'Sab copy':'Copy all','Sirf ye copy':'Only these','Ye mat copy':'Not these','Symbols (comma se alag)':'Symbols (comma separated)',
+    'Source = Mera symbol (har line me ek)':'Source = My symbol (one per line)','Mera broker suffix':'My broker suffix',
+    'Same broker ho to kuch mat likho. Alag broker ho to Executor khud dhoondta hai (XAUUSD+ → XAUUSDm); na mile to yahan likho.':'Leave empty for the same broker. For a different broker the Executor finds it itself (XAUUSD+ → XAUUSDm); if not, write it here.',
+    '📤 SETTINGS VPS PE BHEJO':'📤 SEND SETTINGS TO VPS','⛔ SAB COPIED BAND':'⛔ CLOSE ALL COPIED','↺ LOSS LIMIT RESET':'↺ RESET LOSS LIMIT',
+    '"Sab copied band" sirf is copier ke khole trades band karta hai (magic 770077) — aapke baaki EA ke trades ko haath nahi lagata.':'"Close all copied" closes only trades opened by this copier (magic 770077) — your other EA trades are untouched.',
+    'Source EA ki har harkat — pending lagana/badalna/hatana, trade khulna/band — us waqt ke market ke saath. Isi se EA ki strategy samjhenge.':'Every move of the source EA — placing/changing/removing pendings, opening/closing trades — with the market at that moment. This is how we learn its strategy.',
+    'Abhi koi event nahi. (Reader v1.02 + Bridge v1.01 chahiye)':'No events yet. (Needs Reader v1.02 + Bridge v1.01)',
+    '⬇ CSV DOWNLOAD':'⬇ CSV DOWNLOAD','⟳ REFRESH':'⟳ REFRESH','Abhi kuch nahi.':'Nothing yet.','VPS Setup (ek baar)':'VPS Setup (one time)',
+    'Source pe abhi koi trade ya pending order nahi.':'No trades or pending orders on source right now.','Sab theek — copy chalu hai.':'All good — copy is running.','Sab theek — Copy OFF hai.':'All good — copy is OFF.',
+    'ON — source ke naye trades VPS account pe khul rahe hain':'ON — new source trades are opening on the VPS account',
+    'OFF — naye trade nahi khulenge (copied trades ka SL/TP/close sync chalta rahega)':'OFF — no new trades (SL/TP/close sync of copied trades continues)',
+    '✓ Copied':'✓ Copied','Purana — skip':'Old — skipped','Symbol nahi mila':'Symbol not found','Max positions':'Max positions','Price door tha':'Price moved too far',
+    'Fail (3 try)':'Failed (3 tries)','Mera band hua':'Closed on mine','Band kiya':'Closed','Filter — skip':'Filter — skipped','Try ho raha':'Retrying',
+    'Intezaar':'Waiting','Band ho raha':'Closing','Purana source':'Old source','Loss limit':'Loss limit','Copy OFF':'Copy OFF',
+    '⏳ Pending':'⏳ Pending','✓ Pending copied':'✓ Pending copied','Copy ho raha hai…':'Copying…','Copy ON karne par lagega':'Will be placed when copy is ON',
+    'Pending copy OFF hai — trigger hote hi trade copy hoga':'Pending copy is OFF — the trade copies once triggered',
+    'Yahan pending nahi lag saka — trigger hote hi trade copy hoga':'Could not place pending here — the trade copies once triggered',
+    'Ye order copy nahi hoga':'This order will not be copied','Symbol filter me nahi — copy nahi hoga':'Not in symbol filter — won\'t be copied',
+    'Trigger hote hi yahan copy hoga':'Copies here once triggered','Sab copy':'Copy all',
+    'Pending lage':'Pendings placed','Trigger / Hate':'Triggered / Removed','Order types':'Order types','Market se doori (avg)':'Distance from market (avg)',
+    'SL doori (avg)':'SL distance (avg)','TP doori (avg)':'TP distance (avg)','Pending umar (hatne tak)':'Pending life (until removed)','Trade umar (avg)':'Trade duration (avg)',
+    'Trades band / jeete':'Trades closed / won','Band kaise':'Closed by','Sabse zyada ghante (IST)':'Busiest hours (IST)',
+    'PENDING LAGA':'PENDING PLACED','PENDING BADLA':'PENDING CHANGED','PENDING HATA':'PENDING REMOVED','TRADE KHULA':'TRADE OPENED','SL/TP BADLA':'SL/TP CHANGED',
+    'TRADE BAND':'TRADE CLOSED','PEHLE SE PENDING':'EXISTING PENDING','PEHLE SE TRADE':'EXISTING TRADE',
+    '● INTEZAAR':'● WAITING','Bheja:':'Sent:','VPS ne le li ✓':'VPS received ✓','VPS ke lene ka intezaar…':'Waiting for VPS…',
+    'Abhi tak VPS pe settings nahi bheji.':'Settings not sent to VPS yet.'
+  };
+
+  /* ---------- tukde / numbers wale (regex) ---------- */
+  const R = [
+    [/^(\d+) pairs chune hain · scan me (\d+) credits lagenge · aaj (\d+) bache hain$/, '$1 pairs selected · scan costs $2 credits · $3 left today'],
+    [/^(\d+) bache hain$/, '$1 left'],[/^Ye scan$/, 'This scan uses'],[/^lega · aaj$/, '· today'],
+    [/^Is device pe (.+) use ho raha hai$/, '$1 used on this device'],
+    [/^Trades: (\d+) open · (\d+) band$/, 'Trades: $1 open · $2 closed'],
+    [/^(\d+) candle pehle$/, '$1 candles ago'],
+    [/^Watchlist (\d) · (.+) — (\d+) pairs$/, 'Watchlist $1 · $2 — $3 pairs'],
+    [/^(\d+) trade$/, '$1 trades'],[/^(\d+) trade · (\d+) pending$/, '$1 trades · $2 pending'],
+    [/^(\d+) events aaye$/, '$1 events loaded'],[/^Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao$/, 'Saved ✓ — tap "Send settings to VPS" to apply'],
+    [/^Settings VPS pe bhej di ✓$/, 'Settings sent to VPS ✓'],
+    [/^Timeframe wahi chalega jo Signals page pe chuna hai \(abhi$/, 'Uses the timeframe selected on the Signals page (now'],
+    [/^\)\. Ek pair = 1 credit\.$/, '). One pair = 1 credit.'],
+    [/^Sirf (.+) copy honge — baaki sab skip\.$/, 'Only $1 will be copied — everything else skipped.'],
+    [/^(.+) copy nahi honge — baaki sab honge\.$/, '$1 won\'t be copied — everything else will.'],
+    [/^Source ke saare symbols copy honge\.$/, 'All source symbols will be copied.'],
+    [/^Naam ka shuru wala hissa milta hai: (.+)\. Pehle se copied trades pe asar nahi\.$/, 'Matches the start of the name: $1. Already-copied trades are not affected.'],
+    [/^Mera pending #(\d+) laga hai$/, 'My pending #$1 is placed'],
+    [/\bexpiry\b/, 'expiry']
+  ];
+
+  const norm = s => s.replace(/\s+/g, ' ').trim();
+  function tr(v){
+    const k = norm(v);
+    if(!k || !/[a-z]/i.test(k)) return null;
+    let out = D[k];
+    if(out === undefined){
+      for(const [re, rp] of R){ if(re.test(k)){ out = k.replace(re, rp); break; } }
+    }
+    if(out === undefined || out === k) return null;
+    const lead = v.match(/^\s*/)[0], trail = v.match(/\s*$/)[0];
+    return lead + out + trail;
+  }
+  const SKIP = {SCRIPT:1, STYLE:1, TEXTAREA:1, INPUT:1, SELECT:0, CODE:1};
+  function doNode(n){
+    const p = n.parentElement;
+    if(!p || SKIP[p.tagName] || p.closest('svg,script,style,textarea')) return;
+    const t = tr(n.nodeValue);
+    if(t !== null && t !== n.nodeValue) n.nodeValue = t;
+  }
+  function doEl(el){
+    ['placeholder','title','aria-label'].forEach(a => {
+      const v = el.getAttribute && el.getAttribute(a);
+      if(v){ const t = tr(v); if(t !== null) el.setAttribute(a, t); }
+    });
+  }
+  function run(root){
+    if(!root) return;
+    if(root.nodeType === 3){ doNode(root); return; }
+    if(root.nodeType !== 1) return;
+    doEl(root);
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    let n;
+    while((n = w.nextNode())){ n.nodeType === 3 ? doNode(n) : doEl(n); }
+  }
+  let busy = false;
+  const mo = new MutationObserver(list => {
+    if(busy) return; busy = true;
+    try{
+      for(const m of list){
+        if(m.type === 'characterData') doNode(m.target);
+        else if(m.type === 'attributes') doEl(m.target);
+        else m.addedNodes.forEach(run);
+      }
+    }finally{ busy = false; }
+  });
+  function start(){
+    run(document.body);
+    mo.observe(document.body, {subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:['placeholder','title']});
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 </script>
 
