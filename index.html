@@ -2048,7 +2048,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.8';
+const VERSION = '9.9.9';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -5219,22 +5219,34 @@ function emaPlan(sym, bars, lines){
   const cand = [swing, e55].filter(v => bull ? v < entry : v > entry);
   const base = cand.length ? (bull ? Math.max(...cand) : Math.min(...cand))
                            : (bull ? entry - 1.2*a : entry + 1.2*a);
-  let sl = bull ? base - 0.25*a : base + 0.25*a;
-  let risk = Math.abs(entry - sl);
-  if(risk < 0.8*a){ risk = 0.8*a; sl = bull ? entry - risk : entry + risk }
-  const tp  = bull ? entry + 1.6*risk : entry - 1.6*risk;
+  /* v9.9.9: SL/TP ab dollar me — wahi jo Settings me is pair ka TP/SL hai
+     (default $5 TP / $2.50 SL per 0.01 lot; Gold/BTC/US30 ke apne). Lot ke
+     saath $ badhta hai. EMA/swing wala SL sirf chetavni ke liye dekha jaata hai. */
+  const structSL = Math.abs(entry - (bull ? base - 0.25*a : base + 0.25*a));
+  const lotsP = S.lots || 0.01;
+  const uppL = usdPerPoint(sym, entry, lotsP), pip = SPECS[sym].pip;
+  const slUsdSet = defSL(sym, lotsP), tpUsdSet = defTP(sym, lotsP);
+  let risk = uppL > 0 ? slUsdSet / uppL : 0.8*a;
+  let reward = uppL > 0 ? tpUsdSet / uppL : 1.6*risk;
+  const minD = minStop(sym) * pip;
+  let widened = false;
+  if(risk < minD){ risk = minD; widened = true }
+  if(reward < minD){ reward = minD; widened = true }
+  const sl  = bull ? entry - risk : entry + risk;
+  const tp  = bull ? entry + reward : entry - reward;
   const tp2 = bull ? entry + 2.5*risk : entry - 2.5*risk;
-
-  const upp = usdPerPoint(sym, entry, 0.01), pip = SPECS[sym].pip;
+  const upp = usdPerPoint(sym, entry, 0.01);
   const far = Math.abs(px - e9) / a;                   /* price EMA 9 se kitna door */
   const warn = [];
-  if(risk > 3*a) warn.push(`SL ${ (risk/a).toFixed(1) } ATR door hai — trend bahut phaila hua hai, ye trade chhod dena behtar.`);
+  if(risk > 3*a) warn.push(`SL ${ (risk/a).toFixed(1) } ATR door hai — abhi market dheema hai, TP tak pahunchne me kaafi time lag sakta hai.`);
+  if(risk < 0.5*a) warn.push(`$${slUsdSet.toFixed(2)} wali SL sirf ${(risk/a).toFixed(1)} ATR hai — market ke normal shor me lag sakti hai (structure SL ~${(structSL/pip).toFixed(0)} pips par hai).`);
+  if(widened) warn.push(`Broker ka minimum stop ${minStop(sym)} pips hai — SL/TP utna kiya.`);
   if(!inZone && far > 1.5) warn.push('Price EMA 9 se kaafi aage bhaag chuka hai — limit tabhi lagegi jab wapas EMA 21 tak aaye. Peeche mat bhaago.');
   if((bull && px < e21) || (bear && px > e21)) warn.push('Price EMA 21 ke galat taraf hai — trend kamzor ho raha hai.');
 
   return {dir, kind, entry, sl, tp, tp2, risk, a, px,
-          slPips: risk/pip, tpPips: 1.6*risk/pip,
-          slUsd: risk*upp, tpUsd: 1.6*risk*upp, warn,
+          slPips: risk/pip, tpPips: reward/pip, rr: reward/risk, lots: lotsP,
+          slUsd: risk*uppL, tpUsd: reward*uppL, warn,
           why: inZone ? 'Price abhi pullback zone (EMA 9–21) me hai — seedhi entry.'
                       : 'Price zone ke bahar hai — EMA 21 pe pullback ka intezaar, limit order.'};
 }
@@ -5382,7 +5394,7 @@ function emaSummary(sym, r){
           <small style="display:block;font-size:10.5px;color:var(--mut)">${plan.tpPips.toFixed(1)} pips · +${money(plan.tpUsd)}</small></div>
       </div>
       <div class="lbl"><span>TP 2 (2.5R)</span><b class="mono">${fmt(sym, plan.tp2)}</b></div>
-      <div class="lbl"><span>R:R · lot 0.01</span><b class="mono">1 : 1.6</b></div>
+      <div class="lbl"><span>R:R · lot ${plan.lots || 0.01}</span><b class="mono">1 : ${(plan.rr || 1.6).toFixed(1)}</b></div>
       <p class="hint" style="margin:8px 0 0">${plan.why}</p>
       ${plan.warn.map(w => `<p class="hint" style="color:var(--gold);margin:6px 0 0">⚠ ${w}</p>`).join('')}
       <button class="btn gold sm" style="margin-top:10px" onclick="emaSendMT5()">🚀 MT5 pe Lagao · ${plan.dir} ${plan.kind}</button>
