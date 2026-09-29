@@ -1996,6 +1996,11 @@ body.ds-gold .brand .brandWord{height:24px}
   <div id="hgBody"></div>
 </div></div>
 
+<div class="ov" id="sltpSheet"><div class="sheet">
+  <div class="sh-h"><h3 id="sltpTitle">SL / TP Badlo</h3><button onclick="closeSheet('sltpSheet')">×</button></div>
+  <div class="sh-b" id="sltpBody"></div>
+</div></div>
+
 <div class="ov" id="watchSheet"><div class="sheet">
   <div class="sh-h"><h3>Watchlist</h3><button onclick="closeSheet('watchSheet')">×</button></div>
   <p class="hint" style="margin:0 0 12px" id="watchCost"></p>
@@ -2048,7 +2053,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.9';
+const VERSION = '9.9.10';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -6189,18 +6194,89 @@ function renderPerf(){
     </tr>`).join('')}</tbody></table>`;
 }
 
+/* v9.9.10: SL/TP badlo — price ya dollar dono se, breakeven, live preview */
+let sltpId = null;
 function editTrade(id){
   const t = S.open.find(x=>x.id===id); if(!t) return;
-  const sl = prompt(`${t.sym} — naya Stop Loss price:`, fmt(t.sym,t.sl));
-  if(sl===null) return;
-  const tp = prompt(`${t.sym} — naya Take Profit price:`, fmt(t.sym,t.tp));
-  if(tp===null) return;
-  const nsl=+sl, ntp=+tp;
-  if(!isFinite(nsl)||!isFinite(ntp)||!nsl||!ntp){ toast('Value galat hai'); return }
-  t.sl=nsl; t.tp=ntp;
+  sltpId = id;
+  const d = SPECS[t.sym].d, step = (1/Math.pow(10, d)).toFixed(d);
+  const cur = t.cur || t.entry;
+  $('sltpTitle').textContent = SPECS[t.sym].n + ' · SL / TP Badlo';
+  $('sltpBody').innerHTML = `
+    <p class="hint" style="margin:0 0 12px">${t.dir} ${t.lots} lot · Entry <b class="mono">${fmt(t.sym,t.entry)}</b> · Abhi <b class="mono">${fmt(t.sym,cur)}</b></p>
+    <div class="grid2" style="margin-bottom:10px">
+      <div><label style="color:var(--dn)">Stop Loss (price)</label><input id="stSl" class="mono" type="number" step="${step}" value="${(+t.sl).toFixed(d)}" oninput="sltpFrom('p')"></div>
+      <div><label style="color:var(--up)">Take Profit (price)</label><input id="stTp" class="mono" type="number" step="${step}" value="${(+t.tp).toFixed(d)}" oninput="sltpFrom('p')"></div>
+      <div><label>SL $ (loss)</label><input id="stSlD" class="mono" type="number" step="0.1" min="0" oninput="sltpFrom('d')"></div>
+      <div><label>TP $ (profit)</label><input id="stTpD" class="mono" type="number" step="0.1" min="0" oninput="sltpFrom('d')"></div>
+    </div>
+    <div class="chips" style="margin-bottom:10px">
+      <button class="chip" onclick="sltpQuick('be')">SL = Breakeven</button>
+      <button class="chip" onclick="sltpQuick('def')">Default $${defSL(t.sym,t.lots)} / $${defTP(t.sym,t.lots)}</button>
+      <button class="chip" onclick="sltpQuick('half')">SL aadha karo</button>
+    </div>
+    <div id="stPrev" class="mono" style="font-size:12px;line-height:1.7;border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:12px"></div>
+    <div class="grid2">
+      <button class="btn ghost sm" onclick="closeSheet('sltpSheet')">Cancel</button>
+      <button class="btn gold sm" onclick="sltpSave()">✓ Save Karo</button>
+    </div>
+    <p class="hint">Ye app ke journal me SL/TP badalta hai. MT5 pe laga order waise hi rahega — wahan MT5 app me khud badlo.</p>`;
+  sltpFrom('p');
+  openSheet('sltpSheet');
+}
+function sltpT(){ return S.open.find(x => x.id === sltpId) }
+function sltpFrom(src){
+  const t = sltpT(); if(!t) return;
+  const upp = usdPerPoint(t.sym, t.entry, t.lots), d = SPECS[t.sym].d, up = t.dir === 'BUY';
+  if(src === 'd' && upp > 0){
+    const sd = parseFloat($('stSlD').value), td = parseFloat($('stTpD').value);
+    if(isFinite(sd) && sd > 0) $('stSl').value = (up ? t.entry - sd/upp : t.entry + sd/upp).toFixed(d);
+    if(isFinite(td) && td > 0) $('stTp').value = (up ? t.entry + td/upp : t.entry - td/upp).toFixed(d);
+  }
+  const sl = parseFloat($('stSl').value), tp = parseFloat($('stTp').value);
+  const slRisk = isFinite(sl) ? (up ? t.entry - sl : sl - t.entry) : NaN;   /* + = loss */
+  const tpGain = isFinite(tp) ? (up ? tp - t.entry : t.entry - tp) : NaN;
+  if(src === 'p'){
+    $('stSlD').value = isFinite(slRisk) ? (slRisk * upp).toFixed(2) : '';
+    $('stTpD').value = isFinite(tpGain) ? (tpGain * upp).toFixed(2) : '';
+  }
+  const pip = SPECS[t.sym].pip, err = sltpCheck(t, sl, tp);
+  const slTxt = !isFinite(slRisk) ? '—' : slRisk <= 0
+    ? `<span style="color:var(--up)">profit lock +${money(-slRisk*upp)}</span> (${(-slRisk/pip).toFixed(1)} pips)`
+    : `<span style="color:var(--dn)">−${money(slRisk*upp)}</span> (${(slRisk/pip).toFixed(1)} pips)`;
+  const tpTxt = isFinite(tpGain) ? `<span style="color:var(--up)">+${money(tpGain*upp)}</span> (${(tpGain/pip).toFixed(1)} pips)` : '—';
+  const rr = (slRisk > 0 && tpGain > 0) ? '1 : ' + (tpGain/slRisk).toFixed(1) : '—';
+  $('stPrev').innerHTML = `SL: ${slTxt}<br>TP: ${tpTxt}<br>R:R: ${rr}` +
+    (err ? `<br><span style="color:var(--dn)">⚠ ${err}</span>` : '');
+}
+function sltpCheck(t, sl, tp){
+  if(!isFinite(sl) || !isFinite(tp) || sl <= 0 || tp <= 0) return 'SL aur TP dono sahi number hone chahiye';
+  const cur = t.cur || t.entry, up = t.dir === 'BUY';
+  if(up ? sl >= cur : sl <= cur) return `SL abhi ke price (${fmt(t.sym,cur)}) ke ${up?'neeche':'upar'} honi chahiye`;
+  if(up ? tp <= cur : tp >= cur) return `TP abhi ke price (${fmt(t.sym,cur)}) ke ${up?'upar':'neeche'} honi chahiye`;
+  return '';
+}
+function sltpQuick(k){
+  const t = sltpT(); if(!t) return;
+  const d = SPECS[t.sym].d, up = t.dir === 'BUY';
+  if(k === 'be'){ $('stSl').value = (+t.entry).toFixed(d); sltpFrom('p'); return }
+  if(k === 'def'){ $('stSlD').value = defSL(t.sym, t.lots); $('stTpD').value = defTP(t.sym, t.lots); sltpFrom('d'); return }
+  if(k === 'half'){
+    const sl = parseFloat($('stSl').value);
+    if(isFinite(sl)) $('stSl').value = (t.entry + (sl - t.entry) / 2).toFixed(d);
+    sltpFrom('p');
+  }
+}
+function sltpSave(){
+  const t = sltpT(); if(!t) return;
+  const nsl = parseFloat($('stSl').value), ntp = parseFloat($('stTp').value);
+  const err = sltpCheck(t, nsl, ntp);
+  if(err){ toast(err); return }
+  t.sl = nsl; t.tp = ntp;
   t.slD = +distToDollars(t.sym,t.entry,t.lots,t.entry-nsl).toFixed(2);
   t.tpD = +distToDollars(t.sym,t.entry,t.lots,ntp-t.entry).toFixed(2);
-  save(); renderTrades(); toast('SL/TP update ho gaya');
+  save(); renderTrades(); closeSheet('sltpSheet'); toast('SL/TP update ho gaya');
+  logAdd(`SL/TP badla: ${SPECS[t.sym].n} SL ${fmt(t.sym,nsl)} TP ${fmt(t.sym,ntp)}`);
 }
 function setVBal(){
   const v = prompt('Virtual balance (USD)', S.vbal);
@@ -9177,7 +9253,7 @@ nav button{min-width:0}
     'Pehle Firebase URL daalo':'Add Firebase URL first','Pehle Settings me Firebase URL daalo':'Add Firebase URL in Settings first',
     'Pehle TwelveData API key daalo':'Add TwelveData API key first','Pehle watchlist me pair chuno':'Pick pairs in the watchlist first',
     'Settings save ho gayi':'Settings saved','Telegram settings save ho gayi':'Telegram settings saved','Telegram token aur chat ID daalo':'Enter Telegram token and chat ID',
-    'Telegram pe chala gaya':'Sent to Telegram','SL/TP update ho gaya':'SL/TP updated','Sahi number daalo':'Enter a valid number','Value galat hai':'Invalid value',
+    'Telegram pe chala gaya':'Sent to Telegram','SL/TP update ho gaya':'SL/TP updated','SL = Breakeven':'SL = Breakeven','SL aadha karo':'Halve SL','Stop Loss (price)':'Stop Loss (price)','Take Profit (price)':'Take Profit (price)','SL $ (loss)':'SL $ (loss)','TP $ (profit)':'TP $ (profit)','✓ Save Karo':'✓ Save','Ye app ke journal me SL/TP badalta hai. MT5 pe laga order waise hi rahega — wahan MT5 app me khud badlo.':'This changes SL/TP in the app journal. The MT5 order stays as it is — change it there in the MT5 app.','SL aur TP dono sahi number hone chahiye':'SL and TP must both be valid numbers','Sahi number daalo':'Enter a valid number','Value galat hai':'Invalid value',
     'Wapas online':'Back online','Tracking band':'Tracking stopped','Report copy ho gaya':'Report copied','Restore ho gaya':'Restored',
     'Scan result purana ho gaya — dobara scan karo':'Scan result expired — scan again','Ye pair tumhare plan me nahi hai':'This pair is not in your plan',
     'Zyada se zyada 12 pairs':'Maximum 12 pairs','Settings me Gemini API key daalo':'Add Gemini API key in Settings',
@@ -9223,6 +9299,7 @@ nav button{min-width:0}
 
   /* ---------- tukde / numbers wale (regex) ---------- */
   const R = [
+    [/^(.+) · SL \/ TP Badlo$/, '$1 · Edit SL / TP'],
     [/^🚀 MT5 pe Lagao · (BUY|SELL) (LIMIT|MARKET)$/, '🚀 Send to MT5 · $1 $2'],
     [/^(\d+) pairs chune hain · scan me (\d+) credits lagenge · aaj (\d+) bache hain$/, '$1 pairs selected · scan costs $2 credits · $3 left today'],
     [/^(\d+) bache hain$/, '$1 left'],[/^Ye scan$/, 'This scan uses'],[/^lega · aaj$/, '· today'],
