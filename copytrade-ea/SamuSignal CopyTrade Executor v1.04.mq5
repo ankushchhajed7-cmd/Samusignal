@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  SamuSignal CopyTrade Executor v1.03                              |
+//|  SamuSignal CopyTrade Executor v1.04                              |
 //|  Ankush New Vision                                                |
 //+------------------------------------------------------------------+
 //  KAAM:
@@ -27,6 +27,10 @@
 //     hone par hi yahan band hota hai (galti se close nahi).
 //
 //  CHANGELOG
+//   v1.04  (29-Sep-2026)  FIX: "Max Positions" me ab sirf KHULE trades gine jaate
+//                         hain. Pehle copied pending orders bhi gine jaate the —
+//                         8 pending lage hon aur limit 3 ho to source ke naye
+//                         trade "MAXPOS" skip ho jaate the.
 //   v1.03  (28-Sep-2026)  SYMBOL FILTER: "Sirf ye copy" (allow) / "Ye mat copy"
 //                         (block) list app se (symMode / symList). Naam ka base
 //                         milta hai — XAUUSD likho to XAUUSD#, XAUUSD+, XAUUSDm,
@@ -52,7 +56,7 @@
 //                         state file, status.json for app.
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "1.03"
+#property version   "1.04"
 #property description "SamuSignal CopyTrade — Reader ki file se trades apne account pe copy karta hai. Settings SamuSignal app ke COPY tab se."
 
 #include <Trade\Trade.mqh>
@@ -98,7 +102,7 @@ const string F_MASTER  = "SamuCopy\\master.txt";
 const string F_CONFIG  = "SamuCopy\\config.json";
 const string F_STATUS  = "SamuCopy\\status.json";
 const string F_STTMP   = "SamuCopy\\status.tmp";
-const string EA_VER    = "1.03";
+const string EA_VER    = "1.04";
 
 CTrade trade;
 
@@ -947,6 +951,18 @@ int CountMine()
    return n;
   }
 
+//--- sirf khule copied trades (pending nahi) — Max Positions isi se
+int CountMyPositions()
+  {
+   int n = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong tk = PositionGetTicket(i);
+      if(tk != 0 && PositionGetInteger(POSITION_MAGIC) == InpMagic) n++;
+     }
+   return n;
+  }
+
 int CountMappedPos()
   {
    int n = 0;
@@ -1121,7 +1137,7 @@ void OpenPending(const int oi)
    if(!cOld && startSrv > 0 && PO[oi].setup < startSrv - 2) { AddPSkip(src); return; }
    string dsym = MapSymbol(PO[oi].sym);
    if(dsym == "") { AddPSkip(src); return; }
-   if(CountMine() >= cMaxPos) return;                                // jagah khali hone ka intezaar
+   if(CountMyPositions() >= cMaxPos) return;                         // khule trade limit pe — jagah ka intezaar
 
    int pf = FindPFail(src);
    if(pf >= 0 && GetTickCount() - PFa[pf] < 3000) return;
@@ -1199,10 +1215,10 @@ void OpenCopy(const int si)
    string dsym = MapSymbol(SP[si].sym);
    if(dsym == "") { AddSkip(src, "NOSYM"); SaveState(); return; }
 
-   if(CountMine() >= cMaxPos)
+   if(CountMyPositions() >= cMaxPos)
      {
       AddSkip(src, "MAXPOS");
-      Log("Max positions (" + IntegerToString(cMaxPos) + ") poore — source #" + IntegerToString((long)src) + " skip");
+      Log("Max positions (" + IntegerToString(cMaxPos) + " khule trade) poore — source #" + IntegerToString((long)src) + " skip");
       SaveState();
       return;
      }
