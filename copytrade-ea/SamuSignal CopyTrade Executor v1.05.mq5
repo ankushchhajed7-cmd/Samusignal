@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  SamuSignal CopyTrade Executor v1.04                              |
+//|  SamuSignal CopyTrade Executor v1.05                              |
 //|  Ankush New Vision                                                |
 //+------------------------------------------------------------------+
 //  KAAM:
@@ -27,6 +27,11 @@
 //     hone par hi yahan band hota hai (galti se close nahi).
 //
 //  CHANGELOG
+//   v1.05  (30-Sep-2026)  1) Lot setting badle (ya EA start ho) to pehle se lage
+//                         copied PENDING naye lot se dobara lagte hain — MT5 pending
+//                         ka lot badalne nahi deta, isliye delete + same price pe
+//                         naya. 2) Filter/symbol settings badle to pehle skip hue
+//                         pending ki list saaf — ab allowed hon to turant lagenge.
 //   v1.04  (29-Sep-2026)  FIX: "Max Positions" me ab sirf KHULE trades gine jaate
 //                         hain. Pehle copied pending orders bhi gine jaate the —
 //                         8 pending lage hon aur limit 3 ho to source ke naye
@@ -56,7 +61,7 @@
 //                         state file, status.json for app.
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "1.04"
+#property version   "1.05"
 #property description "SamuSignal CopyTrade — Reader ki file se trades apne account pe copy karta hai. Settings SamuSignal app ke COPY tab se."
 
 #include <Trade\Trade.mqh>
@@ -102,7 +107,7 @@ const string F_MASTER  = "SamuCopy\\master.txt";
 const string F_CONFIG  = "SamuCopy\\config.json";
 const string F_STATUS  = "SamuCopy\\status.json";
 const string F_STTMP   = "SamuCopy\\status.tmp";
-const string EA_VER    = "1.04";
+const string EA_VER    = "1.05";
 
 CTrade trade;
 
@@ -207,6 +212,10 @@ int    LOGn = 0;
 double lastCmdDone = 0;
 long   myLogin = 0;
 bool   prevOn = false;
+string lastLotSig = "", lastFSig = "";
+bool   resizePend = true;          // start pe ek baar: purane pending ka lot check
+ulong  RZt[];                      // resize ke liye hataye gaye (OLD check se chhoot)
+int    RZn = 0;
 
 //+------------------------------------------------------------------+
 //| LOG                                                              |
@@ -409,6 +418,25 @@ void ReadConfig()
    cfgAt    = (long)JNum(js, "at", 0);
    if(!cLoaded) Log("App settings mili — copy " + (cOn ? "ON" : "OFF"));
    cLoaded  = true;
+
+   //--- v1.05: lot / filter badla?
+   string lotSig = IntegerToString(cLotMode) + "|" + DoubleToString(cMult, 4) + "|" +
+                   DoubleToString(cFix, 3) + "|" + DoubleToString(cMaxLot, 3);
+   string fSig   = IntegerToString(cSymMode) + "|" + cSymList + "|" + (cPend ? "1" : "0") + "|" +
+                   (cOld ? "1" : "0") + "|" + cSymMap + "|" + cSuffix;
+   if(lastLotSig != "" && lotSig != lastLotSig)
+     {
+      resizePend = true;
+      Log("Lot setting badli — copied pending naye lot se dobara lagenge");
+     }
+   if(lastFSig != "" && fSig != lastFSig)
+     {
+      PKn = 0; ArrayResize(PKt, 0);
+      PFn = 0; ArrayResize(PFt, 0); ArrayResize(PFc, 0); ArrayResize(PFa, 0);
+      Log("Filter/settings badli — pehle skip hue pending dobara check honge");
+     }
+   lastLotSig = lotSig;
+   lastFSig   = fSig;
   }
 
 //+------------------------------------------------------------------+
@@ -547,6 +575,21 @@ int FindPFail(const ulong tk)
   {
    for(int i = 0; i < PFn; i++) if(PFt[i] == tk) return i;
    return -1;
+  }
+
+int FindRZ(const ulong tk)
+  {
+   for(int i = 0; i < RZn; i++) if(RZt[i] == tk) return i;
+   return -1;
+  }
+
+void AddRZ(const ulong tk)
+  {
+   if(FindRZ(tk) >= 0) return;
+   if(RZn >= 500) { RZn = 0; ArrayResize(RZt, 0); }
+   ArrayResize(RZt, RZn + 1);
+   RZt[RZn] = tk;
+   RZn++;
   }
 
 //+------------------------------------------------------------------+
@@ -1134,7 +1177,7 @@ void OpenPending(const int oi)
    int st = PO[oi].type;
    if(!SymAllowed(PO[oi].sym)) { AddPSkip(src); return; }           // filter se bahar
    if(st < 2 || st > 5) { AddPSkip(src); return; }                 // stop-limit copy nahi
-   if(!cOld && startSrv > 0 && PO[oi].setup < startSrv - 2) { AddPSkip(src); return; }
+   if(!cOld && startSrv > 0 && PO[oi].setup < startSrv - 2 && FindRZ(src) < 0) { AddPSkip(src); return; }
    string dsym = MapSymbol(PO[oi].sym);
    if(dsym == "") { AddPSkip(src); return; }
    if(CountMyPositions() >= cMaxPos) return;                         // khule trade limit pe — jagah ka intezaar
@@ -1387,6 +1430,25 @@ void Sync()
          if(oi >= 0)
            {
             MP[i].miss = 0;
+            //--- v1.05: lot galat hai? (setting badli / purana pending) -> hatao, naya lagega
+            if(resizePend)
+              {
+               double want = CalcLot(MP[i].dsym, PO[oi].vol);
+               double have = OrderGetDouble(ORDER_VOLUME_CURRENT);
+               double stp  = SymbolInfoDouble(MP[i].dsym, SYMBOL_VOLUME_STEP);
+               if(stp <= 0) stp = 0.01;
+               if(MathAbs(want - have) >= stp * 0.5)
+                 {
+                  ulong srcTk = MP[i].src;
+                  if(DeleteOrd(MP[i].dst, "lot " + DoubleToString(have, 2) + " -> " + DoubleToString(want, 2) + ", dobara lagega"))
+                    {
+                     DelMap(i);
+                     AddRZ(srcTk);
+                     changed = true;
+                    }
+                  continue;
+                 }
+              }
             if(GetTickCount() - MP[i].lastMod > 1000)
               {
                int dt = (int)OrderGetInteger(ORDER_TYPE);
@@ -1474,6 +1536,8 @@ void Sync()
            }
         }
      }
+
+   if(resizePend && TradingAllowed()) resizePend = false;
 
    //--- 2. naye source trades
    if(cOn && !ddTrip && loginSame && TradingAllowed())
