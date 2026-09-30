@@ -1360,13 +1360,17 @@ body.ds-gold .brand .brandWord{height:24px}
 
   <div class="card">
     <p class="ttl">News Filter <span class="sp" id="newsT">—</span></p>
+    <div id="newsToday" class="newsToday hide"></div>
     <div class="chips" id="newsChips" style="margin-bottom:12px"></div>
     <div id="newsBox"><p class="hint">Aaj ki high-impact news yahan aayegi.</p></div>
     <div class="sw" id="swNews" onclick="toggleSw(this,'newsOn')">
       <div class="tg"></div>
       <div>News ke aas-paas warning<small>Signal pe laal chetavni aayegi agar news paas hai</small></div>
     </div>
-    <button class="btn ghost sm" onclick="loadNews(true)">⟳ News Refresh</button>
+    <div class="grid2">
+      <button class="btn ghost sm" onclick="loadNews(true)">⟳ News Refresh</button>
+      <button class="btn gold sm" onclick="openBrief(true)">📋 Aaj ka Brief</button>
+    </div>
   </div>
 
   <div class="card">
@@ -1996,6 +2000,11 @@ body.ds-gold .brand .brandWord{height:24px}
   <div id="hgBody"></div>
 </div></div>
 
+<div class="ov" id="briefSheet"><div class="sheet">
+  <div class="sh-h"><h3>Aaj ki High Impact News</h3><button onclick="closeSheet('briefSheet')">×</button></div>
+  <div class="sh-b" id="briefBody"></div>
+</div></div>
+
 <div class="ov" id="sltpSheet"><div class="sheet">
   <div class="sh-h"><h3 id="sltpTitle">SL / TP Badlo</h3><button onclick="closeSheet('sltpSheet')">×</button></div>
   <div class="sh-b" id="sltpBody"></div>
@@ -2053,7 +2062,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.11';
+const VERSION = '9.9.12';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -4806,14 +4815,26 @@ async function fetchNews(){
   throw new Error('News nahi mili — ' + lastErr);
 }
 
+/* v9.9.12: feed poore hafte ka hota hai — ek baar mil gaya to poora din (aur
+   hafta) wahi chalega. Naya try 6 ghante me ek baar. Fail ho to purana list
+   dikhta rehta hai, mitata nahi. */
+function newsCovers(t){
+  const L = S.news.list || [];
+  if(!L.length) return false;
+  let mx = 0; L.forEach(e => { if(e.d > mx) mx = e.d });
+  return t <= mx + 12*3600000;               /* hafte ka aakhri event + 12 ghante */
+}
 async function loadNews(force){
-  const fresh = S.news.d === utcDay() && S.news.list.length;
-  if(fresh && !force){ renderNews(); return }
+  const age = Date.now() - (S.news.at || 0);
+  const fresh = S.news.list.length && newsCovers(Date.now()) && (S.news.d === utcDay() || age < 6*3600000);
+  if(fresh && !force){ renderNews(); newsBriefAuto(); return }
+  if(!force && S.news.tryAt && Date.now() - S.news.tryAt < 10*60000 && S.news.list.length){ renderNews(); return }
   $('newsT').innerHTML = '<span class="spin"></span>';
+  S.news.tryAt = Date.now();
   try{
     const raw = await fetchNews();
     S.news = {
-      d: utcDay(),
+      d: utcDay(), at: Date.now(),
       list: raw.map(e => ({
         t: e.title, c: e.country, i: e.impact,
         d: new Date(e.date).getTime(),
@@ -4821,10 +4842,78 @@ async function loadNews(force){
       })).filter(e => isFinite(e.d))
     };
     save(); renderNews(); if(force) toast(`${S.news.list.length} events aa gaye`);
+    newsBriefAuto();
   }catch(e){
-    $('newsT').textContent = 'fail';
-    $('newsBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}<br><br>ForexFactory 5 minute me sirf 2 download deta hai. Thodi der baad try karo.</p>`;
+    save();
+    if(S.news.list.length && newsCovers(Date.now())){
+      renderNews();
+      $('newsT').textContent = 'purana list';
+      $('newsBox').insertAdjacentHTML('afterbegin', `<p class="hint" style="color:var(--gold);margin:0 0 8px">⚠ Naya data nahi aaya (${e.message.replace('News nahi mili — ','')}) — ${S.news.at ? dt12(S.news.at) : 'pehle'} wala hafte ka list dikh raha hai, wo abhi bhi sahi hai.</p>`);
+      newsBriefAuto();
+    } else {
+      $('newsT').textContent = 'fail';
+      $('newsBox').innerHTML = `<p class="hint" style="color:var(--dn)">${e.message}<br><br>ForexFactory 5 minute me sirf 2 download deta hai. 10 minute baad app khud dobara try karegi, ya Refresh dabao.</p>`;
+    }
   }
+}
+
+/* ---------- Aaj ka brief: subah pehli baar app kholte hi ---------- */
+function todayHigh(){
+  const s0 = new Date(); s0.setHours(0,0,0,0);
+  const from = s0.getTime(), to = from + 86400000;
+  return (S.news.list || []).filter(e => e.i === 'High' && e.d >= from && e.d < to).sort((a,b) => a.d - b.d);
+}
+function briefPairs(ccy){
+  const set = new Set();
+  (S.open || []).forEach(t => { if(SPECS[t.sym] && SPECS[t.sym].ccy.includes(ccy)) set.add(t.sym) });
+  (S.watch || []).forEach(p => { if(SPECS[p] && SPECS[p].ccy.includes(ccy)) set.add(p) });
+  return [...set];
+}
+function briefText(list){
+  const w = S.newsMin || 30;
+  const L = ['📰 <b>AAJ KI HIGH IMPACT NEWS</b>', new Date().toLocaleDateString('en-IN', {weekday:'long', day:'2-digit', month:'short'}), ''];
+  if(!list.length){ L.push('Aaj koi high-impact news nahi ✅'); return L.join('\n') }
+  list.forEach(e => {
+    L.push(`⏰ <b>${t12(e.d)}</b> · ${e.c} · ${e.t}`);
+    if(e.f || e.p) L.push(`   forecast ${e.f || '—'} · prev ${e.p || '—'}`);
+    L.push(`   🚫 ${t12(e.d - w*60000)} – ${t12(e.d + w*60000)} ${e.c} pairs me naya trade nahi`);
+  });
+  const hit = [...new Set(list.map(e => e.c))].map(c => [c, briefPairs(c)]).filter(x => x[1].length);
+  if(hit.length){ L.push(''); L.push('⚠ Tumhare pairs pe asar:'); hit.forEach(([c, ps]) => L.push(`   ${c}: ${ps.map(p => SPECS[p].n).join(', ')}`)) }
+  return L.join('\n');
+}
+function renderToday(){
+  const box = $('newsToday'); if(!box) return;
+  if(!S.news.list.length){ box.classList.add('hide'); return }
+  const list = todayHigh(), now = Date.now();
+  box.classList.remove('hide');
+  box.innerHTML = list.length
+    ? `<b>AAJ ${list.length} HIGH IMPACT</b>` + list.map(e => `<div class="${e.d < now ? 'past' : ''}"><span class="mono">${t12(e.d)}</span> <i>${e.c}</i> ${e.t}</div>`).join('')
+    : '<b>AAJ KOI HIGH IMPACT NEWS NAHI ✅</b>';
+}
+function openBrief(manual){
+  if(!S.news.list.length){ toast('News abhi load nahi hui — Refresh dabao'); return }
+  const list = todayHigh();
+  const txt = briefText(list);
+  $('briefBody').innerHTML = `<div class="mono" style="white-space:pre-wrap;font-size:12.5px;line-height:1.7">${txt}</div>
+    <div class="grid2" style="margin-top:14px">
+      <button class="btn ghost sm" onclick="closeSheet('briefSheet')">Theek hai</button>
+      <button class="btn gold sm" onclick="tgSend(briefText(todayHigh()))">📤 Telegram</button>
+    </div>
+    <p class="hint">Har subah app pehli baar kholte hi ye apne aap dikhega${S.tgAuto ? ' aur Telegram pe bhi jayega' : ''}. Waqt tumhare phone ke hisaab se.</p>`;
+  openSheet('briefSheet');
+}
+function newsBriefAuto(){
+  renderToday();
+  const day = new Date().toDateString();
+  if(LS.get('briefDay','') === day) return;
+  if(new Date().getHours() < 5) return;            /* raat 12–5 ke beech nahi */
+  if(!S.news.list.length || !newsCovers(Date.now())) return;
+  LS.set('briefDay', day);
+  const list = todayHigh();
+  if(S.tgAuto && S.tgTok && S.tgId) tgSend(briefText(list), true);
+  if(list.length) setTimeout(() => { if(!document.querySelector('.ov.on')) openBrief(false) }, 1200);
+  else toast('Aaj koi high-impact news nahi ✅');
 }
 
 function newsFor(day){
@@ -4864,6 +4953,7 @@ function renderNews(){
     [[0,'Aaj'],[1,'Kal']].map(([v,l]) =>
       `<button class="chip ${newsDay===v?'on':''}" onclick="newsDay=${v};renderNews()">${l}</button>`).join('');
 
+  renderToday();
   const list = newsFor(newsDay);
   const nx = nextNews(null);
   $('newsT').textContent = nx
@@ -8744,6 +8834,10 @@ nav button{min-width:0}
 .emaRef{flex:0 0 auto;min-height:32px;padding:5px 10px;border-radius:6px;border:1px solid var(--gold);
   color:var(--gold);background:transparent;font-size:11px;font-weight:800;letter-spacing:.6px;white-space:nowrap}
 .emaRef:active{opacity:.6}
+.newsToday{border:1px solid var(--dn);border-radius:8px;padding:9px 11px;margin-bottom:12px;background:rgba(255,68,68,.06);font-size:12px;line-height:1.7}
+.newsToday b{display:block;color:var(--dn);font-size:11px;letter-spacing:1px;margin-bottom:3px}
+.newsToday i{font-style:normal;font-weight:800;color:var(--gold)}
+.newsToday .past{opacity:.45;text-decoration:line-through}
 #emaBox:has(.emaRef) ~ #emaRefBtn{display:none}
 .wlSets .chip{font-size:12px}
 </style>
@@ -9192,7 +9286,7 @@ nav button{min-width:0}
     '🤖 AI SE SAMJHO':'🤖 EXPLAIN WITH AI',
     'Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.':'After analysis the full reasoning shows here — why this trade and what the risks are.',
     'Sab':'All','sab':'all',
-    'News abhi load nahi hui. Neeche Refresh dabao.':'News not loaded yet. Tap Refresh below.',
+    'News abhi load nahi hui. Neeche Refresh dabao.':'News not loaded yet. Tap Refresh below.','📋 Aaj ka Brief':"📋 Today's Brief",'Aaj ki High Impact News':"Today's High Impact News",'Theek hai':'OK','📤 Telegram':'📤 Telegram','purana list':'cached list','AAJ KOI HIGH IMPACT NEWS NAHI ✅':'NO HIGH IMPACT NEWS TODAY ✅','Aaj koi high-impact news nahi ✅':'No high-impact news today ✅','News abhi load nahi hui — Refresh dabao':'News not loaded — tap Refresh',
     'News ke aas-paas warning':'Warning around news','Signal pe laal chetavni aayegi agar news paas hai':'Signal shows a red warning when news is near',
     'Settings me TwelveData key save karo; tab har candle ka pressure estimate yahan load hoga.':'Save your TwelveData key in Settings; then the candle pressure estimate loads here.',
     'Pehle Settings me TwelveData key daalo.':'Add your TwelveData key in Settings first.',
@@ -9320,6 +9414,7 @@ nav button{min-width:0}
 
   /* ---------- tukde / numbers wale (regex) ---------- */
   const R = [
+    [/^AAJ (\d+) HIGH IMPACT$/, 'TODAY $1 HIGH IMPACT'],
     [/^(.+) · SL \/ TP Badlo$/, '$1 · Edit SL / TP'],
     [/^🚀 MT5 pe Lagao · (BUY|SELL) (LIMIT|MARKET)$/, '🚀 Send to MT5 · $1 $2'],
     [/^(\d+) pairs chune hain · scan me (\d+) credits lagenge · aaj (\d+) bache hain$/, '$1 pairs selected · scan costs $2 credits · $3 left today'],
