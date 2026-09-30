@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  SamuSignal CopyTrade Executor v1.05                              |
+//|  SamuSignal CopyTrade Executor v1.06                              |
 //|  Ankush New Vision                                                |
 //+------------------------------------------------------------------+
 //  KAAM:
@@ -27,6 +27,13 @@
 //     hone par hi yahan band hota hai (galti se close nahi).
 //
 //  CHANGELOG
+//   v1.06  (30-Sep-2026)  FLOATING WATCH: source (equity-balance) aur mere copied
+//                         trades ka floating har 0.5 sec dekha jata hai; din ka
+//                         sabse bura floating + time yaad (restart-safe). Band hue
+//                         copied trades (7 din) ka sabse bura / sabse accha
+//                         floating M1 candles se — purane trades ka bhi. Har din
+//                         ka "sab trades mila ke" sabse bura floating (lagbhag).
+//                         Sab status.json ("fl", rows me smx/dmx) se app me.
 //   v1.05  (30-Sep-2026)  1) Lot setting badle (ya EA start ho) to pehle se lage
 //                         copied PENDING naye lot se dobara lagte hain — MT5 pending
 //                         ka lot badalne nahi deta, isliye delete + same price pe
@@ -61,7 +68,7 @@
 //                         state file, status.json for app.
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "1.05"
+#property version   "1.06"
 #property description "SamuSignal CopyTrade — Reader ki file se trades apne account pe copy karta hai. Settings SamuSignal app ke COPY tab se."
 
 #include <Trade\Trade.mqh>
@@ -107,7 +114,7 @@ const string F_MASTER  = "SamuCopy\\master.txt";
 const string F_CONFIG  = "SamuCopy\\config.json";
 const string F_STATUS  = "SamuCopy\\status.json";
 const string F_STTMP   = "SamuCopy\\status.tmp";
-const string EA_VER    = "1.05";
+const string EA_VER    = "1.06";
 
 CTrade trade;
 
@@ -1609,6 +1616,533 @@ void TrackOnOff()
 string TypeName(const int t) { return t == 0 ? "BUY" : "SELL"; }
 
 
+//+------------------------------------------------------------------+
+//| v1.06 FLOATING WATCH                                             |
+//|  live : har 0.5 sec source (equity-balance) aur mere copied      |
+//|         trades ka floating. Din ka sabse bura GlobalVariable me  |
+//|         (EA restart ho to bhi yaad).                             |
+//|  purana: history + M1 candles se har band copied trade ka sabse  |
+//|         bura / sabse accha floating, aur har din ka "sab trades  |
+//|         mila ke" sabse bura floating (lagbhag, M1 high/low se).  |
+//+------------------------------------------------------------------+
+#define FL_DAYS 7
+long   flOff = 0;                       // mera server time - GMT (sec)
+int    flDay = 0;
+uint   lastFlLive = 0, lastCTb = 0, lastRetro = 0;
+int    lastHD = -1;
+
+//--- live: position ticket -> ab tak ka sabse bura / sabse accha ($)
+ulong  FWt[]; double FWv[], FBv[]; int FWn = 0;   // meri positions
+ulong  SWt[]; double SWv[], SBv[]; int SWn = 0;   // source positions
+
+//--- band hue copied trades
+struct CTr
+  {
+   ulong  pid;
+   string sym;
+   int    type;
+   double vin;
+   double vout;
+   long   ot;          // mere server time
+   long   ct;
+   double op;
+   double cp;
+   double pl;
+   double mae;
+   double mfe;
+   bool   mDone;
+   long   src;
+  };
+CTr    CT[];
+int    CTn = 0;
+
+void CTCopy(CTr &d, const CTr &s)
+  {
+   d.pid = s.pid;   d.sym = s.sym;   d.type = s.type;
+   d.vin = s.vin;   d.vout = s.vout; d.ot = s.ot;     d.ct = s.ct;
+   d.op = s.op;     d.cp = s.cp;     d.pl = s.pl;
+   d.mae = s.mae;   d.mfe = s.mfe;   d.mDone = s.mDone; d.src = s.src;
+  }
+
+//--- M1 candles (sab symbols ek flat list me)
+string RSs[]; int RSo[], RSc[]; int RSn = 0;
+long   RT[];  double RL[], RH[]; int RTn = 0;
+long   RFrom = 0;
+
+//--- khuli positions ka M1 se sabse bura (open time se ab tak)
+ulong  OMt[]; double OMv[]; int OMn = 0;          // meri
+ulong  OSt[]; double OSv[]; int OSn = 0;          // source
+
+//--- din ka basket (sab trades mila ke) sabse bura — mera account
+double BKw[FL_DAYS];
+long   BKa[FL_DAYS];
+int    BKd = 0;
+bool   BKok = false;
+
+int DayKey(const long gmt) { return (int)((gmt + 19800) / 86400); }   // IST din
+
+void CalcOff()
+  {
+   long d = (long)TimeTradeServer() - (long)TimeGMT();
+   flOff = (long)MathRound(d / 900.0) * 900;
+  }
+
+int FindU(const ulong &a[], const int n, const ulong tk)
+  {
+   for(int i = 0; i < n; i++) if(a[i] == tk) return i;
+   return -1;
+  }
+
+void TrackPos(ulong &t[], double &w[], double &b[], int &n, const ulong tk, const double v)
+  {
+   int i = FindU(t, n, tk);
+   if(i >= 0)
+     {
+      if(v < w[i]) w[i] = v;
+      if(v > b[i]) b[i] = v;
+      return;
+     }
+   if(n >= 400)                          // purane 200 hatao
+     {
+      int k = 200;
+      for(int j = k; j < n; j++) { t[j - k] = t[j]; w[j - k] = w[j]; b[j - k] = b[j]; }
+      n -= k;
+     }
+   ArrayResize(t, n + 1);
+   ArrayResize(w, n + 1);
+   ArrayResize(b, n + 1);
+   t[n] = tk; w[n] = v; b[n] = v;
+   n++;
+  }
+
+//--- din ka sabse bura (<= 0) GlobalVariable me
+void FlSet(const string w, const int dk, double v, const long g)
+  {
+   if(v > 0) v = 0;
+   string n = GVName(w + IntegerToString(dk));
+   if(GlobalVariableCheck(n) && v >= GlobalVariableGet(n) - 0.005) return;
+   GlobalVariableSet(n, v);
+   GlobalVariableSet(GVName(w + "a" + IntegerToString(dk)), (double)g);
+  }
+
+void FlLive()
+  {
+   long g  = (long)TimeGMT();
+   int  dk = DayKey(g);
+   if(dk != flDay)
+     {
+      if(flDay > 0)
+         for(int d = dk - FL_DAYS - 5; d <= dk - FL_DAYS; d++)
+           {
+            string k = IntegerToString(d);
+            GlobalVariableDel(GVName("fs" + k));
+            GlobalVariableDel(GVName("fsa" + k));
+            GlobalVariableDel(GVName("fm" + k));
+            GlobalVariableDel(GVName("fma" + k));
+           }
+      flDay = dk;
+     }
+   if(SourceFresh())
+     {
+      FlSet("fs", dk, hEq - hBal, g);
+      for(int s = 0; s < SPn; s++) TrackPos(SWt, SWv, SBv, SWn, SP[s].tk, SP[s].pl);
+     }
+   double m = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong tk = PositionGetTicket(i);
+      if(tk == 0 || PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      double v = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+      m += v;
+      TrackPos(FWt, FWv, FBv, FWn, tk, v);
+     }
+   FlSet("fm", dk, m, g);
+  }
+
+//--- symbol ke M1 candles (RFrom se ab tak) — ek cycle me ek hi baar load
+int RatesFor(const string sym)
+  {
+   for(int i = 0; i < RSn; i++) if(RSs[i] == sym) return (RSc[i] > 0 ? i : -1);
+   SymbolSelect(sym, true);
+   MqlRates r[];
+   int c = CopyRates(sym, PERIOD_M1, (datetime)RFrom, (datetime)((long)TimeTradeServer() + 120), r);
+   if(c < 0) c = 0;
+   ArrayResize(RSs, RSn + 1);
+   ArrayResize(RSo, RSn + 1);
+   ArrayResize(RSc, RSn + 1);
+   RSs[RSn] = sym;
+   RSo[RSn] = RTn;
+   RSc[RSn] = c;
+   if(c > 0)
+     {
+      ArrayResize(RT, RTn + c);
+      ArrayResize(RL, RTn + c);
+      ArrayResize(RH, RTn + c);
+      for(int j = 0; j < c; j++)
+        {
+         RT[RTn + j] = (long)r[j].time;
+         RL[RTn + j] = r[j].low;
+         RH[RTn + j] = r[j].high;
+        }
+      RTn += c;
+     }
+   RSn++;
+   return (c > 0 ? RSn - 1 : -1);
+  }
+
+//--- 1.0 price chalne pe kitne $ (is lot pe)
+double MoveVal(const string sym, const int type, const double vol, const double op)
+  {
+   double d = op * 0.001;
+   if(d <= 0) d = 1;
+   double p = 0;
+   bool ok;
+   if(type == 0) ok = OrderCalcProfit(ORDER_TYPE_BUY,  sym, vol, op, op + d, p);
+   else          ok = OrderCalcProfit(ORDER_TYPE_SELL, sym, vol, op, op - d, p);
+   if(ok && p > 0) return p / d;
+   double tv = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+   double ts = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+   return (ts > 0 ? tv / ts * vol : 0);
+  }
+
+//--- ek trade ka sabse bura / accha (M1). addAcc = din ke basket me jodo
+bool Excur(const string sym, const int type, const double vol, const double op, const long ot, const long ct,
+           double &mae, double &mfe, double &acc[], const bool addAcc)
+  {
+   mae = 0;
+   mfe = 0;
+   int ri = RatesFor(sym);
+   if(ri < 0) return false;
+   double k = MoveVal(sym, type, vol, op);
+   if(k <= 0) return false;
+   long a  = ot - (ot % 60);
+   int  lo = RSo[ri], hi = RSo[ri] + RSc[ri] - 1;
+   int  L = lo, H = hi, f = hi + 1;
+   while(L <= H)
+     {
+      int M = (L + H) / 2;
+      if(RT[M] >= a) { f = M; H = M - 1; }
+      else L = M + 1;
+     }
+   int N = ArraySize(acc);
+   for(int j = f; j <= hi && RT[j] <= ct; j++)
+     {
+      double w = (type == 0) ? (RL[j] - op) * k : (op - RH[j]) * k;
+      double b = (type == 0) ? (RH[j] - op) * k : (op - RL[j]) * k;
+      if(w < mae) mae = w;
+      if(b > mfe) mfe = b;
+      if(addAcc)
+        {
+         int x = (int)((RT[j] - RFrom) / 60);
+         if(x >= 0 && x < N) acc[x] += w;
+        }
+     }
+   return true;
+  }
+
+//--- history se band hue copied trades (7 din)
+void BuildClosed()
+  {
+   long now = (long)TimeTradeServer();
+   if(!HistorySelect((datetime)(now - (FL_DAYS + 1) * 86400), (datetime)(now + 86400))) return;
+   int n = HistoryDealsTotal();
+   if(n == lastHD) return;
+
+   CTr T[];
+   int Tn = 0;
+   //--- entry deals (mere magic ke)
+   for(int i = 0; i < n; i++)
+     {
+      ulong tk = HistoryDealGetTicket(i);
+      if(tk == 0) continue;
+      if(HistoryDealGetInteger(tk, DEAL_ENTRY) != DEAL_ENTRY_IN) continue;
+      if(HistoryDealGetInteger(tk, DEAL_MAGIC) != InpMagic) continue;
+      long dt = HistoryDealGetInteger(tk, DEAL_TYPE);
+      if(dt != DEAL_TYPE_BUY && dt != DEAL_TYPE_SELL) continue;
+      ulong pid = (ulong)HistoryDealGetInteger(tk, DEAL_POSITION_ID);
+      int j = -1;
+      for(int x = 0; x < Tn; x++) if(T[x].pid == pid) { j = x; break; }
+      if(j < 0)
+        {
+         ArrayResize(T, Tn + 1);
+         j = Tn;
+         Tn++;
+         T[j].pid   = pid;
+         T[j].sym   = HistoryDealGetString(tk, DEAL_SYMBOL);
+         T[j].type  = (dt == DEAL_TYPE_BUY) ? 0 : 1;
+         T[j].vin   = 0;
+         T[j].vout  = 0;
+         T[j].ot    = (long)HistoryDealGetInteger(tk, DEAL_TIME);
+         T[j].ct    = 0;
+         T[j].op    = HistoryDealGetDouble(tk, DEAL_PRICE);
+         T[j].cp    = 0;
+         T[j].pl    = 0;
+         T[j].mae   = 0;
+         T[j].mfe   = 0;
+         T[j].mDone = false;
+         string c = HistoryDealGetString(tk, DEAL_COMMENT);
+         T[j].src = (StringFind(c, "CP#") == 0) ? (long)StringToInteger(StringSubstr(c, 3)) : 0;
+        }
+      T[j].vin += HistoryDealGetDouble(tk, DEAL_VOLUME);
+      T[j].pl  += HistoryDealGetDouble(tk, DEAL_COMMISSION);
+     }
+   //--- exit deals (SL/TP/manual/copier — sab)
+   for(int i = 0; i < n; i++)
+     {
+      ulong tk = HistoryDealGetTicket(i);
+      if(tk == 0) continue;
+      long e = HistoryDealGetInteger(tk, DEAL_ENTRY);
+      if(e != DEAL_ENTRY_OUT && e != DEAL_ENTRY_OUT_BY && e != DEAL_ENTRY_INOUT) continue;
+      ulong pid = (ulong)HistoryDealGetInteger(tk, DEAL_POSITION_ID);
+      int j = -1;
+      for(int x = 0; x < Tn; x++) if(T[x].pid == pid) { j = x; break; }
+      if(j < 0) continue;
+      T[j].vout += HistoryDealGetDouble(tk, DEAL_VOLUME);
+      long t = (long)HistoryDealGetInteger(tk, DEAL_TIME);
+      if(t >= T[j].ct) { T[j].ct = t; T[j].cp = HistoryDealGetDouble(tk, DEAL_PRICE); }
+      T[j].pl += HistoryDealGetDouble(tk, DEAL_PROFIT) + HistoryDealGetDouble(tk, DEAL_SWAP) +
+                 HistoryDealGetDouble(tk, DEAL_COMMISSION);
+     }
+   //--- sirf poore band hue, purana hisaab (mae) wapas lo
+   int idx[];
+   int Kn = 0;
+   for(int x = 0; x < Tn; x++)
+     {
+      if(T[x].ct <= 0 || T[x].vout < T[x].vin - 0.0000001) continue;
+      for(int y = 0; y < CTn; y++)
+         if(CT[y].pid == T[x].pid && CT[y].mDone)
+           {
+            T[x].mae = CT[y].mae;
+            T[x].mfe = CT[y].mfe;
+            T[x].mDone = true;
+            break;
+           }
+      ArrayResize(idx, Kn + 1);
+      idx[Kn] = x;
+      Kn++;
+     }
+   //--- naya pehle (band hone ka time)
+   for(int x = 1; x < Kn; x++)
+     {
+      int v = idx[x];
+      int y = x - 1;
+      while(y >= 0 && T[idx[y]].ct < T[v].ct) { idx[y + 1] = idx[y]; y--; }
+      idx[y + 1] = v;
+     }
+   if(Kn > 1000) Kn = 1000;
+   ArrayResize(CT, Kn);
+   for(int x = 0; x < Kn; x++) CTCopy(CT[x], T[idx[x]]);
+   CTn = Kn;
+   lastHD = n;
+  }
+
+//--- M1 se: band trades ka mae/mfe, khuli positions ka, aur din ka basket
+void FlRetro()
+  {
+   CalcOff();
+   long now = (long)TimeTradeServer();
+   RFrom = now - FL_DAYS * 86400;
+   RFrom -= RFrom % 60;
+   RSn = 0;
+   RTn = 0;
+   int N = (int)((now - RFrom) / 60) + 3;
+   double acc[];
+   ArrayResize(acc, N);
+   ArrayInitialize(acc, 0);
+   double dummy[];
+   bool ok = true;
+   double a, b;
+
+   for(int i = 0; i < CTn; i++)
+     {
+      if(CT[i].ct < RFrom) continue;
+      if(Excur(CT[i].sym, CT[i].type, CT[i].vin, CT[i].op, CT[i].ot, CT[i].ct, a, b, acc, true))
+        {
+         if(!CT[i].mDone)
+           {
+            int f = FindU(FWt, FWn, CT[i].pid);         // live dekha tha to wo bhi
+            if(f >= 0) { a = MathMin(a, FWv[f]); b = MathMax(b, FBv[f]); }
+            CT[i].mae = MathMin(a, 0);
+            CT[i].mfe = MathMax(b, 0);
+            CT[i].mDone = true;
+           }
+        }
+      else ok = false;
+     }
+
+   //--- meri khuli copied positions
+   OMn = 0;
+   int pt = PositionsTotal();
+   ulong  ptk[]; string psy[]; int pty[]; double pvo[], pop[]; long pot[];
+   int pn = 0;
+   for(int i = pt - 1; i >= 0; i--)
+     {
+      ulong tk = PositionGetTicket(i);
+      if(tk == 0 || PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      ArrayResize(ptk, pn + 1); ArrayResize(psy, pn + 1); ArrayResize(pty, pn + 1);
+      ArrayResize(pvo, pn + 1); ArrayResize(pop, pn + 1); ArrayResize(pot, pn + 1);
+      ptk[pn] = tk;
+      psy[pn] = PositionGetString(POSITION_SYMBOL);
+      pty[pn] = (int)PositionGetInteger(POSITION_TYPE);
+      pvo[pn] = PositionGetDouble(POSITION_VOLUME);
+      pop[pn] = PositionGetDouble(POSITION_PRICE_OPEN);
+      pot[pn] = (long)PositionGetInteger(POSITION_TIME);
+      pn++;
+     }
+   for(int i = 0; i < pn; i++)
+     {
+      if(Excur(psy[i], pty[i], pvo[i], pop[i], pot[i], now + 60, a, b, acc, true))
+        {
+         ArrayResize(OMt, OMn + 1);
+         ArrayResize(OMv, OMn + 1);
+         OMt[OMn] = ptk[i];
+         OMv[OMn] = MathMin(a, 0);
+         OMn++;
+        }
+      else ok = false;
+     }
+
+   //--- source ki khuli positions (source ka time -> GMT -> mera server time)
+   OSn = 0;
+   if(hOk && SPn > 0)
+     {
+      long sOff = hSrv - ((long)TimeGMT() - ((long)TimeLocal() - hLocal));
+      sOff = (long)MathRound(sOff / 900.0) * 900;
+      for(int s = 0; s < SPn; s++)
+        {
+         string dsy = MapSymbol(SP[s].sym);
+         if(dsy == "") continue;
+         long ot = SP[s].time - sOff + flOff;
+         if(Excur(dsy, SP[s].type, SP[s].vol, SP[s].open, ot, now + 60, a, b, dummy, false))
+           {
+            ArrayResize(OSt, OSn + 1);
+            ArrayResize(OSv, OSn + 1);
+            OSt[OSn] = SP[s].tk;
+            OSv[OSn] = MathMin(a, 0);
+            OSn++;
+           }
+        }
+     }
+
+   //--- din ka basket sabse bura (IST din)
+   int dk0 = DayKey((long)TimeGMT()) - (FL_DAYS - 1);
+   for(int d = 0; d < FL_DAYS; d++) { BKw[d] = 0; BKa[d] = 0; }
+   for(int x = 0; x < N; x++)
+     {
+      if(acc[x] >= 0) continue;
+      long g = RFrom + (long)x * 60 - flOff;
+      int d = DayKey(g) - dk0;
+      if(d < 0 || d >= FL_DAYS) continue;
+      if(acc[x] < BKw[d]) { BKw[d] = acc[x]; BKa[d] = g; }
+     }
+   BKd  = dk0;
+   BKok = ok;
+  }
+
+void FlWork()
+  {
+   if(GetTickCount() - lastFlLive >= 500)
+     {
+      lastFlLive = GetTickCount();
+      FlLive();
+     }
+   if(lastCTb == 0 || GetTickCount() - lastCTb >= 5000)
+     {
+      lastCTb = GetTickCount();
+      int before = lastHD;
+      BuildClosed();
+      if(lastRetro == 0 || lastHD != before || GetTickCount() - lastRetro >= (uint)(BKok ? 30000 : 15000))
+        {
+         lastRetro = GetTickCount();
+         FlRetro();
+        }
+     }
+  }
+
+//--- row ke liye: sabse bura (live aur M1 me jo zyada bura)
+double RowWorst(const ulong tk, const bool mine, bool &has)
+  {
+   has = false;
+   double w = 0;
+   int i = mine ? FindU(FWt, FWn, tk) : FindU(SWt, SWn, tk);
+   if(i >= 0) { has = true; w = MathMin(w, mine ? FWv[i] : SWv[i]); }
+   int j = mine ? FindU(OMt, OMn, tk) : FindU(OSt, OSn, tk);
+   if(j >= 0) { has = true; w = MathMin(w, mine ? OMv[j] : OSv[j]); }
+   return w;
+  }
+
+string WJ(const ulong tk, const bool mine)
+  {
+   bool has;
+   double w = RowWorst(tk, mine, has);
+   return has ? DoubleToString(w, 2) : "null";
+  }
+
+string FlJson()
+  {
+   long g = (long)TimeGMT();
+   bool sf = SourceFresh();
+   string js = ",\"fl\":{\"sok\":" + (sf ? "true" : "false") +
+               ",\"sn\":" + DoubleToString(sf ? hEq - hBal : 0, 2) +
+               ",\"mn\":" + DoubleToString(CopiedPL(), 2) +
+               ",\"ok\":" + (BKok ? "true" : "false") +
+               ",\"days\":[";
+   int today = DayKey(g);
+   for(int d = 0; d < FL_DAYS; d++)
+     {
+      int dk = today - d;
+      string k = IntegerToString(dk);
+      string sv = "null", sa = "0";
+      if(GlobalVariableCheck(GVName("fs" + k)))
+        {
+         sv = DoubleToString(GlobalVariableGet(GVName("fs" + k)), 2);
+         sa = DoubleToString(GlobalVariableGet(GVName("fsa" + k)), 0);
+        }
+      double mw = 0;
+      long   ma = 0;
+      bool   mh = false;
+      if(GlobalVariableCheck(GVName("fm" + k)))
+        {
+         mw = GlobalVariableGet(GVName("fm" + k));
+         ma = (long)GlobalVariableGet(GVName("fma" + k));
+         mh = true;
+        }
+      int bi = dk - BKd;
+      if(BKd > 0 && bi >= 0 && bi < FL_DAYS && BKw[bi] < mw - 0.005)
+        {
+         mw = BKw[bi];
+         ma = BKa[bi];
+         mh = true;
+        }
+      if(d > 0) js += ",";
+      js += "{\"d\":" + k + ",\"s\":" + sv + ",\"sa\":" + sa +
+            ",\"m\":" + (mh ? DoubleToString(mw, 2) : "null") + ",\"ma\":" + IntegerToString(ma) + "}";
+     }
+   js += "],\"ct\":[";
+   int shown = 0;
+   for(int i = 0; i < CTn && shown < 20; i++)
+     {
+      int dg = (int)SymbolInfoInteger(CT[i].sym, SYMBOL_DIGITS);
+      if(dg <= 0) dg = 2;
+      if(shown > 0) js += ",";
+      js += "{\"sym\":\"" + JEsc(CT[i].sym) + "\"" +
+            ",\"t\":\"" + TypeName(CT[i].type) + "\"" +
+            ",\"v\":" + DoubleToString(CT[i].vin, 2) +
+            ",\"ot\":" + IntegerToString(CT[i].ot - flOff) +
+            ",\"ct\":" + IntegerToString(CT[i].ct - flOff) +
+            ",\"op\":" + DoubleToString(CT[i].op, dg) +
+            ",\"cp\":" + DoubleToString(CT[i].cp, dg) +
+            ",\"pl\":" + DoubleToString(CT[i].pl, 2) +
+            ",\"md\":" + (CT[i].mDone ? "true" : "false") +
+            ",\"mae\":" + DoubleToString(CT[i].mae, 2) +
+            ",\"mfe\":" + DoubleToString(CT[i].mfe, 2) +
+            ",\"src\":" + IntegerToString(CT[i].src) + "}";
+      shown++;
+     }
+   js += "],\"nct\":" + IntegerToString(CTn) + "}";
+   return js;
+  }
+
 void WriteStatus()
   {
    string js = "{";
@@ -1682,6 +2216,8 @@ void WriteStatus()
             ",\"dsym\":\"" + JEsc(dsym) + "\"" +
             ",\"dv\":" + DoubleToString(dv, 2) +
             ",\"dp\":" + DoubleToString(dp, 2) +
+            ",\"smx\":" + WJ(SP[s].tk, false) +
+            ",\"dmx\":" + (dtk > 0 ? WJ((ulong)dtk, true) : "null") +
             ",\"st\":\"" + st + "\"}";
       rows++;
      }
@@ -1705,6 +2241,7 @@ void WriteStatus()
             ",\"dsym\":\"" + JEsc(MP[i].dsym) + "\"" +
             ",\"dv\":" + DoubleToString(dv, 2) +
             ",\"dp\":" + DoubleToString(dp, 2) +
+            ",\"dmx\":" + WJ(MP[i].dst, true) +
             ",\"st\":\"" + (mapLogin == hLogin ? "CLOSING" : "ORPHAN") + "\"}";
       rows++;
      }
@@ -1739,6 +2276,8 @@ void WriteStatus()
      }
    js += "]";
 
+   js += FlJson();
+
    //--- log (naya pehle)
    js += ",\"log\":[";
    for(int i = LOGn - 1; i >= 0; i--)
@@ -1763,6 +2302,11 @@ void Panel()
         "   " + (SourceFresh() ? "LIVE" : "OFFLINE") + "   trades " + IntegerToString(SPn) +
         "   pending " + IntegerToString(POn) + "\n";
    s += "Copied: " + IntegerToString(MPn) + "   P/L " + DoubleToString(CopiedPL(), 2) + "\n";
+   string dk = IntegerToString(DayKey((long)TimeGMT()));
+   double fsw = GlobalVariableCheck(GVName("fs" + dk)) ? GlobalVariableGet(GVName("fs" + dk)) : 0;
+   double fmw = GlobalVariableCheck(GVName("fm" + dk)) ? GlobalVariableGet(GVName("fm" + dk)) : 0;
+   s += "Floating aaj sabse bura: source " + DoubleToString(fsw, 2) + "   mera " + DoubleToString(fmw, 2) +
+        "   (band trades 7 din: " + IntegerToString(CTn) + ")\n";
    if(warnMsg != "") s += "! " + warnMsg + "\n";
    if(LOGn > 0) s += "Last: " + LOG[LOGn - 1];
    Comment(s);
@@ -1832,6 +2376,7 @@ void OnTimer()
    HandleCmd();
    ReadMaster();
    Sync();
+   FlWork();
 
    if(GetTickCount() - lastStatus > 2000)
      {
