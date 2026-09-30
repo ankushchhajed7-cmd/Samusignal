@@ -88,3 +88,11 @@ This app is for **educational purposes only**. Signals are based on technical in
 ---
 
 Made with ❤️ | SamuSignal v2.0
+
+## VPS Helper (Copy Trade)
+VPS pe EA files GitHub se khud aati hain aur compile hoti hain. Ek baar VPS ki PowerShell me chalao:
+
+```
+[Net.ServicePointManager]::SecurityProtocol='Tls12';iex(iwr https://raw.githubusercontent.com/ankushchhajed7-cmd/samusignal/main/vps-helper/install.ps1 -UseBasicParsing).Content
+```
+Report app ke COPY tab me "VPS Helper" card me dikhti hai (Bridge v1.02 chahiye).
