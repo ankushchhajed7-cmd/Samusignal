@@ -1636,6 +1636,12 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 
   <div class="card">
+    <p class="ttl">Floating Watch <span class="sp" id="cpFlT">—</span></p>
+    <p class="hint" style="margin:0 0 10px">Trade chalte waqt account kitna minus (floating) me gaya — EA ka asli risk yahi dikhata hai.</p>
+    <div id="cpFl"><p class="hint">VPS se abhi data nahi aaya.</p></div>
+  </div>
+
+  <div class="card">
     <p class="ttl">Source Account</p>
     <div style="margin-bottom:10px"><label>Login ID</label><input id="cpLogin" class="mono" inputmode="numeric" placeholder="12345678"></div>
     <div style="margin-bottom:10px"><label>Investor Password</label>
@@ -2062,7 +2068,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.14';
+const VERSION = '9.9.15';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -8817,6 +8823,13 @@ if('serviceWorker' in navigator){
 .cp-up{color:var(--up)} .cp-dn{color:var(--dn)} .cp-gold{color:var(--gold)} .cp-mut{color:var(--mut)}
 .cp-log{font-size:11px;line-height:1.6;max-height:260px;overflow-y:auto;overflow-x:hidden;word-break:break-word}
 .cp-log div{padding:3px 0;border-bottom:1px dashed var(--line)}
+.fl-em{font-style:normal;font-weight:700}
+.fl-t small{white-space:normal;line-height:1.5}
+.fl-tb{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 10px;font-size:12px;margin:10px 0 4px;align-items:baseline}
+.fl-tb .h{font-size:10px;color:var(--lbl);letter-spacing:1px;font-weight:700}
+.fl-tb small{color:var(--mut);font-size:10.5px;margin-left:4px}
+.fl-sum{font-size:12px;line-height:1.6;margin:10px 0 8px;padding:8px 10px;border:1px dashed var(--line);border-radius:6px}
+.fl-mx{margin:6px 0 0;font-size:11px}
 .cp-steps{margin:0;padding-left:20px;font-size:12.5px;line-height:1.75;color:var(--txt)}
 .cp-steps li{margin-bottom:6px}
 .cp-rs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:6px}
@@ -9100,7 +9113,9 @@ nav button{min-width:0}
         '<div class="b mono"><div><span>SOURCE' + (r.s ? ' #' + esc(r.s) : '') + '</span>' +
         (r.sv ? (+r.sv).toFixed(2) + ' lot · <b class="' + (+r.sp >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(r.sp) + '</b>' : '—') + '</div>' +
         '<div><span>MERA' + (r.d ? ' #' + esc(r.d) : '') + '</span>' +
-        (r.d ? (+r.dv).toFixed(2) + ' lot · <b class="' + (+r.dp >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(r.dp) + '</b>' : '—') + '</div></div></div>';
+        (r.d ? (+r.dv).toFixed(2) + ' lot · <b class="' + (+r.dp >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(r.dp) + '</b>' : '—') + '</div></div>' +
+        ((r.smx != null || r.dmx != null) ? '<p class="hint mono fl-mx"><i>Sabse bura floating</i> · SOURCE <em class="fl-em cp-dn">' + (r.smx != null ? money(r.smx) : '—') +
+          '</em> · MERA <em class="fl-em cp-dn">' + (r.dmx != null ? money(r.dmx) : '—') + '</em></p>' : '') + '</div>';
     }).join('') + pendHtml : '<p class="hint">' + (s ? 'Source pe abhi koi trade ya pending order nahi.' : 'VPS se abhi data nahi aaya.') + '</p>';
 
     /* log */
@@ -9108,10 +9123,73 @@ nav button{min-width:0}
     q('cpLogT').textContent = s && s.at ? new Date(s.at * 1000).toLocaleTimeString() : '—';
     q('cpLog').innerHTML = log.length ? log.map(x => '<div>' + esc(x) + '</div>').join('') : '<p class="hint">Abhi kuch nahi.</p>';
 
+    renderFloat(s);
+
     q('cpOnNote').textContent = CP.on
       ? 'ON — source ke naye trades VPS account pe khul rahe hain'
       : 'OFF — naye trade nahi khulenge (copied trades ka SL/TP/close sync chalta rahega)';
     renderSent();
+  }
+
+  /* ---------------- v9.9.15: Floating Watch (Executor v1.06 ka "fl") ---------------- */
+  function renderFloat(s){
+    const box = q('cpFl'); if(!box) return;
+    const fl = s && s.fl;
+    q('cpFlT').textContent = fl ? (fl.ok ? 'M1 ✓' : 'M1 load ho raha…') : '—';
+    if(!fl){
+      box.innerHTML = '<p class="hint">' + (s ? 'VPS pe Executor v1.06 lagao — tab yahan floating dikhega.' : 'VPS se abhi data nahi aaya.') + '</p>';
+      return;
+    }
+    const src = s.src || {}, dst = s.dst || {};
+    const hm = t => +t ? new Date(t * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+    const dayLab = k => new Date(k * 86400000).toLocaleDateString([], {day:'2-digit', month:'short', timeZone:'UTC'});
+    const pct = (v, bal) => (+bal > 0 && +v < 0) ? ' (' + (Math.abs(v) / bal * 100).toFixed(1) + '%)' : '';
+    const red = v => '<em class="fl-em ' + (+v < 0 ? 'cp-dn' : 'cp-up') + '">' + money(v) + '</em>';
+    const days = Array.isArray(fl.days) ? fl.days : [];
+    const d0 = days[0] || {};
+    const tile = (lab, ok, now, w, at, bal) => '<div class="cp-acc fl-t"><span>' + lab + '</span>' +
+      '<b class="mono ' + (ok ? (+now < 0 ? 'cp-dn' : 'cp-up') : 'cp-mut') + '">' + (ok ? money(now) : '—') + '</b>' +
+      '<small class="mono">Aaj sabse bura<br>' + (w == null ? '—' : red(w) + pct(w, bal) + (+at ? ' · ' + hm(at) : '')) + '</small></div>';
+    let h = '<div class="grid2">' +
+      tile('SOURCE — ABHI', !!fl.sok, fl.sn, d0.s, d0.sa, src.bal) +
+      tile('MERA — ABHI', true, fl.mn, d0.m, d0.ma, dst.bal) + '</div>';
+
+    /* din-wise */
+    const dd = days.filter(d => d.s != null || d.m != null);
+    if(dd.length){
+      h += '<div class="fl-tb mono"><span class="h">DIN</span><span class="h">SOURCE</span><span class="h">MERA</span>' +
+        dd.map(d => '<span>' + esc(dayLab(d.d)) + '</span>' +
+          '<span>' + (d.s != null ? red(d.s) + '<small>' + hm(d.sa) + '</small>' : '—') + '</span>' +
+          '<span>' + (d.m != null ? red(d.m) + '<small>' + hm(d.ma) + '</small>' : '—') + '</span>').join('') + '</div>' +
+        '<p class="hint" style="margin:0">Har din ka sabse bura floating (sab khule trades mila ke) aur kab. Source ka hisaab Executor v1.06 lagne ke baad se; mera 7 din purana bhi (M1 candles se, lagbhag).</p>';
+    }
+
+    /* band hue copied trades */
+    const ct = Array.isArray(fl.ct) ? fl.ct : [];
+    if(ct.length){
+      const done = ct.filter(t => t.md);
+      if(done.length){
+        const worst = Math.min(...done.map(t => +t.mae));
+        const avg = done.reduce((a, t) => a + (+t.mae), 0) / done.length;
+        const won = done.filter(t => +t.pl > 0).length;
+        const back = done.filter(t => +t.pl > 0 && +t.mae < 0).length;
+        h += '<div class="fl-sum mono">Aakhri ' + done.length + ' band trades · ' + won + ' profit me<br>' +
+          'Sabse bura floating ' + red(worst) + ' · average ' + red(avg) + '<br>' +
+          back + ' trade pehle minus me gaye, phir profit me band</div>';
+      }
+      h += ct.map(t => {
+        const side = t.t === 'BUY' ? 'cp-up' : 'cp-dn';
+        const mins = Math.max(0, Math.round((t.ct - t.ot) / 60));
+        const dur = mins < 60 ? mins + ' min' : Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+        return '<div class="cp-row"><div class="a"><b class="' + side + '">' + esc(t.t) + '</b><b class="mono">' + esc(t.sym) +
+          '</b><small class="mono cp-mut">' + (+t.v).toFixed(2) + ' lot</small><span class="cp-tag ' + (+t.pl >= 0 ? 'cp-up' : 'cp-dn') + '">' + money(t.pl) + '</span></div>' +
+          '<div class="b mono"><div><span>SABSE NEECHE</span>' + (t.md ? red(t.mae) : '…') + '</div>' +
+          '<div><span>SABSE UPAR</span>' + (t.md ? red(t.mfe) : '…') + '</div></div>' +
+          '<p class="hint mono fl-mx">' + esc(hm(t.ot)) + ' → ' + esc(hm(t.ct)) + ' · ' + esc(dur) + ' · ' + esc(String(t.op)) + ' → ' + esc(String(t.cp)) + '</p></div>';
+      }).join('');
+      if(+fl.nct > ct.length) h += '<p class="hint">7 din me kul ' + (+fl.nct) + ' band trades — yahan aakhri ' + ct.length + '.</p>';
+    } else h += '<p class="hint" style="margin-top:10px">7 din me koi copied trade band nahi hua.</p>';
+    box.innerHTML = h;
   }
 
   /* ---------------- actions (global — HTML onclick se) ---------------- */
@@ -9436,7 +9514,13 @@ nav button{min-width:0}
     'PENDING LAGA':'PENDING PLACED','PENDING BADLA':'PENDING CHANGED','PENDING HATA':'PENDING REMOVED','TRADE KHULA':'TRADE OPENED','SL/TP BADLA':'SL/TP CHANGED',
     'TRADE BAND':'TRADE CLOSED','PEHLE SE PENDING':'EXISTING PENDING','PEHLE SE TRADE':'EXISTING TRADE',
     '● INTEZAAR':'● WAITING','Bheja:':'Sent:','VPS ne le li ✓':'VPS received ✓','VPS ke lene ka intezaar…':'Waiting for VPS…',
-    'Abhi tak VPS pe settings nahi bheji.':'Settings not sent to VPS yet.'
+    'Abhi tak VPS pe settings nahi bheji.':'Settings not sent to VPS yet.',
+    'Trade chalte waqt account kitna minus (floating) me gaya — EA ka asli risk yahi dikhata hai.':'How far into minus (floating) the account went while trades were open — the EA\'s real risk.',
+    'VPS pe Executor v1.06 lagao — tab yahan floating dikhega.':'Install Executor v1.06 on the VPS to see floating here.',
+    'SOURCE — ABHI':'SOURCE — NOW','MERA — ABHI':'MINE — NOW','Aaj sabse bura':'Today worst','DIN':'DAY','MERA':'MINE',
+    'SABSE NEECHE':'LOWEST','SABSE UPAR':'HIGHEST','Sabse bura floating':'Worst floating','M1 load ho raha…':'Loading M1…',
+    'Har din ka sabse bura floating (sab khule trades mila ke) aur kab. Source ka hisaab Executor v1.06 lagne ke baad se; mera 7 din purana bhi (M1 candles se, lagbhag).':'Worst floating of each day (all open trades combined) and when. Source is tracked from Executor v1.06 onwards; mine goes back 7 days (from M1 candles, approx).',
+    '7 din me koi copied trade band nahi hua.':'No copied trade closed in the last 7 days.'
   };
 
   /* ---------- tukde / numbers wale (regex) ---------- */
@@ -9460,6 +9544,10 @@ nav button{min-width:0}
     [/^Source ke saare symbols copy honge\.$/, 'All source symbols will be copied.'],
     [/^Naam ka shuru wala hissa milta hai: (.+)\. Pehle se copied trades pe asar nahi\.$/, 'Matches the start of the name: $1. Already-copied trades are not affected.'],
     [/^Mera pending #(\d+) laga hai$/, 'My pending #$1 is placed'],
+    [/^Aakhri (\d+) band trades · (\d+) profit me$/, 'Last $1 closed trades · $2 in profit'],
+    [/^Sabse bura floating$/, 'Worst floating'],[/^· average$/, '· average'],
+    [/^(\d+) trade pehle minus me gaye, phir profit me band$/, '$1 trades went into minus first, then closed in profit'],
+    [/^7 din me kul (\d+) band trades — yahan aakhri (\d+)\.$/, '$1 closed trades in 7 days — showing last $2.'],
     [/\bexpiry\b/, 'expiry']
   ];
 
