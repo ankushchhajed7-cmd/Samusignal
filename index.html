@@ -2062,7 +2062,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.12';
+const VERSION = '9.9.13';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -6175,6 +6175,7 @@ function renderTrades(){
         ${t.mae !== undefined && t.mae < 0 ? `<small style="color:var(--dn)">Max floating ${maeText(t)}</small>` : ''}
       </div>
       <div class="amt mono ${t.pl>=0?'up':'dn'}">${money(t.pl)}</div>
+      <button class="hDel" title="Ye trade history se hatao" onclick="delHist('${t.id}',${t.closedAt||0})">🗑</button>
     </div>`;
   }).join('') : '<div class="empty"><div>📜</div>History khaali hai.</div>';
 }
@@ -6395,6 +6396,16 @@ function setVBal(){
   const n = parseFloat(v);
   if(!isFinite(n) || n < 0){ toast('Sahi number daalo'); return }
   S.vbal = n; save(); renderTrades(); toast('Balance set: ' + money(n));
+}
+/* v9.9.13: ek trade history se hatao — stats, win rate, balance sab isi se banta hai */
+function delHist(id, at){
+  const i = S.hist.findIndex(t => t.id === id && (t.closedAt||0) === at);
+  if(i < 0) return;
+  const t = S.hist[i];
+  if(!confirm(`Ye trade history se hata dein?\n\n${t.sym} ${t.dir} · ${money(t.pl)} · ${dt12(t.closedAt)}\n\nPerformance, win rate aur balance dobara ginenge.`)) return;
+  S.hist.splice(i, 1); save(); renderTrades();
+  toast(`${t.sym} ${money(t.pl)} history se hata diya`);
+  logAdd(`History se hataya: ${t.sym} ${t.dir} ${money(t.pl)}`);
 }
 function clearHistory(){ if(confirm('Poori history delete kar dein?')){ S.hist=[]; save(); renderTrades(); toast('History clear') } }
 
@@ -8834,6 +8845,8 @@ nav button{min-width:0}
 .emaRef{flex:0 0 auto;min-height:32px;padding:5px 10px;border-radius:6px;border:1px solid var(--gold);
   color:var(--gold);background:transparent;font-size:11px;font-weight:800;letter-spacing:.6px;white-space:nowrap}
 .emaRef:active{opacity:.6}
+.hist .hDel{flex:0 0 auto;min-width:34px;min-height:34px;margin-left:6px;border-radius:6px;border:1px solid var(--line);background:transparent;font-size:14px;opacity:.7}
+.hist .hDel:active{opacity:.4}
 .newsToday{border:1px solid var(--dn);border-radius:8px;padding:9px 11px;margin-bottom:12px;background:rgba(255,68,68,.06);font-size:12px;line-height:1.7}
 .newsToday b{display:block;color:var(--dn);font-size:11px;letter-spacing:1px;margin-bottom:3px}
 .newsToday i{font-style:normal;font-weight:800;color:var(--gold)}
@@ -9352,7 +9365,7 @@ nav button{min-width:0}
     'ATR mode me SL market ki chaal ke hisaab se lagti hai — gold pe chaudi, EURUSD pe patli. Dollar value trade lete waqt dikh jayegi.':'In ATR mode the SL follows market volatility — wide on gold, tight on EURUSD. The dollar value shows when you take the trade.',
     'Lot sirf yahan se badalta hai — Signals page aur quick trade dono me wo locked rehta hai, taaki har trade ka risk ek jaisa rahe. TP/SL upar wale lot ke hisaab se hain: 0.01 lot pe $4 / $2.50, 0.02 pe $8 / $5.':'Lot changes only here — it stays locked on the Signals page and quick trade so every trade has the same risk. TP/SL follow the lot above: $4 / $2.50 at 0.01, $8 / $5 at 0.02.',
     '↺ Reset to Default':'↺ Reset to Default','🔓 Locked Pairs Reset Karo':'🔓 Reset Locked Pairs','Sab Data Delete Karo':'Delete All Data',
-    'Maine Ye Trade Liya':'I Took This Trade','Saaf karo':'Clear','Pair Chuno':'Pick Pair','Trade Save Karo':'Save Trade',
+    'Maine Ye Trade Liya':'I Took This Trade','Ye trade history se hatao':'Remove this trade from history','Saaf karo':'Clear','Pair Chuno':'Pick Pair','Trade Save Karo':'Save Trade',
     '⚠ Offline — purana cached data dikh raha hai':'⚠ Offline — showing old cached data',
     'LE LO':'TAKE IT','CHHOD DO':'SKIP IT','BACKTEST CHALAO':'RUN BACKTEST','Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.':'Analyze first — EMAs use the same data, no extra credit.',
     'Candles aa rahi hain…':'Loading candles…','Aakhri 3 Crossover':'Last 3 Crossovers','Dikhne wali history me koi cross nahi.':'No crosses in the visible history.',
