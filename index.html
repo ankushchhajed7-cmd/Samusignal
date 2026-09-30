@@ -1748,6 +1748,17 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 
   <div class="card">
+    <p class="ttl">VPS Helper <span class="sp" id="cpVpsT">—</span></p>
+    <p class="hint" style="margin:0 0 10px">GitHub pe merge karte hi naye EA khud VPS pe pahunch ke compile hote hain. Chart pe lagana aapka kaam.</p>
+    <div id="cpVps"><p class="hint">VPS se abhi data nahi aaya.</p></div>
+    <details class="vh-det" style="margin-top:10px"><summary>Setup (ek baar)</summary>
+      <p class="hint" style="margin:8px 0">1. VPS pe Start &rarr; <b>Windows PowerShell</b> kholo.<br>2. Neeche wali line copy karo aur PowerShell me paste karke Enter.<br>3. 1-3 min me "HO GAYA" aayega. Bridge v1.02 chart pe laga ho tab yahan report dikhegi.</p>
+      <div class="cp-log mono" id="cpVpsCmd" style="max-height:none;padding:8px;border:1px solid var(--line);border-radius:6px;word-break:break-all">[Net.ServicePointManager]::SecurityProtocol='Tls12';iex(iwr https://raw.githubusercontent.com/ankushchhajed7-cmd/samusignal/main/vps-helper/install.ps1 -UseBasicParsing).Content</div>
+      <button class="btn gold sm" style="margin-top:8px" onclick="cpVpsCopy()">📋 LINE COPY</button>
+    </details>
+  </div>
+
+  <div class="card">
     <p class="ttl">VPS Setup (ek baar)</p>
     <ol class="cp-steps">
       <li>VPS pe <b>doosra MT5</b> install karo alag folder me (jaise <span class="mono">C:\MT5_Source</span>). Source broker alag ho to usi broker ka MT5.</li>
@@ -2068,7 +2079,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.15';
+const VERSION = '9.9.16';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -8830,6 +8841,9 @@ if('serviceWorker' in navigator){
 .fl-tb small{color:var(--mut);font-size:10.5px;margin-left:4px}
 .fl-sum{font-size:12px;line-height:1.6;margin:10px 0 8px;padding:8px 10px;border:1px dashed var(--line);border-radius:6px}
 .fl-mx{margin:6px 0 0;font-size:11px}
+.vh-det summary{cursor:pointer;font-size:12px;color:var(--gold);font-weight:700;padding:4px 0}
+.vh-f{font-size:11.5px;margin-top:4px}
+.vh-m{font-size:10.5px;color:var(--dn);margin:2px 0 0 14px;word-break:break-word}
 .cp-steps{margin:0;padding-left:20px;font-size:12.5px;line-height:1.75;color:var(--txt)}
 .cp-steps li{margin-bottom:6px}
 .cp-rs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:6px}
@@ -9192,6 +9206,55 @@ nav button{min-width:0}
     box.innerHTML = h;
   }
 
+  /* ---------------- v9.9.16: VPS Helper report (/copytrade/vps) ---------------- */
+  let VPS = null, vpsTimer = null;
+  async function vpsLoad(){
+    const u = fb('vps'); if(!u){ renderVps(); return; }
+    try{ const r = await fetch(u, {cache:'no-store'}); if(r.ok) VPS = await r.json(); }catch(e){}
+    renderVps();
+  }
+  function renderVps(){
+    const box = q('cpVps'); if(!box) return;
+    const v = VPS;
+    const tg = q('cpVpsT');
+    if(!v || !v.at){
+      tg.innerHTML = '<span class="cp-gold">● SETUP</span>';
+      box.innerHTML = '<p class="hint">Abhi koi report nahi — neeche "Setup (ek baar)" karo, aur VPS pe Bridge v1.02 lagao.</p>';
+      return;
+    }
+    const age = Math.max(0, Math.round(Date.now() / 1000 - v.at));
+    const live = age < 400;
+    tg.innerHTML = live ? '<span class="cp-up">● CHALU</span>' : '<span class="cp-dn">● BAND</span>';
+    const ago = age < 90 ? age + ' sec' : Math.round(age / 60) + ' min';
+    let h = '<p class="hint mono" style="margin:0 0 8px">Aakhri check ' + esc(ago) + ' pehle' + (v.commit ? ' · GitHub ' + esc(v.commit) : '') +
+      (v.mem ? ' · RAM khaali ' + (v.mem.free / 1024).toFixed(1) + ' / ' + (v.mem.tot / 1024).toFixed(1) + ' GB' : '') + '</p>';
+    if(!live) h += '<p class="hint cp-dn">Helper ' + esc(ago) + ' se report nahi bhej raha — VPS band/restart hua ya Bridge v1.02 nahi laga.</p>';
+    if(v.mem && v.mem.free < 300) h += '<p class="hint cp-dn">⚠ VPS pe RAM bahut kam bachi hai (' + v.mem.free + ' MB).</p>';
+    if(v.err) h += '<p class="hint cp-dn">⚠ ' + esc(v.err) + '</p>';
+    const terms = Array.isArray(v.terms) ? v.terms : [];
+    h += terms.map(t => {
+      const files = Array.isArray(t.files) ? t.files : [];
+      const fh = files.length ? files.map(f => '<div class="vh-f mono"><b class="' + (f.ok ? 'cp-up' : 'cp-dn') + '">' + (f.ok ? '✓' : '✗') + '</b> ' +
+          esc(String(f.f).replace(/\.mq5$/, '')) + ' <span class="cp-mut">· ' + (+f.ne) + ' error · ' + (+f.nw) + ' warning</span></div>' +
+          (!f.ok && Array.isArray(f.msg) ? f.msg.map(m => '<div class="vh-m mono">' + esc(m) + '</div>').join('') : '')).join('')
+        : '<p class="hint" style="margin:4px 0 0">Abhi koi EA compile nahi hua.</p>';
+      const lg = Array.isArray(t.log) ? t.log : [];
+      return '<div class="cp-row"><div class="a"><b class="mono">' + esc(t.name || t.id) + '</b>' +
+        '<span class="cp-tag ' + (t.run ? 'cp-up' : 'cp-mut') + '">' + (t.run ? 'MT5 chalu' : 'MT5 band') + '</span></div>' +
+        '<p class="hint mono" style="margin:4px 0 0;font-size:11px">' + (t.login ? 'Login ' + esc(t.login) + (t.server ? ' @ ' + esc(t.server) : '') : 'Login —') + '</p>' + fh +
+        (lg.length ? '<details class="vh-det"><summary>Experts log (' + lg.length + ')</summary><div class="cp-log mono">' + lg.map(x => '<div>' + esc(x) + '</div>').join('') + '</div></details>' : '') +
+        '</div>';
+    }).join('');
+    const hl = Array.isArray(v.log) ? v.log : [];
+    if(hl.length) h += '<details class="vh-det"><summary>Helper log</summary><div class="cp-log mono">' + hl.slice().reverse().map(x => '<div>' + esc(x) + '</div>').join('') + '</div></details>';
+    box.innerHTML = h;
+  }
+  window.cpVpsCopy = async function(){
+    const t = q('cpVpsCmd').textContent.trim();
+    try{ await navigator.clipboard.writeText(t); say('Line copy ho gayi — VPS ki PowerShell me paste karo'); }
+    catch(e){ prompt('Copy karo:', t); }
+  };
+
   /* ---------------- actions (global — HTML onclick se) ---------------- */
   /* v9.9.14: har badlaav 1.2 sec baad apne aap VPS pe — "bhejna bhool gaye" wali
      galti khatam (pehle chip/switch sirf phone me save hota tha) */
@@ -9330,10 +9393,13 @@ nav button{min-width:0}
     if(!timer) timer = setInterval(() => { if(!document.hidden) poll() }, 3000);
     cpRecLoad(false);
     if(!evTimer) evTimer = setInterval(() => { if(!document.hidden) cpRecLoad(false) }, 15000);
+    vpsLoad();
+    if(!vpsTimer) vpsTimer = setInterval(() => { if(!document.hidden) vpsLoad() }, 30000);
   };
   window.cpOnHide = function(){
     if(timer){ clearInterval(timer); timer = null; }
     if(evTimer){ clearInterval(evTimer); evTimer = null; }
+    if(vpsTimer){ clearInterval(vpsTimer); vpsTimer = null; }
   };
 })();
 </script>
@@ -9520,7 +9586,11 @@ nav button{min-width:0}
     'SOURCE — ABHI':'SOURCE — NOW','MERA — ABHI':'MINE — NOW','Aaj sabse bura':'Today worst','DIN':'DAY','MERA':'MINE',
     'SABSE NEECHE':'LOWEST','SABSE UPAR':'HIGHEST','Sabse bura floating':'Worst floating','M1 load ho raha…':'Loading M1…',
     'Har din ka sabse bura floating (sab khule trades mila ke) aur kab. Source ka hisaab Executor v1.06 lagne ke baad se; mera 7 din purana bhi (M1 candles se, lagbhag).':'Worst floating of each day (all open trades combined) and when. Source is tracked from Executor v1.06 onwards; mine goes back 7 days (from M1 candles, approx).',
-    '7 din me koi copied trade band nahi hua.':'No copied trade closed in the last 7 days.'
+    '7 din me koi copied trade band nahi hua.':'No copied trade closed in the last 7 days.',
+    'GitHub pe merge karte hi naye EA khud VPS pe pahunch ke compile hote hain. Chart pe lagana aapka kaam.':'Once merged on GitHub, new EAs reach the VPS and compile by themselves. Attaching to the chart is up to you.',
+    'Setup (ek baar)':'Setup (one time)','📋 LINE COPY':'📋 COPY LINE','● CHALU':'● RUNNING','● BAND':'● STOPPED','MT5 chalu':'MT5 running','MT5 band':'MT5 stopped',
+    'Abhi koi EA compile nahi hua.':'No EA compiled yet.','Helper log':'Helper log',
+    'Abhi koi report nahi — neeche "Setup (ek baar)" karo, aur VPS pe Bridge v1.02 lagao.':'No report yet — do "Setup (one time)" below and attach Bridge v1.02 on the VPS.'
   };
 
   /* ---------- tukde / numbers wale (regex) ---------- */
