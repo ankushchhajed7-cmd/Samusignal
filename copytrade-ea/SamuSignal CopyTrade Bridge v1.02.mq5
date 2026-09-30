@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  SamuSignal CopyTrade Bridge v1.01                                |
+//|  SamuSignal CopyTrade Bridge v1.02                                |
 //|  Ankush New Vision                                                |
 //+------------------------------------------------------------------+
 //  KAAM:
@@ -18,13 +18,18 @@
 //    3. <Common>\Files\SamuCopy\events.json -> Firebase /copytrade/events.json
 //       (Reader v1.02 ka Strategy Recorder — sirf badalne par bhejta hai)
 //
+//    4. <Common>\Files\SamuCopy\vps.json -> Firebase /copytrade/vps.json
+//       (SamuSignal VPS Helper ki report — compile result, logs, RAM;
+//        sirf badalne par bhejta hai)
+//
 //  CHANGELOG
+//   v1.02  (30-Sep-2026)  VPS Helper report app tak (vps.json).
 //   v1.01  (28-Sep-2026)  Strategy Recorder events app tak.
 //   v1.00  (27-Sep-2026)  Pehla build — config pull, status push,
 //                         bridge heartbeat (br), clear error panel.
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "1.01"
+#property version   "1.02"
 #property description "SamuSignal CopyTrade — app (Firebase) aur Executor EA ke beech settings/status pahunchata hai. Trade nahi karta."
 
 input string InpFirebaseURL  = "https://xxx-default-rtdb.firebaseio.com"; // Firebase URL (SamuSignal Settings wala)
@@ -36,10 +41,13 @@ const string F_CONFIG  = "SamuCopy\\config.json";
 const string F_CFGTMP  = "SamuCopy\\config.tmp";
 const string F_STATUS  = "SamuCopy\\status.json";
 const string F_EVENTS  = "SamuCopy\\events.json";
+const string F_VPS     = "SamuCopy\\vps.json";
 
 string g_base = "";
 string g_lastCfg = "";
 string g_lastEv  = "";
+string g_lastVps = "";
+int    g_okVps   = 0;
 int    g_okEv    = 0;
 string g_err = "";
 int    g_okPull = 0, g_okPush = 0, g_fail = 0;
@@ -123,7 +131,7 @@ int OnInit()
    FolderCreate(CP_FOLDER, FILE_COMMON);
    int sec = InpPollSec < 1 ? 1 : InpPollSec;
    EventSetTimer(sec);
-   Print("SamuCopy Bridge v1.01 chalu: ", g_base);
+   Print("SamuCopy Bridge v1.02 chalu: ", g_base);
    OnTimer();
    return(INIT_SUCCEEDED);
   }
@@ -183,12 +191,21 @@ void OnTimer()
       else if(g_err == "") g_err = "Events PUT code " + IntegerToString(code);
      }
 
+   //--- 4. VPS Helper report (sirf badli ho to)
+   string vp;
+   if(ReadFileText(F_VPS, vp) && StringLen(vp) > 2 && StringGetCharacter(vp, 0) == '{' && vp != g_lastVps)
+     {
+      code = Http("PUT", Url("/copytrade/vps"), vp, resp);
+      if(code == 200) { g_lastVps = vp; g_okVps++; }
+      else if(g_err == "") g_err = "VPS report PUT code " + IntegerToString(code);
+     }
+
    if(ok) { g_lastOk = TimeLocal(); g_fail = 0; }
    else g_fail++;
 
-   string s = "SamuSignal CopyTrade — BRIDGE v1.01\n";
+   string s = "SamuSignal CopyTrade — BRIDGE v1.02\n";
    s += "Firebase: " + g_base + "\n";
-   s += "Status: " + (ok ? "OK" : "DIKKAT") + "   pull " + IntegerToString(g_okPull) + " / push " + IntegerToString(g_okPush) + " / events " + IntegerToString(g_okEv) + "\n";
+   s += "Status: " + (ok ? "OK" : "DIKKAT") + "   pull " + IntegerToString(g_okPull) + " / push " + IntegerToString(g_okPush) + " / events " + IntegerToString(g_okEv) + " / vps " + IntegerToString(g_okVps) + "\n";
    if(g_lastOk > 0) s += "Aakhri OK: " + TimeToString(g_lastOk, TIME_SECONDS) + "\n";
    if(g_err != "") s += "! " + g_err + "\n";
    s += "Trade NAHI karta — sirf app <-> Executor settings/status.";
