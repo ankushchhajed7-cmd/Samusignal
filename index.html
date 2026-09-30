@@ -2062,7 +2062,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.13';
+const VERSION = '9.9.14';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -9059,6 +9059,13 @@ nav button{min-width:0}
     if(s && src.login && CP.srcLogin && String(src.login) !== String(CP.srcLogin).trim())
       warn.push('VPS pe source ' + src.login + ' login hai, app me ' + CP.srcLogin + '.');
     if(s && s.on !== undefined && !!s.on !== !!CP.on && s.cfgAt < sentAt) warn.push('Naya ON/OFF VPS tak pahunch raha hai…');
+    if(s && s.symMode !== undefined){
+      const hasList = String(CP.symList||'').replace(/[\s,;]/g,'').length > 0;
+      const mine = (CP.symMode === 'ALLOW' && hasList) ? 1 : (CP.symMode === 'BLOCK' && hasList) ? 2 : 0;
+      const vps = +s.symMode || 0;
+      if(mine !== vps && !(s.cfgAt < sentAt))
+        warn.push('VPS pe Symbol Filter "' + ['Sab copy','Sirf ye copy','Ye mat copy'][vps] + '" chal raha hai, app me "' + ['Sab copy','Sirf ye copy','Ye mat copy'][mine] + '" — "Settings VPS pe bhejo" dabao.');
+    }
     const w = q('cpWarn');
     w.innerHTML = warn.length ? warn.map(x => '<span class="cp-dn">⚠ ' + esc(x) + '</span>').join('<br>')
       : '<span class="cp-up">Sab theek — ' + (CP.on ? 'copy chalu hai.' : 'Copy OFF hai.') + '</span>';
@@ -9108,10 +9115,17 @@ nav button{min-width:0}
   }
 
   /* ---------------- actions (global — HTML onclick se) ---------------- */
+  /* v9.9.14: har badlaav 1.2 sec baad apne aap VPS pe — "bhejna bhool gaye" wali
+     galti khatam (pehle chip/switch sirf phone me save hota tha) */
+  let autoT = null;
+  function autoPush(){
+    clearTimeout(autoT);
+    autoT = setTimeout(async () => { const ok = await push(); if(ok) say('Settings VPS pe bhej di ✓'); }, 1200);
+  }
   window.cpSave = async function(send){
     readForm(); lotUI(); filtUI(); keep();
-    if(send){ const ok = await push(); if(ok) say('Settings VPS pe bhej di ✓'); }
-    else say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao');
+    if(send){ clearTimeout(autoT); const ok = await push(); if(ok) say('Settings VPS pe bhej di ✓'); }
+    else autoPush();
   };
   window.cpToggleOn = async function(){
     readForm();
@@ -9123,9 +9137,9 @@ nav button{min-width:0}
     if(ok) say(CP.on ? 'Copy ON ✓' : 'Copy OFF ✓');
     renderStatus();
   };
-  window.cpToggle = function(k, el){ CP[k] = (k === 'copyPend') ? (CP[k] === false) : !CP[k]; el.classList.toggle('on', CP[k]); keep(); say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao'); };
-  window.cpSetLot = function(m){ readForm(); CP.lotMode = m; keep(); lotUI(); };
-  window.cpSetSymMode = function(m){ readForm(); CP.symMode = m; keep(); filtUI(); say('Save ✓ — VPS pe bhejne ke liye "Settings VPS pe bhejo" dabao'); };
+  window.cpToggle = function(k, el){ CP[k] = (k === 'copyPend') ? (CP[k] === false) : !CP[k]; el.classList.toggle('on', k === 'copyPend' ? CP[k] !== false : CP[k]); keep(); autoPush(); };
+  window.cpSetLot = function(m){ readForm(); CP.lotMode = m; keep(); lotUI(); autoPush(); };
+  window.cpSetSymMode = function(m){ readForm(); CP.symMode = m; keep(); filtUI(); autoPush(); };
   window.cpShowPass = function(){
     const i = q('cpPass'); const show = i.type === 'password';
     i.type = show ? 'text' : 'password'; q('cpEye').textContent = show ? 'CHHUPAO' : 'DIKHAO';
