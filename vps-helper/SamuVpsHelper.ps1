@@ -18,10 +18,14 @@
 #    Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 #
 #  CHANGELOG
+#   v1.01 (30-Sep-2026) FIX: vps.json 32 MB ban rahi thi - Windows PowerShell 5
+#                       Get-Content ki lines ke saath chhupi PSProvider/PSDrive
+#                       details bhi JSON me likh deta hai. Ab sirf saada text.
+#                       Report 200 KB se badi ho to logs chhote karke likhta hai.
 #   v1.00 (30-Sep-2026) Pehla build.
 # ==================================================================
 
-$HelperVer     = '1.00'
+$HelperVer     = '1.01'
 $Repo          = 'ankushchhajed7-cmd/samusignal'
 $Branch        = 'main'
 $DeployFolders = @('copytrade-ea')          # repo ke in folders ki .mq5 VPS pe jaayengi
@@ -263,7 +267,7 @@ try {
         foreach ($n in $fileNames) {
             $r = $state['res|' + $t.Id + '|' + $n]
             if ($null -eq $r) { continue }
-            $fl += [ordered]@{ f = $n; ok = [bool]$r.ok; ne = [int]$r.ne; nw = [int]$r.nw; at = [long]$r.at; msg = @($r.msg) }
+            $fl += [ordered]@{ f = [string]$n; ok = [bool]$r.ok; ne = [int]$r.ne; nw = [int]$r.nw; at = [long]$r.at; msg = @($r.msg | ForEach-Object { '' + $_ }) }
         }
         $lg = @()
         $lf = Join-Path $t.Dir ('MQL5\Logs\' + $today + '.log')
@@ -294,9 +298,15 @@ try {
         err = $ghErr
         mem = $mem
         terms = @($tOut)
-        log = @(Get-Content -LiteralPath $LogF -Tail 15 -ErrorAction SilentlyContinue)
+        log = @(Get-Content -LiteralPath $LogF -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { '' + $_ })
     }
     $json = $rep | ConvertTo-Json -Depth 6 -Compress
+    if ($json.Length -gt 200000) {                      # kabhi bhi badi na ho (Bridge har 2 sec padhta hai)
+        foreach ($t in $tOut) { $t.log = @() }
+        $rep.log = @('report badi thi - logs hataye')
+        $json = $rep | ConvertTo-Json -Depth 6 -Compress
+    }
+    if ($json.Length -gt 200000) { $json = '{"v":"' + $HelperVer + '","at":' + $rep.at + ',"err":"report bahut badi - helper.log dekho"}' }
     $tmp = $OutF + '.tmp'
     [IO.File]::WriteAllText($tmp, $json, (New-Object Text.UTF8Encoding($false)))
     Move-Item -LiteralPath $tmp -Destination $OutF -Force
