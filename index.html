@@ -164,6 +164,14 @@ input:focus,select:focus{border-color:var(--gold)}
 .sigAge .sa-h b{font-size:12px;letter-spacing:1px}
 .sigAge p{margin:0;font-size:11.5px;line-height:1.6;color:var(--mut)}
 .anToggle{width:100%;margin:0 0 10px}
+/* v9.9.21: TOTAL ANALYSIS — sab ka saar ek jagah */
+.tot-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.tot-h b.t{font-size:12.5px;letter-spacing:1.6px}
+.tot-r{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px dashed var(--line);cursor:pointer}
+.tot-r:last-child{border-bottom:0}
+.tot-r .k{flex:0 0 92px;font-size:10px;letter-spacing:1.3px;color:var(--lbl);font-weight:700}
+.tot-r .v{flex:1;min-width:0;font-size:12.5px;font-weight:800;text-align:right}
+.tot-r .v small{display:block;font-size:11px;font-weight:600;line-height:1.45;margin-top:2px}
 .anMore{display:none}
 .anMore.open{display:block;animation:up .25s ease-out}
 /* v9.9.18: Signal Umar box peela blink; FRESH (sahi waqt) hara highlight */
@@ -1148,7 +1156,7 @@ body.ds-gold #swHtf{order:3;margin:2px 0 14px}
 body.ds-gold #cardSignal{order:4}
 body.ds-gold #gVerdict{order:5}
 body.ds-gold .anlBtns{order:6;margin:0 0 14px}
-body.ds-gold #autoCard{order:7}
+body.ds-gold #sumCard{order:7}
 body.ds-gold #dayBar{order:8}
 
 /* pair / lot — label card ke andar */
@@ -1330,14 +1338,7 @@ body.ds-gold .brand .brandWord{height:24px}
 
 <!-- ============ SIGNALS ============ -->
 <section id="pgSignals">
-  <div class="card" id="autoCard" style="padding:11px 13px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
-      <b class="shine gd" style="font-size:12.5px;letter-spacing:1.6px">AUTO MT5</b>
-      <span class="gr" id="autoTag" style="margin-left:auto">band</span>
-    </div>
-    <button class="btn ghost sm" onclick="openSheet('autoSheet')">⚡ AUTO MT5 KHOLO</button>
-    <p class="hint" id="autoMini" style="margin:9px 0 0">—</p>
-  </div>
+  <div class="card" id="sumCard"></div>
   <div class="card" id="dayBar"></div>
   <div class="card" id="anlCard">
     <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
@@ -1811,32 +1812,6 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 </div></div>
 
-<div class="ov" id="autoSheet"><div class="sheet">
-  <div class="sh-h"><h3>Auto MT5</h3><button onclick="closeSheet('autoSheet')">×</button></div>
-  <div class="sh-b">
-    <div class="sw" id="swAuto" onclick="toggleAuto(this)">
-      <div class="tg"></div>
-      <div>Signal khud MT5 pe bhejo<small>Sirf "LE LO" verdict wale signal jayenge</small></div>
-    </div>
-
-    <div class="grid2" style="margin:14px 0 4px">
-      <div><label>Minimum quality (%)</label><input class="mono" id="setAQual" type="number" step="5" min="50" max="95"></div>
-      <div><label>Har kitne minute</label><input class="mono" id="setAEvery" type="number" step="5" min="5"></div>
-      <div><label>Max order / din</label><input class="mono" id="setAMax" type="number" step="1" min="1"></div>
-      <div><label>Fail hone par dobara (min)</label><input class="mono" id="setACool" type="number" step="15" min="15"></div>
-    </div>
-    <p class="hint" style="margin:6px 0 12px">Ek pair pe poore din me sirf ek order. "Max order / din" saare pairs ka total hai. Watchlist wale pairs hi check hote hain — har cycle me ek.</p>
-
-    <button class="btn gold sm" style="margin-bottom:12px" onclick="saveAuto()">💾 AUTO SETTINGS SAVE KARO</button>
-    <p class="hint" id="autoState" style="margin:0 0 12px">—</p>
-
-    <div style="border:1px solid var(--gold);background:rgba(255,184,0,.06);border-radius:8px;padding:11px;margin-bottom:12px">
-      <p class="hint" style="color:var(--gold);margin:0">⚠ Auto sirf tab chalta hai jab ye app khuli aur screen pe ho — phone lock ya app band matlab koi order nahi jayega.</p>
-    </div>
-    <p class="hint" style="margin:0 0 8px">Order tabhi jaata hai jab verdict LE LO ho, quality bar paar ho, us pair pe aaj koi auto order na gaya ho, aur credits bache hon. Har order Alert Log, Telegram aur Trades journal — teeno me likha jaata hai.</p>
-  </div>
-</div></div>
-
 <div class="ov" id="guideSheet"><div class="sheet">
   <div class="sh-h"><h3>Kaise Use Kare</h3><button onclick="closeSheet('guideSheet')">×</button></div>
   <div class="sh-b">
@@ -2096,7 +2071,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.19';
+const VERSION = '9.9.21';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -2270,7 +2245,7 @@ let S = {
 
   /* ---- Auto MT5 ---- default band. On karne pe app khud analyze karke
      order bhej sakti hai, isliye har guard yahin se control hota hai. */
-  autoOn:     LS.get('autoOn',false),
+  autoOn:     false,                    /* v9.9.20: Auto MT5 hata diya — hamesha band */
   autoQual:   LS.get('autoQual',75),    /* minimum quality % */
   autoEvery:  LS.get('autoEvery',15),   /* har kitne minute pe ek cycle */
   autoMaxDay: LS.get('autoMaxDay',3),   /* ek din me max auto order */
@@ -2821,6 +2796,7 @@ async function gShowModels(){
 
 let lastAI = null;
 function renderAI(){
+  setTimeout(renderSum, 0);
   const d = lastAI;
   if(!d || !lastSignal || d.sym !== lastSignal.sym){
     $('aiBox').innerHTML = '<p class="hint">Analyze ke baad "AI SE SAMJHO" dabao — saare numbers dekhkar poori wajah samjhayega.</p>';
@@ -2947,7 +2923,6 @@ function syncLock(){
 
 function openSheet(id){
   if(id === 'guideSheet') renderGuide();
-  if(id === 'autoSheet') autoFill();
   $(id).classList.add('on');
   const sh = $(id).querySelector('.sheet'); if(sh) sh.scrollTop = 0;
   syncLock();
@@ -3018,6 +2993,7 @@ function setDesign(d){
   if(!DESIGNS[d]) return;
   S.design = d; save(); applyTheme();
   if(lastSignal) renderSignal();
+  renderSum();
   toast(DESIGNS[d].n + ' design on');
 }
 /* purana color theme ab nahi hai — Classic hamesha gold */
@@ -3853,6 +3829,54 @@ function sumColumn(s){
     </div>`).join('') + `</div>`;
 }
 
+/* v9.9.21: Signals page ke upar TOTAL ANALYSIS card — SIG, VOTE, TECH,
+   Signal Umar ka aakhri faisla, Take it/Wait, Setup, AI, EMA Plan */
+function sumGo(id){ const e = $(id); if(e) (e.closest('.card') || e).scrollIntoView({behavior:'smooth', block:'start'}); }
+function renderSum(){
+  const box = $('sumCard'); if(!box) return;
+  const s = lastSignal;
+  const head = `<div class="tot-h"><b class="t shine gd">TOTAL ANALYSIS</b>`;
+  if(!s){
+    box.innerHTML = head + `</div><p class="hint" style="margin:0">Pair chuno aur Analyze dabao — SIG, VOTE, TECH, Signal Umar, faisla, Setup, AI aur EMA Plan sab ka saar yahan ek saath dikhega.</p>`;
+    return;
+  }
+  const row = (k, v, c, sub, go) => `<div class="tot-r" onclick="sumGo('${go}')"><span class="k">${k}</span>
+      <span class="v" style="color:${c}">${v}${sub ? `<small>${sub}</small>` : ''}</span></div>`;
+  const R = [];
+  const q = tierOf(s.q, 'sig');
+  R.push(row('SIG', `${s.q}% ${q.t}`, q.c, '', 'cardSignal'));
+  if(lastVotes && lastVotes.sym === s.sym){
+    const v = lastVotes, ok = v.verdict === s.dir, t = tierOf(ok ? v.conf : 100 - v.conf, 'vote');
+    R.push(row('VOTE', `${v.conf}% ${ok ? t.t : 'ULTA'}`, ok ? t.c : 'var(--dn)', '', 'cardSignal'));
+  } else R.push(row('VOTE', '—', 'var(--mut)', '', 'cardSignal'));
+  if(lastAn){ const t = tierOf(lastAn.pct, 'tech'); R.push(row('TECH', `${lastAn.pct}% ${t.t}`, t.c, '', 'anBox')); }
+  else R.push(row('TECH', '—', 'var(--mut)', '', 'anBox'));
+  const a = s.age;
+  if(a){
+    const col = a.st === 'FRESH' ? 'var(--up)' : a.st === 'LATE' ? 'var(--dn)' : 'var(--gold)';
+    const tip = {FRESH:'Abhi bana hai — sahi waqt.', 'CHAL RAHA':'Kuch der se chal raha hai — entry theek, par SL zaroor.',
+      PURANA:'Trend bahut der se chal raha hai — palatne ka khatra badhta hai.', LATE:'Move ka bada hissa ho chuka — chase mat karo, pullback ka intezaar karo.'}[a.st];
+    R.push(row('SIGNAL UMAR', a.st === 'FRESH' ? `<span class="saGood" style="margin:0">${a.st}</span>` : a.st, col,
+      a.st === 'FRESH' ? `<span class="saGood">✓ ${tip}</span>` : tip, 'cardSignal'));
+  } else R.push(row('SIGNAL UMAR', '—', 'var(--mut)', '', 'cardSignal'));
+  const f = finalCall(s);
+  R.push(row('FAISLA', f.t, f.c, f.why, 'cardSignal'));
+  if(lastAn) R.push(row('SETUP', lastAn.verdict, lastAn.vcol || 'var(--gold)', `${lastAn.pct}% checks paas`, 'anBox'));
+  else R.push(row('SETUP', '—', 'var(--mut)', '', 'anBox'));
+  if(lastAI && lastAI.sym === s.sym){
+    const c = lastAI.verdict === 'LE LO' ? 'var(--up)' : lastAI.verdict === 'CHHOD DO' ? 'var(--dn)' : 'var(--gold)';
+    R.push(row('AI ANALYSIS', lastAI.verdict, c, `confidence ${lastAI.confidence}%`, 'aiBox'));
+  } else R.push(row('AI ANALYSIS', '—', 'var(--mut)', '"AI SE SAMJHO" dabao', 'aiBox'));
+  const e = window.lastEmaPlan;
+  if(e && e.sym === s.sym){
+    if(e.dir === 'WAIT') R.push(row('EMA PLAN', 'WAIT', 'var(--gold)', '', 'emaBox'));
+    else R.push(row('EMA PLAN', `${e.dir} ${e.kind || ''}`, e.dir === 'BUY' ? 'var(--up)' : 'var(--dn)', `@ ${fmt(s.sym, e.entry)}`, 'emaBox'));
+  } else R.push(row('EMA PLAN', '—', 'var(--mut)', '', 'emaBox'));
+  box.innerHTML = head + `<b class="mono" style="margin-left:auto;font-size:13px">${s.sym}</b>
+      <span class="tag ${s.dir==='BUY'?'buy':s.dir==='SELL'?'sell':'n'}">${s.dir}</span></div>
+    <p class="hint" style="margin:-4px 0 6px;font-size:10.5px">check · <span data-ago="${s.at}">${ago(s.at)}</span> · kisi line pe tap = poori detail</p>` + R.join('');
+}
+
 /* Teeno checks ko hard aur soft rules me baanto.
    Purana bug: ek bhi warning aate hi WAIT ho jaata tha, isliye strong
    signal + strong vote + strong technical setup bhi trade nahi ban raha tha. */
@@ -3943,6 +3967,7 @@ function ladderHTML(s){
 }
 
 function renderSignal(){
+  setTimeout(renderSum, 0);
   const s = lastSignal;
   if(!s){
     $('cardSignal').innerHTML = '<p class="ttl">Signal</p><p class="hint">Pair chuno aur Analyze dabao.</p>';
@@ -4768,6 +4793,7 @@ function anBtnTxt(){
   return anOpen ? '▲ POORA ANALYSIS BAND KARO' : `▼ POORA ANALYSIS DEKHO <small style="opacity:.75">(${n} checks)</small>`;
 }
 function renderAnalyst(){
+  setTimeout(renderSum, 0);
   const a = lastAn;
   if(!a){ $('anBox').innerHTML = '<p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p>'; return }
   $('anT').innerHTML = `<span data-ago="${a.at}">${ago(a.at)}</span>`;
@@ -5560,6 +5586,7 @@ function emaSummary(sym, r){
   const {lines, last3, plan, bars} = r;
   const i = bars.length - 1;
   window.lastEmaPlan = Object.assign({sym, live: bars[i].c, at: Date.now()}, plan);
+  setTimeout(renderSum, 0);
   const e9 = lines[0].v[i], e21 = lines[1].v[i], e55 = lines[2].v[i];
 
   /* ---- plan card ---- */
@@ -7358,8 +7385,6 @@ function saveSettings(){
   showMode(); if($('verMode')) $('verMode').textContent = S.mt5Type;
   S.autoM = +$('setAuto').value;
   S.trackMin = Math.max(2, +$('setTrackMin').value || 5);
-  /* Auto MT5 ke fields ab Signals page ke apne card me hain — wahan
-     ka SAVE button (saveAuto) unhe sambhalta hai. */
   $('inLots').value = S.dLot; S.lots = S.dLot;
   save(); closeSheet('setSheet');
   $('apiState').textContent = S.key ? 'API connected' : 'API key set karo';
@@ -8270,8 +8295,6 @@ const GUIDE = [
   ['p','Yahan log kiye trades tumhare apne hain. Signal pe "Maine Ye Trade Liya" dabao, ya kahin aur liya trade ho to "+ Add Manual Trade".'],
   ['h','Live P&L'],
   ['p','Open trades live price se refresh hote hain aur abhi ka profit/loss dikhate hain. TP/SL hit 5-minute candle ke high/low se pakda jaata hai, isliye chhoo kar palta hua level bhi ginta hai.'],
-  ['h','Auto MT5'],
-  ['p','Signals page ke sabse upar AUTO MT5 KHOLO button hai — usse Auto MT5 screen khulti hai. Wahan toggle on karne par app khud har X minute me watchlist ka ek pair analyze karti hai. Order tabhi jaata hai jab verdict "LE LO" ho, quality tumhare set kiye gaye %+ ho, us pair pe aaj tak koi auto order gaya na ho (ek pair = ek din me ek hi order). Har order Alert Log aur Telegram dono me likha jaata hai. Chaaron setting badalne ke baad usi card ka SAVE button dabana zaroori hai.'],
   ['w','Auto sirf app khuli aur screen pe hone par chalta hai \u2014 phone lock ya app band matlab kuch nahi hoga. Max order per din aur per-pair cooldown zaroor set rakho, aur Trades page pe nazar rakho.'],
   ['h','MT5 Bridge'],
   ['p','Signal ya quick trade se "MT5 pe Lagao" dabane par order Firebase ke through VPS wale EA tak jaata hai. Settings \u2192 MT5 Bridge me Firebase URL, order type aur limit offset set hote hain, aur TEST BRIDGE se connection check hota hai.'],
@@ -8361,178 +8384,9 @@ function gGo(id){
 }
 
 
-/* ================= AUTO MT5 =================
-   App khud analyze karke order bhej sakti hai. Ye pura block guards se
-   bhara hua hai — auto trading me ek galat signal bhi bina puche paisa
-   laga deta hai, isliye har condition fail hone pe cycle chup-chaap ruk
-   jaata hai aur wajah Alert Log me likhi jaati hai.
-
-   Chalne ki shart: app khuli ho, screen visible ho, koi analysis pehle
-   se na chal rahi ho. PWA background me nahi chalti — ye limitation
-   Settings me bhi saaf likhi hai. */
-
-let autoLastRun = 0;
-let autoIdx = 0;        /* watchlist me round-robin */
-let autoBusy = false;
-
-function autoDay(){
-  const d = utcDay();
-  if(S.autoLog.d !== d){ S.autoLog = {d, n:0, last:{}, why:'', at:0}; save() }
-  return S.autoLog;
-}
-
-function autoNote(why){
-  const a = autoDay();
-  a.why = why; a.at = Date.now(); save();
-  const el = $('autoState'); if(el) autoState();
-}
-
-function autoState(){
-  const a = autoDay();
-  const tag = $('autoTag');
-  if(tag){
-    tag.textContent = S.autoOn ? 'chalu' : 'band';
-    tag.style.color = S.autoOn ? 'var(--up)' : 'var(--mut)';
-  }
-
-  /* Signals page wali patli patti — ek line me haal */
-  const mini = $('autoMini');
-  if(mini){
-    mini.innerHTML = !S.autoOn
-      ? 'Band hai — order sirf tumhare tap se jayega.'
-      : `<b style="color:var(--up)">Chalu</b> · aaj ${a.n}/${S.autoMaxDay} order` +
-        (a.why ? ` · ${a.why}` : '');
-  }
-
-  /* sheet ke andar poora haal */
-  const el = $('autoState'); if(!el) return;
-  if(!S.autoOn){ el.textContent = 'Auto band hai — signal sirf tumhare tap se hi jayega.'; return }
-  const left = Math.max(0, S.autoMaxDay - a.n);
-  const next = autoLastRun ? Math.max(0, S.autoEvery*60000 - (Date.now()-autoLastRun)) : 0;
-  el.innerHTML = `<b style="color:var(--up)">Auto chalu</b> · aaj ${a.n}/${S.autoMaxDay} order` +
-    ` · ${left ? (next ? `agla check ${Math.ceil(next/60000)} min me` : 'agla check abhi') : 'aaj ki limit poori'}` +
-    (a.why ? `<br>Aakhri: ${a.why} · ${t12(a.at)}` : '');
-}
-setInterval(autoState, 15000);
-
-/* sheet khulne par current values dikhao */
-function autoFill(){
-  $('swAuto').classList.toggle('on', S.autoOn);
-  $('setAQual').value = S.autoQual; $('setAEvery').value = S.autoEvery;
-  $('setAMax').value = S.autoMaxDay; $('setACool').value = S.autoCool;
-  autoState();
-}
-
-/* Auto MT5 sheet ka apna save — Settings sheet se alag */
-function saveAuto(){
-  S.autoQual   = Math.min(95, Math.max(50, +$('setAQual').value  || 75));
-  S.autoEvery  = Math.max(5,  +$('setAEvery').value || 15);
-  S.autoMaxDay = Math.max(1,  +$('setAMax').value   || 3);
-  S.autoCool   = Math.max(15, +$('setACool').value  || 60);
-  /* clamp kiye hue values wapas dikhao, warna user ko lagega uska number bacha hai */
-  $('setAQual').value = S.autoQual; $('setAEvery').value = S.autoEvery;
-  $('setAMax').value = S.autoMaxDay; $('setACool').value = S.autoCool;
-  save(); autoState();
-  toast(`Save ho gaya — quality ${S.autoQual}%+ · har ${S.autoEvery} min · max ${S.autoMaxDay}/din`);
-  logAdd(`Auto settings: q${S.autoQual} every${S.autoEvery} max${S.autoMaxDay} cool${S.autoCool}`);
-}
-
-function toggleAuto(el){
-  if(!S.autoOn){
-    if(!fbEndpoint()){ toast('Pehle Firebase URL daalo, warna order kahin nahi jayega'); return }
-    if(!S.key){ toast('Pehle TwelveData API key daalo'); return }
-    const ok = confirm(
-      'Auto MT5 chalu karein?\n\n' +
-      `• Har ${S.autoEvery} min me watchlist ka ek pair analyze hoga\n` +
-      `• Sirf "LE LO" verdict aur quality ${S.autoQual}%+ pe order jayega\n` +
-      `• Aaj max ${S.autoMaxDay} order total, aur ek pair pe din bhar me sirf ek\n` +
-      '• Order seedha MT5 bridge pe jayega — koi confirm screen nahi aayegi\n\n' +
-      'App khuli rehni chahiye. Aage badhein?');
-    if(!ok) return;
-  }
-  S.autoOn = !S.autoOn;
-  el.classList.toggle('on', S.autoOn);
-  save(); autoState();
-  logAdd('Auto MT5 ' + (S.autoOn ? 'ON' : 'OFF'));
-  toast(S.autoOn ? 'Auto MT5 chalu' : 'Auto MT5 band');
-}
-
-/* agla pair jo sach me try karne layak hai */
-function autoPick(){
-  const list = S.watch.filter(x => !isBad(x));
-  if(!list.length) return null;
-  const a = autoDay();
-  for(let i = 0; i < list.length; i++){
-    const sym = list[(autoIdx + i) % list.length];
-    if(S.open.some(t => t.sym === sym)) continue;           /* pehle se trade khuli hai */
-    if(mt5Has(sym)) continue;                                /* MT5 pe pehle se bheja hua */
-    const last = a.last[sym] || 0;
-    if(last) continue;              /* ek pair, ek din, ek hi order */
-    if(Date.now() - last < S.autoCool * 60000) continue;     /* cooldown */
-    autoIdx = (autoIdx + i + 1) % list.length;
-    return sym;
-  }
-  return null;
-}
-
-async function autoTick(){
-  if(!S.autoOn || autoBusy) return;
-  if(document.hidden) return;                 /* screen pe nahi ho to kuch nahi */
-  if(busy) return;                            /* manual analysis chal rahi hai */
-  if(Date.now() - autoLastRun < S.autoEvery * 60000) return;
-  if(!S.key || !fbEndpoint()){ autoNote('setup adhura — key ya Firebase URL nahi'); return }
-
-  const a = autoDay();
-  if(a.n >= S.autoMaxDay){ autoNote(`aaj ki limit (${S.autoMaxDay}) poori`); return }
-  dayCheck();
-  if(S.day.blocked || creditsLeft() < 8){ autoNote('credits kam hain'); return }
-
-  const sym = autoPick();
-  if(!sym){ autoNote('koi pair khaali nahi — sab pe trade ya cooldown'); return }
-
-  autoBusy = true;
-  autoLastRun = Date.now();
-  try{
-    /* wahi engine jo tum haath se chalate ho — pair set karke analyze */
-    S.pair = sym; pickVal.main = sym; save();
-    pickLabel($('selPair'), sym); setChart(sym);
-    await runAnalyze();
-
-    const sig = lastSignal;
-    if(!sig || sig.sym !== sym || sig.dir === 'NEUTRAL'){ autoNote(`${SPECS[sym].n}: koi direction nahi`); return }
-
-    const v = finalCall(sig);
-    if(v.t !== 'LE LO'){ autoNote(`${SPECS[sym].n}: ${v.t} — order nahi bheja`); return }
-    if(sig.q < S.autoQual){ autoNote(`${SPECS[sym].n}: quality ${sig.q}% < ${S.autoQual}%`); return }
-
-    /* Levels wahi use karo jo signal card pe dikh rahe hain — auto aur
-       screen alag-alag number bhejein, isse bura kuch nahi. */
-    if(!sig.slD || !sig.tpD){ autoNote(`${SPECS[sym].n}: SL/TP zero nikla`); return }
-    const lots = fixLot(sym, sig.lots || S.dLot);
-    const sl = sig.sl, tp = sig.tp;
-
-    const ok = await sendMT5(sym, sig.dir, lots, sig.live, sl, tp, S.mt5Type, true);
-    if(!ok){ autoNote(`${SPECS[sym].n}: bridge ne order nahi liya — log dekho`); return }
-
-    /* journal me bhi daalo taaki P&L aur history track ho */
-    autoJournal({
-      sym, dir: sig.dir, lots, entry: sig.live, sl, tp,
-      slD: sig.slD, tpD: sig.tpD, q: sig.q, grade: sig.grade, auto: true
-    });
-
-    a.n++; a.last[sym] = Date.now(); save();
-    autoNote(`${SPECS[sym].n} ${sig.dir} bhej diya (quality ${sig.q}%)`);
-    logAdd(`AUTO: ${sig.dir} ${SPECS[sym].n} ${lots} lot @ ${fmt(sym, sig.live)}`);
-    toast(`Auto: ${SPECS[sym].n} ${sig.dir} MT5 pe laga diya`);
-    notify('Auto MT5 order', `${SPECS[sym].n} ${sig.dir} ${lots} lot @ ${fmt(sym, sig.live)}`, 'auto');
-    if(S.tts) speak(`Auto order ${sig.dir} ${SPECS[sym].n}`);
-  }catch(e){
-    autoNote('cycle fail: ' + (e.message || 'pata nahi'));
-  }finally{
-    autoBusy = false;
-  }
-}
-
+/* v9.9.20: AUTO MT5 (app khud order bhejna) poori tarah hata diya gaya.
+   Order ab sirf tumhare tap se jaata hai. Neeche ka journal helper chart
+   screenshot wale order ke kaam aata hai, isliye rakha hai. */
 /* addTrade alert dikhata hai aur Trades page pe le jaata hai — auto ke
    liye wo galat hai, isliye chup-chaap wala version */
 function autoJournal(t){
@@ -8546,7 +8400,6 @@ function autoJournal(t){
   if(S.tgAuto) tgSend(tradeText(t, 'OPEN'), true);
 }
 
-setInterval(autoTick, 30000);
 
 
 /* ================= SELF TEST =================
@@ -8647,7 +8500,7 @@ async function runSelfTest(){
   if(dup.length) out.push(['warn','DOM', 'ek jaisi id do jagah: ' + [...new Set(dup)].join(', ')]);
 
   const need = ['selPair','inLots','btnAnalyze','cardSignal','pgTrades','openBox','histBox',
-                'setFb','setMtype','swAuto','setAQual','shotIn','trackBox','logBox','autoMini'];
+                'setFb','setMtype','shotIn','trackBox','logBox'];
   /* openBox = Trades page ka container */
   const miss = need.filter(id => !$(id));
   if(miss.length) out.push(['fail','DOM', 'ye zaroori element gayab hain: ' + miss.join(', ')]);
@@ -8659,12 +8512,6 @@ async function runSelfTest(){
   if(S.cap < 50 || S.cap > 800) out.push(['fail','Setup',`Daily cap ${S.cap} theek nahi (50–800 rakho)`]);
   if(S.watch.length === 0) out.push(['fail','Setup','Watchlist khaali hai — Scan aur Auto dono kuch nahi karenge']);
   if(S.watch.length > 12) out.push(['fail','Setup',`Watchlist me ${S.watch.length} pairs — 12 se zyada nahi hone chahiye`]);
-  if(S.autoOn){
-    if(S.autoEvery < 5) out.push(['fail','Auto','Cycle 5 min se kam hai — credits minute me hi khatam ho jayenge']);
-    const perDay = Math.floor((16*60) / S.autoEvery) * 4;
-    if(perDay > S.cap - 100) out.push(['warn','Auto',`Auto ~${perDay} credits kha jayega, cap ${S.cap} hai — cycle bada karo`]);
-    if(!fbEndpoint()) out.push(['fail','Auto','Auto chalu hai par Firebase URL nahi — order kahin nahi jayega']);
-  }
   if(S.dLot <= 0) out.push(['fail','Setup','Default lot 0 hai']);
 
   /* --- E. khuli trades --- */
@@ -8772,10 +8619,6 @@ function boot(){
   document.querySelectorAll('[data-th]').forEach(b => b.classList.toggle('on', b.dataset.th === S.theme));
   $('setCap').value = S.cap; $('setAuto').value = S.autoM;
   $('setTrackMin').value = S.trackMin;
-  $('swAuto').classList.toggle('on', S.autoOn);
-  $('setAQual').value = S.autoQual; $('setAEvery').value = S.autoEvery;
-  $('setAMax').value = S.autoMaxDay; $('setACool').value = S.autoCool;
-  autoState();
   $('setNewsMin').value = S.newsMin; $('setNewsImp').value = S.newsImp;
   $('setMode').value = S.slMode; $('setAtrSL').value = S.atrSL;
   $('setAtrRR').value = S.atrRR; $('setRisk').value = S.riskUsd;
@@ -9662,7 +9505,8 @@ nav button{min-width:0}
     'SABSE NEECHE':'LOWEST','SABSE UPAR':'HIGHEST','Sabse bura floating':'Worst floating','M1 load ho raha…':'Loading M1…',
     'Har din ka sabse bura floating (sab khule trades mila ke) aur kab. Source ka hisaab Executor v1.06 lagne ke baad se; mera 7 din purana bhi (M1 candles se, lagbhag).':'Worst floating of each day (all open trades combined) and when. Source is tracked from Executor v1.06 onwards; mine goes back 7 days (from M1 candles, approx).',
     '7 din me koi copied trade band nahi hua.':'No copied trade closed in the last 7 days.',
-    '⏱ SIGNAL UMAR':'⏱ SIGNAL AGE','▲ POORA ANALYSIS BAND KARO':'▲ HIDE FULL ANALYSIS','▼ POORA ANALYSIS DEKHO':'▼ SEE FULL ANALYSIS','CHAL RAHA':'RUNNING','PURANA':'OLD','abhi':'just now','check ·':'check ·',
+    '⏱ SIGNAL UMAR':'⏱ SIGNAL AGE','TOTAL ANALYSIS':'TOTAL ANALYSIS','SIGNAL UMAR':'SIGNAL AGE','FAISLA':'DECISION','"AI SE SAMJHO" dabao':'Tap "EXPLAIN WITH AI"',
+    'Pair chuno aur Analyze dabao — SIG, VOTE, TECH, Signal Umar, faisla, Setup, AI aur EMA Plan sab ka saar yahan ek saath dikhega.':'Pick a pair and tap Analyze — SIG, VOTE, TECH, signal age, decision, setup, AI and EMA plan summarised here.','▲ POORA ANALYSIS BAND KARO':'▲ HIDE FULL ANALYSIS','▼ POORA ANALYSIS DEKHO':'▼ SEE FULL ANALYSIS','CHAL RAHA':'RUNNING','PURANA':'OLD','abhi':'just now','check ·':'check ·',
     'Tab se price signal ki taraf':'Since then price moved in signal direction',
     'Abhi bana hai — sahi waqt.':'Just formed — good timing.','✓ Abhi bana hai — sahi waqt.':'✓ Just formed — good timing.','⏱ FRESH':'⏱ FRESH',
     'Kuch der se chal raha hai — entry theek, par SL zaroor.':'Running for a while — entry OK, but always use SL.',
@@ -9696,7 +9540,7 @@ nav button{min-width:0}
     [/^Naam ka shuru wala hissa milta hai: (.+)\. Pehle se copied trades pe asar nahi\.$/, 'Matches the start of the name: $1. Already-copied trades are not affected.'],
     [/^Mera pending #(\d+) laga hai$/, 'My pending #$1 is placed'],
     [/^(\d+) sec pehle$/, '$1 sec ago'],[/^(\d+) min pehle$/, '$1 min ago'],[/^(\d+) ghante pehle$/, '$1 h ago'],[/^(\d+) din pehle$/, '$1 days ago'],
-    [/^(\d+\+?) candle \((.+)\) se chal raha$/, 'running for $1 candles ($2)'],[/^\(TP ka (-?\d+)%\)$/, '($1% of TP)'],[/^bana$/, 'formed'],[/^\((\d+) checks\)$/, '($1 checks)'],
+    [/^(\d+\+?) candle \((.+)\) se chal raha$/, 'running for $1 candles ($2)'],[/^\(TP ka (-?\d+)%\)$/, '($1% of TP)'],[/^bana$/, 'formed'],[/^\((\d+) checks\)$/, '($1 checks)'],[/^(\d+)% checks paas$/, '$1% checks passed'],[/^confidence (\d+)%$/, 'confidence $1%'],[/^· kisi line pe tap = poori detail$/, '· tap a line for full detail'],
     [/^Aakhri (\d+) band trades · (\d+) profit me$/, 'Last $1 closed trades · $2 in profit'],
     [/^Sabse bura floating$/, 'Worst floating'],[/^· average$/, '· average'],
     [/^(\d+) trade pehle minus me gaye, phir profit me band$/, '$1 trades went into minus first, then closed in profit'],
