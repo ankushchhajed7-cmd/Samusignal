@@ -163,6 +163,9 @@ input:focus,select:focus{border-color:var(--gold)}
 .sigAge .sa-h span{font-size:10px;letter-spacing:1.5px;color:var(--lbl);font-weight:700}
 .sigAge .sa-h b{font-size:12px;letter-spacing:1px}
 .sigAge p{margin:0;font-size:11.5px;line-height:1.6;color:var(--mut)}
+.anToggle{width:100%;margin:0 0 10px}
+.anMore{display:none}
+.anMore.open{display:block;animation:up .25s ease-out}
 /* v9.9.18: Signal Umar box peela blink; FRESH (sahi waqt) hara highlight */
 @keyframes ageBlink{
   0%,100%{border-color:#F5C542;box-shadow:0 0 0 1px rgba(245,197,66,.55),0 0 14px rgba(245,197,66,.45)}
@@ -2093,7 +2096,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.18';
+const VERSION = '9.9.19';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -4753,6 +4756,17 @@ function paint(t){
 /* ---------------- analyst render ---------------- */
 let lastAn = null;
 function s0q(d){ return d }
+/* v9.9.19: checks (Structure, Supertrend...) "Poora analysis dekho" ke peeche */
+let anOpen = false;
+function toggleAn(btn){
+  anOpen = !anOpen;
+  const m = $('anMore'); if(m) m.classList.toggle('open', anOpen);
+  if(btn) btn.innerHTML = anBtnTxt();
+}
+function anBtnTxt(){
+  const n = lastAn ? lastAn.O.length : 0;
+  return anOpen ? '▲ POORA ANALYSIS BAND KARO' : `▼ POORA ANALYSIS DEKHO <small style="opacity:.75">(${n} checks)</small>`;
+}
 function renderAnalyst(){
   const a = lastAn;
   if(!a){ $('anBox').innerHTML = '<p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p>'; return }
@@ -4773,6 +4787,8 @@ function renderAnalyst(){
       <p style="color:#ff9c9c;margin:6px 0 0;font-size:12.5px;font-weight:700;line-height:1.6">${a.bad.map(x=>x.h).join('  ·  ')}</p></div>`
       : `<div style="border:1px solid var(--up);background:rgba(0,255,150,.07);border-radius:8px;padding:12px;margin-bottom:12px;text-align:center">
       <b class="shine up" style="font-size:13px;letter-spacing:1.5px">✓ KOI CHINTA NAHI</b></div>`}
+    <button class="btn gold sm anToggle" onclick="toggleAn(this)">${anBtnTxt()}</button>
+    <div id="anMore" class="anMore${anOpen ? ' open' : ''}">
     ${a.O.map(x => `<div class="an ${cls(x.ok)}">
       <div class="ah"><span class="dot2" style="background:${col(x.ok)};color:${col(x.ok)}"></span>
         <b style="color:${col(x.ok)};text-shadow:0 0 10px ${col(x.ok)}">${x.ok===2?'✓':x.ok===1?'~':'✕'} ${x.h}</b></div>
@@ -4781,6 +4797,7 @@ function renderAnalyst(){
       <div class="ah"><span class="dot2" style="background:var(--gold);color:var(--gold)"></span>
         <b style="color:var(--gold);text-shadow:0 0 10px var(--gold)">🎯 KAB GALAT SAABIT HOGA</b></div>
       <p>${paint(a.inval)}</p></div>
+    </div>
     <div class="grid2" style="margin-top:10px">
       <button class="btn ghost sm" onclick="shareAnWa()">WhatsApp</button>
       <button class="btn ghost sm" onclick="tgSend(anText(true))">Telegram</button>
@@ -9645,7 +9662,7 @@ nav button{min-width:0}
     'SABSE NEECHE':'LOWEST','SABSE UPAR':'HIGHEST','Sabse bura floating':'Worst floating','M1 load ho raha…':'Loading M1…',
     'Har din ka sabse bura floating (sab khule trades mila ke) aur kab. Source ka hisaab Executor v1.06 lagne ke baad se; mera 7 din purana bhi (M1 candles se, lagbhag).':'Worst floating of each day (all open trades combined) and when. Source is tracked from Executor v1.06 onwards; mine goes back 7 days (from M1 candles, approx).',
     '7 din me koi copied trade band nahi hua.':'No copied trade closed in the last 7 days.',
-    '⏱ SIGNAL UMAR':'⏱ SIGNAL AGE','CHAL RAHA':'RUNNING','PURANA':'OLD','abhi':'just now','check ·':'check ·',
+    '⏱ SIGNAL UMAR':'⏱ SIGNAL AGE','▲ POORA ANALYSIS BAND KARO':'▲ HIDE FULL ANALYSIS','▼ POORA ANALYSIS DEKHO':'▼ SEE FULL ANALYSIS','CHAL RAHA':'RUNNING','PURANA':'OLD','abhi':'just now','check ·':'check ·',
     'Tab se price signal ki taraf':'Since then price moved in signal direction',
     'Abhi bana hai — sahi waqt.':'Just formed — good timing.','✓ Abhi bana hai — sahi waqt.':'✓ Just formed — good timing.','⏱ FRESH':'⏱ FRESH',
     'Kuch der se chal raha hai — entry theek, par SL zaroor.':'Running for a while — entry OK, but always use SL.',
@@ -9679,7 +9696,7 @@ nav button{min-width:0}
     [/^Naam ka shuru wala hissa milta hai: (.+)\. Pehle se copied trades pe asar nahi\.$/, 'Matches the start of the name: $1. Already-copied trades are not affected.'],
     [/^Mera pending #(\d+) laga hai$/, 'My pending #$1 is placed'],
     [/^(\d+) sec pehle$/, '$1 sec ago'],[/^(\d+) min pehle$/, '$1 min ago'],[/^(\d+) ghante pehle$/, '$1 h ago'],[/^(\d+) din pehle$/, '$1 days ago'],
-    [/^(\d+\+?) candle \((.+)\) se chal raha$/, 'running for $1 candles ($2)'],[/^\(TP ka (-?\d+)%\)$/, '($1% of TP)'],[/^bana$/, 'formed'],
+    [/^(\d+\+?) candle \((.+)\) se chal raha$/, 'running for $1 candles ($2)'],[/^\(TP ka (-?\d+)%\)$/, '($1% of TP)'],[/^bana$/, 'formed'],[/^\((\d+) checks\)$/, '($1 checks)'],
     [/^Aakhri (\d+) band trades · (\d+) profit me$/, 'Last $1 closed trades · $2 in profit'],
     [/^Sabse bura floating$/, 'Worst floating'],[/^· average$/, '· average'],
     [/^(\d+) trade pehle minus me gaye, phir profit me band$/, '$1 trades went into minus first, then closed in profit'],
