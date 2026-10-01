@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                                         FXBridgeEA v3.52.mq5     |
+//|                                         FXBridgeEA v3.53.mq5     |
 //|              Firebase Bridge for ForexDiagnosis PWA              |
 //|                                                                  |
 //|  App Firebase pe order likhta hai, ye EA usse padh kar MT5 me    |
@@ -9,6 +9,14 @@
 //|  JSON format: {"id":123,"pair":"XAUUSD","type":"SELLLIMIT",      |
 //|                "lots":0.01,"entry":4022.36,"sl":4048.51,         |
 //|                "tp":3970.06}                                     |
+//|                                                                  |
+//|  v3.53 (01-Oct-2026):                                            |
+//|   * Firebase URL default me save (forexdiagnosis DB).            |
+//|   * AlertPairs = "ALL" -> app ke saare 32 pair (28 FX + XAUUSD,  |
+//|     BTCUSD, ETHUSD, US30). App se kisi bhi pair ka order chalega.|
+//|   * REAL account pe Firebase rules check: bina secret ke koi     |
+//|     fxbridge padh/likh sakta hai to order NAHI lagega.           |
+//|   * Symbol na mile to 10 min baad dobara dhundhta hai.           |
 //|                                                                  |
 //|  v3.52 (01-Oct-2026) REAL ACCOUNT ke liye:                       |
 //|   * FirebaseAuth input — har request ?auth=secret ke saath, taaki |
@@ -20,18 +28,19 @@
 //|     nahi lagega (test mode). Auto-trade REAL pe kabhi nahi.      |
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "3.52"
+#property version   "3.53"
 #property strict
 
 #include <Trade\Trade.mqh>
 
 //--- Inputs
 input string  ActivationKey  = "";         // Activation Key (owner se lo - account-locked)
-input string  FirebaseURL    = "";         // Firebase URL (SamuSignal Settings wala)
+input string  FirebaseURL    = "https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app"; // Firebase URL
 input string  FirebaseAuth   = "";         // Firebase secret (app Settings me jo daala) — real account ke liye zaroori
 input string  SymbolSuffix   = "m";        // Broker suffix (Exness = "m", XM = "#", koi nahi = khaali)
 input string  SymbolMap      = "";         // Naam alag ho to: XAUUSD=GOLD.i#;BTCUSD=BTCUSD#
 input bool    ConfirmRealAccount = false;  // REAL account pe order lagane ke liye true karo
+input bool    RequireLockedRules = true;   // REAL: Firebase fxbridge rules band hon tabhi order (safety)
 input int     PollSeconds    = 10;         // Firebase check interval (seconds)
 input double  MaxLots        = 0.50;       // Safety: max lot allowed per order
 input int     MagicNumber    = 777001;     // Magic number
@@ -43,7 +52,7 @@ input bool    EnableSignalAlerts = true;                                   // Si
 input bool    EnablePaperTrades  = true;                                   // Auto paper-trade (24/7, app ki My Trades me)
 input bool    EnableAutoTrade    = false;                                  // ⚠️ Auto REAL trade MT5 pe (DEMO pe test karo!)
 input double  AutoTradeLots      = 0.01;                                   // Auto-trade lot size
-input string  AlertPairs        = "EURUSD,GBPUSD,XAUUSD,BTCUSD,ETHUSD";    // Alert/Paper pairs (bina suffix, comma-separated)
+input string  AlertPairs        = "ALL";                                  // Alert/Paper pairs: ALL = app ke saare 32, ya EURUSD,XAUUSD,...
 input int     AlertCheckMinutes = 5;                                       // Kitne min me signal check karein
 
 //--- Globals
@@ -71,7 +80,12 @@ int      g_paperSeq = 0;        // unique id counter
 //--- v3.52: Firebase URL + auth, symbol resolve ---
 string g_base = "";
 bool   g_isReal = false;
-string g_rsPair[]; string g_rsSym[];
+string g_rsPair[]; string g_rsSym[]; datetime g_rsAt[];
+bool   g_rulesOpen = true;      // REAL: jab tak check na ho, khula maano
+datetime g_rulesAt = 0;         // last rules check
+string g_rulesMsg = "abhi check nahi hua";
+
+#define ALL_PAIRS "EURUSD,GBPUSD,USDJPY,USDCHF,USDCAD,AUDUSD,NZDUSD,EURJPY,EURGBP,EURCHF,EURCAD,EURAUD,EURNZD,GBPJPY,GBPCHF,GBPCAD,GBPAUD,GBPNZD,AUDJPY,AUDCHF,AUDCAD,AUDNZD,NZDJPY,NZDCHF,NZDCAD,CADCHF,CADJPY,CHFJPY,XAUUSD,BTCUSD,ETHUSD,US30"
 
 string FbUrl(string path)
 {
@@ -106,8 +120,10 @@ string MapLookup(string pair)
 string ResolveSymbol(string pair)
 {
    StringToUpper(pair);
+   int ci = -1;
    for(int i = 0; i < ArraySize(g_rsPair); i++)
-      if(g_rsPair[i] == pair) return g_rsSym[i];
+      if(g_rsPair[i] == pair) { ci = i; break; }
+   if(ci >= 0 && (g_rsSym[ci] != "" || TimeCurrent() - g_rsAt[ci] < 600)) return g_rsSym[ci];
 
    string found = "";
    string m = MapLookup(pair);
@@ -136,9 +152,13 @@ string ResolveSymbol(string pair)
          }
       }
    }
-   int n = ArraySize(g_rsPair);
-   ArrayResize(g_rsPair, n + 1); ArrayResize(g_rsSym, n + 1);
-   g_rsPair[n] = pair; g_rsSym[n] = found;
+   int n = ci;
+   if(n < 0)
+   {
+      n = ArraySize(g_rsPair);
+      ArrayResize(g_rsPair, n + 1); ArrayResize(g_rsSym, n + 1); ArrayResize(g_rsAt, n + 1);
+   }
+   g_rsPair[n] = pair; g_rsSym[n] = found; g_rsAt[n] = TimeCurrent();
    if(found != "" && found != pair + SymbolSuffix) Print("Symbol: ", pair, " -> ", found);
    return found;
 }
@@ -160,7 +180,44 @@ bool TradingOn()
 {
    if(!EnableTrading) return false;
    if(g_isReal && !ConfirmRealAccount) return false;
+   if(g_isReal && RequireLockedRules && g_rulesOpen) return false;
    return true;
+}
+
+// REAL account: bina secret ke fxbridge padha ja sakta hai? (public URL safety)
+void CheckRules()
+{
+   if(!g_isReal || !RequireLockedRules) { g_rulesOpen = false; return; }
+   int every = g_rulesOpen ? 120 : 900;                            // khula: har 2 min, band: har 15 min
+   if(g_rulesAt != 0 && TimeCurrent() - g_rulesAt < every) return;
+   bool first = (g_rulesAt == 0);
+   g_rulesAt = TimeCurrent();
+   char post[], result[]; string rh;
+   ResetLastError();
+   int res = WebRequest("GET", g_base + "/fxbridge/order.json", "", 5000, post, result, rh);
+   bool was = g_rulesOpen;
+   if(res == 401 || res == 403)
+   {
+      g_rulesOpen = false;
+      g_rulesMsg = "Firebase rules band hain ✓";
+   }
+   else if(res == 200)
+   {
+      g_rulesOpen = true;
+      g_rulesMsg = "Firebase fxbridge rules KHULE hain — REAL order nahi lagega. Rules lock karo.";
+   }
+   else
+   {
+      // network error: pichla result rakho (pehli baar = khula maano)
+      g_rulesMsg = "Rules check nahi ho paya (HTTP " + IntegerToString(res) + ", err " + IntegerToString(GetLastError()) + ")";
+   }
+   Print("Rules check: ", g_rulesMsg);
+   Comment("\n  FXBridge v3.53 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
+           "\n  " + g_rulesMsg +
+           "\n  ConfirmRealAccount: " + (ConfirmRealAccount ? "true" : "false") +
+           "\n  Orders: " + (TradingOn() ? "LAGENGE ✓" : "TEST MODE"));
+   if(was != g_rulesOpen || first)
+      SendReply("REAL account: " + g_rulesMsg);
 }
 
 //--- EA LICENSE (account-locked) ---
@@ -258,7 +315,9 @@ int OnInit()
       if(StringLen(FirebaseAuth) == 0)
          Print(">>> DHYAN: FirebaseAuth khaali hai — Firebase me fxbridge khula rahega. Secret daalo.");
       if(EnableAutoTrade) Print(">>> EnableAutoTrade REAL account pe band rehta hai (sirf demo).");
+      if(RequireLockedRules) Print(">>> RequireLockedRules: Firebase fxbridge rules band hone par hi order lagega.");
    }
+   else g_rulesOpen = false;
 
    trade.SetExpertMagicNumber(MagicNumber);
    trade.SetDeviationInPoints(20);
@@ -266,7 +325,7 @@ int OnInit()
    // VPS restart ke baad duplicate order avoid
    lastOrderID = (long)GlobalVariableGet("FXBridge_LastOrderID");
 
-   Print("=== FXBridge EA v3.52 (Firebase) Started ===");
+   Print("=== FXBridge EA v3.53 (Firebase) Started ===");
    Print("URL: ", g_base, (StringLen(FirebaseAuth) > 0 ? "  (auth ON)" : "  (auth OFF)"));
    Print("Poll: ", PollSeconds, "s | Suffix: '", SymbolSuffix, "' | Trading: ", TradingOn(), (g_isReal ? " | REAL" : " | DEMO"));
    Print("Last processed order ID: ", lastOrderID);
@@ -278,7 +337,10 @@ int OnInit()
    if(EnableSignalAlerts)
    {
       string parts[];
-      int cnt = StringSplit(AlertPairs, ',', parts);
+      string ap = AlertPairs; StringTrimLeft(ap); StringTrimRight(ap);
+      string apu = ap; StringToUpper(apu);
+      if(apu == "ALL" || ap == "") ap = ALL_PAIRS;
+      int cnt = StringSplit(ap, ',', parts);
       for(int i = 0; i < cnt; i++)
       {
          string base = parts[i];
@@ -318,6 +380,7 @@ void OnTimer()
                 " pairs)\nAccount: " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)));
    }
 
+   CheckRules();               // REAL: Firebase rules band hain?
    CheckFirebase();
    TrackAndReportClosures();   // reverse-bridge: band hue trades app ko batao
    CheckCommands();            // app se BE / Trailing commands
@@ -1099,9 +1162,11 @@ void ProcessOrder(string json)
 
    if(!TradingOn())
    {
-      Print("TEST MODE - would place: ", symbol, " ", type, " ", lots, " @ ", entry, " SL=", sl, " TP=", tp,
-            (g_isReal && EnableTrading ? "  (REAL account: ConfirmRealAccount=true karo)" : ""));
-      SendReply("TEST MODE (" + (g_isReal && EnableTrading ? "REAL: ConfirmRealAccount=false" : "EnableTrading=false") + ")\n" + symbol + " " + type +
+      string why = !EnableTrading ? "EnableTrading=false"
+                 : (g_isReal && !ConfirmRealAccount) ? "REAL: ConfirmRealAccount=false"
+                 : "REAL: " + g_rulesMsg;
+      Print("TEST MODE - would place: ", symbol, " ", type, " ", lots, " @ ", entry, " SL=", sl, " TP=", tp, "  (", why, ")");
+      SendReply("TEST MODE (" + why + ")\n" + symbol + " " + type +
                 "\nLots: " + DoubleToString(lots, 2) +
                 "\nEntry: " + DoubleToString(entry, digits) +
                 "\nSL: " + DoubleToString(sl, digits) +
