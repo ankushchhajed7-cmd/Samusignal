@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.20 — Auto MT5 hataya (order sirf tap se)
    v9.9.19 — Chart Analysis: poora analysis button ke peeche
    v9.9.18 — Signal umar box peela blink, FRESH hara highlight
    v9.9.17 — Signal umar (kitna purana, kitna chal chuka)
@@ -26,7 +27,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.19';
+const VERSION = '9.9.20';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
