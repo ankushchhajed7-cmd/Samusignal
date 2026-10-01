@@ -18,6 +18,7 @@
 #    Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 #
 #  CHANGELOG
+#   v1.02 (01-Oct-2026) vps-ea folder bhi (FXBridgeEA wagairah).
 #   v1.01 (30-Sep-2026) FIX: vps.json 32 MB ban rahi thi - Windows PowerShell 5
 #                       Get-Content ki lines ke saath chhupi PSProvider/PSDrive
 #                       details bhi JSON me likh deta hai. Ab sirf saada text.
@@ -25,10 +26,10 @@
 #   v1.00 (30-Sep-2026) Pehla build.
 # ==================================================================
 
-$HelperVer     = '1.01'
+$HelperVer     = '1.02'
 $Repo          = 'ankushchhajed7-cmd/samusignal'
 $Branch        = 'main'
-$DeployFolders = @('copytrade-ea')          # repo ke in folders ki .mq5 VPS pe jaayengi
+$DeployFolders = @('copytrade-ea', 'vps-ea') # repo ke in folders ki .mq5 VPS pe jaayengi
 $SelfRepoPath  = 'vps-helper/SamuVpsHelper.ps1'
 $LogTail       = 12                         # har terminal ke Experts log ki kitni lines
 
@@ -178,7 +179,8 @@ try {
     } catch { $ghErr = 'GitHub se jawab nahi: ' + $_.Exception.Message }
 
     $termSig = ($terms | ForEach-Object { $_.Id }) -join ','
-    $need = $commit -and (($state['commit'] -ne $commit) -or ($state['terms'] -ne $termSig))
+    $folderSig = $DeployFolders -join ','
+    $need = $commit -and (($state['commit'] -ne $commit) -or ($state['terms'] -ne $termSig) -or ($state['folders'] -ne $folderSig))
 
     if ($need) {
         $tree = Invoke-RestMethod -Uri ("https://api.github.com/repos/$Repo/git/trees/" + $commit + "?recursive=1") -Headers $Headers -UseBasicParsing
@@ -247,6 +249,7 @@ try {
         }
         if ($allOk) { $state['commit'] = $commit }
         $state['terms'] = $termSig
+        $state['folders'] = $folderSig
         $state['files'] = @($files | ForEach-Object { Split-Path $_.path -Leaf })
         Save-State $state
     }
