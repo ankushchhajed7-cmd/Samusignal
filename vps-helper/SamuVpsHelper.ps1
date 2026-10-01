@@ -179,7 +179,8 @@ try {
     } catch { $ghErr = 'GitHub se jawab nahi: ' + $_.Exception.Message }
 
     $termSig = ($terms | ForEach-Object { $_.Id }) -join ','
-    $need = $commit -and (($state['commit'] -ne $commit) -or ($state['terms'] -ne $termSig))
+    $folderSig = $DeployFolders -join ','
+    $need = $commit -and (($state['commit'] -ne $commit) -or ($state['terms'] -ne $termSig) -or ($state['folders'] -ne $folderSig))
 
     if ($need) {
         $tree = Invoke-RestMethod -Uri ("https://api.github.com/repos/$Repo/git/trees/" + $commit + "?recursive=1") -Headers $Headers -UseBasicParsing
@@ -248,6 +249,7 @@ try {
         }
         if ($allOk) { $state['commit'] = $commit }
         $state['terms'] = $termSig
+        $state['folders'] = $folderSig
         $state['files'] = @($files | ForEach-Object { Split-Path $_.path -Leaf })
         Save-State $state
     }
