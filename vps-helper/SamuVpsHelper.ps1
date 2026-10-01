@@ -18,6 +18,7 @@
 #    Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 #
 #  CHANGELOG
+#   v1.02 (01-Oct-2026) vps-ea folder bhi (FXBridgeEA wagairah).
 #   v1.01 (30-Sep-2026) FIX: vps.json 32 MB ban rahi thi - Windows PowerShell 5
 #                       Get-Content ki lines ke saath chhupi PSProvider/PSDrive
 #                       details bhi JSON me likh deta hai. Ab sirf saada text.
@@ -25,10 +26,10 @@
 #   v1.00 (30-Sep-2026) Pehla build.
 # ==================================================================
 
-$HelperVer     = '1.01'
+$HelperVer     = '1.02'
 $Repo          = 'ankushchhajed7-cmd/samusignal'
 $Branch        = 'main'
-$DeployFolders = @('copytrade-ea')          # repo ke in folders ki .mq5 VPS pe jaayengi
+$DeployFolders = @('copytrade-ea', 'vps-ea') # repo ke in folders ki .mq5 VPS pe jaayengi
 $SelfRepoPath  = 'vps-helper/SamuVpsHelper.ps1'
 $LogTail       = 12                         # har terminal ke Experts log ki kitni lines
 
