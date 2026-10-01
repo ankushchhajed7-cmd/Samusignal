@@ -158,6 +158,11 @@ input:focus,select:focus{border-color:var(--gold)}
 .sig{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:13px}
 .sig.buy{border-left:3px solid var(--up)} .sig.sell{border-left:3px solid var(--dn)}
 .sig-h{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.sigAge{border:1px solid var(--line);border-left-width:3px;border-radius:6px;padding:8px 11px;margin:0 0 11px;background:rgba(0,0,0,.18)}
+.sigAge .sa-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.sigAge .sa-h span{font-size:10px;letter-spacing:1.5px;color:var(--lbl);font-weight:700}
+.sigAge .sa-h b{font-size:12px;letter-spacing:1px}
+.sigAge p{margin:0;font-size:11.5px;line-height:1.6;color:var(--mut)}
 .sig-l{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:3px}
 .sumcol{flex:0 0 auto;width:118px;display:flex;flex-direction:column;gap:4px}
 .sumrow{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);
@@ -2079,7 +2084,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.16';
+const VERSION = '9.9.17';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -3370,6 +3375,45 @@ function completedBars(bars, tfId){
   return isFinite(age) && age >= -2 && age < mins ? bars.slice(0,-1) : bars;
 }
 
+/* v9.9.17: SIGNAL UMAR — ye BUY/SELL kitni candle se chal raha hai, kab bana,
+   aur tab se price kitna signal ki taraf chal chuka (TP ka kitna %).
+   Late signal (move pehle hi ho chuka) pakadne ke liye. */
+function sigAge(bars, dir, tfId, live, tpDist, sym){
+  if(!bars || bars.length < 70 || (dir !== 'BUY' && dir !== 'SELL')) return null;
+  const maxBack = Math.min(48, bars.length - 60);
+  let n = 0;
+  for(let k = 1; k <= maxBack; k++){
+    if(tfBias(bars.slice(0, bars.length - k)).bias !== dir) break;
+    n = k;
+  }
+  const b0 = bars[bars.length - 1 - n];
+  const mins = pressureIntervalMinutes(tfId);
+  const d = pressureDate(b0.t);
+  const at = isFinite(d.getTime()) ? d.getTime() + mins*60000 : 0;   /* jis candle pe bana uska close */
+  const moved = dir === 'BUY' ? live - b0.c : b0.c - live;
+  const pct = tpDist > 0 ? Math.round(moved / tpDist * 100) : 0;
+  const pip = (SPECS[sym] && SPECS[sym].pip) || 1;
+  const candles = n + 1;
+  const st = pct >= 50 ? 'LATE' : candles >= 10 ? 'PURANA' : (candles <= 2 && pct < 25) ? 'FRESH' : 'CHAL RAHA';
+  return {candles, more: n === maxBack, at, price: b0.c, pips: +(moved / pip).toFixed(1), pct, st,
+          tf: (TFS.find(x => x.id === tfId) || {l: tfId}).l};
+}
+function sigAgeHTML(sym, a, compact){
+  if(!a) return '';
+  const col = a.st === 'FRESH' ? 'var(--up)' : a.st === 'LATE' ? 'var(--dn)' : 'var(--gold)';
+  const tip = {FRESH: 'Abhi bana hai — sahi waqt.', 'CHAL RAHA': 'Kuch der se chal raha hai — entry theek, par SL zaroor.',
+    PURANA: 'Trend bahut der se chal raha hai — palatne ka khatra badhta hai.', LATE: 'Move ka bada hissa ho chuka — chase mat karo, pullback ka intezaar karo.'}[a.st];
+  const mv = (a.pips >= 0 ? '+' : '') + a.pips + ' pips';
+  const cnt = a.candles + (a.more ? '+' : '');
+  if(compact) return `<p class="hint sigAgeC" style="margin:0 0 9px"><b style="color:${col}">⏱ ${a.st}</b> · ${cnt} candle (${a.tf}) · <span style="color:${a.pips>=0?'var(--up)':'var(--dn)'}">${mv}</span> (TP ka ${a.pct}%)</p>`;
+  return `<div class="sigAge" style="border-color:${col}">
+      <div class="sa-h"><span>⏱ SIGNAL UMAR</span><b style="color:${col}">${a.st}</b></div>
+      <p><span>${cnt} candle (${a.tf}) se chal raha</span>${a.at ? ` · <span data-ago="${a.at}">${ago(a.at)}</span> <span>bana</span>` : ''} · <span class="mono">@ ${fmt(sym, a.price)}</span><br>
+      <span>Tab se price signal ki taraf</span> <b class="mono" style="color:${a.pips>=0?'var(--up)':'var(--dn)'}">${mv}</b> <span>(TP ka ${a.pct}%)</span><br>
+      <span style="color:${col}">${tip}</span></p>
+    </div>`;
+}
+
 /* ================= CHART ANALYST =================
    Har number se ek saaf wajah banata hai — kyun BUY, kyun SELL */
 function analyse(sym, bars, v, s){
@@ -3666,11 +3710,12 @@ async function runAnalyze(){
     const wanted = S.htf ? ['15min','1h','4h','1day'] : ['1h','4h'];
     if(!wanted.includes(S.tf)) wanted.unshift(S.tf);
     const res = {};
-    let barsBase = null, rawBase = null, done = 0;
+    let barsBase = null, rawBase = null, baseTf = null, done = 0;
     for(const tf of wanted){
       const rawBars = await getSeries(sym, tf, 120, note);
       const bars = completedBars(rawBars, tf);
       if(tf === S.tf || wanted[0] === tf){
+        if(!barsBase) baseTf = tf;
         barsBase = barsBase || bars;
         rawBase = rawBase || rawBars;
         barCache[sym] = rawBars;
@@ -3731,6 +3776,7 @@ async function runAnalyze(){
       atr: base.atr, rsi: base.rsi, htfAgree, htfCount: htfItems.length, htfStrict,
       closedOnly: true,
       tfs: TFS.filter(t=>res[t.id]).map(t=>({l:t.l, b:res[t.id].bias})),
+      age: sigAge(barsBase, dir, baseTf, live, lv.tpDist, sym),
       at: Date.now()
     };
     lastAn = analyse(sym, barsBase, lastVotes, lastSignal);
@@ -3925,7 +3971,7 @@ function renderSignal(){
       ? `<p class="hint" style="color:var(--gold);margin-top:8px">ℹ Ek higher timeframe match nahi hai, lekin core rules strong hain; size normal se bada mat karo.</p>`
       : '';
   $('cardSignal').innerHTML = `
-    <p class="ttl">Signal <span class="sp" data-ago="${s.at}">${ago(s.at)}</span></p>
+    <p class="ttl">Signal <span class="sp">check · <span data-ago="${s.at}">${ago(s.at)}</span></span></p>
     <div class="sig ${cls}">
       <div class="sig-h">
         <div class="sig-l">
@@ -3949,6 +3995,7 @@ function renderSignal(){
         <div class="lvl tp"><span>TP · $${s.tpD}</span><b class="mono">${fmt(s.sym,s.tp)}</b><small style="display:block;font-size:9px;color:var(--mut)">${s.tpPips} pips</small></div>
       </div>
       ${ladderHTML(s)}
+      ${sigAgeHTML(s.sym, s.age)}
       ${(() => { const f = finalCall(s); return `
       <div class="verdictbar${f.t==='WAIT'?' vWait':''}" style="border-color:${f.c};background:${f.bg}">
         <b class="shine ${f.c==='var(--up)'?'up':f.c==='var(--dn)'?'dn':'gd'}">${f.t}</b>
@@ -4052,6 +4099,7 @@ function drawScanRows(){
         <div><span>AGENTS</span>${r.vb}B/${r.vs}S</div>
       </div>
       <p class="hint" style="margin:0 0 9px">${tier} · Quality ${r.q}% · Analyst ${r.an}% · ${r.htf}/${r.htfN} TF saath${r.news?` · ⚠ ${r.news}`:''}</p>
+      ${sigAgeHTML(r.sym, r.age, true)}
       <p class="hint" style="margin:0 0 10px;color:#dde3ea">${r.why}</p>
       <button class="btn ${up?'g':'r'} sm" onclick="openScanned('${r.sym}')">POORA ANALYSIS DEKHO</button>
     </div>`;
@@ -4119,6 +4167,7 @@ async function runScan(){
       })(), live);
 
       const sig = {sym, dir, live, sl, tp, slPips:lv.slPips, tpPips:lv.tpPips, tfs:tfArr, q};
+      const age = sigAge(base, dir, uniq[0], live, lv.tpDist, sym);
       const an = analyse(sym, base, v, sig);
 
       /* combined score — teeno ka mel */
@@ -4135,7 +4184,7 @@ async function runScan(){
         sym, dir, score, q, an:an.pct, grade: q>=80?'A+':q>=70?'A':q>=60?'B':q>=45?'C':'D',
         entry:live, sl, tp, vb:v.buy, vs:v.sell, conf:v.conf, verdict:v.verdict,
         htf: tfArr.filter(x=>x.b===dir).length, htfN: tfArr.length,
-        news: nr ? nr.c+' news' : '', why
+        news: nr ? nr.c+' news' : '', why, age
       });
     }catch(e){
       if(e.code === 404) markBad(sym);
@@ -9587,6 +9636,12 @@ nav button{min-width:0}
     'SABSE NEECHE':'LOWEST','SABSE UPAR':'HIGHEST','Sabse bura floating':'Worst floating','M1 load ho raha…':'Loading M1…',
     'Har din ka sabse bura floating (sab khule trades mila ke) aur kab. Source ka hisaab Executor v1.06 lagne ke baad se; mera 7 din purana bhi (M1 candles se, lagbhag).':'Worst floating of each day (all open trades combined) and when. Source is tracked from Executor v1.06 onwards; mine goes back 7 days (from M1 candles, approx).',
     '7 din me koi copied trade band nahi hua.':'No copied trade closed in the last 7 days.',
+    '⏱ SIGNAL UMAR':'⏱ SIGNAL AGE','CHAL RAHA':'RUNNING','PURANA':'OLD','abhi':'just now','check ·':'check ·',
+    'Tab se price signal ki taraf':'Since then price moved in signal direction',
+    'Abhi bana hai — sahi waqt.':'Just formed — good timing.',
+    'Kuch der se chal raha hai — entry theek, par SL zaroor.':'Running for a while — entry OK, but always use SL.',
+    'Trend bahut der se chal raha hai — palatne ka khatra badhta hai.':'Trend has run long — reversal risk is rising.',
+    'Move ka bada hissa ho chuka — chase mat karo, pullback ka intezaar karo.':'Most of the move is done — don\'t chase, wait for a pullback.',
     'GitHub pe merge karte hi naye EA khud VPS pe pahunch ke compile hote hain. Chart pe lagana aapka kaam.':'Once merged on GitHub, new EAs reach the VPS and compile by themselves. Attaching to the chart is up to you.',
     'Setup (ek baar)':'Setup (one time)','📋 LINE COPY':'📋 COPY LINE','● CHALU':'● RUNNING','● BAND':'● STOPPED','MT5 chalu':'MT5 running','MT5 band':'MT5 stopped',
     'Abhi koi EA compile nahi hua.':'No EA compiled yet.','Helper log':'Helper log',
@@ -9614,6 +9669,8 @@ nav button{min-width:0}
     [/^Source ke saare symbols copy honge\.$/, 'All source symbols will be copied.'],
     [/^Naam ka shuru wala hissa milta hai: (.+)\. Pehle se copied trades pe asar nahi\.$/, 'Matches the start of the name: $1. Already-copied trades are not affected.'],
     [/^Mera pending #(\d+) laga hai$/, 'My pending #$1 is placed'],
+    [/^(\d+) sec pehle$/, '$1 sec ago'],[/^(\d+) min pehle$/, '$1 min ago'],[/^(\d+) ghante pehle$/, '$1 h ago'],[/^(\d+) din pehle$/, '$1 days ago'],
+    [/^(\d+\+?) candle \((.+)\) se chal raha$/, 'running for $1 candles ($2)'],[/^\(TP ka (-?\d+)%\)$/, '($1% of TP)'],[/^bana$/, 'formed'],
     [/^Aakhri (\d+) band trades · (\d+) profit me$/, 'Last $1 closed trades · $2 in profit'],
     [/^Sabse bura floating$/, 'Worst floating'],[/^· average$/, '· average'],
     [/^(\d+) trade pehle minus me gaye, phir profit me band$/, '$1 trades went into minus first, then closed in profit'],

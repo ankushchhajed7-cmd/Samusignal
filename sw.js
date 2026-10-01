@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.17 — Signal umar (kitna purana, kitna chal chuka)
    v9.9.16 — Copy tab: VPS Helper report
    v9.9.15 — Copy tab: Floating Watch
    v9.9.14 — Copy settings auto VPS pe
@@ -23,7 +24,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.16';
+const VERSION = '9.9.17';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
