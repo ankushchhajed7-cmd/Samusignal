@@ -163,6 +163,15 @@ input:focus,select:focus{border-color:var(--gold)}
 .sigAge .sa-h span{font-size:10px;letter-spacing:1.5px;color:var(--lbl);font-weight:700}
 .sigAge .sa-h b{font-size:12px;letter-spacing:1px}
 .sigAge p{margin:0;font-size:11.5px;line-height:1.6;color:var(--mut)}
+/* v9.9.18: Signal Umar box peela blink; FRESH (sahi waqt) hara highlight */
+@keyframes ageBlink{
+  0%,100%{border-color:#F5C542;box-shadow:0 0 0 1px rgba(245,197,66,.55),0 0 14px rgba(245,197,66,.45)}
+  50%{border-color:rgba(245,197,66,.15);box-shadow:0 0 0 0 rgba(245,197,66,0)}
+}
+.sigAge{border-width:2px !important;border-style:solid !important;animation:ageBlink 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.sigAge{animation:none;border-color:#F5C542 !important}}
+.saGood{display:inline-block;background:rgba(22,226,126,.18);color:#16E27E !important;font-weight:800;
+  border:1px solid rgba(22,226,126,.6);border-radius:5px;padding:1px 7px;margin-top:3px}
 .sig-l{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:3px}
 .sumcol{flex:0 0 auto;width:118px;display:flex;flex-direction:column;gap:4px}
 .sumrow{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);
@@ -2084,7 +2093,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.17';
+const VERSION = '9.9.18';
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -3405,12 +3414,12 @@ function sigAgeHTML(sym, a, compact){
     PURANA: 'Trend bahut der se chal raha hai — palatne ka khatra badhta hai.', LATE: 'Move ka bada hissa ho chuka — chase mat karo, pullback ka intezaar karo.'}[a.st];
   const mv = (a.pips >= 0 ? '+' : '') + a.pips + ' pips';
   const cnt = a.candles + (a.more ? '+' : '');
-  if(compact) return `<p class="hint sigAgeC" style="margin:0 0 9px"><b style="color:${col}">⏱ ${a.st}</b> · ${cnt} candle (${a.tf}) · <span style="color:${a.pips>=0?'var(--up)':'var(--dn)'}">${mv}</span> (TP ka ${a.pct}%)</p>`;
+  if(compact) return `<p class="hint sigAgeC" style="margin:0 0 9px">${a.st === 'FRESH' ? `<b class="saGood" style="margin:0">⏱ FRESH</b>` : `<b style="color:${col}">⏱ ${a.st}</b>`} · ${cnt} candle (${a.tf}) · <span style="color:${a.pips>=0?'var(--up)':'var(--dn)'}">${mv}</span> (TP ka ${a.pct}%)</p>`;
   return `<div class="sigAge" style="border-color:${col}">
-      <div class="sa-h"><span>⏱ SIGNAL UMAR</span><b style="color:${col}">${a.st}</b></div>
+      <div class="sa-h"><span>⏱ SIGNAL UMAR</span>${a.st === 'FRESH' ? `<b class="saGood" style="margin:0">${a.st}</b>` : `<b style="color:${col}">${a.st}</b>`}</div>
       <p><span>${cnt} candle (${a.tf}) se chal raha</span>${a.at ? ` · <span data-ago="${a.at}">${ago(a.at)}</span> <span>bana</span>` : ''} · <span class="mono">@ ${fmt(sym, a.price)}</span><br>
       <span>Tab se price signal ki taraf</span> <b class="mono" style="color:${a.pips>=0?'var(--up)':'var(--dn)'}">${mv}</b> <span>(TP ka ${a.pct}%)</span><br>
-      <span style="color:${col}">${tip}</span></p>
+      ${a.st === 'FRESH' ? `<span class="saGood">✓ ${tip}</span>` : `<span style="color:${col}">${tip}</span>`}</p>
     </div>`;
 }
 
@@ -9638,7 +9647,7 @@ nav button{min-width:0}
     '7 din me koi copied trade band nahi hua.':'No copied trade closed in the last 7 days.',
     '⏱ SIGNAL UMAR':'⏱ SIGNAL AGE','CHAL RAHA':'RUNNING','PURANA':'OLD','abhi':'just now','check ·':'check ·',
     'Tab se price signal ki taraf':'Since then price moved in signal direction',
-    'Abhi bana hai — sahi waqt.':'Just formed — good timing.',
+    'Abhi bana hai — sahi waqt.':'Just formed — good timing.','✓ Abhi bana hai — sahi waqt.':'✓ Just formed — good timing.','⏱ FRESH':'⏱ FRESH',
     'Kuch der se chal raha hai — entry theek, par SL zaroor.':'Running for a while — entry OK, but always use SL.',
     'Trend bahut der se chal raha hai — palatne ka khatra badhta hai.':'Trend has run long — reversal risk is rising.',
     'Move ka bada hissa ho chuka — chase mat karo, pullback ka intezaar karo.':'Most of the move is done — don\'t chase, wait for a pullback.',
