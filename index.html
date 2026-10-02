@@ -417,6 +417,7 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 .hist .ic.w{background:rgba(0,255,150,.15);color:var(--up);border:1px solid rgba(0,255,150,.4)}
 .hist .ic.l{background:rgba(255,68,68,.15);color:var(--dn);border:1px solid rgba(255,68,68,.4)}
 .hist .ic.m{background:rgba(119,119,119,.15);color:var(--mut);border:1px solid var(--line)}
+.hist .ic.live{background:rgba(245,197,66,.12);color:var(--gold);border:1px solid rgba(245,197,66,.4);font-size:8px;letter-spacing:.3px}
 .hist .in{flex:1;min-width:0}
 .hist .in b{font-size:12px;display:block}
 .hist .in small{color:var(--mut);font-size:12px;font-weight:700}
@@ -2071,7 +2072,8 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.21';
+const VERSION = '9.9.22';
+const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
 const $ = id => document.getElementById(id);
@@ -2326,6 +2328,22 @@ if(!LS.get('mig93', false)){
     S.dTp = 5; LS.set('dTp', 5);
   }
   LS.set('mig93', true);
+}
+if(!LS.get('mig9922', false)){
+  /* v9.9.22: purani history me ek hi trade baar-baar record hua tha
+     (same pair + same direction, 4 ghante ke andar ya pehla abhi chal raha tha).
+     Delete nahi karte — dup:true laga ke stats aur list se bahar. */
+  try{
+    const kept = {};
+    (S.sigs || []).slice().sort((a,b) => a.at - b.at).forEach(g => {
+      const k = g.sym + '|' + g.dir;
+      const p = kept[k];
+      if(p && (g.at - p.at < SIG_DUP_MS || p.out === 'OPEN' || (p.closedAt && p.closedAt > g.at))) g.dup = true;
+      else { delete g.dup; kept[k] = g; }
+    });
+    LS.set('sigs', S.sigs);
+  }catch(e){}
+  LS.set('mig9922', true);
 }
 
 if(!LS.get('mig90', false)){
@@ -4304,8 +4322,15 @@ function watchPreset(k){
 }
 
 /* ---------------- signal history ---------------- */
+/* Same pair + same direction dobara Analyze kiya to wahi trade dobara record na ho:
+   pehla abhi chal raha hai (OPEN) ya 4 ghante se kam purana hai -> skip */
+function sigIsDup(sym, dir, at){
+  return S.sigs.some(g => !g.dup && g.sym === sym && g.dir === dir &&
+    (g.out === 'OPEN' || at - g.at < SIG_DUP_MS));
+}
 function logSignal(sig, v, an){
   if(!sig || sig.dir === 'NEUTRAL') return;
+  if(sigIsDup(sig.sym, sig.dir, sig.at || Date.now())) return;
   S.sigs.unshift({
     id:'S'+Date.now(), at:sig.at, sym:sig.sym, dir:sig.dir, tf:sig.tf,
     q:sig.q, grade:sig.grade, entry:sig.live, sl:sig.sl, tp:sig.tp,
@@ -4322,7 +4347,7 @@ function logSignal(sig, v, an){
 function scoreSignals(q, bars){
   let changed = false;
   S.sigs.forEach(g => {
-    if(g.out !== 'OPEN') return;
+    if(g.out !== 'OPEN' || g.dup) return;
     const d = q[g.sym]; if(!d || !d.p) return;
     const p = d.p;
     const bb = (bars && bars[g.sym]) || null;
@@ -4360,7 +4385,7 @@ function agLiveRows(){
 }
 
 function gradeStats(){
-  const done = S.sigs.filter(g => g.out==='TP' || g.out==='SL');
+  const done = S.sigs.filter(g => !g.dup && (g.out==='TP' || g.out==='SL'));
   const by = {};
   done.forEach(g => {
     const k = g.grade || '—';
@@ -4375,7 +4400,8 @@ function gradeStats(){
 }
 
 function renderSigHist(){
-  const all = S.sigs;
+  const all = S.sigs.filter(g => !g.dup);
+  const nDup = S.sigs.length - all.length;
   const done = all.filter(g => g.out==='TP' || g.out==='SL');
   const open = all.filter(g => g.out==='OPEN').length;
   const wr = done.length ? Math.round(done.filter(g=>g.out==='TP').length/done.length*100) : 0;
@@ -4402,10 +4428,12 @@ function renderSigHist(){
       <td class="mono mu" style="text-align:right">${g.avgQ}%</td>
     </tr>`).join('')}</tbody></table>
     <p class="hint">Ye asli trades nahi — har analyze hua signal apne SL/TP se khud score hota hai. Isse pata chalta hai kaunsa grade sach me kaam karta hai.</p>` : ''}
+    ${nDup ? `<p class="hint">${nDup} duplicate signal (same pair + direction dobara Analyze) gine nahi gaye.</p>` : ''}
     <p class="ttl" style="margin:16px 0 8px">Recent</p>
+    <p class="hint" style="margin:-4px 0 6px">LIVE = abhi chal raha · TP = sahi · SL = galat · EX = 48 ghante me kuch nahi hua</p>
     ${all.slice(0,25).map(g => {
-      const ic = g.out==='TP'?'w':g.out==='SL'?'l':'m';
-      const lbl = g.out==='TP'?'TP':g.out==='SL'?'SL':g.out==='EXPIRED'?'EX':'···';
+      const ic = g.out==='TP'?'w':g.out==='SL'?'l':g.out==='OPEN'?'live':'m';
+      const lbl = g.out==='TP'?'TP':g.out==='SL'?'SL':g.out==='EXPIRED'?'EX':'LIVE';
       return `<div class="hist">
         <div class="ic ${ic}">${lbl}</div>
         <div class="in">
