@@ -2076,7 +2076,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.26';
+const VERSION = '9.9.27';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -5909,7 +5909,7 @@ function openQuick(target){
     lotsBase: +$('inLots').value || S.dLot,
     mode: S.slMode, slD: defSL(s.sym, +$('inLots').value || S.dLot), tpD: defTP(s.sym, +$('inLots').value || S.dLot),
     atrSL: S.atrSL, atrRR: S.atrRR, autoLot: S.autoLot, riskUsd: S.riskUsd,
-    ordType: S.mt5Type
+    ordType: (target === 'MT5') ? S.mt5Type : 'MARKET'   /* journal me default turant (market) */
   };
   drawQuick(); openSheet('qtSheet');
 }
@@ -5939,8 +5939,8 @@ function qtCalc(){
 
 /* MT5 pe jo entry sach me jayegi (limit/stop offset ke baad) */
 function sendPx0(){ return qtSendPrice() }
-function sl0(){ const {lv,sl} = qtCalc(); const sh = qtState.target==='MT5' ? qtSendPrice()-qtState.entry : 0; return sl+sh }
-function tp0(){ const {lv,tp} = qtCalc(); const sh = qtState.target==='MT5' ? qtSendPrice()-qtState.entry : 0; return tp+sh }
+function sl0(){ const {lv,sl} = qtCalc(); return sl + qtSendPrice() - qtState.entry }
+function tp0(){ const {lv,tp} = qtCalc(); return tp + qtSendPrice() - qtState.entry }
 function qtSendPrice(){
   const q = qtState;
   if(q.ordType === 'MARKET') return q.entry;
@@ -5966,13 +5966,22 @@ function drawQuick(){
       <span class="gr" style="margin-left:auto">${q.grade}${q.qual?` · ${q.qual}%`:''}</span>
     </div>
 
-    ${isMt5 ? `
-      <label>MT5 order type</label>
-      <div class="chips" style="margin-bottom:12px">
-        <button class="chip ${q.ordType==='MARKET'?'on gold':''}" onclick="qtSet('ordType','MARKET')">Market</button>
-        <button class="chip ${q.ordType==='LIMIT'?'on gold':''}" onclick="qtSet('ordType','LIMIT')">Limit</button>
-        <button class="chip ${q.ordType==='STOP'?'on gold':''}" onclick="qtSet('ordType','STOP')">Stop</button>
-      </div>` : ''}
+    <label>${isMt5 ? 'MT5 order type' : 'Order type'}</label>
+    <div class="chips" style="margin-bottom:${q.ordType==='MARKET'?12:8}px">
+      <button class="chip ${q.ordType==='MARKET'?'on gold':''}" onclick="qtSet('ordType','MARKET')">Market</button>
+      <button class="chip ${q.ordType==='LIMIT'?'on gold':''}" onclick="qtSet('ordType','LIMIT')">${q.dir} Limit</button>
+      <button class="chip ${q.ordType==='STOP'?'on gold':''}" onclick="qtSet('ordType','STOP')">${q.dir} Stop</button>
+    </div>
+    ${q.ordType !== 'MARKET' ? `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <label style="margin:0;flex:1">Live price se kitne pips door</label>
+        <input class="mono" type="number" step="1" min="1" value="${S.limPips}" style="width:90px"
+               oninput="qtPips(this.value)">
+      </div>
+      <p class="hint" style="margin:0 0 12px">${q.ordType === 'LIMIT'
+        ? `${q.dir} LIMIT — price pehle ${q.dir==='BUY'?'neeche':'upar'} aaye (pullback), tab trade khulegi.`
+        : `${q.dir} STOP — price ${q.dir==='BUY'?'upar':'neeche'} toot ke aage jaaye (breakout), tab trade khulegi.`}
+        TP/SL ka $ wahi rehta hai, sirf levels saath me khisakte hain.${isMt5 ? '' : ' Journal me trade tab tak PENDING rahegi.'}</p>` : ''}
 
     <label>SL / TP kaise nikale</label>
     <div class="chips" style="margin-bottom:12px">
@@ -6002,7 +6011,7 @@ function drawQuick(){
       </div>
     `}
 
-    <div><label>Entry price (manually badal sakte ho)</label>
+    <div><label>${q.ordType === 'MARKET' ? 'Entry price (manually badal sakte ho)' : 'Live price — order isse ' + S.limPips + ' pips door lagega'}</label>
       <input class="mono" type="number" step="0.00001" value="${fmt(sym,q.entry)}" oninput="qtSet('entry',+this.value,1)"></div>
 
     ${(() => { const n = newsRisk(sym); return n
@@ -6047,7 +6056,7 @@ function paintQtChart(){
   const cv = $('qtChart'), bars = barCache[q.sym];
   if(!cv || !bars) return;
   const {sl, tp} = qtCalc();
-  const sh = q.target==='MT5' ? qtSendPrice()-q.entry : 0;
+  const sh = qtSendPrice() - q.entry;
   drawLevels(cv, q.sym, bars, {entry:q.entry+sh, sl:sl+sh, tp:tp+sh, dir:q.dir, cur:q.entry});
 }
 
@@ -6056,7 +6065,7 @@ function qtLevels(){
   const q = qtState, sym = q.sym;
   const {lv, sl, tp} = qtCalc();
   const isMt5 = q.target === 'MT5';
-  const sendPx = isMt5 ? qtSendPrice() : q.entry;
+  const sendPx = qtSendPrice();          /* LIMIT/STOP me entry live se door */
   const shift = sendPx - q.entry;
 
   $('qtLv').innerHTML = `
@@ -6083,8 +6092,8 @@ function qtLevels(){
       ? `<p class="hint" style="color:var(--up);margin-top:8px">✓ R:R 1:${rr.toFixed(2)} — sirf ${beW.toFixed(0)}% win rate se profit</p>`
       : `<p class="hint" style="color:var(--gold);margin-top:8px">R:R 1:${rr.toFixed(2)} — ${beW.toFixed(0)}% win rate chahiye</p>`;
   }
-  const typeTxt = isMt5 && q.ordType !== 'MARKET'
-    ? ` · ${q.dir}${q.ordType} live se ${S.limPips} pips ${q.ordType==='LIMIT'?'door':'aage'}`
+  const typeTxt = q.ordType !== 'MARKET'
+    ? ` · ${q.dir} ${q.ordType} live se ${S.limPips} pips ${q.ordType==='LIMIT'?'door':'aage'}`
     : '';
   $('qtInfo').textContent = `R:R 1:${rr.toFixed(2)} · barabar rehne ko ${(100/(1+rr)).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${q.mode==='ATR'?` · ATR ${fmt(sym,q.atr)}`:''}${typeTxt}`;
 }
@@ -6114,6 +6123,12 @@ function qtLotDone(el){
   paintQtChart();
 }
 
+function qtPips(v){
+  const n = Math.round(+v);
+  if(!(n >= 1)) return;                     /* aadha typed number ignore */
+  S.limPips = n; save();
+  qtLevels(); paintQtChart();
+}
 function qtSet(k, v, keepFocus){
   qtState[k] = v;
   keepFocus ? qtLevels() : drawQuick();
@@ -6123,7 +6138,7 @@ function qtReset(){
   Object.assign(qtState, {
     lots: S.dLot, lotsBase: S.dLot, mode: qtState.atr > 0 ? S.slMode : 'DOLLAR',
     slD: defSL(qtState.sym, S.dLot), tpD: defTP(qtState.sym, S.dLot), atrSL: S.atrSL, atrRR: S.atrRR,
-    autoLot: S.autoLot, riskUsd: S.riskUsd, ordType: S.mt5Type
+    autoLot: S.autoLot, riskUsd: S.riskUsd, ordType: qtState.target === 'MT5' ? S.mt5Type : 'MARKET'
   });
   if(lastSignal && lastSignal.sym === qtState.sym) qtState.entry = lastSignal.live;
   drawQuick(); toast('Default values wapas aa gayi');
@@ -6146,10 +6161,11 @@ async function confirmTrade(){
     await sendMT5(sym, q.dir, lv.lots, q.entry, sl, tp, q.ordType);
     return;
   }
-  addTrade({
-    sym, dir: q.dir, lots: lv.lots, entry: q.entry, sl, tp,
+  const sh = qtSendPrice() - q.entry;       /* LIMIT/STOP: entry, SL, TP saath me khisko */
+  addTrade(Object.assign({
+    sym, dir: q.dir, lots: lv.lots, entry: q.entry + sh, sl: sl + sh, tp: tp + sh,
     slD: lv.slD, tpD: lv.tpD, q: q.qual, grade: q.grade
-  });
+  }, q.ordType !== 'MARKET' ? {pend: q.ordType} : {}));
   closeSheet('qtSheet');
 }
 
@@ -6210,10 +6226,13 @@ function addTrade(t){
   t.cur = t.entry;
   t.pl = 0;
   t.r0 = Math.abs(t.entry - t.sl);   /* 1R ki doori — breakeven isi se nikalta hai */
+  if(t.pend) t.pendAt = t.at;
   S.open.push(t); save();
   renderTrades(); go('Trades', document.querySelector('nav button[data-pg="Trades"]'));
-  toast(`App journal me add ho gaya — ${t.dir} ${t.sym} @ ${fmt(t.sym,t.entry)}`);
-  logAdd(`Trade open: ${t.dir} ${t.sym} @ ${fmt(t.sym,t.entry)}`);
+  const kind = t.pend ? `PENDING ${t.dir} ${t.pend}` : t.dir;
+  toast(t.pend ? `Pending laga — ${kind} ${t.sym} @ ${fmt(t.sym,t.entry)} (price aane par khulegi)`
+               : `App journal me add ho gaya — ${t.dir} ${t.sym} @ ${fmt(t.sym,t.entry)}`);
+  logAdd(`${t.pend ? 'Pending' : 'Trade open'}: ${kind} ${t.sym} @ ${fmt(t.sym,t.entry)}`);
   if(S.tgAuto) tgSend(tradeText(t,'OPEN'), true);
 }
 
@@ -6281,7 +6300,16 @@ function beCheck(t, px){
   return true;
 }
 
-function closeManualBtn(id){ if(confirm('Ye trade band karna hai?')) closeTrade(id,'MANUAL') }
+function closeManualBtn(id){
+  const t = S.open.find(x => x.id === id); if(!t) return;
+  if(t.pend){                                 /* bhara hi nahi — history me nahi jaata */
+    if(!confirm(`Ye pending ${t.dir} ${t.pend} hatana hai?`)) return;
+    S.open = S.open.filter(x => x.id !== id); save(); renderTrades();
+    logAdd(`Pending hataya: ${t.dir} ${t.pend} ${t.sym}`); toast('Pending order hata diya');
+    return;
+  }
+  if(confirm('Ye trade band karna hai?')) closeTrade(id,'MANUAL');
+}
 
 let lastOpenSync = 0, syncBusy = false;
 
@@ -6315,7 +6343,29 @@ async function touchQuotes(syms, note){
    TP dono chhue to order pata nahi — tab SL maante hain (nuksaan wala maan lo).
    Jis candle me breakeven laga, usme entry wapas chhuna BE nahi maante:
    us candle ke andar pehle kya hua ye candle se pata nahi chalta. */
+/* Pending (LIMIT/STOP) kab bhara: BUY LIMIT & SELL STOP neeche aane par,
+   BUY STOP & SELL LIMIT upar jaane par */
+function pendHit(t, hi, lo){
+  return (t.dir === 'BUY') === (t.pend === 'LIMIT') ? lo <= t.entry : hi >= t.entry;
+}
+function pendFill(t, at){
+  const kind = `${t.dir} ${t.pend}`;
+  delete t.pend;
+  t.at = at; t.cur = t.entry; t.pl = 0;
+  logAdd(`Pending bhara: ${kind} ${t.sym} @ ${fmt(t.sym, t.entry)}`);
+  toast(`${SPECS[t.sym].n}: ${kind} bhar gaya — trade khul gayi`);
+  notify(`⏳→✅ ${kind} — ${SPECS[t.sym].n}`, `Entry ${fmt(t.sym, t.entry)} pe trade khul gayi`, 'fill-' + t.id);
+  if(S.tgAuto) tgSend(`✅ <b>PENDING BHARA — ${SPECS[t.sym].n}</b>\n\n${kind} ${t.lots} lot\nEntry: <code>${fmt(t.sym, t.entry)}</code>\n⏰ ${t12(Date.now())}`, true);
+}
+
 function touchScan(t, bars){
+  if(t.pend){
+    /* pehle dekho pending kab bhara; uske agle candle se SL/TP ginenge */
+    const pf = Math.max(Math.ceil(t.pendAt / BAR5) * BAR5, (t.chkAt || 0) - BAR5);
+    const fb = bars.find(b => { const ms = barMs(b.t); return ms >= pf && pendHit(t, b.h, b.l) });
+    if(!fb) return null;
+    pendFill(t, barMs(fb.t) + 1);
+  }
   const from = Math.max(Math.ceil(t.at / BAR5) * BAR5, (t.chkAt || 0) - BAR5);
   for(const b of bars){
     const ms = barMs(b.t);
@@ -6393,6 +6443,10 @@ async function refreshOpen(force){
       const touched = touchScan(t, bars[t.sym] || []);
       t.chkAt = Date.now();
       if(touched){ hits.push([t.id, touched]); return }
+      if(t.pend){
+        if(pendHit(t, d.p, d.p)) pendFill(t, Date.now());
+        else { t.cur = d.p; t.pl = 0; return }           /* abhi bhara nahi */
+      }
       t.cur = d.p; t.pl = tradePL(t, d.p);
       trackExcursion(t, d.p);
       beCheck(t, d.p);
@@ -6488,14 +6542,16 @@ function renderTrades(){
     const cur = t.cur || t.entry;
     const span = Math.abs(t.tp - t.sl) || 1;
     let prog = (t.sl > 0 && t.tp > 0) ? (t.dir==='BUY' ? (cur - t.sl) : (t.sl - cur)) / span : 0.5;
-    prog = Math.max(0, Math.min(1, prog));
+    prog = t.pend ? 0 : Math.max(0, Math.min(1, prog));
     return `<div class="tr ${t.dir.toLowerCase()}">
       <div class="tr-h">
         <b class="mono">${t.sym}</b>
-        <span class="tag ${t.dir.toLowerCase()}">${t.dir}</span>
+        <span class="tag ${t.dir.toLowerCase()}">${t.dir}${t.pend ? ' ' + t.pend : ''}</span>
         <span class="mu" style="font-size:11px">${t.lots} lot</span>
-        <span class="pl mono glow ${pl>=0?'up':'dn'}">${money(pl)}</span>
+        ${t.pend ? `<span class="pl mono" style="color:var(--gold);font-size:12px">⏳ PENDING</span>`
+                 : `<span class="pl mono glow ${pl>=0?'up':'dn'}">${money(pl)}</span>`}
       </div>
+      ${t.pend ? `<p class="hint" style="margin:6px 0 4px;color:var(--gold)">Price ${fmt(t.sym, t.entry)} ${(t.dir === 'BUY') === (t.pend === 'LIMIT') ? 'tak neeche' : 'tak upar'} aayega tab trade khulegi · abhi ${(Math.abs(cur - t.entry) / SPECS[t.sym].pip).toFixed(1)} pips door</p>` : ''}
       <div class="bar"><i style="width:${prog*100}%;background:${pl>=0?'var(--up)':'var(--dn)'}"></i></div>
       ${barCache[t.sym] ? levelChartHTML('tc_'+t.id) : ''}
       <div class="tr-g mono">
@@ -6510,11 +6566,11 @@ function renderTrades(){
         <span style="color:var(--dim)">· ${t.chk||0} checks</span></p>` : ''}
       <div class="acts">
         <button class="btn ghost sm" onclick="editTrade('${t.id}')">SL/TP</button>
-        <button class="btn ${pl<0?'gold':'ghost'} sm" onclick="openHedge('${t.id}')">⚖ Against</button>
-        <button class="btn gold sm" onclick="resendMT5('${t.id}')">🚀 MT5</button>
+        ${t.pend ? '' : `<button class="btn ${pl<0?'gold':'ghost'} sm" onclick="openHedge('${t.id}')">⚖ Against</button>
+        <button class="btn gold sm" onclick="resendMT5('${t.id}')">🚀 MT5</button>`}
         <button class="btn ghost sm" onclick="shareTradeWa('${t.id}')">WA</button>
         <button class="btn ghost sm" onclick="shareTradeTg('${t.id}')">TG</button>
-        <button class="btn r sm" onclick="closeManualBtn('${t.id}')">Close</button>
+        <button class="btn r sm" onclick="closeManualBtn('${t.id}')">${t.pend ? 'Cancel' : 'Close'}</button>
       </div>
     </div>`;
   }).join('') : '<div class="empty"><div>💼</div>Koi open trade nahi.<br>Signal analyze karke "Maine Ye Trade Liya" dabao.</div>';
@@ -6804,6 +6860,10 @@ async function refreshAll(){
       const hits = [];
       S.open.forEach(t=>{
         const d = q[t.sym]; if(!d || !d.p) return;
+        if(t.pend){
+          if(pendHit(t, d.p, d.p)) pendFill(t, Date.now());
+          else { t.cur = d.p; t.pl = 0; return }
+        }
         t.cur = d.p; t.pl = tradePL(t, d.p);
         if(t.dir==='BUY'){
           if(t.tp > 0 && d.p >= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p <= t.sl) hits.push([t.id, t.be ? 'BE' : 'SL']);
@@ -7388,7 +7448,7 @@ function fullReport(html){
 
 function tradeText(t, kind){
   if(kind==='OPEN'){
-    return `✅ <b>SamuSignal — Trade Open</b>\n\n<b>${t.sym} ${t.dir}</b>\nEntry: <code>${fmt(t.sym,t.entry)}</code>\nSL: <code>${fmt(t.sym,t.sl)}</code> ($${t.slD})\nTP: <code>${fmt(t.sym,t.tp)}</code> ($${t.tpD})\nLots: ${t.lots}\n⏰ ${t12(t.at)}`;
+    return `${t.pend ? `⏳ <b>SamuSignal — Pending ${t.dir} ${t.pend}</b>` : '✅ <b>SamuSignal — Trade Open</b>'}\n\n<b>${t.sym} ${t.dir}</b>\nEntry: <code>${fmt(t.sym,t.entry)}</code>\nSL: <code>${fmt(t.sym,t.sl)}</code> ($${t.slD})\nTP: <code>${fmt(t.sym,t.tp)}</code> ($${t.tpD})\nLots: ${t.lots}\n⏰ ${t12(t.at)}`;
   }
   const e = kind==='TP'?'🎯 TP HIT':kind==='SL'?'🛑 SL HIT':'✋ Manual Close';
   return `${e} — <b>SamuSignal</b>\n\n<b>${t.sym} ${t.dir}</b>\nEntry: <code>${fmt(t.sym,t.entry)}</code>\nExit: <code>${fmt(t.sym,t.exit)}</code>\nP/L: <b>${money(t.pl)}</b>\n⏰ ${t12(t.closedAt)}`;
