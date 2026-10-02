@@ -2085,7 +2085,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.29';
+const VERSION = '9.9.30';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -4025,7 +4025,7 @@ function finalBox(s){
   const pend = o && o.type !== 'MARKET';
   const head = !f.go ? `⏸ ${f.t}` : pend ? `⏳ ${f.t} — ${n} ${s.dir} ${o.type}` : `✅ ${f.t} — ${n} ${s.dir}`;
   const ordLine = pend ? `<span class="ford mono">👉 ${s.dir} ${o.type} @ ${fmt(s.sym, o.e)} · SL ${fmt(s.sym, o.sl)} · TP ${fmt(s.sym, o.tp)}
-      <small>live se ${(o.off / SPECS[s.sym].pip).toFixed(1)} pips ${o.type === 'LIMIT' ? 'peeche (pullback)' : 'aage (breakout)'} · $${s.slD}/$${s.tpD} wahi · 3 ghante me na bhare to hata do</small></span>` : '';
+      <small>live se ${(o.off / SPECS[s.sym].pip).toFixed(1)} pips ${o.type === 'LIMIT' ? 'peeche (pullback)' : 'aage (breakout)'} · $${s.slD}/$${s.tpD} wahi · 3 ghante me na bhare to app khud hata degi</small></span>` : '';
   return `<div class="fbox${f.go ? '' : ' fWait'}" style="border-color:${f.c};background:${f.bg}" onclick="sumGo('cardSignal')">
       <b class="${!f.go ? 'shine gd' : pend ? '' : 'shine up'}"${pend ? ' style="color:#38BDF8"' : ''}>${head}</b>
       ${f.total ? `<span class="fchk mono">${f.pass}/${f.total} check paas</span>` : ''}
@@ -6140,7 +6140,7 @@ function drawQuick(){
       <p class="hint" style="margin:0 0 12px">${q.ordType === 'LIMIT'
         ? `${q.dir} LIMIT — price pehle ${q.dir==='BUY'?'neeche':'upar'} aaye (pullback), tab trade khulegi.`
         : `${q.dir} STOP — price ${q.dir==='BUY'?'upar':'neeche'} toot ke aage jaaye (breakout), tab trade khulegi.`}
-        TP/SL ka $ wahi rehta hai, sirf levels saath me khisakte hain.${isMt5 ? '' : ' Journal me trade tab tak PENDING rahegi.'}</p>` : ''}
+        TP/SL ka $ wahi rehta hai, sirf levels saath me khisakte hain.${isMt5 ? ' MT5 pe pending app se cancel nahi hota — wahan khud hatana.' : ' Journal me trade PENDING rahegi; 3 ghante me na bhari to app khud hata degi.'}</p>` : ''}
 
     <label>SL / TP kaise nikale</label>
     <div class="chips" style="margin-bottom:12px">
@@ -6528,7 +6528,7 @@ function touchScan(t, bars){
   if(t.pend){
     /* pehle dekho pending kab bhara; uske agle candle se SL/TP ginenge */
     const pf = Math.max(Math.ceil(t.pendAt / BAR5) * BAR5, (t.chkAt || 0) - BAR5);
-    const fb = bars.find(b => { const ms = barMs(b.t); return ms >= pf && pendHit(t, b.h, b.l) });
+    const fb = bars.find(b => { const ms = barMs(b.t); return ms >= pf && ms < t.pendAt + PEND_MS && pendHit(t, b.h, b.l) });
     if(!fb) return null;
     pendFill(t, barMs(fb.t) + 1);
   }
@@ -6601,7 +6601,7 @@ async function refreshOpen(force){
       S.px[k] = Object.assign(S.px[k] || {}, {p: q[k].p, t: Date.now()});
     }
     scoreSignals(q);
-    const hits = [];
+    const hits = [], expired = [];
     let okCount = 0;
     S.open.forEach(t=>{
       const d = q[t.sym]; if(!d || !d.p) return;
@@ -6610,8 +6610,9 @@ async function refreshOpen(force){
       t.chkAt = Date.now();
       if(touched){ hits.push([t.id, touched]); return }
       if(t.pend){
-        if(pendHit(t, d.p, d.p)) pendFill(t, Date.now());
-        else { t.cur = d.p; t.pl = 0; return }           /* abhi bhara nahi */
+        const late = Date.now() - t.pendAt > PEND_MS;
+        if(!late && pendHit(t, d.p, d.p)) pendFill(t, Date.now());
+        else { t.cur = d.p; t.pl = 0; if(late) expired.push(t.id); return }   /* abhi bhara nahi */
       }
       t.cur = d.p; t.pl = tradePL(t, d.p);
       trackExcursion(t, d.p);
@@ -6627,17 +6628,51 @@ async function refreshOpen(force){
     lastOpenSync = Date.now();
     save(); renderTrades();
     paintSignalChart();
-    if(force){
+    if(force === true){
       const bad = (q.__failed||[]).length;
       toast(bad ? `${okCount} update, ${bad} fail — Alerts me log dekho` : `${okCount} trades ka rate update ho gaya`);
     }
     hits.forEach(([id,r])=>closeTrade(id,r));
+    expired.forEach(id => pendExpire(id));
   }catch(e){
     if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
-    if(force) toast(e.message);
+    if(force === true) toast(e.message);
   }
   syncBusy = false; syncStatus();
 }
+
+/* ---------------- pending auto-cancel (v9.9.30) ----------------
+   Journal ka LIMIT/STOP 3 ghante (PEND_MS) me na bhare to app khud hata deti hai.
+   Hatane se pehle candles se pakka karte hain ki beech me bhara to nahi tha —
+   isliye pehle refreshOpen chalta hai. Key/credits na hon to 30 min ki
+   mohlat ke baad bina check ke hata dete hain. */
+function pendExpire(id, note){
+  const t = S.open.find(x => x.id === id);
+  if(!t || !t.pend) return;
+  const kind = `${t.dir} ${t.pend}`;
+  S.open = S.open.filter(x => x.id !== id); save(); renderTrades();
+  logAdd(`Pending auto-cancel: ${kind} ${t.sym} @ ${fmt(t.sym, t.entry)} — 3 ghante me nahi bhara${note ? ' (' + note + ')' : ''}`);
+  toast(`${SPECS[t.sym].n}: ${kind} 3 ghante me nahi bhara — hata diya`);
+  notify(`⌛ Pending hataya — ${SPECS[t.sym].n}`, `${kind} @ ${fmt(t.sym, t.entry)} 3 ghante me nahi bhara`, 'exp-' + t.id);
+  if(S.tgAuto) tgSend(`⌛ <b>PENDING HATAYA — ${SPECS[t.sym].n}</b>\n\n${kind} ${t.lots} lot @ <code>${fmt(t.sym, t.entry)}</code>\n3 ghante me price nahi aaya.\n⏰ ${t12(Date.now())}`, true);
+}
+let lastSweep = 0;
+function pendSweep(){
+  const due = S.open.filter(t => t.pend && Date.now() - t.pendAt > PEND_MS);
+  if(!due.length) return;
+  dayCheck();
+  const canCheck = S.key && !S.day.blocked && !syncBusy && creditsLeft() >= due.length;
+  if(canCheck){
+    if(Date.now() - lastSweep < 120000) return;          /* har 2 min se zyada nahi */
+    lastSweep = Date.now();
+    refreshOpen('sweep');                                /* candles dekh ke bhara/hataya tay hoga */
+    return;
+  }
+  due.filter(t => Date.now() - t.pendAt > PEND_MS + 30*60000)
+     .forEach(t => pendExpire(t.id, 'rate check nahi ho paya'));
+}
+setInterval(pendSweep, 60000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(pendSweep, 3000) });
 
 function syncStatus(mode, sec){
   const el = $('syncT'); if(!el) return;
@@ -6717,7 +6752,7 @@ function renderTrades(){
         ${t.pend ? `<span class="pl mono" style="color:var(--gold);font-size:12px">⏳ PENDING</span>`
                  : `<span class="pl mono glow ${pl>=0?'up':'dn'}">${money(pl)}</span>`}
       </div>
-      ${t.pend ? `<p class="hint" style="margin:6px 0 4px;color:var(--gold)">Price ${fmt(t.sym, t.entry)} ${(t.dir === 'BUY') === (t.pend === 'LIMIT') ? 'tak neeche' : 'tak upar'} aayega tab trade khulegi · abhi ${(Math.abs(cur - t.entry) / SPECS[t.sym].pip).toFixed(1)} pips door</p>` : ''}
+      ${t.pend ? `<p class="hint" style="margin:6px 0 4px;color:var(--gold)">Price ${fmt(t.sym, t.entry)} ${(t.dir === 'BUY') === (t.pend === 'LIMIT') ? 'tak neeche' : 'tak upar'} aayega tab trade khulegi · abhi ${(Math.abs(cur - t.entry) / SPECS[t.sym].pip).toFixed(1)} pips door · ${Math.max(0, Math.ceil((t.pendAt + PEND_MS - Date.now()) / 60000))} min me auto-cancel</p>` : ''}
       <div class="bar"><i style="width:${prog*100}%;background:${pl>=0?'var(--up)':'var(--dn)'}"></i></div>
       ${barCache[t.sym] ? levelChartHTML('tc_'+t.id) : ''}
       <div class="tr-g mono">
@@ -7027,8 +7062,8 @@ async function refreshAll(){
       S.open.forEach(t=>{
         const d = q[t.sym]; if(!d || !d.p) return;
         if(t.pend){
-          if(pendHit(t, d.p, d.p)) pendFill(t, Date.now());
-          else { t.cur = d.p; t.pl = 0; return }
+          if(Date.now() - t.pendAt <= PEND_MS && pendHit(t, d.p, d.p)) pendFill(t, Date.now());
+          else { t.cur = d.p; t.pl = 0; return }           /* 3 ghante baad pendSweep hatayega */
         }
         t.cur = d.p; t.pl = tradePL(t, d.p);
         if(t.dir==='BUY'){
@@ -7144,7 +7179,11 @@ async function metaApiSend(sym, dir, lots, entry, sl, tp, mode){
     stopLoss: +Number(sl).toFixed(d),
     takeProfit: +Number(tp).toFixed(d)
   };
-  if(mode !== 'MARKET') body.openPrice = +Number(entry).toFixed(d);
+  if(mode !== 'MARKET'){
+    body.openPrice = +Number(entry).toFixed(d);
+    /* v9.9.30: pending MT5 pe bhi 3 ghante (PEND_MS) me khud expire — app jaisa */
+    body.expiration = {type:'ORDER_TIME_SPECIFIED', time: new Date(Date.now() + PEND_MS).toISOString()};
+  }
   try{
     const r = await fetch(`https://${metaApiHost()}/users/current/accounts/${S.metaAccount}/trade`, {
       method:'POST',
