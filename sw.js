@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.25 — EK FAISLA: Total Analysis ke upar TRADE LO / WAIT box, aur Signal History me "Faisla kitna sahi"
    v9.9.24 — Bug fixes: AI/news text escape, din badalne pe budget reset, candle se TP/SL touch, Wilder ADX
    v9.9.21 — Signals: TOTAL ANALYSIS card (sab ka saar)
    v9.9.20 — Auto MT5 hataya (order sirf tap se)
@@ -29,7 +30,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.24';
+const VERSION = '9.9.25';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

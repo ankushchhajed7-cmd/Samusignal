@@ -167,6 +167,10 @@ input:focus,select:focus{border-color:var(--gold)}
 /* v9.9.21: TOTAL ANALYSIS — sab ka saar ek jagah */
 .tot-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .tot-h b.t{font-size:12.5px;letter-spacing:1.6px}
+.fbox{border:2px solid;border-radius:10px;padding:12px 14px;margin:2px 0 12px;cursor:pointer}
+.fbox b{display:block;font-size:17px;letter-spacing:1px}
+.fbox .fchk{display:block;font-size:11px;color:var(--mut);margin-top:3px}
+.fbox p{margin:6px 0 0;font-size:11.5px;line-height:1.5;font-weight:600}
 .tot-r{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px dashed var(--line);cursor:pointer}
 .tot-r:last-child{border-bottom:0}
 .tot-r .k{flex:0 0 92px;font-size:10px;letter-spacing:1.3px;color:var(--lbl);font-weight:700}
@@ -2072,7 +2076,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.24';
+const VERSION = '9.9.25';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -3819,12 +3823,12 @@ async function runAnalyze(){
     renderAnalyst(); renderSignal(); renderAI();
     if(S.gAuto && S.gKey && dir !== 'NEUTRAL') runAI();
     const fc = finalCall(lastSignal);
-    if(dir !== 'NEUTRAL' && fc.t === 'LE LO'){
+    if(dir !== 'NEUTRAL' && fc.go){
       notify(`${s0q(dir)} ${SPECS[sym].n} · ${q}%`,
         `Entry ${fmt(sym,live)} · SL ${fmt(sym,sl)} · TP ${fmt(sym,tp)}`, 'sig');
       speakSignal(lastSignal);
     }
-    if(S.tgAuto && dir!=='NEUTRAL' && fc.t === 'LE LO') tgSend(fullReport(true), true);
+    if(S.tgAuto && dir!=='NEUTRAL' && fc.go) tgSend(fullReport(true), true);
   }catch(e){
     if(e.code === 404){ markBad(sym); }
     const tip = e.code === 404
@@ -3929,7 +3933,7 @@ function sfHTML(done){
     <table><thead><tr><th>Filter ne</th><th style="text-align:right">Signals</th><th style="text-align:right">Accuracy</th><th style="text-align:right">$</th></tr></thead>
     <tbody>${cell('✅ PASS kiye', r.pass)}${cell('⏸ WAIT bola', r.wait)}
       ${cell('· Chase rule', r.chase, 'range/din ke kinare pe chase')}${cell('· HTF rule', r.htf, '1H+4H+1D ulta')}</tbody></table>
-    <p class="hint">Filter sirf raay de raha hai, TAKE IT/WAIT nahi badla. Barabar rehne ko ${r.be.toFixed(0)}% chahiye. PASS wale zyada aur WAIT wale kam sahi hon, tabhi filter achha hai.${r.skip ? ` ${r.skip} purane signal me vote data nahi tha.` : ''}</p>
+    <p class="hint">v9.9.25 se FAISLA me ye ek chetawani ki tarah gina jaata hai (akela WAIT nahi karta). Barabar rehne ko ${r.be.toFixed(0)}% chahiye. PASS wale zyada aur WAIT wale kam sahi hon, tabhi filter achha hai.${r.skip ? ` ${r.skip} purane signal me vote data nahi tha.` : ''}</p>
     ${verdict}`;
 }
 
@@ -3971,12 +3975,10 @@ function renderSum(){
     R.push(row('SIGNAL UMAR', a.st === 'FRESH' ? `<span class="saGood" style="margin:0">${a.st}</span>` : a.st, col,
       a.st === 'FRESH' ? `<span class="saGood">✓ ${tip}</span>` : tip, 'cardSignal'));
   } else R.push(row('SIGNAL UMAR', '—', 'var(--mut)', '', 'cardSignal'));
-  const f = finalCall(s);
-  R.push(row('FAISLA', f.t, f.c, f.why, 'cardSignal'));
   if(lastVotes && lastVotes.sym === s.sym){
     const sf = smartFilter(s.dir, lastVotes.list.map(x => x.v[0]).join(''));
     if(sf) R.push(row('SMART FILTER', sf.pass ? '✅ PASS' : '⏸ WAIT', sf.pass ? 'var(--up)' : 'var(--gold)',
-      (sf.pass ? 'chase/HTF ka koi khatra nahi' : sf.why) + ' · <i>test mode — faisla nahi badla</i>', 'sigBox'));
+      (sf.pass ? 'chase/HTF ka koi khatra nahi' : sf.why) + ' · <i>faisle me chetawani ki tarah gina</i>', 'sigBox'));
   }
   if(lastAn) R.push(row('SETUP', lastAn.verdict, lastAn.vcol || 'var(--gold)', `${lastAn.pct}% checks paas`, 'anBox'));
   else R.push(row('SETUP', '—', 'var(--mut)', '', 'anBox'));
@@ -3991,69 +3993,129 @@ function renderSum(){
   } else R.push(row('EMA PLAN', '—', 'var(--mut)', '', 'emaBox'));
   box.innerHTML = head + `<b class="mono" style="margin-left:auto;font-size:13px">${s.sym}</b>
       <span class="tag ${s.dir==='BUY'?'buy':s.dir==='SELL'?'sell':'n'}">${s.dir}</span></div>
-    <p class="hint" style="margin:-4px 0 6px;font-size:10.5px">check · <span data-ago="${s.at}">${ago(s.at)}</span> · kisi line pe tap = poori detail</p>` + R.join('');
+    <p class="hint" style="margin:-4px 0 6px;font-size:10.5px">check · <span data-ago="${s.at}">${ago(s.at)}</span> · kisi line pe tap = poori detail</p>` + finalBox(s) + R.join('');
+}
+/* Total Analysis ke upar bada FAISLA box — baaki lines sirf detail hain */
+function finalBox(s){
+  const f = finalCall(s);
+  fdRecord(s, f);
+  /* AI / EMA baad me aate hain — signal card wala faisla bhi isi ke saath badle */
+  const vb = document.querySelector('#cardSignal .verdictbar');
+  if(vb){
+    vb.className = 'verdictbar' + (f.go ? '' : ' vWait');
+    vb.style.borderColor = f.c; vb.style.background = f.bg;
+    vb.innerHTML = `<b class="shine ${f.go ? 'up' : 'gd'}">${f.t}</b><p style="color:${f.c}">${f.why}</p>`;
+  }
+  if($('gVerdict')) $('gVerdict').innerHTML = `<b style="color:${f.c}">${f.t}</b>
+      <p>${f.why}<br><span style="color:var(--dim)" data-ago="${s.at}">${ago(s.at)}</span></p>`;
+  const dir = f.go ? ` — ${SPECS[s.sym] ? SPECS[s.sym].n : s.sym} ${s.dir}` : '';
+  return `<div class="fbox${f.go ? '' : ' fWait'}" style="border-color:${f.c};background:${f.bg}" onclick="sumGo('cardSignal')">
+      <b class="shine ${f.go ? 'up' : 'gd'}">${f.go ? '✅' : '⏸'} ${f.t}${dir}</b>
+      ${f.total ? `<span class="fchk mono">${f.pass}/${f.total} check paas</span>` : ''}
+      <p style="color:${f.c}">${f.why}</p>
+    </div>`;
 }
 
-/* Teeno checks ko hard aur soft rules me baanto.
-   Purana bug: ek bhi warning aate hi WAIT ho jaata tha, isliye strong
-   signal + strong vote + strong technical setup bhi trade nahi ban raha tha. */
+/* v9.9.25: EK FAISLA — sirf do jawab: TRADE LO ya WAIT.
+   Average nahi lete — average me ek khatarnaak baat (jaise news) dab jaati hai.
+   Teen seedhi:
+   1) Rukawat — ek bhi ho to seedha WAIT (kuch me "doosra pair dekho")
+   2) Zaroori — quality 70%+, technical 65%+, agents saath 55%+ (sab chahiye)
+   3) Chetawani — 0 ya 1 ho to TRADE LO (1 ho to saath me likhi), 2+ ho to WAIT
+   AI, EMA Plan aur Smart Filter tabhi gine jaate hain jab is pair pe chale hon. */
 function finalCall(s){
-  const reject = [], blockers = [], notes = [];
+  const C = [];                          /* {n, ok, k:'stop'|'skip'|'core'|'warn', why} */
+  const add = (k, n, ok, why) => C.push({k, n, ok, why});
   const v = lastVotes && lastVotes.sym === s.sym ? lastVotes : null;
   const a = lastAn;
+  const ai = lastAI && lastAI.sym === s.sym ? lastAI : null;
+  const ema = window.lastEmaPlan && window.lastEmaPlan.sym === s.sym ? window.lastEmaPlan : null;
   const rr = s.slD > 0 ? s.tpD / s.slD : 0;
+  const chk = h => a ? a.O.find(x => x.h === h) : null;
 
-  /* --- CHHOD DO: actual contradiction ya invalid setup --- */
-  if(v && v.verdict !== s.dir && v.verdict !== 'HOLD'){
-    reject.push(`agents ${v.verdict} bol rahe hain`);
-  }
-  if(a && a.pct < 40) reject.push('technical bahut kamzor');
-  if(a){
-    const st = a.O.find(x => x.h === 'SUPERTREND');
-    const loc = a.O.find(x => x.h === 'ENTRY LOCATION');
-    const str = a.O.find(x => x.h === 'STRUCTURE');
-    const sv = a.O.find(x => x.h === 'SL vs VOLATILITY');
-    if(str && str.ok === 0) reject.push('counter-trend structure');
-    if(st && st.ok === 0) notes.push('supertrend ulta');
-    if(loc && loc.ok === 0) notes.push('entry range ke kinare pe');
-    if(sv && sv.ok === 0) notes.push('SL volatility ke hisaab se tight');
+  if(s.dir !== 'BUY' && s.dir !== 'SELL'){
+    return {t:'WAIT', go:false, c:'var(--gold)', bg:'rgba(255,184,0,.08)', pass:0, total:0, warns:[],
+      why:'koi saaf direction nahi — doosra pair dekho'};
   }
 
-  /* --- WAIT: setup ko invalidate nahi karte, par timing/quality rok sakti hai --- */
+  /* 1) rukawat — setup hi galat (skip) */
+  add('skip', 'Agents', !(v && v.verdict !== s.dir && v.verdict !== 'HOLD'), v ? `agents ${v.verdict} bol rahe hain` : '');
+  const str = chk('STRUCTURE');
+  add('skip', 'Structure', str ? str.ok !== 0 : null, 'structure trend ke khilaaf');
+  if(a && a.pct < 40) add('skip', 'Technical', false, `technical sirf ${a.pct}%`);
+  if(ai) add('skip', 'AI', ai.verdict !== 'CHHOD DO', 'AI ne CHHOD DO kaha');
+  /* 1) rukawat — timing (stop) */
   const nr = newsRisk(s.sym);
-  if(nr) blockers.push(`${nr.c} news ${t12(nr.d)} pe`);
-  if(s.htfCount === 0 || (S.htf && s.htfAgree === 0)){
-    blockers.push('4H/1D dono signal ke khilaaf');
-  }
-  if(s.q < 55) blockers.push(`quality sirf ${s.q}%`);
-  if(v && v.verdict === s.dir && v.conf < 50) blockers.push(`agents bate hue (${v.conf}%)`);
-  if(rr > 0 && rr < 2) blockers.push(`R:R sirf 1:${rr.toFixed(2)} — 1:2 minimum chahiye`);
-  if(s.rsi > 75 || s.rsi < 25) notes.push(`RSI ${s.rsi.toFixed(0)} extreme pe`);
-  if(!s.htfStrict && s.htfOk) notes.push('ek HTF mismatch');
+  add('stop', 'News', !nr, nr ? `${nr.c} news ${t12(nr.d)} pe` : '');
+  add('stop', 'HTF', !(s.htfCount === 0 || (S.htf && s.htfAgree === 0)), '4H/1D dono signal ke khilaaf');
+  add('stop', 'R:R', rr >= 2, `R:R sirf 1:${rr.toFixed(2)} — 1:2 chahiye`);
+  if(s.age) add('stop', 'Signal umar', s.age.st !== 'LATE', 'signal LATE — move nikal chuka');
 
-  if(reject.length) return {t:'CHHOD DO', c:'var(--dn)', bg:'rgba(255,68,68,.08)',
-    why: reject.slice(0,3).join(' · ') + ' — intezaar se ye theek nahi hoga, doosra pair dekho'};
-  if(blockers.length) return {t:'WAIT', c:'var(--gold)', bg:'rgba(255,184,0,.08)',
-    why: blockers.slice(0,3).join(' · ') + ' — condition saaf hone par dobara analyze karo'};
+  /* 2) zaroori */
+  add('core', 'Quality', s.q >= 70, `quality ${s.q}% (70%+ chahiye)`);
+  add('core', 'Technical', !!(a && a.pct >= 65), a ? `technical ${a.pct}% (65%+ chahiye)` : 'technical check nahi hua');
+  add('core', 'Vote', !!(v && v.verdict === s.dir && v.conf >= 55), v ? `agents sirf ${v.conf}% saath (55%+ chahiye)` : 'agent vote nahi hua');
 
-  /* LE LO ke liye teen core confirmations zaroori hain. Notes akeli
-     strong setup ko block nahi karengi; isi se false WAIT bug fix hota hai. */
-  const voteStrong = !!(v && v.verdict === s.dir && v.conf >= 55);
-  const techStrong = !!(a && a.pct >= 65);
-  const structureSafe = !a || !a.O.some(x => x.h === 'STRUCTURE' && x.ok === 0);
-  const core = s.q >= 70 && techStrong && voteStrong && structureSafe && rr >= 2;
-  if(core){
-    return {t:'LE LO', c:'var(--up)', bg:'rgba(0,255,150,.08)',
-      why: `Core rules pass — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy,v.sell)}/50 agents saath` +
-        (notes.length ? ` · note: ${notes.slice(0,2).join(', ')}` : '')};
-  }
-  const why = [
-    s.q < 70 ? `quality ${s.q}% (70%+ chahiye)` : '',
-    a && a.pct < 65 ? `technical ${a.pct}% (65%+ chahiye)` : '',
-    !voteStrong ? 'vote kaafi aligned nahi' : ''
-  ].filter(Boolean);
-  return {t:'WAIT', c:'var(--gold)', bg:'rgba(255,184,0,.08)',
-    why: (why.slice(0,3).join(' · ') || 'core confirmations poore nahi') + ' — setup aur clear hone do'};
+  /* 3) chetawani */
+  const st = chk('SUPERTREND'), loc = chk('ENTRY LOCATION'), sv = chk('SL vs VOLATILITY');
+  add('warn', 'Supertrend', st ? st.ok !== 0 : null, 'supertrend ulta');
+  add('warn', 'Entry jagah', loc ? loc.ok !== 0 : null, 'entry range ke kinare pe');
+  add('warn', 'SL', sv ? sv.ok !== 0 : null, 'SL volatility ke hisaab se tight');
+  add('warn', 'RSI', !(s.rsi > 75 || s.rsi < 25), `RSI ${(+s.rsi).toFixed(0)} extreme pe`);
+  if(s.age) add('warn', 'Umar', s.age.st !== 'PURANA', 'signal PURANA — palatne ka khatra');
+  const sf = v ? smartFilter(s.dir, v.list.map(x => x.v[0]).join('')) : null;
+  if(sf) add('warn', 'Smart Filter', sf.pass, sf.why);
+  if(ema) add('warn', 'EMA Plan', ema.dir === s.dir, ema.dir === 'WAIT' ? 'EMA Plan WAIT bol raha' : `EMA Plan ${ema.dir} bol raha`);
+  if(ai) add('warn', 'AI', ai.verdict !== 'WAIT', 'AI ne WAIT kaha');
+
+  const used = C.filter(x => x.ok !== null);
+  const fail = k => used.filter(x => x.k === k && !x.ok);
+  const pass = used.filter(x => x.ok).length, total = used.length;
+  const skip = fail('skip'), stop = fail('stop'), core = fail('core'), warns = fail('warn');
+  const W = {t:'WAIT', go:false, c:'var(--gold)', bg:'rgba(255,184,0,.08)', pass, total, warns:warns.map(x => x.why)};
+
+  if(skip.length) return Object.assign(W, {skip:true,
+    why: skip.map(x => x.why).slice(0,3).join(' · ') + ' — intezaar se ye theek nahi hoga, doosra pair dekho'});
+  if(stop.length) return Object.assign(W, {
+    why: stop.map(x => x.why).slice(0,3).join(' · ') + ' — condition saaf hone par dobara Analyze karo'});
+  if(core.length) return Object.assign(W, {
+    why: core.map(x => x.why).slice(0,3).join(' · ') + ' — setup aur clear hone do'});
+  if(warns.length >= 2) return Object.assign(W, {
+    why: `${warns.length} chetawani: ` + warns.map(x => x.why).slice(0,3).join(' · ')});
+
+  return {t:'TRADE LO', go:true, c:'var(--up)', bg:'rgba(0,255,150,.08)', pass, total, warns:warns.map(x => x.why),
+    why: `Sab zaroori check paas — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy, v.sell)}/50 agents saath` +
+      (warns.length ? ` · ⚠ dhyan: ${warns[0].why}` : '')};
+}
+
+/* Faisla har signal ke saath yaad rakho — baad me pata chale TRADE LO wale
+   kitne sahi nikle. AI/EMA baad me aate hain, isliye OPEN rehte tak update. */
+function fdRecord(s, f){
+  const g = S.sigs.find(x => x.at === s.at && x.sym === s.sym && x.dir === s.dir);
+  if(!g || g.out !== 'OPEN') return;
+  const fd = f.go ? 'T' : 'W';
+  if(g.fd !== fd){ g.fd = fd; save() }
+}
+function fdHTML(done){
+  const be = 100 / (1 + S.dTp / S.dSl);
+  const st = a => ({n:a.length, wr: a.length ? Math.round(a.filter(x => x.out === 'TP').length / a.length * 100) : null,
+                    pl: a.reduce((t,x) => t + (x.pl || 0), 0)});
+  const T = st(done.filter(x => x.fd === 'T')), Wt = st(done.filter(x => x.fd === 'W'));
+  if(!T.n && !Wt.n) return '';
+  const cell = (k, x) => `<tr><td><b>${k}</b></td>
+      <td class="mono" style="text-align:right">${x.n}</td>
+      <td class="mono ${x.wr == null ? 'mu' : x.wr >= be + 3 ? 'up' : x.wr <= be - 3 ? 'dn' : ''}" style="text-align:right">${x.wr == null ? '—' : x.wr + '%'}</td>
+      <td class="mono ${x.pl >= 0 ? 'up' : 'dn'}" style="text-align:right">${x.n ? money(x.pl) : '—'}</td></tr>`;
+  const enough = T.n >= 15 && Wt.n >= 10;
+  const d = enough ? T.wr - Wt.wr : 0;
+  const verdict = !enough ? `<p class="hint">⚠ Data kam hai — TRADE LO me 15+ aur WAIT me 10+ scored signal hone par hi rules badalne ka socho.</p>`
+    : d >= 10 ? `<p class="hint" style="color:var(--up)">✓ Faisla kaam kar raha hai — TRADE LO wale ${d}% zyada sahi.</p>`
+    : `<p class="hint" style="color:var(--dn)">✗ TRADE LO aur WAIT me farak kam (${d}%) — rules sakht karne padenge.</p>`;
+  return `<p class="ttl" style="margin:16px 0 8px">Faisla kitna sahi</p>
+    <table><thead><tr><th>App ne kaha</th><th style="text-align:right">Signals</th><th style="text-align:right">Accuracy</th><th style="text-align:right">$</th></tr></thead>
+    <tbody>${cell('✅ TRADE LO', T)}${cell('⏸ WAIT', Wt)}</tbody></table>
+    <p class="hint">Barabar rehne ko ${be.toFixed(0)}% chahiye. TRADE LO wale zyada aur WAIT wale kam sahi hon, tabhi faisla achha hai. v9.9.25 se pehle ke signals isme nahi gine.</p>
+    ${verdict}`;
 }
 
 /* ---------------- price ladder (Gold Reserve) ----------------
@@ -4527,6 +4589,7 @@ function renderSigHist(){
       <td class="mono mu" style="text-align:right">${g.avgQ}%</td>
     </tr>`).join('')}</tbody></table>
     <p class="hint">Ye asli trades nahi — har analyze hua signal apne SL/TP se khud score hota hai. Isse pata chalta hai kaunsa grade sach me kaam karta hai.</p>` : ''}
+    ${fdHTML(done)}
     ${sfHTML(done)}
     ${nDup ? `<p class="hint">${nDup} duplicate signal (same pair + direction dobara Analyze) gine nahi gaye.</p>` : ''}
     <p class="ttl" style="margin:16px 0 8px">Recent</p>
@@ -9616,7 +9679,7 @@ nav button{min-width:0}
     '↺ Reset to Default':'↺ Reset to Default','🔓 Locked Pairs Reset Karo':'🔓 Reset Locked Pairs','Sab Data Delete Karo':'Delete All Data',
     'Maine Ye Trade Liya':'I Took This Trade','Ye trade history se hatao':'Remove this trade from history','Saaf karo':'Clear','Pair Chuno':'Pick Pair','Trade Save Karo':'Save Trade',
     '⚠ Offline — purana cached data dikh raha hai':'⚠ Offline — showing old cached data',
-    'LE LO':'TAKE IT','CHHOD DO':'SKIP IT','BACKTEST CHALAO':'RUN BACKTEST','Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.':'Analyze first — EMAs use the same data, no extra credit.',
+    'LE LO':'TAKE IT','TRADE LO':'TAKE TRADE','CHHOD DO':'SKIP IT','BACKTEST CHALAO':'RUN BACKTEST','Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.':'Analyze first — EMAs use the same data, no extra credit.',
     'Candles aa rahi hain…':'Loading candles…','Aakhri 3 Crossover':'Last 3 Crossovers','Dikhne wali history me koi cross nahi.':'No crosses in the visible history.',
     'Chart pe number wahi hain jo yahan — 1 sabse naya. Hari circle = tez EMA upar nikli, laal = neeche. Time candle ke shuru hone ka hai (IST).':'Chart numbers match these — 1 is the newest. Green circle = fast EMA crossed up, red = down. Time is candle open (IST).',
     'EMA aapas me uljhi hain':'EMAs are tangled','Candle abhi band nahi hui — cross palat sakta hai':'Candle not closed yet — the cross may flip',
