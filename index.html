@@ -2072,7 +2072,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.23';
+const VERSION = '9.9.24';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -2204,6 +2204,8 @@ function calcLevels(sym, price, lots, atr, opt){
 
 const fmt = (sym,v) => Number(v).toFixed(SPECS[sym] ? SPECS[sym].d : 4);
 const money = v => (v<0?'-$':'$') + Math.abs(v).toFixed(2);
+/* bahar se aaya text (Gemini, news feed) innerHTML me daalne se pehle */
+const escH = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 /* ---------- state ---------- */
 let S = {
@@ -2294,6 +2296,11 @@ let S = {
 function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
+/* v9.9.24: purani cached news list ka text bhi ek baar escape karo */
+if(S.news && Array.isArray(S.news.list) && !S.news.esc){
+  S.news.list = S.news.list.map(e => Object.assign({}, e, {t: escH(e.t), c: escH(e.c), f: escH(e.f), p: escH(e.p)}));
+  S.news.esc = 1; LS.set('news', S.news);
+}
 /* v9.0: ab default theme Gold hai. Jo device abhi tak purane default pe
    tha usko ek baar shift karo — jaanbujh ke chuni gayi theme nahi badlegi. */
 /* v9.1: fixed-dollar default ab R:R 1:2 hai. Sirf purane app defaults ko
@@ -2827,8 +2834,8 @@ function renderAI(){
   $('aiT').innerHTML = `<span data-ago="${d.at}">${ago(d.at)}</span>`;
   $('aiBox').innerHTML = `
     <div class="verdictbar${d.verdict==='WAIT'?' vWait':''}" style="border-color:${col};background:${col.replace('var(--','rgba(').replace(')','')}">
-      <b class="shine ${d.verdict==='LE LO'?'up':d.verdict==='CHHOD DO'?'dn':'gd'}">${d.verdict}</b>
-      <p style="color:${col}">AI confidence ${d.confidence}%</p>
+      <b class="shine ${d.verdict==='LE LO'?'up':d.verdict==='CHHOD DO'?'dn':'gd'}">${escH(d.verdict)}</b>
+      <p style="color:${col}">AI confidence ${escH(d.confidence)}%</p>
     </div>
     ${sec('📊','SIGNAL REASONING', d.reasoning)}
     ${sec('🌍','MARKET CONTEXT', d.context)}
@@ -3322,6 +3329,26 @@ function cci(b,n){
   return md===0 ? 0 : (last(tp)-m)/(0.015*md);
 }
 function adx(b,n){
+  /* Wilder ka ADX (TradingView jaisa). Pehle sirf ek DX tha jo bahut uchhalta tha.
+     Aakhri ~10n candles kaafi hain — Wilder smoothing itne me settle ho jaata hai. */
+  const bs = b.slice(-(n*10 + 1));
+  if(bs.length < 2*n + 1) return adxRaw(bs, n);       /* data kam hai — purana tareeka */
+  let tr = 0, pdm = 0, ndm = 0, dxSum = 0, ax = 0, pdi = 0, ndi = 0;
+  for(let i = 1; i < bs.length; i++){
+    const up = bs[i].h - bs[i-1].h, dn = bs[i-1].l - bs[i].l;
+    const p = (up > dn && up > 0) ? up : 0, m = (dn > up && dn > 0) ? dn : 0;
+    const t = Math.max(bs[i].h - bs[i].l, Math.abs(bs[i].h - bs[i-1].c), Math.abs(bs[i].l - bs[i-1].c));
+    if(i <= n){ tr += t; pdm += p; ndm += m; if(i < n) continue }
+    else { tr = tr - tr/n + t; pdm = pdm - pdm/n + p; ndm = ndm - ndm/n + m }
+    pdi = tr ? pdm/tr*100 : 0; ndi = tr ? ndm/tr*100 : 0;
+    const dx = (pdi + ndi) ? Math.abs(pdi - ndi)/(pdi + ndi)*100 : 0;
+    const k = i - n + 1;                                 /* kitne DX ho chuke */
+    if(k <= n){ dxSum += dx; if(k === n) ax = dxSum / n; else ax = dxSum / k }
+    else ax = (ax*(n-1) + dx) / n;
+  }
+  return {adx: ax, pdi, ndi};
+}
+function adxRaw(b,n){
   let pdm=0, ndm=0, tr=0;
   for(let i=b.length-n;i<b.length;i++){
     if(i<1) continue;
@@ -5055,10 +5082,11 @@ async function loadNews(force){
     S.news = {
       d: utcDay(), at: Date.now(),
       list: raw.map(e => ({
-        t: e.title, c: e.country, i: e.impact,
+        t: escH(e.title), c: escH(e.country), i: e.impact,
         d: new Date(e.date).getTime(),
-        f: e.forecast || '', p: e.previous || ''
-      })).filter(e => isFinite(e.d))
+        f: escH(e.forecast || ''), p: escH(e.previous || '')
+      })).filter(e => isFinite(e.d)),
+      esc: 1     /* text pehle se escaped hai — har jagah seedha innerHTML/Telegram HTML me ja sakta hai */
     };
     save(); renderNews(); if(force) toast(`${S.news.list.length} events aa gaye`);
     newsBriefAuto();
@@ -5267,7 +5295,7 @@ function buildTicker(){
 let tickBusy = false;
 async function refreshTicker(force){
   if(tickBusy || !S.key) return;
-  if(S.day.blocked) return;
+  dayCheck(); if(S.day.blocked) return;   /* UTC din badla ho to kal ka block hatao */
   const syms = TICKER.filter(x=>!isBad(x));
   const oldest = Math.min(...syms.map(x => (S.px[x] && S.px[x].t) || 0));
   const stale  = Date.now() - oldest > 120000;
@@ -6175,6 +6203,7 @@ function beCheck(t, px){
   if(gain < r * 0.9999) return false;      /* abhi 1R nahi hua */
 
   t.be = true;
+  t.beAt = Date.now();
   t.slWas = t.sl;
   t.sl = t.entry;
   t.slD = 0;
@@ -6193,11 +6222,48 @@ function closeManualBtn(id){ if(confirm('Ye trade band karna hai?')) closeTrade(
 let lastOpenSync = 0, syncBusy = false;
 
 /* Quote sirf abhi ka rate deta hai — beech me TP chhu ke wapas aaya to miss ho jaata tha.
-   5-min candles ka high/low dekhna utna hi mehnga hai (1 credit) par sach dikhata hai. */
-async function checkTouch(sym, since){
-  const bars = await getSeries(sym, '5min', 60);
-  const from = since || 0;
-  return bars.filter(b => new Date(b.t).getTime() >= from - 300000);
+   5-min candles ka high/low dekhna utna hi mehnga hai (1 credit) par sach dikhata hai.
+   Isliye open trades ka rate ab candles se aata hai: aakhri candle ka close = abhi ka rate. */
+const BAR5 = 300000;
+/* time_series Asia/Kolkata me maanga hai — phone ka timezone kuch bhi ho, IST hi padho */
+function barMs(t){ return Date.parse(String(t).replace(' ', 'T') + '+05:30') }
+
+async function touchQuotes(syms, note){
+  const q = {}, bars = {}, failed = [];
+  for(const sym of syms){
+    try{
+      const b = await getSeries(sym, '5min', 60, note);
+      const p = b.length ? b[b.length-1].c : NaN;
+      if(!(p > 0)){ failed.push(sym); continue }
+      q[sym] = {p}; bars[sym] = b;
+    }catch(e){
+      if(e.code !== 404 && e.code !== 403) throw e;   /* budget / internet — poora sync roko */
+      markBad(sym); failed.push(sym + ' (' + e.message + ')');
+    }
+  }
+  if(failed.length) logAdd('Rate nahi mila: ' + failed.join(', '));
+  if(!Object.keys(q).length) throw new Error('API ne koi rate nahi bheja — ' + (failed[0] || 'reason unknown'));
+  Object.defineProperty(q, '__failed', {value: failed, enumerable: false});
+  return {q, bars};
+}
+
+/* Pichhle check ke baad ki candles ek-ek karke dekho. Ek hi candle me SL aur
+   TP dono chhue to order pata nahi — tab SL maante hain (nuksaan wala maan lo).
+   Jis candle me breakeven laga, usme entry wapas chhuna BE nahi maante:
+   us candle ke andar pehle kya hua ye candle se pata nahi chalta. */
+function touchScan(t, bars){
+  const from = Math.max(Math.ceil(t.at / BAR5) * BAR5, (t.chkAt || 0) - BAR5);
+  for(const b of bars){
+    const ms = barMs(b.t);
+    if(!(ms >= from)) continue;
+    const slOk = !(t.be && t.beAt && ms <= t.beAt);
+    const slHit = slOk && t.sl > 0 && (t.dir === 'BUY' ? b.l <= t.sl : b.h >= t.sl);
+    const tpHit = t.tp > 0 && (t.dir === 'BUY' ? b.h >= t.tp : b.l <= t.tp);
+    if(slHit) return t.be ? 'BE' : 'SL';
+    if(tpHit) return 'TP';
+    if(!t.be && beCheck(t, t.dir === 'BUY' ? b.h : b.l)) t.beAt = ms;   /* candle ki shuruaat */
+  }
+  return null;
 }
 
 /* ---------------- max floating (MAE / MFE) ----------------
@@ -6220,9 +6286,9 @@ function trackExcursion(t, px){
 /* MAE ko R me badlo — "SL ka kitna hissa kha gaya tha" */
 function maeR(t){
   if(!(t.sl > 0) && !t.slD) return null;
-  const risk = Math.abs(t.slD || 0) || Math.abs(tradePL(t, t.sl0 || t.sl));
+  const risk = Math.abs(t.slD || 0) || Math.abs(tradePL(t, t.slWas || t.sl));
   if(!risk || t.mae === undefined) return null;
-  return Math.abs(t.mae) / risk;
+  return Math.max(0, -t.mae) / risk;        /* kabhi minus me gayi hi nahi to 0% */
 }
 
 function maeText(t){
@@ -6241,7 +6307,7 @@ async function refreshOpen(force){
     if(document.hidden) return;                       /* app background me hai */
     if($('pgTrades').classList.contains('hide')) return;  /* Trades page pe nahi ho */
     if(!S.autoM) return;                              /* auto band hai */
-    if(S.day.blocked) return;
+    dayCheck(); if(S.day.blocked) return;   /* UTC din badla ho to kal ka block hatao */
     const gap = Math.max(S.autoM * 60000, syms.length * 9000);
     if(Date.now() - lastOpenSync < gap) return;
     if(creditsLeft() < syms.length) { syncStatus(); return; }
@@ -6249,14 +6315,20 @@ async function refreshOpen(force){
 
   syncBusy = true; syncStatus('sync');
   try{
-    const q = await getQuotes(syms, sec => syncStatus('wait', sec), 10000);
-    Object.assign(prices, q);
+    const {q, bars} = await touchQuotes(syms, sec => syncStatus('wait', sec));
+    for(const k in q){
+      prices[k] = Object.assign(prices[k] || {}, {p: q[k].p});
+      S.px[k] = Object.assign(S.px[k] || {}, {p: q[k].p, t: Date.now()});
+    }
     scoreSignals(q);
     const hits = [];
     let okCount = 0;
     S.open.forEach(t=>{
       const d = q[t.sym]; if(!d || !d.p) return;
       okCount++;
+      const touched = touchScan(t, bars[t.sym] || []);
+      t.chkAt = Date.now();
+      if(touched){ hits.push([t.id, touched]); return }
       t.cur = d.p; t.pl = tradePL(t, d.p);
       trackExcursion(t, d.p);
       beCheck(t, d.p);
@@ -6670,9 +6742,9 @@ async function refreshAll(){
         const d = q[t.sym]; if(!d || !d.p) return;
         t.cur = d.p; t.pl = tradePL(t, d.p);
         if(t.dir==='BUY'){
-          if(t.tp > 0 && d.p >= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p <= t.sl) hits.push([t.id,'SL']);
+          if(t.tp > 0 && d.p >= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p <= t.sl) hits.push([t.id, t.be ? 'BE' : 'SL']);
         } else {
-          if(t.tp > 0 && d.p <= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p >= t.sl) hits.push([t.id,'SL']);
+          if(t.tp > 0 && d.p <= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p >= t.sl) hits.push([t.id, t.be ? 'BE' : 'SL']);
         }
       });
       lastOpenSync = Date.now();
@@ -7927,7 +7999,7 @@ function renderShot(){
   if(dir === 'UNREADABLE'){
     box.innerHTML = `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.07);border-radius:6px;padding:12px">
       <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.2px">\u26a0 CHART PADHA NAHI GAYA</b>
-      <p class="hint" style="margin:5px 0 0">${d.reasoning || 'Image saaf nahi thi.'}</p>
+      <p class="hint" style="margin:5px 0 0">${escH(d.reasoning || 'Image saaf nahi thi.')}</p>
       <p class="hint" style="margin:8px 0 0">Aisa screenshot lo jisme price axis aur pair ka naam dono dikhe.</p></div>`;
     return;
   }
@@ -7935,9 +8007,9 @@ function renderShot(){
   box.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;background:${dir==='BUY'?'rgba(18,201,138,.10)':dir==='SELL'?'rgba(242,84,91,.10)':'rgba(255,184,0,.08)'};
          border:1px solid ${col};border-radius:11px;padding:11px 13px;margin-bottom:12px">
-      <b class="shine ${dir==='BUY'?'up':dir==='SELL'?'dn':'gd'}" style="font-size:17px;letter-spacing:.5px">${dir}</b>
-      <span class="mono" style="font-size:13px">${sym ? SPECS[sym].n : (d.symbol || '\u2014')}</span>
-      <span class="gr" style="margin-left:auto">${d.timeframe || ''}</span>
+      <b class="shine ${dir==='BUY'?'up':dir==='SELL'?'dn':'gd'}" style="font-size:17px;letter-spacing:.5px">${escH(dir)}</b>
+      <span class="mono" style="font-size:13px">${sym ? SPECS[sym].n : escH(d.symbol || '\u2014')}</span>
+      <span class="gr" style="margin-left:auto">${escH(d.timeframe || '')}</span>
     </div>
 
     <div class="lbl" style="margin-bottom:4px"><span>Confidence</span><b class="mono" style="color:${ccol}">${conf}%</b></div>
@@ -7956,23 +8028,23 @@ function renderShot(){
 
     <div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
       <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udcc8 TREND &amp; STRUCTURE</b>
-      <p class="hint" style="margin:5px 0 8px">${d.trend || '\u2014'}</p>
+      <p class="hint" style="margin:5px 0 8px">${escH(d.trend || '\u2014')}</p>
       <div class="lbl"><span>Resistance</span><b class="mono" style="font-size:11px">${lvls(d.resistance)}</b></div>
       <div class="lbl"><span>Support</span><b class="mono" style="font-size:11px">${lvls(d.support)}</b></div>
     </div>
 
     <div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
       <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udcad WAJAH</b>
-      <p class="hint" style="margin:5px 0 0">${d.reasoning || '\u2014'}</p>
+      <p class="hint" style="margin:5px 0 0">${escH(d.reasoning || '\u2014')}</p>
     </div>
 
     ${d.invalidation ? `<div style="border:1px solid var(--gold);border-radius:6px;padding:11px;margin-bottom:10px;background:rgba(255,184,0,.05)">
       <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83c\udfaf SETUP KAB KHATAM</b>
-      <p class="hint" style="margin:5px 0 0">${d.invalidation}</p></div>` : ''}
+      <p class="hint" style="margin:5px 0 0">${escH(d.invalidation)}</p></div>` : ''}
 
     ${d.counter_trade ? `<div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
       <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udd04 ULTA CASE</b>
-      <p class="hint" style="margin:5px 0 0">${d.counter_trade}</p></div>` : ''}
+      <p class="hint" style="margin:5px 0 0">${escH(d.counter_trade)}</p></div>` : ''}
 
     ${(() => {
       /* Agar levels live price ke aas-paas hi nahi hain to model ne
