@@ -2076,7 +2076,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.25';
+const VERSION = '9.9.26';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -4809,8 +4809,8 @@ function drawLevels(cv, sym, bars, t){
   x.clearRect(0,0,W,H);
 
   const PAD_R = 66, PAD_T = 10, PAD_B = 12;
-  const n = Math.min(bars.length, 55);
-  const b = bars.slice(-n);
+  let n = Math.min(bars.length, 55);
+  let b = bars.slice(-n);
   const cur = t.cur || last(b).c;
 
   /* range levels ke aas-paas rakho, warna SL/TP ek line me chipak jaate hain */
@@ -4820,15 +4820,16 @@ function drawLevels(cv, sym, bars, t){
   const lvLo = Math.min(...lvs);
   const lvHi = Math.max(...lvs);
   const lvSpan = (lvHi - lvLo) || (SPECS[sym].pip * 10);
-  const cLo = Math.min(...b.map(k=>k.l)), cHi = Math.max(...b.map(k=>k.h));
 
-  /* levels ko kam se kam 45% jagah do */
+  /* levels ko kam se kam 35% jagah do — par candles kaato mat.
+     Pehle zoom karke upar/neeche ki candles chart ke bahar kat jaati thi
+     (tez move ke baad chart "verdict ke peeche" ghusa dikhta tha). Ab
+     purani candles hatao jab tak levels ko jagah na mil jaaye (kam se kam
+     15 candles), aur jo bachi wo poori dikhti hain. */
+  const span = k => Math.max(lvHi, Math.max(...k.map(q=>q.h))) - Math.min(lvLo, Math.min(...k.map(q=>q.l)));
+  while(n > 15 && lvSpan / span(b) < 0.35){ n = Math.max(15, n - 5); b = bars.slice(-n) }
+  const cLo = Math.min(...b.map(k=>k.l)), cHi = Math.max(...b.map(k=>k.h));
   let lo = Math.min(lvLo, cLo), hi = Math.max(lvHi, cHi);
-  const minSpan = lvSpan / 0.45;
-  if(hi - lo > minSpan){
-    const mid = (lvLo + lvHi) / 2;
-    lo = mid - minSpan/2; hi = mid + minSpan/2;
-  }
   /* Doosri taraf ka bachaav: agar levels candles se bahut door hain
      (jaise wide SL wala crypto trade) to poori history ek seedhi line
      ban jaati thi. Candle range ko kam se kam 30% jagah do — jo level
