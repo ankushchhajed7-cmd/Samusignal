@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.31 — Naya premium SAMU logo + naam SamuSignal (data wahi rehta hai)
    v9.9.30 — Journal ka pending (LIMIT/STOP) 3 ghante me na bhare to auto-cancel
    v9.9.29 — Faisla me LIMIT LAGAO / STOP LAGAO (ATR doori) + MARKET/LIMIT/STOP shadow tracking
    v9.9.28 — "Live Price Lo" button hara blink karta hai jab tak live price na liya ho
@@ -35,7 +36,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.30';
+const VERSION = '9.9.31';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
@@ -46,7 +47,8 @@ const SHELL = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
-  './favicon.png'
+  './favicon.png',
+  './apple-touch-icon.png'
 ];
 
 /* Ye hosts kabhi cache nahi karne — live data aur API calls hain */
