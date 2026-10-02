@@ -2072,7 +2072,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.22';
+const VERSION = '9.9.23';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -3849,7 +3849,74 @@ function sumColumn(s){
 
 /* v9.9.21: Signals page ke upar TOTAL ANALYSIS card — SIG, VOTE, TECH,
    Signal Umar ka aakhri faisla, Take it/Wait, Setup, AI, EMA Plan */
-function sumGo(id){ const e = $(id); if(e) (e.closest('.card') || e).scrollIntoView({behavior:'smooth', block:'start'}); }
+/* ===== SMART FILTER — TEST MODE (v9.9.23) =====
+   Sirf raay deta hai, FAISLA nahi badalta. Har signal ke saath save hue
+   50 agent votes (vstr) se chalta hai, isliye purane signals pe bhi hisaab milta hai.
+   chase: Range Position / Day High-Low Test signal ke ulta = range ke kinare pe chase
+   htf:   HTF Alignment (1H+4H+1D) signal ke ulta */
+const SF_RULES = [
+  {id:'chase', n:'Chase rule', agents:['Range Position','Day High/Low Test'],
+   why:d => d === 'BUY' ? 'range/din ke top ke paas BUY — chase' : 'range/din ke bottom ke paas SELL — chase'},
+  {id:'htf', n:'HTF rule', agents:['HTF Alignment'],
+   why:() => '1H+4H+1D signal ke khilaaf'}
+];
+function smartFilter(dir, vstr){
+  if(!vstr || vstr.length !== AGENTS.length || (dir !== 'BUY' && dir !== 'SELL')) return null;
+  const opp = dir === 'BUY' ? 'S' : 'B';
+  const hit = SF_RULES.filter(r => r.agents.some(n => {
+    const i = AGENTS.findIndex(a => a.n === n);
+    return i >= 0 && vstr[i] === opp;
+  }));
+  return {pass: !hit.length, rules: hit.map(r => r.id), why: hit.map(r => r.why(dir)).join(' · ')};
+}
+function sfStats(done){
+  const be = 100 / (1 + S.dTp / S.dSl);
+  const g = {pass:[], wait:[], chase:[], htf:[]};
+  let skip = 0;
+  done.forEach(x => {
+    const f = smartFilter(x.dir, x.vstr);
+    if(!f){ skip++; return }
+    (f.pass ? g.pass : g.wait).push(x);
+    f.rules.forEach(r => g[r].push(x));
+  });
+  const st = a => ({n:a.length, wr: a.length ? Math.round(a.filter(x => x.out === 'TP').length / a.length * 100) : null,
+                    pl: a.reduce((t,x) => t + (x.pl || 0), 0)});
+  return {be, skip, pass:st(g.pass), wait:st(g.wait), chase:st(g.chase), htf:st(g.htf)};
+}
+function sfHTML(done){
+  const r = sfStats(done);
+  if(!r.pass.n && !r.wait.n) return '';
+  const cell = (k, x, sub) => `<tr>
+      <td><b>${k}</b>${sub ? `<br><small class="mu" style="font-size:9.5px">${sub}</small>` : ''}</td>
+      <td class="mono" style="text-align:right">${x.n}</td>
+      <td class="mono ${x.wr == null ? 'mu' : x.wr >= r.be + 3 ? 'up' : x.wr <= r.be - 3 ? 'dn' : ''}" style="text-align:right">${x.wr == null ? '—' : x.wr + '%'}</td>
+      <td class="mono ${x.pl >= 0 ? 'up' : 'dn'}" style="text-align:right">${x.n ? money(x.pl) : '—'}</td></tr>`;
+  let verdict = '';
+  if(r.pass.n >= 10 && r.wait.n >= 5){
+    const d = r.pass.wr - r.wait.wr;
+    verdict = d >= 15 ? `<p class="hint" style="color:var(--up)">✓ Filter kaam karta dikh raha hai — PASS wale ${d}% zyada sahi. Thoda aur data aane do, phir chalu karne ka socho.</p>`
+            : d <= 0 ? `<p class="hint" style="color:var(--dn)">✗ Filter achhe signal bhi rok raha hai — abhi chalu mat karo.</p>`
+            : `<p class="hint">~ Farak chhota hai (${d}%) — abhi faisla mat karo, aur data aane do.</p>`;
+  } else verdict = `<p class="hint">⚠ Data kam hai — PASS me 10+ aur WAIT me 5+ scored signal hone par hi faisla karna.</p>`;
+  return `<p class="ttl" style="margin:16px 0 8px">Smart Filter <span class="sp" style="color:var(--gold)">TEST MODE</span></p>
+    <table><thead><tr><th>Filter ne</th><th style="text-align:right">Signals</th><th style="text-align:right">Accuracy</th><th style="text-align:right">$</th></tr></thead>
+    <tbody>${cell('✅ PASS kiye', r.pass)}${cell('⏸ WAIT bola', r.wait)}
+      ${cell('· Chase rule', r.chase, 'range/din ke kinare pe chase')}${cell('· HTF rule', r.htf, '1H+4H+1D ulta')}</tbody></table>
+    <p class="hint">Filter sirf raay de raha hai, TAKE IT/WAIT nahi badla. Barabar rehne ko ${r.be.toFixed(0)}% chahiye. PASS wale zyada aur WAIT wale kam sahi hon, tabhi filter achha hai.${r.skip ? ` ${r.skip} purane signal me vote data nahi tha.` : ''}</p>
+    ${verdict}`;
+}
+
+function sumGo(id){
+  const e = $(id); if(!e) return;
+  const pg = e.closest('[id^="pg"]');
+  if(pg && pg.classList.contains('hide')){           /* doosre page pe hai (jaise Signal History -> VOTES) */
+    const name = pg.id.slice(2);
+    go(name, document.querySelector(`[data-pg="${name}"]`));
+    setTimeout(() => (e.closest('.card') || e).scrollIntoView({behavior:'smooth', block:'start'}), 250);
+    return;
+  }
+  (e.closest('.card') || e).scrollIntoView({behavior:'smooth', block:'start'});
+}
 function renderSum(){
   const box = $('sumCard'); if(!box) return;
   const s = lastSignal;
@@ -3879,6 +3946,11 @@ function renderSum(){
   } else R.push(row('SIGNAL UMAR', '—', 'var(--mut)', '', 'cardSignal'));
   const f = finalCall(s);
   R.push(row('FAISLA', f.t, f.c, f.why, 'cardSignal'));
+  if(lastVotes && lastVotes.sym === s.sym){
+    const sf = smartFilter(s.dir, lastVotes.list.map(x => x.v[0]).join(''));
+    if(sf) R.push(row('SMART FILTER', sf.pass ? '✅ PASS' : '⏸ WAIT', sf.pass ? 'var(--up)' : 'var(--gold)',
+      (sf.pass ? 'chase/HTF ka koi khatra nahi' : sf.why) + ' · <i>test mode — faisla nahi badla</i>', 'sigBox'));
+  }
   if(lastAn) R.push(row('SETUP', lastAn.verdict, lastAn.vcol || 'var(--gold)', `${lastAn.pct}% checks paas`, 'anBox'));
   else R.push(row('SETUP', '—', 'var(--mut)', '', 'anBox'));
   if(lastAI && lastAI.sym === s.sym){
@@ -4428,6 +4500,7 @@ function renderSigHist(){
       <td class="mono mu" style="text-align:right">${g.avgQ}%</td>
     </tr>`).join('')}</tbody></table>
     <p class="hint">Ye asli trades nahi — har analyze hua signal apne SL/TP se khud score hota hai. Isse pata chalta hai kaunsa grade sach me kaam karta hai.</p>` : ''}
+    ${sfHTML(done)}
     ${nDup ? `<p class="hint">${nDup} duplicate signal (same pair + direction dobara Analyze) gine nahi gaye.</p>` : ''}
     <p class="ttl" style="margin:16px 0 8px">Recent</p>
     <p class="hint" style="margin:-4px 0 6px">LIVE = abhi chal raha · TP = sahi · SL = galat · EX = 48 ghante me kuch nahi hua</p>
@@ -4439,7 +4512,7 @@ function renderSigHist(){
         <div class="in">
           <b class="mono">${SPECS[g.sym]?SPECS[g.sym].n:g.sym} <span class="${g.dir==='BUY'?'up':'dn'}" style="font-size:10px">${g.dir}</span>
             <span class="mu" style="font-size:10px">${g.grade} ${g.q}%</span></b>
-          <small>${dt12(g.at)} · ${g.tf}${g.vote?` · agents ${g.vote.verdict} ${g.vote.conf}%`:''}${g.an?` · ${g.an.pct}%`:''}</small>
+          <small>${dt12(g.at)} · ${g.tf}${g.vote?` · agents ${g.vote.verdict} ${g.vote.conf}%`:''}${g.an?` · ${g.an.pct}%`:''}${(f => f ? ` · SF ${f.pass ? '✅' : '⏸'}` : '')(smartFilter(g.dir, g.vstr))}</small>
         </div>
         ${g.out==='OPEN' ? '<span class="mu" style="font-size:10px" data-ago="'+g.at+'">'+ago(g.at)+'</span>'
           : `<div class="amt mono ${g.pl>=0?'up':'dn'}">${money(g.pl)}</div>`}
