@@ -1,0 +1,10 @@
+{
+  "pairs": ["XAU/USD", "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD"],
+  "tf": "15min",
+  "hoursIST": [11, 24],
+  "notify": ["TRADE LO", "LIMIT LAGAO", "STOP LAGAO"],
+  "minScanScore": 60,
+  "maxDeep": 3,
+  "dedupHours": 4,
+  "maxCreditsPerDay": 650
+}
