@@ -167,6 +167,13 @@ input:focus,select:focus{border-color:var(--gold)}
 /* v9.9.21: TOTAL ANALYSIS — sab ka saar ek jagah */
 .tot-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .tot-h b.t{font-size:12.5px;letter-spacing:1.6px}
+/* v9.9.28: "Live Price Lo" hara blink — jab tak is sheet me live price nahi liya */
+@keyframes liveBlink{
+  0%,100%{border-color:#16E27E;box-shadow:0 0 0 1px rgba(22,226,126,.55),0 0 14px rgba(22,226,126,.45);color:#16E27E}
+  50%{border-color:rgba(22,226,126,.15);box-shadow:0 0 0 0 rgba(22,226,126,0);color:inherit}
+}
+.btn.liveBlink{border:2px solid #16E27E !important;animation:liveBlink 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.btn.liveBlink{animation:none;color:#16E27E}}
 .fbox{border:2px solid;border-radius:10px;padding:12px 14px;margin:2px 0 12px;cursor:pointer}
 .fbox b{display:block;font-size:17px;letter-spacing:1px}
 .fbox .fchk{display:block;font-size:11px;color:var(--mut);margin-top:3px}
@@ -2076,7 +2083,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.27';
+const VERSION = '9.9.28';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -6039,7 +6046,7 @@ function drawQuick(){
 
     <div class="grid2" style="margin:14px 0 8px">
       <button class="btn ghost sm" onclick="qtReset()">↺ Reset to Default</button>
-      <button class="btn ghost sm" onclick="qtLive()">⟳ Live Price Lo</button>
+      <button class="btn ghost sm${q.liveOk ? '' : ' liveBlink'}" onclick="qtLive()">⟳ Live Price Lo</button>
     </div>
 
     ${isMt5
@@ -6146,7 +6153,7 @@ function qtReset(){
 
 async function qtLive(){
   const p = await getPrice(qtState.sym);
-  if(p){ qtState.entry = p; drawQuick(); toast('Live price update ho gaya') }
+  if(p){ qtState.entry = p; qtState.liveOk = true; drawQuick(); toast('Live price update ho gaya') }
 }
 
 async function confirmTrade(){
