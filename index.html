@@ -177,6 +177,8 @@ input:focus,select:focus{border-color:var(--gold)}
 .fbox{border:2px solid;border-radius:10px;padding:12px 14px;margin:2px 0 12px;cursor:pointer}
 .fbox b{display:block;font-size:17px;letter-spacing:1px}
 .fbox .fchk{display:block;font-size:11px;color:var(--mut);margin-top:3px}
+.fbox .ford{display:block;margin-top:8px;font-size:12px;font-weight:800;color:#38BDF8}
+.fbox .ford small{display:block;font-size:10.5px;font-weight:600;color:var(--mut);margin-top:2px}
 .fbox p{margin:6px 0 0;font-size:11.5px;line-height:1.5;font-weight:600}
 .tot-r{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px dashed var(--line);cursor:pointer}
 .tot-r:last-child{border-bottom:0}
@@ -2083,7 +2085,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.28';
+const VERSION = '9.9.29';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -3217,11 +3219,13 @@ async function getSeries(sym, interval, n, note){
     } else throw e;
   }
   if(!j.values || !j.values.length) throw new Error('Data nahi mila: ' + sym);
-  return j.values.map(v => ({
+  const out = j.values.map(v => ({
     t: v.datetime,
     o:+v.open, h:+v.high, l:+v.low, c:+v.close,
     v: +(v.volume ?? v.vol ?? v.tick_volume ?? 0) || 0
   })).filter(b => isFinite(b.c));
+  try{ shadowFeed(sym, interval, out) }catch(e){}   /* LIMIT/STOP shadow — free, wahi candles */
+  return out;
 }
 
 const QCACHE = {};
@@ -3831,8 +3835,9 @@ async function runAnalyze(){
     if(S.gAuto && S.gKey && dir !== 'NEUTRAL') runAI();
     const fc = finalCall(lastSignal);
     if(dir !== 'NEUTRAL' && fc.go){
-      notify(`${s0q(dir)} ${SPECS[sym].n} · ${q}%`,
-        `Entry ${fmt(sym,live)} · SL ${fmt(sym,sl)} · TP ${fmt(sym,tp)}`, 'sig');
+      const o = fc.ord || {type:'MARKET', e:live, sl, tp};
+      notify(`${s0q(dir)}${o.type !== 'MARKET' ? ' ' + o.type : ''} ${SPECS[sym].n} · ${q}%`,
+        `Entry ${fmt(sym,o.e)} · SL ${fmt(sym,o.sl)} · TP ${fmt(sym,o.tp)}`, 'sig');
       speakSignal(lastSignal);
     }
     if(S.tgAuto && dir!=='NEUTRAL' && fc.go) tgSend(fullReport(true), true);
@@ -4011,27 +4016,65 @@ function finalBox(s){
   if(vb){
     vb.className = 'verdictbar' + (f.go ? '' : ' vWait');
     vb.style.borderColor = f.c; vb.style.background = f.bg;
-    vb.innerHTML = `<b class="shine ${f.go ? 'up' : 'gd'}">${f.t}</b><p style="color:${f.c}">${f.why}</p>`;
+    vb.innerHTML = `<b class="${!f.go ? 'shine gd' : f.ord && f.ord.type !== 'MARKET' ? '' : 'shine up'}" style="color:${f.c}">${f.t}</b><p style="color:${f.c}">${f.why}</p>`;
   }
   if($('gVerdict')) $('gVerdict').innerHTML = `<b style="color:${f.c}">${f.t}</b>
       <p>${f.why}<br><span style="color:var(--dim)" data-ago="${s.at}">${ago(s.at)}</span></p>`;
-  const dir = f.go ? ` — ${SPECS[s.sym] ? SPECS[s.sym].n : s.sym} ${s.dir}` : '';
+  const n = SPECS[s.sym] ? SPECS[s.sym].n : s.sym;
+  const o = f.ord;
+  const pend = o && o.type !== 'MARKET';
+  const head = !f.go ? `⏸ ${f.t}` : pend ? `⏳ ${f.t} — ${n} ${s.dir} ${o.type}` : `✅ ${f.t} — ${n} ${s.dir}`;
+  const ordLine = pend ? `<span class="ford mono">👉 ${s.dir} ${o.type} @ ${fmt(s.sym, o.e)} · SL ${fmt(s.sym, o.sl)} · TP ${fmt(s.sym, o.tp)}
+      <small>live se ${(o.off / SPECS[s.sym].pip).toFixed(1)} pips ${o.type === 'LIMIT' ? 'peeche (pullback)' : 'aage (breakout)'} · $${s.slD}/$${s.tpD} wahi · 3 ghante me na bhare to hata do</small></span>` : '';
   return `<div class="fbox${f.go ? '' : ' fWait'}" style="border-color:${f.c};background:${f.bg}" onclick="sumGo('cardSignal')">
-      <b class="shine ${f.go ? 'up' : 'gd'}">${f.go ? '✅' : '⏸'} ${f.t}${dir}</b>
+      <b class="${!f.go ? 'shine gd' : pend ? '' : 'shine up'}"${pend ? ' style="color:#38BDF8"' : ''}>${head}</b>
       ${f.total ? `<span class="fchk mono">${f.pass}/${f.total} check paas</span>` : ''}
+      ${ordLine}
       <p style="color:${f.c}">${f.why}</p>
     </div>`;
 }
 
-/* v9.9.25: EK FAISLA — sirf do jawab: TRADE LO ya WAIT.
+/* v9.9.29: FAISLA — ab chaar jawab: TRADE LO (market), LIMIT LAGAO, STOP LAGAO, WAIT.
    Average nahi lete — average me ek khatarnaak baat (jaise news) dab jaati hai.
-   Teen seedhi:
-   1) Rukawat — ek bhi ho to seedha WAIT (kuch me "doosra pair dekho")
-   2) Zaroori — quality 70%+, technical 65%+, agents saath 55%+ (sab chahiye)
-   3) Chetawani — 0 ya 1 ho to TRADE LO (1 ho to saath me likhi), 2+ ho to WAIT
+   1) Rukawat — ek bhi ho to WAIT (setup galat, news, dono HTF ulte, R:R kam,
+      vote/technical bahut kamzor)
+   2) Baaki kamiyon ko do tokri me baanto:
+      TIMING  — move chal chuka / chase (LATE, PURANA, range ka kinara, RSI extreme,
+                Smart Filter chase) → LIMIT: pullback pe sasti entry
+      CONFIRM — direction pakki nahi (quality 60–69%, technical 55–64%, supertrend
+                ulta, EMA Plan/AI WAIT, HTF rule) → STOP: breakout ke baad hi ghuso
+   3) Dono tokri me kami = ulti baatein → WAIT. 3+ kami → WAIT.
+      Koi kami nahi, ya sirf ek halki chetawani → TRADE LO (market).
    AI, EMA Plan aur Smart Filter tabhi gine jaate hain jab is pair pe chale hon. */
+const PEND_MS = 3 * 3600000;               /* LIMIT/STOP itni der me na bhare to MISS */
+
+/* ATR ke hisaab se LIMIT/STOP kitni door. LIMIT: 0.35 ATR pullback (LATE pe 0.6).
+   STOP: pichhli 6 candles ke high/low ke thoda paar, kam se kam 0.25 ATR, max 1.5 ATR. */
+function orderOff(s, type){
+  const pip = SPECS[s.sym].pip;
+  const atr = s.atr > 0 ? s.atr : 0;
+  if(!atr) return (S.limPips || 5) * pip;
+  if(type === 'LIMIT') return (s.age && s.age.st === 'LATE' ? 0.6 : 0.35) * atr;
+  const bars = (barCache[s.sym] || []).slice(-6);
+  let off = 0.25 * atr;
+  if(bars.length){
+    const edge = s.dir === 'BUY' ? Math.max(...bars.map(b => b.h)) + 0.1*atr - s.live
+                                 : s.live - (Math.min(...bars.map(b => b.l)) - 0.1*atr);
+    off = Math.max(off, edge);
+  }
+  return Math.min(off, 1.5 * atr);
+}
+/* order type ke hisaab se entry/SL/TP — $ risk wahi, sirf levels khisakte hain */
+function orderLeg(s, type){
+  if(type === 'MARKET') return {type, off:0, e:s.live, sl:s.sl, tp:s.tp};
+  const off = orderOff(s, type);
+  const sign = type === 'LIMIT' ? -1 : 1;
+  const sh = (s.dir === 'BUY' ? sign : -sign) * off;
+  return {type, off, e:s.live + sh, sl:s.sl + sh, tp:s.tp + sh};
+}
+
 function finalCall(s){
-  const C = [];                          /* {n, ok, k:'stop'|'skip'|'core'|'warn', why} */
+  const C = [];                          /* {k:'skip'|'hard'|'timing'|'confirm'|'other', n, ok, why} */
   const add = (k, n, ok, why) => C.push({k, n, ok, why});
   const v = lastVotes && lastVotes.sym === s.sym ? lastVotes : null;
   const a = lastAn;
@@ -4045,84 +4088,180 @@ function finalCall(s){
       why:'koi saaf direction nahi — doosra pair dekho'};
   }
 
-  /* 1) rukawat — setup hi galat (skip) */
+  /* 1) rukawat */
   add('skip', 'Agents', !(v && v.verdict !== s.dir && v.verdict !== 'HOLD'), v ? `agents ${v.verdict} bol rahe hain` : '');
   const str = chk('STRUCTURE');
   add('skip', 'Structure', str ? str.ok !== 0 : null, 'structure trend ke khilaaf');
   if(a && a.pct < 40) add('skip', 'Technical', false, `technical sirf ${a.pct}%`);
   if(ai) add('skip', 'AI', ai.verdict !== 'CHHOD DO', 'AI ne CHHOD DO kaha');
-  /* 1) rukawat — timing (stop) */
   const nr = newsRisk(s.sym);
-  add('stop', 'News', !nr, nr ? `${nr.c} news ${t12(nr.d)} pe` : '');
-  add('stop', 'HTF', !(s.htfCount === 0 || (S.htf && s.htfAgree === 0)), '4H/1D dono signal ke khilaaf');
-  add('stop', 'R:R', rr >= 2, `R:R sirf 1:${rr.toFixed(2)} — 1:2 chahiye`);
-  if(s.age) add('stop', 'Signal umar', s.age.st !== 'LATE', 'signal LATE — move nikal chuka');
+  add('hard', 'News', !nr, nr ? `${nr.c} news ${t12(nr.d)} pe` : '');
+  add('hard', 'HTF', !(s.htfCount === 0 || (S.htf && s.htfAgree === 0)), '4H/1D dono signal ke khilaaf');
+  add('hard', 'R:R', rr >= 2, `R:R sirf 1:${rr.toFixed(2)} — 1:2 chahiye`);
+  add('hard', 'Vote', !!(v && v.verdict === s.dir && v.conf >= 55), v ? `agents sirf ${v.conf}% saath (55%+ chahiye)` : 'agent vote nahi hua');
+  if(!(a && a.pct < 40)) add('hard', 'Technical', !!(a && a.pct >= 55), a ? `technical ${a.pct}% (55%+ chahiye)` : 'technical check nahi hua');
+  add('hard', 'Quality', s.q >= 60, `quality ${s.q}% (60%+ chahiye)`);
 
-  /* 2) zaroori */
-  add('core', 'Quality', s.q >= 70, `quality ${s.q}% (70%+ chahiye)`);
-  add('core', 'Technical', !!(a && a.pct >= 65), a ? `technical ${a.pct}% (65%+ chahiye)` : 'technical check nahi hua');
-  add('core', 'Vote', !!(v && v.verdict === s.dir && v.conf >= 55), v ? `agents sirf ${v.conf}% saath (55%+ chahiye)` : 'agent vote nahi hua');
-
-  /* 3) chetawani */
+  /* 2a) confirm tokri — direction pakki nahi */
+  if(s.q >= 60) add('confirm', 'Quality', s.q >= 70, `quality ${s.q}% (70% se kam)`);
+  if(a && a.pct >= 55) add('confirm', 'Technical', a.pct >= 65, `technical ${a.pct}% (65% se kam)`);
   const st = chk('SUPERTREND'), loc = chk('ENTRY LOCATION'), sv = chk('SL vs VOLATILITY');
-  add('warn', 'Supertrend', st ? st.ok !== 0 : null, 'supertrend ulta');
-  add('warn', 'Entry jagah', loc ? loc.ok !== 0 : null, 'entry range ke kinare pe');
-  add('warn', 'SL', sv ? sv.ok !== 0 : null, 'SL volatility ke hisaab se tight');
-  add('warn', 'RSI', !(s.rsi > 75 || s.rsi < 25), `RSI ${(+s.rsi).toFixed(0)} extreme pe`);
-  if(s.age) add('warn', 'Umar', s.age.st !== 'PURANA', 'signal PURANA — palatne ka khatra');
+  add('confirm', 'Supertrend', st ? st.ok !== 0 : null, 'supertrend ulta');
+  if(ema) add('confirm', 'EMA Plan', ema.dir === s.dir, ema.dir === 'WAIT' ? 'EMA Plan WAIT bol raha' : `EMA Plan ${ema.dir} bol raha`);
+  if(ai) add('confirm', 'AI', ai.verdict !== 'WAIT', 'AI ne WAIT kaha');
   const sf = v ? smartFilter(s.dir, v.list.map(x => x.v[0]).join('')) : null;
-  if(sf) add('warn', 'Smart Filter', sf.pass, sf.why);
-  if(ema) add('warn', 'EMA Plan', ema.dir === s.dir, ema.dir === 'WAIT' ? 'EMA Plan WAIT bol raha' : `EMA Plan ${ema.dir} bol raha`);
-  if(ai) add('warn', 'AI', ai.verdict !== 'WAIT', 'AI ne WAIT kaha');
+  if(sf) add('confirm', 'HTF rule', !sf.rules.includes('htf'), '1H+4H+1D signal ke khilaaf (Smart Filter)');
+
+  /* 2b) timing tokri — move chal chuka / chase */
+  if(s.age) add('timing', 'Signal umar', s.age.st !== 'LATE', 'signal LATE — move nikal chuka');
+  if(s.age) add('timing', 'Umar', s.age.st !== 'PURANA', 'signal PURANA');
+  add('timing', 'Entry jagah', loc ? loc.ok !== 0 : null, 'entry range ke kinare pe');
+  add('timing', 'RSI', !(s.rsi > 75 || s.rsi < 25), `RSI ${(+s.rsi).toFixed(0)} extreme pe`);
+  if(sf) add('timing', 'Chase rule', !sf.rules.includes('chase'), 'range/din ke kinare pe chase (Smart Filter)');
+
+  /* 2c) baaki — tokri nahi badalti, sirf ginti me */
+  add('other', 'SL', sv ? sv.ok !== 0 : null, 'SL volatility ke hisaab se tight');
 
   const used = C.filter(x => x.ok !== null);
   const fail = k => used.filter(x => x.k === k && !x.ok);
   const pass = used.filter(x => x.ok).length, total = used.length;
-  const skip = fail('skip'), stop = fail('stop'), core = fail('core'), warns = fail('warn');
-  const W = {t:'WAIT', go:false, c:'var(--gold)', bg:'rgba(255,184,0,.08)', pass, total, warns:warns.map(x => x.why)};
+  const skip = fail('skip'), hard = fail('hard'), T = fail('timing'), Cf = fail('confirm'), O = fail('other');
+  const warns = [...T, ...Cf, ...O].map(x => x.why);
+  const W = {t:'WAIT', go:false, c:'var(--gold)', bg:'rgba(255,184,0,.08)', pass, total, warns};
 
   if(skip.length) return Object.assign(W, {skip:true,
     why: skip.map(x => x.why).slice(0,3).join(' · ') + ' — intezaar se ye theek nahi hoga, doosra pair dekho'});
-  if(stop.length) return Object.assign(W, {
-    why: stop.map(x => x.why).slice(0,3).join(' · ') + ' — condition saaf hone par dobara Analyze karo'});
-  if(core.length) return Object.assign(W, {
-    why: core.map(x => x.why).slice(0,3).join(' · ') + ' — setup aur clear hone do'});
-  if(warns.length >= 2) return Object.assign(W, {
-    why: `${warns.length} chetawani: ` + warns.map(x => x.why).slice(0,3).join(' · ')});
+  if(hard.length) return Object.assign(W, {
+    why: hard.map(x => x.why).slice(0,3).join(' · ') + ' — condition saaf hone par dobara Analyze karo'});
+  if(T.length && Cf.length) return Object.assign(W, {
+    why: `timing aur direction dono kamzor — ${T[0].why} · ${Cf[0].why}`});
+  if(warns.length >= 3) return Object.assign(W, {
+    why: `${warns.length} kami: ` + warns.slice(0,3).join(' · ')});
 
-  return {t:'TRADE LO', go:true, c:'var(--up)', bg:'rgba(0,255,150,.08)', pass, total, warns:warns.map(x => x.why),
+  const nearCore = Cf.some(x => x.n === 'Quality' || x.n === 'Technical');
+  if(T.length){
+    return {t:'LIMIT LAGAO', go:true, ord:orderLeg(s, 'LIMIT'), c:'#38BDF8', bg:'rgba(56,189,248,.09)', pass, total, warns,
+      why: `Setup sahi, par timing nahi — ${T.map(x => x.why).join(' · ')}. Pullback pe sasti entry lo.`};
+  }
+  if(nearCore || Cf.length >= 2 || (Cf.length === 1 && O.length === 1)){
+    return {t:'STOP LAGAO', go:true, ord:orderLeg(s, 'STOP'), c:'#38BDF8', bg:'rgba(56,189,248,.09)', pass, total, warns,
+      why: `Direction abhi pakki nahi — ${Cf.map(x => x.why).join(' · ')}. Breakout hone par hi trade khule.`};
+  }
+  return {t:'TRADE LO', go:true, ord:orderLeg(s, 'MARKET'), c:'var(--up)', bg:'rgba(0,255,150,.08)', pass, total, warns,
     why: `Sab zaroori check paas — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy, v.sell)}/50 agents saath` +
-      (warns.length ? ` · ⚠ dhyan: ${warns[0].why}` : '')};
+      (warns.length ? ` · ⚠ dhyan: ${warns[0]}` : '')};
 }
 
-/* Faisla har signal ke saath yaad rakho — baad me pata chale TRADE LO wale
-   kitne sahi nikle. AI/EMA baad me aate hain, isliye OPEN rehte tak update. */
+/* Faisla har signal ke saath yaad rakho — baad me pata chale TRADE LO / LIMIT /
+   STOP wale kitne sahi nikle. AI/EMA baad me aate hain, isliye OPEN rehte tak update. */
 function fdRecord(s, f){
   const g = S.sigs.find(x => x.at === s.at && x.sym === s.sym && x.dir === s.dir);
   if(!g || g.out !== 'OPEN') return;
-  const fd = f.go ? 'T' : 'W';
+  const fd = !f.go ? 'W' : f.ord && f.ord.type === 'LIMIT' ? 'L' : f.ord && f.ord.type === 'STOP' ? 'S' : 'T';
   if(g.fd !== fd){ g.fd = fd; save() }
 }
-function fdHTML(done){
-  const be = 100 / (1 + S.dTp / S.dSl);
-  const st = a => ({n:a.length, wr: a.length ? Math.round(a.filter(x => x.out === 'TP').length / a.length * 100) : null,
-                    pl: a.reduce((t,x) => t + (x.pl || 0), 0)});
-  const T = st(done.filter(x => x.fd === 'T')), Wt = st(done.filter(x => x.fd === 'W'));
-  if(!T.n && !Wt.n) return '';
-  const cell = (k, x) => `<tr><td><b>${k}</b></td>
+
+/* ===== SHADOW TRACKING (v9.9.29) =====
+   Har signal ke saath teeno tareeke kaagaz pe chalao: MARKET, LIMIT, STOP.
+   Jo candles app waise bhi mangwati hai (Analyze, Trades refresh) unhi se —
+   koi extra API credit nahi. Aakhri (adhoori) candle nahi ginte.
+   Ek candle me SL aur TP dono → SL. Jis candle me LIMIT/STOP bhara, us candle
+   me SL/TP nahi ginte (andar ka order pata nahi). */
+const SH_IV = {'5min':300000, '15min':900000, '1h':3600000};
+function shadowNew(sig){
+  const leg = t => { const o = orderLeg(sig, t); return {e:o.e, sl:o.sl, tp:o.tp, st: t === 'MARKET' ? 'OPEN' : 'PEND'} };
+  return {upto: sig.at, m: leg('MARKET'), l: leg('LIMIT'), s: leg('STOP')};
+}
+function fillHit(dir, type, e, hi, lo){
+  return (dir === 'BUY') === (type === 'LIMIT') ? lo <= e : hi >= e;
+}
+function shadowFeed(sym, iv, bars){
+  const ivMs = SH_IV[iv]; if(!ivMs || !bars || bars.length < 2) return;
+  const closed = bars.slice(0, -1);                     /* aakhri candle abhi bani nahi */
+  let changed = false;
+  S.sigs.forEach(g => {
+    if(g.sym !== sym || !g.sh || g.sh.done) return;
+    const sh = g.sh;
+    const todo = closed.filter(b => barMs(b.t) >= sh.upto);
+    if(todo.length && barMs(todo[0].t) <= sh.upto + ivMs){   /* beech me gap nahi */
+      for(const b of todo){
+        const ms = barMs(b.t);
+        [['m','MARKET'], ['l','LIMIT'], ['s','STOP']].forEach(([k, type]) => {
+          const L = sh[k];
+          if(L.st === 'PEND'){
+            if(ms - g.at > PEND_MS) L.st = 'MISS';
+            else if(fillHit(g.dir, type, L.e, b.h, b.l)){ L.st = 'OPEN'; L.fill = ms }
+            return;
+          }
+          if(L.st !== 'OPEN' || L.fill === ms) return;
+          const slHit = g.dir === 'BUY' ? b.l <= L.sl : b.h >= L.sl;
+          const tpHit = g.dir === 'BUY' ? b.h >= L.tp : b.l <= L.tp;
+          if(slHit) L.st = 'SL'; else if(tpHit) L.st = 'TP';
+          else if(ms - g.at > 48*3600000) L.st = 'EX';
+        });
+        sh.upto = ms + ivMs;
+      }
+      changed = true;
+    }
+    const live = k => sh[k].st === 'PEND' || sh[k].st === 'OPEN';
+    if(!live('m') && !live('l') && !live('s')){ sh.done = true; changed = true }
+    else if(Date.now() - g.at > 72*3600000){             /* data kabhi mila hi nahi */
+      ['m','l','s'].forEach(k => { if(live(k)) sh[k].st = 'GAP' });
+      sh.done = true; changed = true;
+    }
+  });
+  if(changed){ save(); if($('pgVotes') && !$('pgVotes').classList.contains('hide')) renderSigHist() }
+}
+
+/* jeet% sirf TP/SL wale pe; $ = TP pe +tpD, SL pe −slD */
+function outStat(list, outOf){
+  let n = 0, tp = 0, pl = 0;
+  list.forEach(g => { const o = outOf(g); if(o !== 'TP' && o !== 'SL') return;
+    n++; if(o === 'TP'){ tp++; pl += +g.tpD || 0 } else pl -= +g.slD || 0 });
+  return {n, wr: n ? Math.round(tp / n * 100) : null, pl};
+}
+function statCell(k, x, be, extra){
+  return `<tr><td><b>${k}</b>${extra ? `<br><small class="mu" style="font-size:9.5px">${extra}</small>` : ''}</td>
       <td class="mono" style="text-align:right">${x.n}</td>
       <td class="mono ${x.wr == null ? 'mu' : x.wr >= be + 3 ? 'up' : x.wr <= be - 3 ? 'dn' : ''}" style="text-align:right">${x.wr == null ? '—' : x.wr + '%'}</td>
       <td class="mono ${x.pl >= 0 ? 'up' : 'dn'}" style="text-align:right">${x.n ? money(x.pl) : '—'}</td></tr>`;
-  const enough = T.n >= 15 && Wt.n >= 10;
-  const d = enough ? T.wr - Wt.wr : 0;
-  const verdict = !enough ? `<p class="hint">⚠ Data kam hai — TRADE LO me 15+ aur WAIT me 10+ scored signal hone par hi rules badalne ka socho.</p>`
-    : d >= 10 ? `<p class="hint" style="color:var(--up)">✓ Faisla kaam kar raha hai — TRADE LO wale ${d}% zyada sahi.</p>`
-    : `<p class="hint" style="color:var(--dn)">✗ TRADE LO aur WAIT me farak kam (${d}%) — rules sakht karne padenge.</p>`;
+}
+function fdHTML(){
+  const be = 100 / (1 + S.dTp / S.dSl);
+  const all = S.sigs.filter(g => !g.dup && g.fd);
+  const leg = k => g => g.sh ? g.sh[k].st : null;
+  const outOf = g => g.fd === 'L' ? leg('l')(g) : g.fd === 'S' ? leg('s')(g) : g.out;
+  if(!all.some(g => outOf(g) === 'TP' || outOf(g) === 'SL')) return '';
+  const by = k => outStat(all.filter(g => g.fd === k), outOf);
+  const miss = k => all.filter(g => g.fd === k.toUpperCase() && g.sh && g.sh[k].st === 'MISS').length;
+  const go = outStat(all.filter(g => g.fd !== 'W'), outOf), Wt = by('W');
+  const enough = go.n >= 15 && Wt.n >= 10;
+  const d = enough ? go.wr - Wt.wr : 0;
+  const verdict = !enough ? `<p class="hint">⚠ Data kam hai — "lo/lagao" wale 15+ aur WAIT me 10+ scored signal hone par hi rules badalne ka socho.</p>`
+    : d >= 10 ? `<p class="hint" style="color:var(--up)">✓ Faisla kaam kar raha hai — app ne jo lene ko kaha wo ${d}% zyada sahi.</p>`
+    : `<p class="hint" style="color:var(--dn)">✗ Lene wale aur WAIT me farak kam (${d}%) — rules sakht karne padenge.</p>`;
+  const mi = k => miss(k) ? `${miss(k)} bhara hi nahi (3 ghante)` : '';
   return `<p class="ttl" style="margin:16px 0 8px">Faisla kitna sahi</p>
     <table><thead><tr><th>App ne kaha</th><th style="text-align:right">Signals</th><th style="text-align:right">Accuracy</th><th style="text-align:right">$</th></tr></thead>
-    <tbody>${cell('✅ TRADE LO', T)}${cell('⏸ WAIT', Wt)}</tbody></table>
-    <p class="hint">Barabar rehne ko ${be.toFixed(0)}% chahiye. TRADE LO wale zyada aur WAIT wale kam sahi hon, tabhi faisla achha hai. v9.9.25 se pehle ke signals isme nahi gine.</p>
+    <tbody>${statCell('✅ TRADE LO', by('T'), be)}${statCell('⏳ LIMIT LAGAO', by('L'), be, mi('l'))}${statCell('⏳ STOP LAGAO', by('S'), be, mi('s'))}${statCell('⏸ WAIT', Wt, be)}</tbody></table>
+    <p class="hint">Barabar rehne ko ${be.toFixed(0)}% chahiye. LIMIT/STOP ka nateeja usi order ke hisaab se (shadow) gina hai, market ke hisaab se nahi.</p>
     ${verdict}`;
+}
+function shHTML(){
+  const be = 100 / (1 + S.dTp / S.dSl);
+  const all = S.sigs.filter(g => !g.dup && g.sh);
+  if(!all.length) return '';
+  const row = (k, name) => {
+    const x = outStat(all, g => g.sh[k].st);
+    const c = st => all.filter(g => g.sh[k].st === st).length;
+    const sub = [c('PEND') ? `${c('PEND')} intezaar me` : '', c('OPEN') ? `${c('OPEN')} chal rahe` : '',
+                 c('MISS') ? `${c('MISS')} bhara nahi` : ''].filter(Boolean).join(' · ');
+    return statCell(name, x, be, sub);
+  };
+  return `<p class="ttl" style="margin:16px 0 8px">Order type — kaun sa behtar <span class="sp" style="color:var(--gold)">SHADOW</span></p>
+    <table><thead><tr><th>Har signal pe</th><th style="text-align:right">TP/SL</th><th style="text-align:right">Accuracy</th><th style="text-align:right">$</th></tr></thead>
+    <tbody>${row('m','MARKET')}${row('l','LIMIT (pullback)')}${row('s','STOP (breakout)')}</tbody></table>
+    <p class="hint">Har signal pe teeno tareeke kaagaz pe chalaaye jaate hain — same $ TP/SL ke saath. LIMIT/STOP 3 ghante me na bhare to "bhara nahi". 30–50 signal ke baad dekho kaun sa tareeka tumhare pairs pe zyada kamata hai.</p>`;
 }
 
 /* ---------------- price ladder (Gold Reserve) ----------------
@@ -4506,6 +4645,7 @@ function logSignal(sig, v, an){
     vote: v ? {b:v.buy, s:v.sell, h:v.hold, verdict:v.verdict, conf:v.conf} : null,
     vstr: v ? v.list.map(x => x.v[0]).join('') : '',   /* B/S/H x50 */
     an: an ? {pct:an.pct, verdict:an.verdict} : null,
+    sh: shadowNew(sig),
     out:'OPEN', pl:0
   });
   S.sigs = S.sigs.slice(0,200); save();
@@ -4596,7 +4736,8 @@ function renderSigHist(){
       <td class="mono mu" style="text-align:right">${g.avgQ}%</td>
     </tr>`).join('')}</tbody></table>
     <p class="hint">Ye asli trades nahi — har analyze hua signal apne SL/TP se khud score hota hai. Isse pata chalta hai kaunsa grade sach me kaam karta hai.</p>` : ''}
-    ${fdHTML(done)}
+    ${fdHTML()}
+    ${shHTML()}
     ${sfHTML(done)}
     ${nDup ? `<p class="hint">${nDup} duplicate signal (same pair + direction dobara Analyze) gine nahi gaye.</p>` : ''}
     <p class="ttl" style="margin:16px 0 8px">Recent</p>
@@ -5916,8 +6057,14 @@ function openQuick(target){
     lotsBase: +$('inLots').value || S.dLot,
     mode: S.slMode, slD: defSL(s.sym, +$('inLots').value || S.dLot), tpD: defTP(s.sym, +$('inLots').value || S.dLot),
     atrSL: S.atrSL, atrRR: S.atrRR, autoLot: S.autoLot, riskUsd: S.riskUsd,
-    ordType: (target === 'MT5') ? S.mt5Type : 'MARKET'   /* journal me default turant (market) */
+    ordType: (target === 'MT5') ? S.mt5Type : 'MARKET',  /* journal me default turant (market) */
+    /* ATR wali doori — LIMIT/STOP chip dabane par yahi lagti hai */
+    sugg: {LIMIT: orderOff(s, 'LIMIT'), STOP: orderOff(s, 'STOP')}
   };
+  /* Total Analysis ne LIMIT/STOP kaha ho to sheet usi pe khule */
+  const fc = finalCall(s);
+  if(fc.ord && fc.ord.type !== 'MARKET') qtState.ordType = fc.ord.type;
+  qtState.offPx = qtState.sugg[qtState.ordType] || 0;
   drawQuick(); openSheet('qtSheet');
 }
 
@@ -5948,10 +6095,15 @@ function qtCalc(){
 function sendPx0(){ return qtSendPrice() }
 function sl0(){ const {lv,sl} = qtCalc(); return sl + qtSendPrice() - qtState.entry }
 function tp0(){ const {lv,tp} = qtCalc(); return tp + qtSendPrice() - qtState.entry }
+function qtOff(){
+  const q = qtState;
+  return q.offPx > 0 ? q.offPx : (S.limPips || 5) * SPECS[q.sym].pip;
+}
+const qtOffPips = () => +(qtOff() / SPECS[qtState.sym].pip).toFixed(1);
 function qtSendPrice(){
   const q = qtState;
   if(q.ordType === 'MARKET') return q.entry;
-  const off = (S.limPips || 5) * SPECS[q.sym].pip;
+  const off = qtOff();
   const sign = (q.ordType === 'LIMIT') ? -1 : 1;
   return q.entry + (q.dir === 'BUY' ? sign : -sign) * off;
 }
@@ -5982,7 +6134,7 @@ function drawQuick(){
     ${q.ordType !== 'MARKET' ? `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <label style="margin:0;flex:1">Live price se kitne pips door</label>
-        <input class="mono" type="number" step="1" min="1" value="${S.limPips}" style="width:90px"
+        <input class="mono" type="number" step="0.5" min="0.5" value="${qtOffPips()}" style="width:90px"
                oninput="qtPips(this.value)">
       </div>
       <p class="hint" style="margin:0 0 12px">${q.ordType === 'LIMIT'
@@ -6018,7 +6170,7 @@ function drawQuick(){
       </div>
     `}
 
-    <div><label>${q.ordType === 'MARKET' ? 'Entry price (manually badal sakte ho)' : 'Live price — order isse ' + S.limPips + ' pips door lagega'}</label>
+    <div><label>${q.ordType === 'MARKET' ? 'Entry price (manually badal sakte ho)' : 'Live price — order isse ' + qtOffPips() + ' pips door lagega'}</label>
       <input class="mono" type="number" step="0.00001" value="${fmt(sym,q.entry)}" oninput="qtSet('entry',+this.value,1)"></div>
 
     ${(() => { const n = newsRisk(sym); return n
@@ -6100,7 +6252,7 @@ function qtLevels(){
       : `<p class="hint" style="color:var(--gold);margin-top:8px">R:R 1:${rr.toFixed(2)} — ${beW.toFixed(0)}% win rate chahiye</p>`;
   }
   const typeTxt = q.ordType !== 'MARKET'
-    ? ` · ${q.dir} ${q.ordType} live se ${S.limPips} pips ${q.ordType==='LIMIT'?'door':'aage'}`
+    ? ` · ${q.dir} ${q.ordType} live se ${qtOffPips()} pips ${q.ordType==='LIMIT'?'door':'aage'}`
     : '';
   $('qtInfo').textContent = `R:R 1:${rr.toFixed(2)} · barabar rehne ko ${(100/(1+rr)).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${q.mode==='ATR'?` · ATR ${fmt(sym,q.atr)}`:''}${typeTxt}`;
 }
@@ -6131,13 +6283,14 @@ function qtLotDone(el){
 }
 
 function qtPips(v){
-  const n = Math.round(+v);
-  if(!(n >= 1)) return;                     /* aadha typed number ignore */
-  S.limPips = n; save();
+  const n = parseFloat(v);
+  if(!(n > 0)) return;                      /* aadha typed number ignore */
+  qtState.offPx = n * SPECS[qtState.sym].pip;
   qtLevels(); paintQtChart();
 }
 function qtSet(k, v, keepFocus){
   qtState[k] = v;
+  if(k === 'ordType') qtState.offPx = (qtState.sugg && qtState.sugg[v]) || 0;   /* us type ki ATR doori */
   keepFocus ? qtLevels() : drawQuick();
 }
 
@@ -6148,6 +6301,7 @@ function qtReset(){
     autoLot: S.autoLot, riskUsd: S.riskUsd, ordType: qtState.target === 'MT5' ? S.mt5Type : 'MARKET'
   });
   if(lastSignal && lastSignal.sym === qtState.sym) qtState.entry = lastSignal.live;
+  qtState.offPx = (qtState.sugg && qtState.sugg[qtState.ordType]) || 0;
   drawQuick(); toast('Default values wapas aa gayi');
 }
 
@@ -6165,12 +6319,17 @@ async function confirmTrade(){
 
   if(q.target === 'MT5'){
     closeSheet('qtSheet');
-    await sendMT5(sym, q.dir, lv.lots, q.entry, sl, tp, q.ordType);
+    if(q.ordType === 'MARKET') await sendMT5(sym, q.dir, lv.lots, q.entry, sl, tp, q.ordType);
+    else {                                      /* sheet wali doori hi bhejo (exact) */
+      const sh = qtSendPrice() - q.entry;
+      await sendMT5(sym, q.dir, lv.lots, q.entry + sh, sl + sh, tp + sh, q.ordType, false, true);
+    }
     return;
   }
   const sh = qtSendPrice() - q.entry;       /* LIMIT/STOP: entry, SL, TP saath me khisko */
+  const r = v => +v.toFixed(SPECS[sym].d);
   addTrade(Object.assign({
-    sym, dir: q.dir, lots: lv.lots, entry: q.entry + sh, sl: sl + sh, tp: tp + sh,
+    sym, dir: q.dir, lots: lv.lots, entry: r(q.entry + sh), sl: r(sl + sh), tp: r(tp + sh),
     slD: lv.slD, tpD: lv.tpD, q: q.qual, grade: q.grade
   }, q.ordType !== 'MARKET' ? {pend: q.ordType} : {}));
   closeSheet('qtSheet');
@@ -7410,6 +7569,8 @@ function fullReport(html){
   const fc = finalCall(s);
   L.push(`${b(s.sym)}  —  ${b(s.dir)}   (${s.grade})`);
   L.push(`👉 ${b(fc.t)}  —  ${fc.why}`);
+  if(fc.ord && fc.ord.type !== 'MARKET')
+    L.push(`   ${b(s.dir + ' ' + fc.ord.type)} @ ${c(fmt(s.sym, fc.ord.e))} · SL ${c(fmt(s.sym, fc.ord.sl))} · TP ${c(fmt(s.sym, fc.ord.tp))}`);
   if(lastAI && lastAI.sym === s.sym) L.push(`🤖 AI: ${b(lastAI.verdict)} (${lastAI.confidence}%)`);
   L.push(`Quality: ${b(s.q + '%')}   ${s.q>=70?'STRONG':s.q>=50?'MEDIUM':'WEAK'}`);
   L.push(`Timeframe: ${s.tf}`);
@@ -9747,7 +9908,7 @@ nav button{min-width:0}
     '↺ Reset to Default':'↺ Reset to Default','🔓 Locked Pairs Reset Karo':'🔓 Reset Locked Pairs','Sab Data Delete Karo':'Delete All Data',
     'Maine Ye Trade Liya':'I Took This Trade','Ye trade history se hatao':'Remove this trade from history','Saaf karo':'Clear','Pair Chuno':'Pick Pair','Trade Save Karo':'Save Trade',
     '⚠ Offline — purana cached data dikh raha hai':'⚠ Offline — showing old cached data',
-    'LE LO':'TAKE IT','TRADE LO':'TAKE TRADE','CHHOD DO':'SKIP IT','BACKTEST CHALAO':'RUN BACKTEST','Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.':'Analyze first — EMAs use the same data, no extra credit.',
+    'LE LO':'TAKE IT','TRADE LO':'TAKE TRADE','LIMIT LAGAO':'PLACE LIMIT','STOP LAGAO':'PLACE STOP','CHHOD DO':'SKIP IT','BACKTEST CHALAO':'RUN BACKTEST','Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.':'Analyze first — EMAs use the same data, no extra credit.',
     'Candles aa rahi hain…':'Loading candles…','Aakhri 3 Crossover':'Last 3 Crossovers','Dikhne wali history me koi cross nahi.':'No crosses in the visible history.',
     'Chart pe number wahi hain jo yahan — 1 sabse naya. Hari circle = tez EMA upar nikli, laal = neeche. Time candle ke shuru hone ka hai (IST).':'Chart numbers match these — 1 is the newest. Green circle = fast EMA crossed up, red = down. Time is candle open (IST).',
     'EMA aapas me uljhi hain':'EMAs are tangled','Candle abhi band nahi hui — cross palat sakta hai':'Candle not closed yet — the cross may flip',
