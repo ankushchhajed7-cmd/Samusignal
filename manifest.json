@@ -1,14 +1,14 @@
 {
-  "name": "AMC",
-  "short_name": "AMC",
-  "description": "AMC \u2014 Forex & Gold Signals",
+  "name": "SamuSignal",
+  "short_name": "SamuSignal",
+  "description": "SamuSignal — Forex & Gold Signals",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0d0413",
-  "theme_color": "#0d0413",
+  "background_color": "#0a0704",
+  "theme_color": "#0a0704",
   "icons": [
     {
       "src": "./icon-192.png",
