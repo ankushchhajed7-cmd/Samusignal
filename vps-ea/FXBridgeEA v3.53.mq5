@@ -44,7 +44,7 @@ input bool    RequireLockedRules = true;   // REAL: Firebase fxbridge rules band
 input int     PollSeconds    = 10;         // Firebase check interval (seconds)
 input double  MaxLots        = 0.50;       // Safety: max lot allowed per order
 input int     MagicNumber    = 777001;     // Magic number
-input int     ExpiryHours    = 24;         // Pending order expiry (0 = no expiry)
+input int     ExpiryHours    = 3;          // Pending order expiry (0 = no expiry) — app jaisa 3 ghante
 input bool    EnableTrading  = false;      // Master switch (false = read-only test)
 input string  TgBotToken     = "";         // Telegram Bot Token (confirmation, optional)
 input string  TgChatID       = "";         // Telegram Chat ID (optional)
