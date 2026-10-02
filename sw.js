@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.29 — Faisla me LIMIT LAGAO / STOP LAGAO (ATR doori) + MARKET/LIMIT/STOP shadow tracking
    v9.9.28 — "Live Price Lo" button hara blink karta hai jab tak live price na liya ho
    v9.9.27 — Journal me BUY/SELL LIMIT aur STOP (pending, price aane par khulti hai)
    v9.9.26 — Chart fix: tez move ke baad candles upar se kat-ti nahi
@@ -33,7 +34,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.28';
+const VERSION = '9.9.29';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
