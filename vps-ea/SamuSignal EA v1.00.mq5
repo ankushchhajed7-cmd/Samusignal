@@ -17,6 +17,7 @@
 //|   * Waqt 08:00-22:00 IST, Som-Shukra. High-impact news ke +-30 min |
 //|     naya trade nahi (MT5 ka apna Economic Calendar).                |
 //|   * LIMIT/STOP pending 3 ghante me na bhare to EA khud hata deta.  |
+//|   * v1.01: news se 30 min pehle us pair ka pending order bhi hatao.|
 //|   * Breakeven 1R pe, trailing 1.5R ke baad (1R peeche).             |
 //|   * Default sirf DEMO account pe trade (InpAllowReal=false).        |
 //|                                                                    |
@@ -24,7 +25,7 @@
 //|  13 pairs khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.  |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.00"
+#property version   "1.01"
 #property description "SamuSignal app ka signal logic - 13 pairs auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
@@ -50,6 +51,7 @@ input int    InpStartHourIST  = 8;       // Shuru (IST ghanta)
 input int    InpEndHourIST    = 22;      // Band (IST ghanta)
 input bool   InpAvoidNews     = true;    // High-impact news ke paas naya trade nahi
 input int    InpNewsMinutes   = 30;      // News se pehle/baad kitne minute
+input bool   InpCancelOnNews  = true;    // News aane wali ho to bhara-nahi pending order hatao
 
 input group "Breakeven / Trailing"
 input bool   InpBreakEven     = true;    // Breakeven ON/OFF
@@ -1210,6 +1212,32 @@ void CleanPendings()
    }
 }
 
+// News se pehle (aur dauraan) apna bhara-nahi pending hatao - news ka jhatka
+// pending ko galat price pe bhar deta hai. Har 30 sec check.
+datetime g_lastNewsChk = 0;
+void CancelPendingsOnNews()
+{
+   if(!InpAvoidNews || !InpCancelOnNews) return;
+   if(TimeCurrent() - g_lastNewsChk < 30) return;
+   g_lastNewsChk = TimeCurrent();
+   datetime srv = TimeTradeServer();
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong t = OrderGetTicket(i);
+      if(t == 0) continue;
+      if(OrderGetInteger(ORDER_MAGIC) != InpMagic) continue;
+      string sym = OrderGetString(ORDER_SYMBOL);
+      datetime setup = (datetime)OrderGetInteger(ORDER_TIME_SETUP);
+      if(!NewsNear(sym)) continue;
+      if(trade.OrderDelete(t))
+      {
+         datetime ist = setup - srv + TimeGMT() + 19800;
+         DayAdd(sym, DayKeyOf(ist), -1);                // bhara hi nahi - din ki ginti me nahi
+         Print("[SSEA] ", sym, " high-impact news paas - pending order hata diya");
+      }
+   }
+}
+
 void DrawPanel()
 {
    int pos = 0, pend = 0;
@@ -1224,7 +1252,7 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.00 | %s | trading %s | %02d-%02d IST %s | news %s | BE %s | trail %s\n",
+   string s = StringFormat("SamuSignal EA v1.01 | %s | trading %s | %02d-%02d IST %s | news %s | BE %s | trail %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)",
                            InpAvoidNews ? "ON" : "OFF", InpBreakEven ? "ON" : "OFF", InpTrailing ? "ON" : "OFF");
@@ -1258,7 +1286,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.00 chalu - ", m, " pairs | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.01 chalu - ", m, " pairs | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(3);
@@ -1277,6 +1305,7 @@ void OnTimer()
 {
    ManagePositions();
    CleanPendings();
+   CancelPendingsOnNews();
    for(int i = 0; i < ArraySize(g_sym); i++) CheckSymbol(i);
    DrawPanel();
 }
