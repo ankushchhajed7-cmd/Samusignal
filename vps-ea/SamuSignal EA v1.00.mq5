@@ -18,6 +18,7 @@
 //|     naya trade nahi (MT5 ka apna Economic Calendar).                |
 //|   * LIMIT/STOP pending 3 ghante me na bhare to EA khud hata deta.  |
 //|   * v1.01: news se 30 min pehle us pair ka pending order bhi hatao.|
+//|   * v1.02: sahi symbol - chart ka suffix (jaise m) aur sirf tradable.|
 //|   * Breakeven 1R pe, trailing 1.5R ke baad (1R peeche).             |
 //|   * Default sirf DEMO account pe trade (InpAllowReal=false).        |
 //|                                                                    |
@@ -25,14 +26,14 @@
 //|  13 pairs khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.  |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.01"
+#property version   "1.02"
 #property description "SamuSignal app ka signal logic - 13 pairs auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
 
 input group "Pairs"
 input string InpPairs         = "EURUSD,GBPUSD,USDJPY,USDCHF,USDCAD,AUDUSD,EURJPY,EURCHF,NZDUSD,GBPJPY,GBPCHF,AUDJPY,AUDCHF"; // Pairs (comma se alag)
-input string InpSuffix        = "";      // Broker suffix (jaise m) - khaali = khud dhoondo
+input string InpSuffix        = "";      // Broker suffix (jaise m) - khaali = chart ke symbol se
 
 input group "Trading"
 input bool   InpEnableTrading = true;    // Trade lagana ON/OFF (OFF = sirf hisaab/log)
@@ -856,18 +857,36 @@ string TrimStr(string s)
    return t;
 }
 
+// Chart ke symbol se broker ka suffix (jaise XAUUSDm -> "m")
+string ChartSuffix()
+{
+   string s = _Symbol;
+   if(StringLen(s) <= 6) return "";
+   return StringSubstr(s, 6);
+}
+
+// Is account pe is symbol pe poori trading allowed hai? (doosre account type
+// ke symbols - jaise "#" ya bina suffix wale - list me hote hain par band hote hain)
+bool Tradable(string s)
+{
+   if(!SymbolSelect(s, true)) return false;
+   if(SymbolInfoInteger(s, SYMBOL_TRADE_MODE) == SYMBOL_TRADE_MODE_FULL) return true;
+   SymbolSelect(s, false);                      // Market Watch se wapas hatao
+   return false;
+}
+
+// v1.02: pehle (InpSuffix ya chart ka) suffix, phir koi bhi tradable variant
 string ResolveSymbol(string base)
 {
-   string cand = base + InpSuffix;
-   if(SymbolSelect(cand, true)) return cand;
+   string suf = (InpSuffix != "") ? InpSuffix : ChartSuffix();
+   string cand = base + suf;
+   if(Tradable(cand)) return cand;
    int total = SymbolsTotal(false);
    for(int i = 0; i < total; i++)
    {
       string s = SymbolName(i, false);
-      if(StringFind(s, base) == 0 && StringLen(s) <= StringLen(base) + 4)
-      {
-         if(SymbolSelect(s, true)) return s;
-      }
+      if(s == cand) continue;
+      if(StringFind(s, base) == 0 && StringLen(s) <= StringLen(base) + 4 && Tradable(s)) return s;
    }
    return "";
 }
@@ -1252,7 +1271,7 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.01 | %s | trading %s | %02d-%02d IST %s | news %s | BE %s | trail %s\n",
+   string s = StringFormat("SamuSignal EA v1.02 | %s | trading %s | %02d-%02d IST %s | news %s | BE %s | trail %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)",
                            InpAvoidNews ? "ON" : "OFF", InpBreakEven ? "ON" : "OFF", InpTrailing ? "ON" : "OFF");
@@ -1274,7 +1293,8 @@ int OnInit()
       StringToUpper(base);
       if(base == "") continue;
       string s = ResolveSymbol(base);
-      if(s == "") { Print("[SSEA] ", base, " is broker pe nahi mila - chhod diya"); continue; }
+      if(s == "") { Print("[SSEA] ", base, " is account pe tradable nahi mila - chhod diya"); continue; }
+      Print("[SSEA] ", base, " -> ", s);
       int k = ArraySize(g_sym);
       ArrayResize(g_sym, k + 1);
       g_sym[k] = s;
@@ -1286,7 +1306,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.01 chalu - ", m, " pairs | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.02 chalu - ", m, " pairs | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(3);
