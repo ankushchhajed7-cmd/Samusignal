@@ -10,6 +10,10 @@
 //|                "lots":0.01,"entry":4022.36,"sl":4048.51,         |
 //|                "tp":3970.06}                                     |
 //|                                                                  |
+//|  v3.55 (06-Oct-2026):                                            |
+//|   * License check abhi band (RequireLicense = false). Wapas      |
+//|     chahiye to input true karo - ActivationKey wala purana niyam.|
+//|                                                                  |
 //|  v3.54 (06-Oct-2026):                                            |
 //|   * App se bheje order me "pm":1 ho (app ka Breakeven + Profit   |
 //|     lock + Trailing switch ON) to MT5 me bhi wahi niyam, TP ke % |
@@ -35,13 +39,14 @@
 //|     nahi lagega (test mode). Auto-trade REAL pe kabhi nahi.      |
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "3.54"
+#property version   "3.55"
 #property strict
 
 #include <Trade\Trade.mqh>
 
 //--- Inputs
-input string  ActivationKey  = "";         // Activation Key (owner se lo - account-locked)
+input bool    RequireLicense = false;      // License check (false = abhi band, kisi bhi account pe chalega)
+input string  ActivationKey  = "";         // Activation Key (sirf RequireLicense = true pe)
 input string  FirebaseURL    = "https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app"; // Firebase URL
 input string  FirebaseAuth   = "";         // Firebase secret (app Settings me jo daala) — real account ke liye zaroori
 input string  SymbolSuffix   = "m";        // Broker suffix (Exness = "m", XM = "#", koi nahi = khaali)
@@ -290,7 +295,7 @@ int OnInit()
 {
    // ===== LICENSE CHECK - EA sirf authorized account pe chale =====
    long account = AccountInfoInteger(ACCOUNT_LOGIN);
-   if(!VerifyLicense())
+   if(RequireLicense && !VerifyLicense())
    {
       Print("========================================");
       Print("  FXBRIDGE EA - LICENSE REQUIRED");
@@ -307,7 +312,8 @@ int OnInit()
       return(INIT_FAILED);
    }
    Comment("");  // clear
-   Print("License OK - Account ", account, " authorized ✓");
+   Print(RequireLicense ? "License OK - Account " + IntegerToString(account) + " authorized ✓"
+                        : "License check band (RequireLicense=false) - Account " + IntegerToString(account));
 
    g_base = FirebaseURL;
    StringTrimLeft(g_base); StringTrimRight(g_base);
