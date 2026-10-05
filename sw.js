@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.34 — "Maine Ye Trade Liya" me AUTO mode (TREND / NORMAL / RANGE + ATR SL/TP, EA v1.05 jaisa)
    v9.9.33 — Max floating card ke neeche ki "rate sirf tab naapa jaata hai" line hatayi
    v9.9.32 — Logo launcher ke shape me na kate (safe zone)
    v9.9.31 — Naya premium SAMU logo + naam SamuSignal (data wahi rehta hai)
@@ -38,7 +39,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.33';
+const VERSION = '9.9.34';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

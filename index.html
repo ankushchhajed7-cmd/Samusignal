@@ -2085,7 +2085,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.33';
+const VERSION = '9.9.34';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -2194,7 +2194,9 @@ function calcLevels(sym, price, lots, atr, opt){
   const o = opt || {};
   const mode = o.mode || S.slMode;
   let slDist, tpDist, L = lots, clamped = 0;
-  if(mode === 'ATR' && atr > 0){
+  if(mode === 'AUTO' && o.autoSl > 0){
+    slDist = o.autoSl; tpDist = o.autoTp;
+  } else if(mode === 'ATR' && atr > 0){
     slDist = (o.atrSL !== undefined ? o.atrSL : S.atrSL) * atr;
     tpDist = slDist * (o.atrRR !== undefined ? o.atrRR : S.atrRR);
     if(o.autoLot !== undefined ? o.autoLot : S.autoLot){
@@ -4127,7 +4129,8 @@ function finalCall(s){
   const pass = used.filter(x => x.ok).length, total = used.length;
   const skip = fail('skip'), hard = fail('hard'), T = fail('timing'), Cf = fail('confirm'), O = fail('other');
   const warns = [...T, ...Cf, ...O].map(x => x.why);
-  const W = {t:'WAIT', go:false, c:'var(--gold)', bg:'rgba(255,184,0,.08)', pass, total, warns};
+  const fails = used.filter(x => !x.ok).map(x => ({k:x.k, n:x.n}));   /* AUTO mode (autoPlan) ke liye */
+  const W = {t:'WAIT', go:false, c:'var(--gold)', bg:'rgba(255,184,0,.08)', pass, total, warns, fails};
 
   if(skip.length) return Object.assign(W, {skip:true,
     why: skip.map(x => x.why).slice(0,3).join(' · ') + ' — intezaar se ye theek nahi hoga, doosra pair dekho'});
@@ -4140,16 +4143,121 @@ function finalCall(s){
 
   const nearCore = Cf.some(x => x.n === 'Quality' || x.n === 'Technical');
   if(T.length){
-    return {t:'LIMIT LAGAO', go:true, ord:orderLeg(s, 'LIMIT'), c:'#38BDF8', bg:'rgba(56,189,248,.09)', pass, total, warns,
+    return {t:'LIMIT LAGAO', go:true, ord:orderLeg(s, 'LIMIT'), c:'#38BDF8', bg:'rgba(56,189,248,.09)', pass, total, warns, fails,
       why: `Setup sahi, par timing nahi — ${T.map(x => x.why).join(' · ')}. Pullback pe sasti entry lo.`};
   }
   if(nearCore || Cf.length >= 2 || (Cf.length === 1 && O.length === 1)){
-    return {t:'STOP LAGAO', go:true, ord:orderLeg(s, 'STOP'), c:'#38BDF8', bg:'rgba(56,189,248,.09)', pass, total, warns,
+    return {t:'STOP LAGAO', go:true, ord:orderLeg(s, 'STOP'), c:'#38BDF8', bg:'rgba(56,189,248,.09)', pass, total, warns, fails,
       why: `Direction abhi pakki nahi — ${Cf.map(x => x.why).join(' · ')}. Breakout hone par hi trade khule.`};
   }
-  return {t:'TRADE LO', go:true, ord:orderLeg(s, 'MARKET'), c:'var(--up)', bg:'rgba(0,255,150,.08)', pass, total, warns,
+  return {t:'TRADE LO', go:true, ord:orderLeg(s, 'MARKET'), c:'var(--up)', bg:'rgba(0,255,150,.08)', pass, total, warns, fails,
     why: `Sab zaroori check paas — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy, v.sell)}/50 agents saath` +
       (warns.length ? ` · ⚠ dhyan: ${warns[0]}` : '')};
+}
+
+/* ===== AUTO MODE (v9.9.34) — SamuSignal EA v1.05 jaisa (SsMakePlan) =====
+   Sirf "Maine Ye Trade Liya" sheet me. Upar wala FAISLA wahi rehta hai; ye uske baad:
+   NORMAL — faisla wahi, SL = 1.2 ATR, TP = 1.6x SL
+   TREND  — ADX 25+, EMA 9>21>55, 1H+4H saath: sirf timing ki kami ho to bhi
+            EMA9 pullback pe entry (door ho to LIMIT, paas ho to market). TP = 2x SL
+   RANGE  — ADX 20 se kam, faisla WAIT: range (24 candles) ke kinare se beech tak
+   TP $1–$5, SL $2.5 se bada = trade nahi (0.01 lot ke hisaab se; lot ke saath badhta). */
+const AUTO = {slAtr:1.2, rrNormal:1.6, rrTrend:2.0, rrRangeMin:1.2, minTp:1.0, maxTp:5.0, maxSl:2.5,
+              maxTpAtr:3.0, trendAdx:25, rangeAdx:20, rangeBars:24};
+function autoPlan(s, fc, lots){
+  const P = {mode:'NORMAL', t:'WAIT', dir:s.dir, off:0, sl:0, tp:0, adx:0, slUsd:0, tpUsd:0, why:'', via:false};
+  const sym = s.sym, sp = SPECS[sym];
+  const raw = barCache[sym];
+  const bars = raw ? completedBars(raw, s.tf) : null;
+  const atr = s.atr, k = (lots || 0.01) / 0.01;
+  const upp = sp ? usdPerPip(sym, s.live, lots || 0.01) / sp.pip : 0;     /* 1.0 price = kitne $ */
+  if(!(atr > 0) || !(upp > 0) || !bars || bars.length < 60){ P.why = 'data kam — pehle Analyze karo'; return P }
+  const n = bars.length, c = bars.map(b => b.c);
+  const ax = adx(bars, 14); P.adx = ax.adx;
+  const e9 = last(ema(c, 9)), e21 = last(ema(c, 21)), e55 = last(ema(c, 55));
+  const tfb = l => (s.tfs.find(t => t.l === l) || {}).b;
+  const h1 = tfb('1H'), h4 = tfb('4H');
+  const up = ax.adx >= AUTO.trendAdx && ax.pdi > ax.ndi && e9 > e21 && e21 > e55 && h1 === 'BUY' && h4 === 'BUY';
+  const dn = ax.adx >= AUTO.trendAdx && ax.ndi > ax.pdi && e9 < e21 && e21 < e55 && h1 === 'SELL' && h4 === 'SELL';
+  P.mode = (s.dir === 'BUY' && up) || (s.dir === 'SELL' && dn) ? 'TREND' : ax.adx < AUTO.rangeAdx ? 'RANGE' : 'NORMAL';
+  const fit = () => {                       /* $ seemaayein — false = trade nahi */
+    P.slUsd = P.sl * upp;
+    if(P.slUsd > AUTO.maxSl * k){ P.why = `SL $${P.slUsd.toFixed(2)} — $${(AUTO.maxSl*k).toFixed(2)} se bada`; return false }
+    const tpUsd = P.tp * upp;
+    if(tpUsd > AUTO.maxTp * k) P.tp = AUTO.maxTp * k / upp;
+    if(tpUsd < AUTO.minTp * k){
+      const need = AUTO.minTp * k / upp;
+      if(need > AUTO.maxTpAtr * atr){ P.why = `market shaant — $${(AUTO.minTp*k).toFixed(2)} ka target bahut door`; return false }
+      P.tp = need;
+    }
+    P.tpUsd = P.tp * upp;
+    return true;
+  };
+  const core = fc.go && fc.ord ? fc.ord.type : 'WAIT';
+  if(core !== 'WAIT' && !(P.mode === 'TREND' && core === 'LIMIT')){
+    P.t = core; P.off = fc.ord.off || 0;
+    P.sl = AUTO.slAtr * atr; P.tp = P.sl * (P.mode === 'TREND' ? AUTO.rrTrend : AUTO.rrNormal);
+    if(!fit()) P.t = 'WAIT';
+    return P;
+  }
+  if(newsRisk(sym)){ P.why = 'news paas'; return P }
+  const L = bars[n-1], Pv = bars[n-2];
+
+  if(P.mode === 'TREND'){
+    /* sirf timing / halki kami maaf — direction ki kami ho to nahi */
+    const blk = (fc.fails || []).find(x => x.k === 'skip' || (x.k === 'hard' && x.n !== 'R:R') ||
+      (x.k === 'confirm' && ['Supertrend', 'EMA Plan', 'HTF rule', 'AI'].includes(x.n)));
+    if(blk){ P.why = `trend hai par ${blk.n} ulta`; return P }
+    const dist = s.dir === 'BUY' ? s.live - e9 : e9 - s.live;
+    const slowOk = s.dir === 'BUY' ? s.live > e21 : s.live < e21;
+    const candleOk = s.dir === 'BUY' ? L.c > L.o : L.c < L.o;
+    P.via = true;
+    if(dist > 0.3 * atr){
+      if(dist > 2.5 * atr){ P.why = 'trend me price EMA se bahut door'; return P }
+      P.t = 'LIMIT'; P.off = Math.min(Math.max(dist, 0.25 * atr), 1.5 * atr);
+    } else {
+      if(!slowOk || !candleOk){ P.why = 'pullback par confirm candle nahi'; return P }
+      P.t = 'MARKET';
+    }
+    P.sl = AUTO.slAtr * atr; P.tp = P.sl * AUTO.rrTrend;
+    if(!fit()) P.t = 'WAIT';
+    return P;
+  }
+
+  if(P.mode === 'RANGE'){
+    const hi = hh(bars, AUTO.rangeBars), lo = ll(bars, AUTO.rangeBars), w = hi - lo, live = s.live;
+    if(w < 3 * atr || live <= lo || live >= hi){ P.why = 'saaf range nahi'; return P }
+    let d = null;
+    if(live <= lo + 0.25 * w && s.rsi <= 40 && L.c > L.o && L.c > Pv.c) d = 'BUY';
+    else if(live >= hi - 0.25 * w && s.rsi >= 60 && L.c < L.o && L.c < Pv.c) d = 'SELL';
+    if(!d){ P.why = 'range ke kinare pe palat candle nahi'; return P }
+    const slPx = d === 'BUY' ? lo - 0.3 * atr : hi + 0.3 * atr, tpPx = lo + 0.5 * w;
+    P.dir = d; P.via = true; P.t = 'MARKET';
+    P.sl = d === 'BUY' ? live - slPx : slPx - live;
+    P.tp = d === 'BUY' ? tpPx - live : live - tpPx;
+    if(!(P.tp > 0) || P.tp / P.sl < AUTO.rrRangeMin){ P.t = 'WAIT'; P.why = 'range me R:R kam'; return P }
+    if(!fit()){ P.t = 'WAIT'; return P }
+    if(P.tp > (d === 'BUY' ? hi - live : live - lo)){ P.t = 'WAIT'; P.why = 'market shaant — target range ke bahar'; }
+    return P;
+  }
+  P.why = fc.why || 'faisla WAIT';
+  return P;
+}
+function autoBadge(P){
+  const col = P.mode === 'TREND' ? 'var(--up)' : P.mode === 'RANGE' ? '#38BDF8' : 'var(--gold)';
+  const typ = P.t === 'WAIT' ? 'WAIT' : P.t === 'MARKET' ? 'TRADE LO (market)' : P.t + ' LAGAO';
+  return `<div style="border:1px solid ${col};border-radius:10px;padding:10px 12px;margin:0 0 12px;background:rgba(255,255,255,.02)">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <b style="color:${col};letter-spacing:1px;font-size:12px">${P.mode}</b>
+      <span class="mono" style="font-size:11px;color:var(--mut)">ADX ${P.adx.toFixed(0)}</span>
+      <b style="margin-left:auto;font-size:12px">${P.t === 'WAIT' ? 'WAIT' : P.dir + ' · ' + typ}</b>
+    </div>
+    <p class="hint" style="margin:5px 0 0">${P.t === 'WAIT'
+      ? `Auto mode trade nahi bol raha — ${escH(P.why)}. (Fixed $ / ATR chuno to phir bhi log kar sakte ho.)`
+      : P.mode === 'TREND' && P.via ? 'Tagda trend — EMA9 pullback pe entry.'
+      : P.mode === 'RANGE' && P.via ? 'Range — kinare se beech tak chhota trade.'
+      : 'Faisla wahi, SL/TP market (ATR) ke hisaab se.'}
+      ${P.t !== 'WAIT' ? ` SL $${P.slUsd.toFixed(2)} · TP $${P.tpUsd.toFixed(2)}.` : ''}</p></div>`;
 }
 
 /* Faisla har signal ke saath yaad rakho — baad me pata chale TRADE LO / LIMIT /
@@ -6065,7 +6173,20 @@ function openQuick(target){
   const fc = finalCall(s);
   if(fc.ord && fc.ord.type !== 'MARKET') qtState.ordType = fc.ord.type;
   qtState.offPx = qtState.sugg[qtState.ordType] || 0;
+  qtState.sigDir = s.dir;
+  /* journal me AUTO mode (EA v1.05 jaisa) — trade bole to sheet usi pe khule */
+  if(qtState.target === 'APP'){
+    qtState.auto = autoPlan(s, fc, qtState.lots);
+    if(qtState.auto.t !== 'WAIT') qtAutoApply();
+  }
   drawQuick(); openSheet('qtSheet');
+}
+function qtAutoApply(){
+  const q = qtState, P = q.auto;
+  q.mode = 'AUTO'; q.dir = P.dir; q.autoSl = P.sl; q.autoTp = P.tp;
+  q.ordType = P.t === 'WAIT' ? 'MARKET' : P.t;
+  q.sugg = Object.assign({}, q.sugg, P.t === 'LIMIT' || P.t === 'STOP' ? {[P.t]: P.off} : {});
+  q.offPx = q.ordType === 'MARKET' ? 0 : (q.sugg[q.ordType] || 0);
 }
 
 /* kisi open trade ko MT5 pe bhejna — wahi confirm sheet */
@@ -6112,6 +6233,7 @@ function drawQuick(){
   const q = qtState, sym = q.sym;
   const {lv, sl, tp} = qtCalc();
   const atrOn = q.mode === 'ATR';
+  const autoOn = q.mode === 'AUTO' && !!q.auto;
   const isMt5 = q.target === 'MT5';
   const dc = q.dir==='BUY' ? 'var(--up)' : 'var(--dn)';
 
@@ -6144,12 +6266,14 @@ function drawQuick(){
 
     <label>SL / TP kaise nikale</label>
     <div class="chips" style="margin-bottom:12px">
-      <button class="chip ${!atrOn?'on gold':''}" onclick="qtSet('mode','DOLLAR')">Fixed $</button>
+      ${q.auto ? `<button class="chip ${autoOn?'on gold':''}" onclick="qtSet('mode','AUTO')">Auto (mode)</button>` : ''}
+      <button class="chip ${q.mode==='DOLLAR'?'on gold':''}" onclick="qtSet('mode','DOLLAR')">Fixed $</button>
       <button class="chip ${atrOn?'on gold':''}" onclick="qtSet('mode','ATR')" ${q.atr>0?'':'disabled style="opacity:.4"'}>ATR based</button>
     </div>
+    ${autoOn ? autoBadge(q.auto) + (q.dir !== q.sigDir ? `<p class="hint" style="color:var(--gold);margin:-4px 0 12px">Signal ${q.sigDir} tha, par RANGE mode kinare se ${q.dir} bol raha hai.</p>` : '') : ''}
     ${q.atr>0 ? '' : '<p class="hint" style="margin:-6px 0 12px">ATR mode ke liye pehle is pair ko Analyze karo.</p>'}
 
-    ${atrOn ? `
+    ${autoOn ? '' : atrOn ? `
       <div class="grid3" style="margin-bottom:10px">
         <div><label>SL = ATR ×</label><input class="mono" type="number" step="0.1" value="${q.atrSL}" oninput="qtSet('atrSL',+this.value,1)"></div>
         <div><label>TP = SL ×</label><input class="mono" type="number" step="0.1" value="${q.atrRR}" oninput="qtSet('atrRR',+this.value,1)"></div>
@@ -6254,7 +6378,7 @@ function qtLevels(){
   const typeTxt = q.ordType !== 'MARKET'
     ? ` · ${q.dir} ${q.ordType} live se ${qtOffPips()} pips ${q.ordType==='LIMIT'?'door':'aage'}`
     : '';
-  $('qtInfo').textContent = `R:R 1:${rr.toFixed(2)} · barabar rehne ko ${(100/(1+rr)).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${q.mode==='ATR'?` · ATR ${fmt(sym,q.atr)}`:''}${typeTxt}`;
+  $('qtInfo').textContent = `R:R 1:${rr.toFixed(2)} · barabar rehne ko ${(100/(1+rr)).toFixed(0)}% win rate chahiye · $${usdPerPip(sym,q.entry,lv.lots).toFixed(3)} per pip${q.mode==='ATR'?` · ATR ${fmt(sym,q.atr)}`:''}${q.mode==='AUTO'&&q.auto?` · ${q.auto.mode} · ATR ${fmt(sym,q.atr)}`:''}${typeTxt}`;
 }
 
 /* type karte waqt: sirf value yaad rakho, sheet dobara mat banao */
@@ -6289,8 +6413,14 @@ function qtPips(v){
   qtLevels(); paintQtChart();
 }
 function qtSet(k, v, keepFocus){
-  qtState[k] = v;
-  if(k === 'ordType') qtState.offPx = (qtState.sugg && qtState.sugg[v]) || 0;   /* us type ki ATR doori */
+  const q = qtState;
+  if(k === 'mode' && v === 'AUTO' && q.auto){
+    if(q.auto.t === 'WAIT'){ toast('Auto mode abhi WAIT bol raha hai — ' + q.auto.why); return }
+    qtAutoApply(); drawQuick(); return;
+  }
+  if(k === 'mode' && q.mode === 'AUTO' && q.sigDir) q.dir = q.sigDir;          /* Auto se hate to signal wali direction */
+  q[k] = v;
+  if(k === 'ordType') q.offPx = (q.sugg && q.sugg[v]) || 0;   /* us type ki ATR doori */
   keepFocus ? qtLevels() : drawQuick();
 }
 
@@ -6301,7 +6431,9 @@ function qtReset(){
     autoLot: S.autoLot, riskUsd: S.riskUsd, ordType: qtState.target === 'MT5' ? S.mt5Type : 'MARKET'
   });
   if(lastSignal && lastSignal.sym === qtState.sym) qtState.entry = lastSignal.live;
+  if(qtState.sigDir) qtState.dir = qtState.sigDir;
   qtState.offPx = (qtState.sugg && qtState.sugg[qtState.ordType]) || 0;
+  if(qtState.auto && qtState.auto.t !== 'WAIT') qtAutoApply();
   drawQuick(); toast('Default values wapas aa gayi');
 }
 
