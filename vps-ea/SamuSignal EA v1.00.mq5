@@ -22,14 +22,16 @@
 //|   * Lot fix 0.01, SL/TP $2.5 / $5 per 0.01 lot (R:R 1:2).          |
 //|   * Ek pair pe din me max 2 (IST din). 08:00-22:00 IST Som-Shukra. |
 //|   * High-impact news +-30 min naya trade nahi, pending bhi hatao.  |
-//|   * Pending 3 ghante me na bhare to hatao. Breakeven 1R, trailing  |
-//|     1.5R ke baad 1R peeche. Default sirf DEMO account.             |
+//|   * Pending 3 ghante me na bhare to hatao. Default sirf DEMO.      |
+//|  v1.04: Profit lock - profit $2 pahunche to SL +$1 par (kam se kam |
+//|     $1 book). Trailing $ me: $3 ke baad SL price se $2 peeche.     |
+//|     (+$1 -> +$2 -> ... -> TP $5). Breakeven ab $1.5 pe.            |
 //|                                                                    |
 //|  Lagana: kisi bhi ek chart pe (jaise XAUUSDm) - EA saare pairs     |
 //|  khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.           |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.03"
+#property version   "1.04"
 #property description "SamuSignal app ka signal logic - 28 pairs, 5 group, auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
@@ -72,10 +74,13 @@ input bool   InpCancelOnNews  = true;    // News aane wali ho to bhara-nahi pend
 
 input group "Breakeven / Trailing"
 input bool   InpBreakEven     = true;    // Breakeven ON/OFF
-input double InpBeAtR         = 1.0;     // Profit itne R pe SL entry par
+input double InpBeAtUsd       = 1.5;     // Profit itne $ pe SL entry par (0.01 lot)
+input bool   InpProfitLock    = true;    // Profit lock ON/OFF (kam se kam $ book)
+input double InpLockAtUsd     = 2.0;     // Profit itne $ pahunche to...
+input double InpLockUsd       = 1.0;     // ...SL itne $ profit par (ye pakka book)
 input bool   InpTrailing      = true;    // Trailing ON/OFF
-input double InpTrailStartR   = 1.5;     // Profit itne R ke baad trailing shuru
-input double InpTrailDistR    = 1.0;     // SL price se itne R peeche chale
+input double InpTrailStartUsd = 3.0;     // Profit itne $ ke baad trailing shuru
+input double InpTrailDistUsd  = 2.0;     // SL price se itne $ peeche chale
 
 input group "Other"
 input long   InpMagic         = 777100;  // Magic number (FXBridgeEA se alag)
@@ -1335,7 +1340,7 @@ void ProcessWatches()
 // Breakeven + trailing (sirf apne trades)
 void ManagePositions()
 {
-   if(!InpBreakEven && !InpTrailing) return;
+   if(!InpBreakEven && !InpProfitLock && !InpTrailing) return;
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong t = PositionGetTicket(i);
@@ -1347,8 +1352,8 @@ void ManagePositions()
       double sl = PositionGetDouble(POSITION_SL);
       double tp = PositionGetDouble(POSITION_TP);
       double vol = PositionGetDouble(POSITION_VOLUME);
-      double R = PriceDistForUsd(sym, InpSlUsd * vol / 0.01, vol);    // 1R = shuru wali SL doori
-      if(R <= 0) continue;
+      double U = PriceDistForUsd(sym, vol / 0.01, vol);    // $1 (0.01 lot pe) ki price doori
+      if(U <= 0) continue;
       int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       double point = SymbolInfoDouble(sym, SYMBOL_POINT);
       double lvl = (double)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
@@ -1358,33 +1363,45 @@ void ManagePositions()
       if(type == POSITION_TYPE_BUY)
       {
          double gain = bid - open;
-         if(InpBreakEven && gain >= InpBeAtR * R * 0.9999 && (sl == 0 || sl < open)) newSl = open;
-         if(InpTrailing && gain >= InpTrailStartR * R)
+         if(InpBreakEven && gain >= InpBeAtUsd * U * 0.9999 && (sl == 0 || sl < open)) newSl = open;
+         if(InpProfitLock && gain >= InpLockAtUsd * U * 0.9999)
          {
-            double tr = bid - InpTrailDistR * R;
+            double lk = open + InpLockUsd * U;
+            if(newSl == 0 || lk > newSl) newSl = lk;
+         }
+         if(InpTrailing && gain >= InpTrailStartUsd * U)
+         {
+            double tr = bid - InpTrailDistUsd * U;
             if(tr > newSl) newSl = tr;
          }
          newSl = NormalizeDouble(newSl, digits);
          if(newSl > sl + point / 2 && newSl <= bid - lvl)
          {
             if(trade.PositionModify(t, newSl, tp))
-               Print("[SSEA] ", sym, " BUY SL -> ", DoubleToString(newSl, digits), (newSl <= open + point ? " (breakeven)" : " (trailing)"));
+               Print("[SSEA] ", sym, " BUY SL -> ", DoubleToString(newSl, digits), " (profit lock $",
+                     DoubleToString((newSl - open) / U * vol / 0.01, 2), ")");
          }
       }
       else if(type == POSITION_TYPE_SELL)
       {
          double gain = open - ask;
-         if(InpBreakEven && gain >= InpBeAtR * R * 0.9999 && (sl == 0 || sl > open)) newSl = open;
-         if(InpTrailing && gain >= InpTrailStartR * R)
+         if(InpBreakEven && gain >= InpBeAtUsd * U * 0.9999 && (sl == 0 || sl > open)) newSl = open;
+         if(InpProfitLock && gain >= InpLockAtUsd * U * 0.9999)
          {
-            double tr = ask + InpTrailDistR * R;
+            double lk = open - InpLockUsd * U;
+            if(newSl == 0 || lk < newSl) newSl = lk;
+         }
+         if(InpTrailing && gain >= InpTrailStartUsd * U)
+         {
+            double tr = ask + InpTrailDistUsd * U;
             if(newSl == 0 || tr < newSl) newSl = tr;
          }
          newSl = NormalizeDouble(newSl, digits);
          if(newSl > 0 && (sl == 0 || newSl < sl - point / 2) && newSl >= ask + lvl)
          {
             if(trade.PositionModify(t, newSl, tp))
-               Print("[SSEA] ", sym, " SELL SL -> ", DoubleToString(newSl, digits), (newSl >= open - point ? " (breakeven)" : " (trailing)"));
+               Print("[SSEA] ", sym, " SELL SL -> ", DoubleToString(newSl, digits), " (profit lock $",
+                     DoubleToString((open - newSl) / U * vol / 0.01, 2), ")");
          }
       }
    }
@@ -1450,13 +1467,14 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.03 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
+   string s = StringFormat("SamuSignal EA v1.04 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)", IstHM());
-   s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s trail %s | khule %d pending %d\n",
+   s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s lock %s trail %s | khule %d pending %d\n",
                      InpModeMarket ? "ON" : "OFF", InpModeLimit ? "ON" : "OFF", InpModeStop ? "ON" : "OFF",
                      InpMicroConfirm ? "ON" : "OFF", InpSpreadFilter ? "ON" : "OFF", InpAvoidNews ? "ON" : "OFF",
-                     InpBreakEven ? "ON" : "OFF", InpTrailing ? "ON" : "OFF", pos, pend);
+                     InpBreakEven ? "ON" : "OFF", InpProfitLock ? StringFormat("$%.0f->+$%.0f", InpLockAtUsd, InpLockUsd) : "OFF",
+                     InpTrailing ? "ON" : "OFF", pos, pend);
    for(int g = 0; g < NGRP; g++) s += g_grpName[g] + ": " + g_grpLine[g] + "   ";
    s += "\n";
    for(int i = 0; i < ArraySize(g_sym); i++)
@@ -1510,7 +1528,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.03 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.04 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " | confirm ", InpMicroConfirm ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(1);
