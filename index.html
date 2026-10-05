@@ -1912,9 +1912,9 @@ body.ds-gold .brand .brandWord{height:24px}
   <button class="btn ghost sm" style="margin-bottom:10px" onclick="resetPairDef()">↺ Is pair ko default pe wapas</button>
   <div class="sw" id="swBe" onclick="toggleSw(this,'beOn')">
     <div class="tg"></div>
-    <div>1R par SL breakeven<small>Profit SL jitna ho jaye to SL entry par — trade risk-free</small></div>
+    <div>Breakeven + Profit lock + Trailing<small>TP ka 30% → SL entry · 40% → SL +20% (kam se kam $0.75) · 60% ke baad trailing</small></div>
   </div>
-  <p class="hint" style="margin:-2px 0 12px">Ye sirf app ke journal me hota hai. MT5 wale order ki SL wahin ki wahin rahegi — wo kaam EA me karna padega.</p>
+  <p class="hint" style="margin:-2px 0 12px">Journal me SL apne aap khiskegi. App se 🚀 MT5 pe bheje order me FXBridgeEA (v3.54+) bhi yahi karega — jab ye switch ON ho. MT5 me haath se liya trade ho to SL wahan khud khiskana.</p>
 
   <div class="sw" id="swFresh" onclick="toggleSw(this,'freshPx')">
     <div class="tg"></div>
@@ -2085,7 +2085,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.34';
+const VERSION = '9.9.35';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -6174,11 +6174,9 @@ function openQuick(target){
   if(fc.ord && fc.ord.type !== 'MARKET') qtState.ordType = fc.ord.type;
   qtState.offPx = qtState.sugg[qtState.ordType] || 0;
   qtState.sigDir = s.dir;
-  /* journal me AUTO mode (EA v1.05 jaisa) — trade bole to sheet usi pe khule */
-  if(qtState.target === 'APP'){
-    qtState.auto = autoPlan(s, fc, qtState.lots);
-    if(qtState.auto.t !== 'WAIT') qtAutoApply();
-  }
+  /* AUTO mode (EA v1.05 jaisa) — journal aur MT5 dono me. Trade bole to sheet usi pe khule */
+  qtState.auto = autoPlan(s, fc, qtState.lots);
+  if(qtState.auto.t !== 'WAIT') qtAutoApply();
   drawQuick(); openSheet('qtSheet');
 }
 function qtAutoApply(){
@@ -6543,18 +6541,18 @@ function closeTrade(id, reason){
   const i = S.open.findIndex(t=>t.id===id); if(i<0) return;
   const t = S.open[i];
   const cur = t.cur || t.entry;
-  const exit = reason==='TP' ? t.tp : (reason==='SL' || reason==='BE') ? t.sl : cur;
+  const exit = reason==='TP' ? t.tp : (reason==='SL' || reason==='BE' || reason==='LOCK') ? t.sl : cur;
   const pl = tradePL(t, exit);
   const rec = Object.assign({}, t, {exit, pl, reason, closedAt: Date.now()});
   S.open.splice(i,1); S.hist.unshift(rec); S.hist = S.hist.slice(0,300); save();
   renderTrades();
-  const word = reason==='TP'?'TP HIT ✅':reason==='SL'?'SL HIT ❌':reason==='BE'?'BREAKEVEN 🛡':'Manual close';
+  const word = reason==='TP'?'TP HIT ✅':reason==='SL'?'SL HIT ❌':reason==='BE'?'BREAKEVEN 🛡':reason==='LOCK'?'PROFIT LOCK 🔒':'Manual close';
   toast(`${t.sym} ${word} · ${money(pl)}`);
   if(mt5Has(t.sym)){ delete S.mt5sent[t.sym]; save() }
   if(reason !== 'MANUAL'){
-    notify(`${reason==='TP'?'🎯 TP HIT':reason==='BE'?'🛡 BREAKEVEN':'🛑 SL HIT'} — ${SPECS[t.sym].n}`,
+    notify(`${reason==='TP'?'🎯 TP HIT':reason==='BE'?'🛡 BREAKEVEN':reason==='LOCK'?'🔒 PROFIT LOCK':'🛑 SL HIT'} — ${SPECS[t.sym].n}`,
       `${t.dir} ${t.lots} lot · ${money(pl)}`, 'close');
-    if(S.tts) speak(`${SPECS[t.sym].n.split('').join(' ')} ${reason==='TP'?'target hit':reason==='BE'?'closed at breakeven':'stop loss hit'}. ${pl>=0?'Profit':'Loss'} ${Math.abs(pl).toFixed(2)} dollars.`);
+    if(S.tts) speak(`${SPECS[t.sym].n.split('').join(' ')} ${reason==='TP'?'target hit':reason==='BE'?'closed at breakeven':reason==='LOCK'?'closed with locked profit':'stop loss hit'}. ${pl>=0?'Profit':'Loss'} ${Math.abs(pl).toFixed(2)} dollars.`);
   }
   logAdd(`${word} — ${t.sym} ${money(pl)}`);
   if(S.tgAuto) tgSend(tradeText(rec, reason), true);
@@ -6574,27 +6572,59 @@ function riskDist(t){
   return d;
 }
 
-function beCheck(t, px){
-  if(!S.beOn || t.be || !isFinite(px)) return false;
-  const r = riskDist(t);
-  if(!r) return false;
+/* v9.9.35: breakeven + profit lock + trailing — SamuSignal EA v1.05 jaisa, trade ke TP ke % se:
+     TP ka 30% chale  → SL entry par (breakeven)
+     40% chale        → SL profit me: TP ka 20%, kam se kam $0.75 (0.01 lot) jahan TP itna bada ho
+     60% ke baad      → SL price se TP ka 40% peeche (trailing)
+   TP na ho to purana tareeka: 1R pe breakeven. SL sirf aage khisakti hai.
+   App se MT5 pe bheje order me FXBridgeEA v3.54 bhi yahi karta hai. */
+const PLR = {be:0.30, lockAt:0.40, lock:0.20, minLock:0.75, trStart:0.60, trDist:0.40};
+function slLadder(t, gain){
+  const T = t.tp > 0 ? Math.abs(t.tp - t.entry) : 0;
+  if(!T){ const r = riskDist(t); return (r && gain >= r * 0.9999) ? 0 : null }
+  const minL = dollarsToDist(t.sym, t.entry, t.lots, PLR.minLock * t.lots / 0.01);
+  const lockD = Math.max(PLR.lock * T, Math.min(minL, 0.5 * T));
+  const lockAt = Math.max(PLR.lockAt * T, lockD + 0.2 * T);
+  let want = null;
+  if(gain >= PLR.be * T * 0.9999) want = 0;
+  if(gain >= lockAt * 0.9999) want = Math.max(want, lockD);
+  if(gain >= PLR.trStart * T) want = Math.max(want, gain - PLR.trDist * T);
+  return want;
+}
+/* SL hit hui to kya kehlayegi: entry par = BE, profit me = LOCK */
+function slReason(t){
+  if(!t.be) return 'SL';
+  const tiny = SPECS[t.sym].pip * 0.05;
+  return (t.dir === 'BUY' ? t.sl > t.entry + tiny : t.sl < t.entry - tiny) ? 'LOCK' : 'BE';
+}
+function beCheck(t, px, atMs){
+  if(!S.beOn || !isFinite(px) || !(t.sl > 0) || t.pend) return false;
   const gain = t.dir === 'BUY' ? px - t.entry : t.entry - px;
-  /* 0.9999 ka tolerance: 1.1025 - 1.1000 float me 0.00249999... nikalta hai,
-     aur seedhi tulna me theek 1R par trigger miss ho jaata tha */
-  if(gain < r * 0.9999) return false;      /* abhi 1R nahi hua */
+  const want = slLadder(t, gain);
+  if(want === null) return false;
+  const sp = SPECS[t.sym];
+  const nsl = +(t.dir === 'BUY' ? t.entry + want : t.entry - want).toFixed(sp.d);
+  const tiny = sp.pip * 0.05;
+  if(t.dir === 'BUY' ? !(nsl > t.sl + tiny) : !(nsl < t.sl - tiny)) return false;   /* sirf aage */
 
-  t.be = true;
-  t.beAt = Date.now();
-  t.slWas = t.sl;
-  t.sl = t.entry;
-  t.slD = 0;
-  logAdd(`Breakeven: ${SPECS[t.sym].n} ki SL entry par (${fmt(t.sym, t.entry)})`);
-  notify(`🛡 Breakeven — ${SPECS[t.sym].n}`,
-    `1R paar hua, SL entry par le aaye. Ab is trade me loss nahi hoga.`, 'be-' + t.id);
-  toast(`${SPECS[t.sym].n}: SL breakeven par`);
-  if(S.tgAuto) tgSend(`🛡 <b>BREAKEVEN — ${SPECS[t.sym].n}</b>\n\n` +
-    `${t.dir} ${t.lots} lot\nSL ab entry par: <code>${fmt(t.sym, t.entry)}</code>\n` +
-    `Is trade me ab loss nahi hoga.\n⏰ ${t12(Date.now())}`, true);
+  if(t.slWas === undefined) t.slWas = t.sl;
+  if(!t.slD0) t.slD0 = t.slD;                /* asli risk — R ginti ke liye */
+  t.sl = nsl; t.be = true; t.beAt = atMs || Date.now(); t.slD = 0;
+  t.lockUsd = want > 0 ? +distToDollars(t.sym, t.entry, t.lots, want).toFixed(2) : 0;
+  const T = t.tp > 0 ? Math.abs(t.tp - t.entry) : 0;
+  const lockOnly = T ? slLadder(t, Math.min(gain, PLR.trStart * T * 0.9999)) : 0;   /* trailing ke bina kitna */
+  const stage = want === 0 ? 'BE' : want > lockOnly + tiny ? 'TRAIL' : 'LOCK';
+  logAdd(`${stage === 'BE' ? 'Breakeven' : stage === 'LOCK' ? 'Profit lock' : 'Trailing'}: ${sp.n} ki SL ${fmt(t.sym, nsl)}${t.lockUsd ? ` (+$${t.lockUsd} pakka)` : ' (entry)'}`);
+  if(stage !== t.stage){                     /* har chhoti trailing chaal pe notification nahi */
+    t.stage = stage;
+    const head = stage === 'BE' ? '🛡 Breakeven' : stage === 'LOCK' ? '🔒 Profit lock' : '📈 Trailing chalu';
+    const body = stage === 'BE' ? 'SL entry par — ab is trade me loss nahi hoga.'
+      : `SL ${fmt(t.sym, nsl)} pe — kam se kam +$${t.lockUsd} pakka.`;
+    notify(`${head} — ${sp.n}`, body, 'be-' + t.id);
+    toast(`${sp.n}: ${head}`);
+    if(S.tgAuto) tgSend(`${head} — <b>${sp.n}</b>\n\n${t.dir} ${t.lots} lot\nNayi SL: <code>${fmt(t.sym, nsl)}</code>\n${body}\n` +
+      `<i>Journal me SL khisak gayi. MT5 pe manual trade ho to wahan bhi SL yahan karo.</i>\n⏰ ${t12(Date.now())}`, true);
+  }
   return true;
 }
 
@@ -6671,9 +6701,9 @@ function touchScan(t, bars){
     const slOk = !(t.be && t.beAt && ms <= t.beAt);
     const slHit = slOk && t.sl > 0 && (t.dir === 'BUY' ? b.l <= t.sl : b.h >= t.sl);
     const tpHit = t.tp > 0 && (t.dir === 'BUY' ? b.h >= t.tp : b.l <= t.tp);
-    if(slHit) return t.be ? 'BE' : 'SL';
+    if(slHit) return slReason(t);
     if(tpHit) return 'TP';
-    if(!t.be && beCheck(t, t.dir === 'BUY' ? b.h : b.l)) t.beAt = ms;   /* candle ki shuruaat */
+    beCheck(t, t.dir === 'BUY' ? b.h : b.l, ms);      /* nayi SL agli candle se (beAt = candle ki shuruaat) */
   }
   return null;
 }
@@ -6749,8 +6779,8 @@ async function refreshOpen(force){
       t.cur = d.p; t.pl = tradePL(t, d.p);
       trackExcursion(t, d.p);
       beCheck(t, d.p);
-      /* BE ke baad SL entry par hai — wo hit hona loss nahi, flat exit hai */
-      const slHit = t.be ? 'BE' : 'SL';
+      /* BE ke baad SL entry par / profit me hai — wo hit hona loss nahi */
+      const slHit = slReason(t);
       if(t.dir==='BUY'){
         if(t.tp > 0 && d.p >= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p <= t.sl) hits.push([t.id,slHit]);
       } else {
@@ -6890,7 +6920,7 @@ function renderTrades(){
       <div class="tr-g mono">
         <div><span>ENTRY</span>${fmt(t.sym,t.entry)}</div>
         <div><span>NOW</span>${fmt(t.sym,cur)}</div>
-        <div><span>${!(t.sl > 0) ? 'SL' : t.be ? 'SL · BREAKEVEN 🛡' : 'SL $' + t.slD}</span><em class="${t.be?'up':'dn'}" style="font-style:normal">${t.sl > 0 ? fmt(t.sym,t.sl) : '⚠ nahi'}</em></div>
+        <div><span>${!(t.sl > 0) ? 'SL' : t.be ? (t.lockUsd > 0 ? `SL · LOCK +$${t.lockUsd} 🔒` : 'SL · BREAKEVEN 🛡') : 'SL $' + t.slD}</span><em class="${t.be?'up':'dn'}" style="font-style:normal">${t.sl > 0 ? fmt(t.sym,t.sl) : '⚠ nahi'}</em></div>
         <div><span>${t.tp > 0 ? 'TP $' + t.tpD : 'TP'}</span><em class="up" style="font-style:normal">${t.tp > 0 ? fmt(t.sym,t.tp) : 'nahi'}</em></div>
       </div>
       <p class="hint" style="margin:0 0 9px">${dt12(t.at)} · Quality ${t.q||0}% ${t.grade?'· '+t.grade:''}</p>
@@ -6910,8 +6940,8 @@ function renderTrades(){
 
   /* history */
   $('histBox').innerHTML = S.hist.length ? S.hist.slice(0,60).map(t=>{
-    const w = t.reason==='TP'?'w':t.reason==='SL'?'l':'m';
-    const ic = t.reason==='TP'?'TP':t.reason==='SL'?'SL':t.reason==='BE'?'BE':'M';
+    const w = t.reason==='TP'||t.reason==='LOCK'?'w':t.reason==='SL'?'l':'m';
+    const ic = t.reason==='TP'?'TP':t.reason==='SL'?'SL':t.reason==='BE'?'BE':t.reason==='LOCK'?'LK':'M';
     return `<div class="hist">
       <div class="ic ${w}">${ic}</div>
       <div class="in">
@@ -6971,7 +7001,7 @@ function renderPerf(){
   const acc = decided ? (win.length / decided * 100) : 0;
   const total = H.reduce((a,t) => a + t.pl, 0);
 
-  const Rs = H.map(t => (t.slD > 0 ? t.pl / t.slD : 0));
+  const Rs = H.map(t => { const r = t.slD0 || t.slD; return r > 0 ? t.pl / r : 0 });
   const exp = Rs.length ? Rs.reduce((a,b) => a+b, 0) / Rs.length : 0;
 
   const avgW = win.length  ? win.reduce((a,t)=>a+t.pl,0)  / win.length  : 0;
@@ -7198,9 +7228,9 @@ async function refreshAll(){
         }
         t.cur = d.p; t.pl = tradePL(t, d.p);
         if(t.dir==='BUY'){
-          if(t.tp > 0 && d.p >= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p <= t.sl) hits.push([t.id, t.be ? 'BE' : 'SL']);
+          if(t.tp > 0 && d.p >= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p <= t.sl) hits.push([t.id, slReason(t)]);
         } else {
-          if(t.tp > 0 && d.p <= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p >= t.sl) hits.push([t.id, t.be ? 'BE' : 'SL']);
+          if(t.tp > 0 && d.p <= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p >= t.sl) hits.push([t.id, slReason(t)]);
         }
       });
       lastOpenSync = Date.now();
@@ -7278,7 +7308,8 @@ function mt5Payload(sym, dir, lots, entry, sl, tp, kind){
     lots: +Number(lots).toFixed(2),
     entry: +Number(entry).toFixed(d),
     sl: +Number(sl).toFixed(d),
-    tp: +Number(tp).toFixed(d)
+    tp: +Number(tp).toFixed(d),
+    pm: S.beOn ? 1 : 0                        /* FXBridgeEA: BE + profit lock + trailing (app jaisa) */
   };
 }
 
@@ -7788,7 +7819,7 @@ function tradeText(t, kind){
   if(kind==='OPEN'){
     return `${t.pend ? `⏳ <b>SamuSignal — Pending ${t.dir} ${t.pend}</b>` : '✅ <b>SamuSignal — Trade Open</b>'}\n\n<b>${t.sym} ${t.dir}</b>\nEntry: <code>${fmt(t.sym,t.entry)}</code>\nSL: <code>${fmt(t.sym,t.sl)}</code> ($${t.slD})\nTP: <code>${fmt(t.sym,t.tp)}</code> ($${t.tpD})\nLots: ${t.lots}\n⏰ ${t12(t.at)}`;
   }
-  const e = kind==='TP'?'🎯 TP HIT':kind==='SL'?'🛑 SL HIT':'✋ Manual Close';
+  const e = kind==='TP'?'🎯 TP HIT':kind==='SL'?'🛑 SL HIT':kind==='BE'?'🛡 BREAKEVEN':kind==='LOCK'?'🔒 PROFIT LOCK':'✋ Manual Close';
   return `${e} — <b>SamuSignal</b>\n\n<b>${t.sym} ${t.dir}</b>\nEntry: <code>${fmt(t.sym,t.entry)}</code>\nExit: <code>${fmt(t.sym,t.exit)}</code>\nP/L: <b>${money(t.pl)}</b>\n⏰ ${t12(t.closedAt)}`;
 }
 const strip = s => s.replace(/<[^>]+>/g,'');

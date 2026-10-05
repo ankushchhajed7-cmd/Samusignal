@@ -10,6 +10,13 @@
 //|                "lots":0.01,"entry":4022.36,"sl":4048.51,         |
 //|                "tp":3970.06}                                     |
 //|                                                                  |
+//|  v3.54 (06-Oct-2026):                                            |
+//|   * App se bheje order me "pm":1 ho (app ka Breakeven + Profit   |
+//|     lock + Trailing switch ON) to MT5 me bhi wahi niyam, TP ke % |
+//|     se: 30% -> SL entry, 40% -> SL +20% (kam se kam $0.75 /0.01  |
+//|     lot), 60% ke baad SL price se 40% peeche. SL sirf aage.      |
+//|     Input AutoProfitLock = false se band.                        |
+//|                                                                  |
 //|  v3.53 (01-Oct-2026):                                            |
 //|   * Firebase URL default me save (forexdiagnosis DB).            |
 //|   * AlertPairs = "ALL" -> app ke saare 32 pair (28 FX + XAUUSD,  |
@@ -28,7 +35,7 @@
 //|     nahi lagega (test mode). Auto-trade REAL pe kabhi nahi.      |
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "3.53"
+#property version   "3.54"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -45,6 +52,13 @@ input int     PollSeconds    = 10;         // Firebase check interval (seconds)
 input double  MaxLots        = 0.50;       // Safety: max lot allowed per order
 input int     MagicNumber    = 777001;     // Magic number
 input int     ExpiryHours    = 3;          // Pending order expiry (0 = no expiry) — app jaisa 3 ghante
+input bool    AutoProfitLock = true;       // App ke "pm" wale trades: BE + profit lock + trailing (TP ke % se)
+input double  PL_BePct       = 30;         // TP ka itna % chale -> SL entry
+input double  PL_LockAtPct   = 40;         // TP ka itna % chale -> ...
+input double  PL_LockPct     = 20;         // ...SL TP ke itne % profit par
+input double  PL_MinLockUsd  = 0.75;       // Lock kam se kam itne $ (0.01 lot) jahan TP itna bada ho
+input double  PL_TrailStartPct = 60;       // TP ka itna % ke baad trailing
+input double  PL_TrailDistPct  = 40;       // SL price se TP ke itne % peeche
 input bool    EnableTrading  = false;      // Master switch (false = read-only test)
 input string  TgBotToken     = "";         // Telegram Bot Token (confirmation, optional)
 input string  TgChatID       = "";         // Telegram Chat ID (optional)
@@ -385,6 +399,7 @@ void OnTimer()
    TrackAndReportClosures();   // reverse-bridge: band hue trades app ko batao
    CheckCommands();            // app se BE / Trailing commands
    ApplyTrailing();            // trailing on ho to har tick SL follow karao
+   ManageProfitLock();         // app ke "pm" trades: BE + profit lock + trailing (v3.54)
    if(EnablePaperTrades) CheckPaperResults();   // paper trades ka TP/SL check (24/7)
 
    // Har 60 sec: Market Watch symbols ki spec app ko bhejo (auto SL/TP $)
@@ -457,6 +472,8 @@ void TrackAndReportClosures()
          string reason  = "CLOSE";
          if(GetClosedInfo((long)ticket, profit, reason))
             ReportResult(orderId, profit, reason);
+         GlobalVariableDel(PmKey(orderId));
+         GlobalVariableDel(PmStageKey(orderId));
          RemoveTrackedAt(i);
       }
    }
@@ -685,6 +702,77 @@ void ApplyTrailing()
          double newSL = NormalizeDouble(ask + risk, dig);
          if(curSL == 0 || newSL < curSL)
             trade.PositionModify(ticket, newSL, tp);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| v3.54: app ke "pm" trades ka BE + profit lock + trailing          |
+//| (SamuSignal app journal aur SamuSignal EA v1.05 jaisa niyam)      |
+//+------------------------------------------------------------------+
+string PmKey(long orderId)      { return "FXB.pm." + IntegerToString(orderId); }
+string PmStageKey(long orderId) { return "FXB.st." + IntegerToString(orderId); }
+
+void ManageProfitLock()
+{
+   if(!AutoProfitLock) return;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != MagicNumber) continue;
+      string cmt = PositionGetString(POSITION_COMMENT);
+      if(StringFind(cmt, "FXDiag_") != 0) continue;
+      long orderId = (long)StringToInteger(StringSubstr(cmt, 7));
+      if(orderId <= 0 || !GlobalVariableCheck(PmKey(orderId))) continue;   // app ne pm nahi bheja
+
+      string sym   = PositionGetString(POSITION_SYMBOL);
+      long   ptype = PositionGetInteger(POSITION_TYPE);
+      double open  = PositionGetDouble(POSITION_PRICE_OPEN);
+      double sl    = PositionGetDouble(POSITION_SL);
+      double tp    = PositionGetDouble(POSITION_TP);
+      double vol   = PositionGetDouble(POSITION_VOLUME);
+      if(tp <= 0 || sl <= 0 || vol <= 0) continue;
+      double tv = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+      double ts = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+      if(tv <= 0 || ts <= 0) continue;
+      double U = (vol / 0.01) / (tv / ts * vol);              // $1 (0.01 lot pe) ki price doori
+      double T = MathAbs(tp - open);
+      double lockD   = MathMax(PL_LockPct / 100.0 * T, MathMin(PL_MinLockUsd * U, 0.5 * T));
+      double lockAtD = MathMax(PL_LockAtPct / 100.0 * T, lockD + 0.2 * T);
+      double trSt = PL_TrailStartPct / 100.0 * T, trD = PL_TrailDistPct / 100.0 * T;
+
+      int    dig   = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+      double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+      double lvl   = (double)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
+      double bid   = SymbolInfoDouble(sym, SYMBOL_BID);
+      double ask   = SymbolInfoDouble(sym, SYMBOL_ASK);
+      bool   buy   = (ptype == POSITION_TYPE_BUY);
+      double gain  = buy ? bid - open : open - ask;
+
+      double want = -1;                                       // SL entry se kitni profit taraf
+      if(gain >= PL_BePct / 100.0 * T * 0.9999) want = 0;
+      if(gain >= lockAtD * 0.9999) want = MathMax(want, lockD);
+      int stage = (want == 0) ? 1 : (want > 0 ? 2 : 0);
+      if(gain >= trSt && gain - trD > want) { want = gain - trD; stage = 3; }
+      if(want < 0) continue;
+
+      double newSL = NormalizeDouble(buy ? open + want : open - want, dig);
+      bool better = buy ? (newSL > sl + point / 2) : (newSL < sl - point / 2);
+      bool legal  = buy ? (newSL <= bid - lvl) : (newSL >= ask + lvl);
+      if(!better || !legal) continue;
+      if(!trade.PositionModify(ticket, newSL, tp)) continue;
+
+      double lockUsd = want / U * vol / 0.01;
+      Print("ProfitLock ", sym, " #", ticket, " SL -> ", DoubleToString(newSL, dig),
+            (stage == 1 ? " (breakeven)" : StringFormat(" (+$%.2f pakka)", lockUsd)));
+      double prev = GlobalVariableCheck(PmStageKey(orderId)) ? GlobalVariableGet(PmStageKey(orderId)) : 0;
+      if(stage > prev)                                        // har chhoti trailing chaal pe Telegram nahi
+      {
+         GlobalVariableSet(PmStageKey(orderId), stage);
+         SendReply((stage == 1 ? "Breakeven: " : stage == 2 ? "Profit lock: " : "Trailing chalu: ") + sym +
+                   "  SL " + DoubleToString(newSL, dig) +
+                   (stage == 1 ? "  (ab loss nahi)" : "  (kam se kam +$" + DoubleToString(lockUsd, 2) + ")"));
       }
    }
 }
@@ -1026,6 +1114,7 @@ void ProcessOrder(string json)
    }
 
    Print("--- Naya order mila: ID ", orderID, " ---");
+   if(JsonNumber(json, "pm") > 0) GlobalVariableSet(PmKey(orderID), 1);   // app: BE + profit lock + trailing
 
    if(entry <= 0 || sl <= 0 || tp <= 0)
    {
