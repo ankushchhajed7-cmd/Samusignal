@@ -26,12 +26,20 @@
 //|  v1.04: Profit lock - profit $2 pahunche to SL +$1 par (kam se kam |
 //|     $1 book). Trailing $ me: $3 ke baad SL price se $2 peeche.     |
 //|     (+$1 -> +$2 -> ... -> TP $5). Breakeven ab $1.5 pe.            |
+//|  v1.05: market ke hisaab se 3 mode, sab auto:                     |
+//|   * NORMAL - app jaisa faisla. TREND - tagde trend me EMA9         |
+//|     pullback pe entry (timing ki wajah se WAIT nahi). RANGE -      |
+//|     shaant market me range ke kinare se beech tak chhota trade.    |
+//|   * SL/TP ATR se (SL 1.2 ATR, TP 1.6x / trend 2x), TP $1 - $5.     |
+//|     SL $2.5 se bada ho to trade nahi. Din ka loss $5 -> us din bas.|
+//|   * BE / profit lock / trailing ab TP ke % se (TP chhota ho ya     |
+//|     bada, sab us hisaab se). Lock kam se kam +$0.75 (jahan ho sake)|
 //|                                                                    |
 //|  Lagana: kisi bhi ek chart pe (jaise XAUUSDm) - EA saare pairs     |
 //|  khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.           |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.04"
+#property version   "1.05"
 #property description "SamuSignal app ka signal logic - 28 pairs, 5 group, auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
@@ -53,8 +61,8 @@ input bool   InpModeMarket    = true;    // TRADE LO (market order)
 input bool   InpModeLimit     = true;    // LIMIT LAGAO (pullback pending)
 input bool   InpModeStop      = true;    // STOP LAGAO (breakout pending)
 input double InpLots          = 0.01;    // Lot (fix)
-input double InpTpUsd         = 5.0;     // TP $ per 0.01 lot (app default)
-input double InpSlUsd         = 2.5;     // SL $ per 0.01 lot (app default)
+input double InpTpUsd         = 5.0;     // Signal hisaab ka TP $ (app jaisa; asli TP neeche Auto se)
+input double InpSlUsd         = 2.5;     // Signal hisaab ka SL $ (app jaisa; asli SL neeche Auto se)
 input int    InpMaxPerPairDay = 2;       // Ek pair pe din me max trades (IST din)
 input int    InpPendingHours  = 3;       // LIMIT/STOP itne ghante me na bhare to hatao
 
@@ -63,7 +71,24 @@ input bool   InpMicroConfirm  = true;    // TRADE LO pe micro-confirmation (pric
 input double InpConfirmAtr    = 0.15;    // Kitna chale (ATR ka hissa) - itna hi ulta chale to cancel
 input int    InpConfirmMin    = 15;      // Confirmation ka max intezaar (minute)
 input bool   InpSpreadFilter  = true;    // Spread bada ho to entry roko
-input double InpMaxSpreadPctSL = 10;     // Spread SL doori ke kitne % tak theek
+input double InpMaxSpreadPctSL = 20;     // Spread SL doori ke kitne % tak theek
+
+input group "Auto SL/TP + Mode (v1.05)"
+input bool   InpAutoSlTp      = true;    // SL/TP market (ATR) ke hisaab se (false = upar wale fix $)
+input double InpSlAtr         = 1.2;     // SL = itne ATR(15m)
+input double InpRrNormal      = 1.6;     // NORMAL: TP = SL x itna
+input double InpRrTrend       = 2.0;     // TREND: TP = SL x itna
+input double InpMinTpUsd      = 1.0;     // TP kam se kam $ (0.01 lot)
+input double InpMaxTpUsd      = 5.0;     // TP zyada se zyada $
+input double InpMaxSlUsd      = 2.5;     // SL isse bada ho to trade nahi ($)
+input double InpMaxTpAtr      = 3.0;     // $min TP itne ATR se door = market shaant, trade nahi
+input bool   InpTrendMode     = true;    // TREND mode (EMA9 pullback entry)
+input double InpTrendAdx      = 25;      // ADX itna ya zyada = tagda trend
+input bool   InpRangeMode     = true;    // RANGE mode (kinare se beech tak)
+input double InpRangeAdx      = 20;      // ADX isse kam = range
+input int    InpRangeBars     = 24;      // Range kitni candles ki (24 x 15m = 6 ghante)
+input double InpRrRangeMin    = 1.2;     // RANGE me kam se kam R:R
+input double InpMaxDayLossUsd = 5.0;     // Din (IST) ka loss itna ho to us din naya trade nahi (0 = off)
 
 input group "Time / News (IST)"
 input int    InpStartHourIST  = 8;       // Shuru (IST ghanta)
@@ -74,13 +99,14 @@ input bool   InpCancelOnNews  = true;    // News aane wali ho to bhara-nahi pend
 
 input group "Breakeven / Trailing"
 input bool   InpBreakEven     = true;    // Breakeven ON/OFF
-input double InpBeAtUsd       = 1.5;     // Profit itne $ pe SL entry par (0.01 lot)
+input double InpBePct         = 30;      // TP ka itna % chale to SL entry par
 input bool   InpProfitLock    = true;    // Profit lock ON/OFF (kam se kam $ book)
-input double InpLockAtUsd     = 2.0;     // Profit itne $ pahunche to...
-input double InpLockUsd       = 1.0;     // ...SL itne $ profit par (ye pakka book)
+input double InpLockAtPct     = 40;      // TP ka itna % chale to...
+input double InpLockPct       = 20;      // ...SL TP ke itne % profit par
+input double InpMinLockUsd    = 0.75;    // Lock kam se kam itne $ ka (jahan TP itna bada ho)
 input bool   InpTrailing      = true;    // Trailing ON/OFF
-input double InpTrailStartUsd = 3.0;     // Profit itne $ ke baad trailing shuru
-input double InpTrailDistUsd  = 2.0;     // SL price se itne $ peeche chale
+input double InpTrailStartPct = 60;      // TP ka itna % ke baad trailing shuru
+input double InpTrailDistPct  = 40;      // SL price se TP ke itne % peeche chale
 
 input group "Other"
 input long   InpMagic         = 777100;  // Magic number (FXBridgeEA se alag)
@@ -861,8 +887,163 @@ void SsEvaluate(const Bar &m15raw[], const Bar &h1raw[], const Bar &h4raw[], con
 }
 //CORE>>
 
+//<<MODES - v1.05: market ka mood (TREND / NORMAL / RANGE) + auto SL/TP (ATR se).
+// Core (upar) app jaisa hi faisla deta hai - ye hissa uske baad lagta hai:
+//  * NORMAL : core ka faisla, SL = 1.2 ATR, TP = 1.6x SL
+//  * TREND  : ADX tagda + EMA 9>21>55 + 1H/4H saath. Core sirf timing
+//             (RSI/umar/chase/kinara) ki wajah se WAIT/LIMIT bole to bhi
+//             EMA9 pullback pe entry. TP = 2x SL
+//  * RANGE  : ADX kam. Core WAIT ho to range ke kinare se beech tak chhota trade
+// TP kabhi $min se kam nahi, $max se zyada nahi; SL $max se bada ho to trade nahi.
+#define MD_NORMAL 0
+#define MD_TREND  1
+#define MD_RANGE  2
+
+#define SK_NONE   0
+#define SK_CORE   1    // core WAIT, koi mode nahi laga
+#define SK_DATA   2
+#define SK_BIGSL  3    // SL $ seema se bada
+#define SK_QUIET  4    // market shaant - $min target bahut door
+#define SK_RR     5    // range me R:R kam
+#define SK_STRECH 6    // trend me price EMA se bahut door
+#define SK_NOCONF 7    // trend pullback par confirm candle nahi
+
+struct SsModeCfg {
+   bool   trendOn; bool rangeOn;
+   double slAtr;  double rrTrend; double rrNormal; double rrRangeMin;
+   double minTpUsd; double maxTpUsd; double maxSlUsd; double maxTpAtr;
+   double trendAdx; double rangeAdx; int rangeBars;
+};
+
+struct SsPlan {
+   int mode; int decision; int dir; double off; double sl; double tp;
+   double adx; double slUsd; double tpUsd; int skip; bool viaMode;
+};
+
+int SsRegime(const Bar &m15[], int dir, int h1Bias, int h4Bias, const SsModeCfg &K, double &adx)
+{
+   double pdi, ndi;
+   SsAdx(m15, 14, adx, pdi, ndi);
+   double c[];
+   SsCloses(m15, c);
+   double e9 = SsEmaLast(c, 9), e21 = SsEmaLast(c, 21), e55 = SsEmaLast(c, 55);
+   bool up = adx >= K.trendAdx && pdi > ndi && e9 > e21 && e21 > e55 && h1Bias == SS_BUY && h4Bias == SS_BUY;
+   bool dn = adx >= K.trendAdx && ndi > pdi && e9 < e21 && e21 < e55 && h1Bias == SS_SELL && h4Bias == SS_SELL;
+   if((dir == SS_BUY && up) || (dir == SS_SELL && dn)) return MD_TREND;
+   if(adx < K.rangeAdx) return MD_RANGE;
+   return MD_NORMAL;
+}
+
+// TP/SL ko $ seemaon me rakho. false = trade nahi (P.skip me wajah)
+bool SsFitUsd(double atr, double usdPerPrice, const SsModeCfg &K, SsPlan &P)
+{
+   P.slUsd = P.sl * usdPerPrice;
+   if(P.slUsd > K.maxSlUsd) { P.skip = SK_BIGSL; return false; }
+   double tpUsd = P.tp * usdPerPrice;
+   if(tpUsd > K.maxTpUsd) P.tp = K.maxTpUsd / usdPerPrice;
+   if(tpUsd < K.minTpUsd)
+   {
+      double need = K.minTpUsd / usdPerPrice;
+      if(need > K.maxTpAtr * atr) { P.skip = SK_QUIET; return false; }
+      P.tp = need;
+   }
+   P.tpUsd = P.tp * usdPerPrice;
+   return true;
+}
+
+// m15 = sirf band candles. live = abhi ka bid. usdPerPrice = 1.0 price chalne pe kitne $ (is lot pe)
+void SsMakePlan(const Bar &m15[], double live, double spread, int h1Bias, int h4Bias,
+                const SsResult &R, bool news, double usdPerPrice, const SsModeCfg &K, SsPlan &P)
+{
+   P.mode = MD_NORMAL; P.decision = SS_WAIT; P.dir = R.dir; P.off = 0; P.sl = 0; P.tp = 0;
+   P.adx = 0; P.slUsd = 0; P.tpUsd = 0; P.skip = SK_CORE; P.viaMode = false;
+   double atr = R.atr;
+   int n = ArraySize(m15);
+   if(!(atr > 0) || !(usdPerPrice > 0) || n < 60) { P.skip = SK_DATA; return; }
+   double adx;
+   int reg = SsRegime(m15, R.dir, h1Bias, h4Bias, K, adx);
+   P.adx = adx;
+   if(!K.trendOn && reg == MD_TREND) reg = MD_NORMAL;
+   P.mode = reg;
+   double slMin = 3 * spread;
+
+   if(R.decision != SS_WAIT && !(reg == MD_TREND && R.decision == SS_LIMIT))
+   {
+      // core ne trade bola - wahi, bas SL/TP market ke hisaab se
+      P.decision = R.decision; P.dir = R.dir; P.off = R.off;
+      P.sl = K.slAtr * atr; if(P.sl < slMin) P.sl = slMin;
+      P.tp = P.sl * ((reg == MD_TREND) ? K.rrTrend : K.rrNormal);
+      P.skip = SK_NONE;
+      if(!SsFitUsd(atr, usdPerPrice, K, P)) P.decision = SS_WAIT;
+      return;
+   }
+   if(news) return;
+   double lastO = m15[n - 1].o, lastC = m15[n - 1].c, prevC = m15[n - 2].c;
+
+   if(reg == MD_TREND)
+   {
+      // sirf timing / halki kami maaf. Direction ki kami (agents, structure, HTF,
+      // vote, quality, technical, supertrend, EMA Plan, HTF rule) ho to nahi.
+      int block = W_AGENTS | W_STRUCT | W_TECH40 | W_NEWS | W_HTF | W_VOTE | W_TECH55 | W_Q60 |
+                  C_ST | C_EMA | C_HTFRULE;
+      if((R.why & block) != 0) return;
+      double c[];
+      SsCloses(m15, c);
+      double e9 = SsEmaLast(c, 9), e21 = SsEmaLast(c, 21);
+      double dist = (R.dir == SS_BUY) ? live - e9 : e9 - live;
+      bool aboveSlow = (R.dir == SS_BUY) ? live > e21 : live < e21;
+      bool candleOk = (R.dir == SS_BUY) ? (lastC > lastO) : (lastC < lastO);
+      P.dir = R.dir; P.viaMode = true;
+      if(dist > 0.3 * atr)
+      {
+         if(dist > 2.5 * atr) { P.skip = SK_STRECH; return; }
+         P.decision = SS_LIMIT;
+         P.off = dist;
+         if(P.off < 0.25 * atr) P.off = 0.25 * atr;
+         if(P.off > 1.5 * atr) P.off = 1.5 * atr;
+      }
+      else
+      {
+         if(!aboveSlow || !candleOk) { P.skip = SK_NOCONF; return; }
+         P.decision = SS_MARKET;
+      }
+      P.sl = K.slAtr * atr; if(P.sl < slMin) P.sl = slMin;
+      P.tp = P.sl * K.rrTrend;
+      P.skip = SK_NONE;
+      if(!SsFitUsd(atr, usdPerPrice, K, P)) P.decision = SS_WAIT;
+      return;
+   }
+
+   if(reg == MD_RANGE && K.rangeOn)
+   {
+      double hi = SsHH(m15, K.rangeBars), lo = SsLL(m15, K.rangeBars);
+      double w = hi - lo;
+      if(w < 3 * atr || live <= lo || live >= hi) return;
+      double rsi = R.rsi;
+      int d = SS_HOLD;
+      if(live <= lo + 0.25 * w && rsi <= 40 && lastC > lastO && lastC > prevC) d = SS_BUY;
+      else if(live >= hi - 0.25 * w && rsi >= 60 && lastC < lastO && lastC < prevC) d = SS_SELL;
+      if(d == SS_HOLD) return;
+      double entry = (d == SS_BUY) ? live + spread : live;
+      double slPx = (d == SS_BUY) ? lo - 0.3 * atr : hi + 0.3 * atr + spread;
+      double tpPx = lo + 0.5 * w;
+      P.dir = d; P.viaMode = true; P.decision = SS_MARKET;
+      P.sl = (d == SS_BUY) ? entry - slPx : slPx - entry;
+      P.tp = (d == SS_BUY) ? tpPx - entry : entry - tpPx;
+      if(P.sl < slMin) P.sl = slMin;
+      if(!(P.tp > 0) || P.tp / P.sl < K.rrRangeMin) { P.skip = SK_RR; P.decision = SS_WAIT; return; }
+      P.skip = SK_NONE;
+      if(!SsFitUsd(atr, usdPerPrice, K, P)) { P.decision = SS_WAIT; return; }
+      double room = (d == SS_BUY) ? hi - entry : entry - lo;     // $min ke liye TP range ke bahar na jaye
+      if(P.tp > room) { P.skip = SK_QUIET; P.decision = SS_WAIT; }
+      return;
+   }
+}
+//MODES>>
+
+
 //==================================================================
-//  EA SHELL v1.03 - data, 5 group, micro-confirmation, spread,
+//  EA SHELL v1.05 - data, 5 group, mode/auto SL-TP, micro-confirmation, spread,
 //  order, breakeven/trailing, pending, panel
 //==================================================================
 #define NGRP 5
@@ -872,6 +1053,7 @@ int      g_grp[];          // 0..4
 datetime g_lastBar[];      // aakhri hisaab wali M15 candle
 string   g_line[];         // panel ki chhoti line
 SsResult g_res[];          // aakhri hisaab
+SsPlan   g_plan[];         // mode + asli order (dir, SL/TP doori)
 bool     g_cand[];         // is candle pe trade ka umeedwar
 datetime g_candBar[];      // kis candle ka umeedwar
 string   g_grpName[NGRP] = {"Majors", "EUR Cross", "GBP Cross", "AUD/NZD", "CAD/CHF"};
@@ -884,6 +1066,8 @@ double   g_wRef[NGRP];
 double   g_wTh[NGRP];
 datetime g_wStart[NGRP];
 datetime g_lastNewsChk = 0;
+double   g_dayPl = 0;
+datetime g_dayPlChk = 0;
 
 string TrimStr(string s)
 {
@@ -1097,6 +1281,51 @@ string AgeName(int a) { return (a == 0) ? "FRESH" : (a == 1) ? "CHAL RAHA" : (a 
 string DecName(int d) { return (d == SS_MARKET) ? "TRADE LO" : (d == SS_LIMIT) ? "LIMIT LAGAO" : (d == SS_STOP) ? "STOP LAGAO" : "WAIT"; }
 string DecShort(int d) { return (d == SS_MARKET) ? "MKT" : (d == SS_LIMIT) ? "LIM" : (d == SS_STOP) ? "STP" : "WAIT"; }
 
+string ModeName(int m) { return (m == MD_TREND) ? "TREND" : (m == MD_RANGE) ? "RANGE" : "NORMAL"; }
+string ModeChar(int m) { return (m == MD_TREND) ? "T" : (m == MD_RANGE) ? "R" : "N"; }
+string SkipText(int k)
+{
+   if(k == SK_BIGSL)  return "SL $ seema se bada";
+   if(k == SK_QUIET)  return "market shaant - $min target door";
+   if(k == SK_RR)     return "range me R:R kam";
+   if(k == SK_STRECH) return "trend me price EMA se bahut door";
+   if(k == SK_NOCONF) return "pullback par confirm candle nahi";
+   if(k == SK_DATA)   return "data kam";
+   return "";
+}
+
+// Aaj (IST din) ke band trades ka P/L - sirf apne. 30 sec cache.
+double TodayPl()
+{
+   if(TimeCurrent() - g_dayPlChk < 30) return g_dayPl;
+   g_dayPlChk = TimeCurrent();
+   MqlDateTime d;
+   TimeToStruct(IstNow(), d);
+   datetime from = TimeTradeServer() - (d.hour * 3600 + d.min * 60 + d.sec);
+   double pl = 0;
+   if(HistorySelect(from, TimeTradeServer() + 60))
+   {
+      for(int k = HistoryDealsTotal() - 1; k >= 0; k--)
+      {
+         ulong t = HistoryDealGetTicket(k);
+         if(t == 0 || HistoryDealGetInteger(t, DEAL_MAGIC) != InpMagic) continue;
+         long e = HistoryDealGetInteger(t, DEAL_ENTRY);
+         if(e != DEAL_ENTRY_OUT && e != DEAL_ENTRY_OUT_BY) continue;
+         pl += HistoryDealGetDouble(t, DEAL_PROFIT) + HistoryDealGetDouble(t, DEAL_SWAP) + HistoryDealGetDouble(t, DEAL_COMMISSION);
+      }
+   }
+   g_dayPl = pl;
+   return pl;
+}
+
+void ModeCfg(SsModeCfg &K)
+{
+   K.trendOn = InpTrendMode; K.rangeOn = InpRangeMode;
+   K.slAtr = InpSlAtr; K.rrTrend = InpRrTrend; K.rrNormal = InpRrNormal; K.rrRangeMin = InpRrRangeMin;
+   K.minTpUsd = InpMinTpUsd; K.maxTpUsd = InpMaxTpUsd; K.maxSlUsd = InpMaxSlUsd; K.maxTpAtr = InpMaxTpAtr;
+   K.trendAdx = InpTrendAdx; K.rangeAdx = InpRangeAdx; K.rangeBars = InpRangeBars;
+}
+
 string WhyText(int w)
 {
    string s = "";
@@ -1144,18 +1373,20 @@ string PreCheck(int i, int decision, bool &retry)
    if(PairBusy(sym)) return "pair pe trade/order khula";
    if(DayCount(sym) >= InpMaxPerPairDay) return "aaj is pair ki seema puri";
    if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) || !MQLInfoInteger(MQL_TRADE_ALLOWED)) return "MT5 me Algo Trading OFF";
-   double lots, slDist, tpDist;
-   if(!SymDists(sym, lots, slDist, tpDist)) return "tick value nahi mila";
-   if(!SpreadOk(sym, slDist)) { retry = true; return "spread zyada - intezaar"; }
+   if(InpMaxDayLossUsd > 0 && TodayPl() <= -InpMaxDayLossUsd)
+      return StringFormat("aaj ka loss seema puri ($%.2f)", TodayPl());
+   if(!(g_plan[i].sl > 0) || !(g_plan[i].tp > 0)) return "SL/TP nahi bana";
+   if(!SpreadOk(sym, g_plan[i].sl)) { retry = true; return "spread zyada - intezaar"; }
    return "";
 }
 
-// Asli order. Market = abhi ke ask/bid se, Limit/Stop = live se R.off door.
+// Asli order. Market = abhi ke ask/bid se, Limit/Stop = live se off door. SL/TP = plan ki doori.
 string PlaceOrder(int i, int decision, int dir, double off, int q)
 {
    string sym = g_sym[i];
-   double lots, slDist, tpDist;
-   if(!SymDists(sym, lots, slDist, tpDist)) return "tick value nahi mila";
+   double lots = NormLots(sym, InpLots);
+   double slDist = g_plan[i].sl, tpDist = g_plan[i].tp;
+   if(!(slDist > 0) || !(tpDist > 0)) return "SL/TP nahi bana";
    int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
    double point = SymbolInfoDouble(sym, SYMBOL_POINT);
    double lvl = (double)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
@@ -1165,7 +1396,7 @@ string PlaceOrder(int i, int decision, int dir, double off, int q)
    if(slDist <= lvl || tpDist <= lvl) return "SL/TP broker ki min doori se kam";
 
    bool buy = (dir == SS_BUY);
-   string cm = StringFormat("SSEA %s q%d", DecShort(decision), q);
+   string cm = StringFormat("SSEA %s %s q%d", ModeChar(g_plan[i].mode), DecShort(decision), q);
    bool sent = false;
    double entry = 0;
    if(decision == SS_MARKET)
@@ -1200,9 +1431,9 @@ string PlaceOrder(int i, int decision, int dir, double off, int q)
    if(!sent || !RetOk())
       return StringFormat("ORDER FAIL %u %s", trade.ResultRetcode(), trade.ResultRetcodeDescription());
    DayAdd(sym, DayKeyOf(IstNow()), 1);
-   return StringFormat("ORDER LAGA: %s %s @ %s", DirName(dir),
+   return StringFormat("ORDER LAGA [%s]: %s %s @ %s  SL $%.2f TP $%.2f", ModeName(g_plan[i].mode), DirName(dir),
                        (decision == SS_MARKET) ? "MARKET" : (decision == SS_LIMIT) ? "LIMIT" : "STOP",
-                       DoubleToString(entry, digits));
+                       DoubleToString(entry, digits), g_plan[i].slUsd, g_plan[i].tpUsd);
 }
 
 // Har nayi M15 candle pe ek pair ka hisaab (app jaisa). Trade yahan nahi - group tay karta hai.
@@ -1231,30 +1462,53 @@ void EvaluateSymbol(int i)
    SsEvaluate(m15, h1, h4, d1, pip, slDist, tpDist, rr, news, R);
    g_res[i] = R;
 
-   string head = StringFormat("%s %s q%d tech%d%% %dB/%dH/%dS(%d%%) umar:%s ema:%s",
-                              sym, DirName(R.dir), R.q, R.pct, R.buy, R.hold, R.sell, R.conf,
+   // mode + asli SL/TP
+   SsPlan P;
+   double bid = SymbolInfoDouble(sym, SYMBOL_BID), ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+   double tv = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE), ts = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+   double usdPerPrice = (ts > 0) ? tv / ts * lots : 0;
+   if(InpAutoSlTp)
+   {
+      Bar m15c[]; Bar h1c[]; Bar h4c[];
+      SsDropLast(m15, m15c); SsDropLast(h1, h1c); SsDropLast(h4, h4c);
+      SsModeCfg K;
+      ModeCfg(K);
+      SsMakePlan(m15c, bid, ask - bid, SsTfBiasDir(h1c), SsTfBiasDir(h4c), R, news, usdPerPrice, K, P);
+   }
+   else
+   {
+      P.mode = MD_NORMAL; P.decision = R.decision; P.dir = R.dir; P.off = R.off;
+      P.sl = slDist; P.tp = tpDist; P.adx = 0; P.slUsd = InpSlUsd * lots / 0.01; P.tpUsd = InpTpUsd * lots / 0.01;
+      P.skip = (R.decision == SS_WAIT) ? SK_CORE : SK_NONE; P.viaMode = false;
+   }
+   g_plan[i] = P;
+
+   string head = StringFormat("%s [%s adx%.0f] %s q%d tech%d%% %dB/%dH/%dS(%d%%) umar:%s ema:%s",
+                              sym, ModeName(P.mode), P.adx, DirName(R.dir), R.q, R.pct, R.buy, R.hold, R.sell, R.conf,
                               AgeName(R.age), DirName(R.emaDir));
    string why = (R.dir == SS_HOLD) ? "koi saaf direction nahi" : WhyText(R.why);
-   if(R.decision == SS_WAIT)
+   if(P.decision == SS_WAIT)
    {
-      g_line[i] = StringFormat("%-9s %s %-4s q%d t%d WAIT", sym, IstHM(), DirName(R.dir), R.q, R.pct);
-      if(InpVerboseLog) Print("[SSEA] ", IstHM(), "  ", head, " -> WAIT | ", why);
+      g_line[i] = StringFormat("%-9s %s %s %-4s q%d WAIT", sym, IstHM(), ModeChar(P.mode), DirName(R.dir), R.q);
+      string sk = SkipText(P.skip);
+      if(InpVerboseLog) Print("[SSEA] ", IstHM(), "  ", head, " -> WAIT | ", (sk != "" ? sk + " | " : ""), why);
       return;
    }
    g_cand[i] = true;
    g_candBar[i] = bt;
-   g_line[i] = StringFormat("%-9s %s %-4s q%d t%d %s - group ka intezaar", sym, IstHM(), DirName(R.dir), R.q, R.pct, DecName(R.decision));
+   g_line[i] = StringFormat("%-9s %s %s %-4s q%d %s - group ka intezaar", sym, IstHM(), ModeChar(P.mode), DirName(P.dir), R.q, DecName(P.decision));
    if(InpVerboseLog)
-      Print("[SSEA] ", IstHM(), "  ", head, " -> ", DecName(R.decision),
-            (R.decision != SS_MARKET ? StringFormat(" off %.1f pip", R.off / pip) : ""),
+      Print("[SSEA] ", IstHM(), "  ", head, " -> ", (P.viaMode ? ModeName(P.mode) + " " : ""), DecName(P.decision), " ", DirName(P.dir),
+            (P.decision != SS_MARKET ? StringFormat(" off %.1f pip", P.off / pip) : ""),
+            StringFormat(" SL %.1f pip $%.2f TP %.1f pip $%.2f", P.sl / pip, P.slUsd, P.tp / pip, P.tpUsd),
             (R.why != 0 ? " | dhyan: " + why : ""));
 }
 
 void SetLine(int i, string status)
 {
-   SsResult R = g_res[i];
-   g_line[i] = StringFormat("%-9s %s %-4s q%d t%d %s - %s", g_sym[i], IstHM(), DirName(R.dir), R.q, R.pct, DecName(R.decision), status);
-   if(InpVerboseLog) Print("[SSEA] ", g_sym[i], " ", DecName(R.decision), " ", DirName(R.dir), " -> ", status);
+   SsPlan P = g_plan[i];
+   g_line[i] = StringFormat("%-9s %s %s %-4s %s - %s", g_sym[i], IstHM(), ModeChar(P.mode), DirName(P.dir), DecShort(P.decision), status);
+   if(InpVerboseLog) Print("[SSEA] ", g_sym[i], " [", ModeName(P.mode), "] ", DecName(P.decision), " ", DirName(P.dir), " -> ", status);
 }
 
 // Har group: umeedwaron me se best chuno, phir order / micro-confirmation
@@ -1284,11 +1538,12 @@ void ProcessGroups()
             break;
          }
          SsResult R = g_res[best];
+         SsPlan P = g_plan[best];
          bool retry;
-         string pc = PreCheck(best, R.decision, retry);
+         string pc = PreCheck(best, P.decision, retry);
          if(pc != "")
          {
-            if(retry) { g_line[best] = g_sym[best] + " " + IstHM() + " " + DecName(R.decision) + " - " + pc; break; }
+            if(retry) { g_line[best] = g_sym[best] + " " + IstHM() + " " + DecName(P.decision) + " - " + pc; break; }
             g_cand[best] = false;
             SetLine(best, pc);
             continue;                              // group ka agla umeedwar
@@ -1297,15 +1552,15 @@ void ProcessGroups()
          for(int i = 0; i < ArraySize(g_sym); i++)
             if(g_grp[i] == g && g_cand[i] && i != best) { g_cand[i] = false; SetLine(i, "group me " + g_sym[best] + " behtar (q" + IntegerToString(R.q) + ")"); }
          g_cand[best] = false;
-         if(R.decision == SS_MARKET && InpMicroConfirm)
+         if(P.decision == SS_MARKET && InpMicroConfirm)
          {
             g_wOn[g] = true; g_wIdx[g] = best;
             g_wRef[g] = SymbolInfoDouble(g_sym[best], SYMBOL_BID);
             g_wTh[g] = InpConfirmAtr * R.atr;
             g_wStart[g] = TimeCurrent();
-            SetLine(best, StringFormat("confirm ka intezaar: %s %.1f pip chale", DirName(R.dir), g_wTh[g] / PipOf(g_sym[best])));
+            SetLine(best, StringFormat("confirm ka intezaar: %s %.1f pip chale", DirName(P.dir), g_wTh[g] / PipOf(g_sym[best])));
          }
-         else SetLine(best, PlaceOrder(best, R.decision, R.dir, R.off, R.q));
+         else SetLine(best, PlaceOrder(best, P.decision, P.dir, P.off, R.q));
          break;
       }
    }
@@ -1320,8 +1575,9 @@ void ProcessWatches()
       int i = g_wIdx[g];
       string sym = g_sym[i];
       SsResult R = g_res[i];
+      SsPlan P = g_plan[i];
       double bid = SymbolInfoDouble(sym, SYMBOL_BID);
-      double moved = (R.dir == SS_BUY) ? bid - g_wRef[g] : g_wRef[g] - bid;
+      double moved = (P.dir == SS_BUY) ? bid - g_wRef[g] : g_wRef[g] - bid;
       if(moved <= -g_wTh[g]) { g_wOn[g] = false; SetLine(i, "confirm FAIL - price ulta chala, cancel"); continue; }
       if(TimeCurrent() - g_wStart[g] > InpConfirmMin * 60) { g_wOn[g] = false; SetLine(i, "confirm nahi hua (" + IntegerToString(InpConfirmMin) + " min) - cancel"); continue; }
       if(moved < g_wTh[g]) continue;
@@ -1333,7 +1589,7 @@ void ProcessWatches()
          g_wOn[g] = false; SetLine(i, "confirm hua par " + pc); continue;
       }
       g_wOn[g] = false;
-      SetLine(i, "confirm hua -> " + PlaceOrder(i, SS_MARKET, R.dir, 0, R.q));
+      SetLine(i, "confirm hua -> " + PlaceOrder(i, SS_MARKET, P.dir, 0, R.q));
    }
 }
 
@@ -1354,6 +1610,11 @@ void ManagePositions()
       double vol = PositionGetDouble(POSITION_VOLUME);
       double U = PriceDistForUsd(sym, vol / 0.01, vol);    // $1 (0.01 lot pe) ki price doori
       if(U <= 0) continue;
+      double T = (tp > 0) ? MathAbs(tp - open) : InpMaxTpUsd * U;   // is trade ka TP doori
+      double beD = InpBePct / 100.0 * T;
+      double lockD = MathMax(InpLockPct / 100.0 * T, MathMin(InpMinLockUsd * U, 0.5 * T));
+      double lockAtD = MathMax(InpLockAtPct / 100.0 * T, lockD + 0.2 * T);
+      double trStD = InpTrailStartPct / 100.0 * T, trDD = InpTrailDistPct / 100.0 * T;
       int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       double point = SymbolInfoDouble(sym, SYMBOL_POINT);
       double lvl = (double)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
@@ -1363,15 +1624,15 @@ void ManagePositions()
       if(type == POSITION_TYPE_BUY)
       {
          double gain = bid - open;
-         if(InpBreakEven && gain >= InpBeAtUsd * U * 0.9999 && (sl == 0 || sl < open)) newSl = open;
-         if(InpProfitLock && gain >= InpLockAtUsd * U * 0.9999)
+         if(InpBreakEven && gain >= beD * 0.9999 && (sl == 0 || sl < open)) newSl = open;
+         if(InpProfitLock && gain >= lockAtD * 0.9999)
          {
-            double lk = open + InpLockUsd * U;
+            double lk = open + lockD;
             if(newSl == 0 || lk > newSl) newSl = lk;
          }
-         if(InpTrailing && gain >= InpTrailStartUsd * U)
+         if(InpTrailing && gain >= trStD)
          {
-            double tr = bid - InpTrailDistUsd * U;
+            double tr = bid - trDD;
             if(tr > newSl) newSl = tr;
          }
          newSl = NormalizeDouble(newSl, digits);
@@ -1385,15 +1646,15 @@ void ManagePositions()
       else if(type == POSITION_TYPE_SELL)
       {
          double gain = open - ask;
-         if(InpBreakEven && gain >= InpBeAtUsd * U * 0.9999 && (sl == 0 || sl > open)) newSl = open;
-         if(InpProfitLock && gain >= InpLockAtUsd * U * 0.9999)
+         if(InpBreakEven && gain >= beD * 0.9999 && (sl == 0 || sl > open)) newSl = open;
+         if(InpProfitLock && gain >= lockAtD * 0.9999)
          {
-            double lk = open - InpLockUsd * U;
+            double lk = open - lockD;
             if(newSl == 0 || lk < newSl) newSl = lk;
          }
-         if(InpTrailing && gain >= InpTrailStartUsd * U)
+         if(InpTrailing && gain >= trStD)
          {
-            double tr = ask + InpTrailDistUsd * U;
+            double tr = ask + trDD;
             if(newSl == 0 || tr < newSl) newSl = tr;
          }
          newSl = NormalizeDouble(newSl, digits);
@@ -1467,20 +1728,22 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.04 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
+   string s = StringFormat("SamuSignal EA v1.05 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)", IstHM());
    s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s lock %s trail %s | khule %d pending %d\n",
                      InpModeMarket ? "ON" : "OFF", InpModeLimit ? "ON" : "OFF", InpModeStop ? "ON" : "OFF",
                      InpMicroConfirm ? "ON" : "OFF", InpSpreadFilter ? "ON" : "OFF", InpAvoidNews ? "ON" : "OFF",
-                     InpBreakEven ? "ON" : "OFF", InpProfitLock ? StringFormat("$%.0f->+$%.0f", InpLockAtUsd, InpLockUsd) : "OFF",
-                     InpTrailing ? "ON" : "OFF", pos, pend);
+                     InpBreakEven ? "ON" : "OFF", InpProfitLock ? "ON" : "OFF", InpTrailing ? "ON" : "OFF", pos, pend);
+   s += StringFormat("SL/TP %s (TP $%.2f-$%.0f) | TREND %s RANGE %s | aaj P/L $%.2f%s\n",
+                     InpAutoSlTp ? "AUTO" : "FIX", InpMinTpUsd, InpMaxTpUsd, InpTrendMode ? "ON" : "OFF", InpRangeMode ? "ON" : "OFF",
+                     TodayPl(), (InpMaxDayLossUsd > 0 && TodayPl() <= -InpMaxDayLossUsd) ? " (seema puri - aaj band)" : "");
    for(int g = 0; g < NGRP; g++) s += g_grpName[g] + ": " + g_grpLine[g] + "   ";
    s += "\n";
    for(int i = 0; i < ArraySize(g_sym); i++)
    {
       string ln = (g_line[i] == "") ? g_sym[i] + " ..." : g_line[i];
-      if(StringLen(ln) > 70) ln = StringSubstr(ln, 0, 70);
+      if(StringLen(ln) > 62) ln = StringSubstr(ln, 0, 62);
       s += ln + "\n";
    }
    if(StringLen(s) > 2000) s = StringSubstr(s, 0, 2000);
@@ -1521,6 +1784,7 @@ int OnInit()
    ArrayResize(g_lastBar, m);
    ArrayResize(g_line, m);
    ArrayResize(g_res, m);
+   ArrayResize(g_plan, m);
    ArrayResize(g_cand, m);
    ArrayResize(g_candBar, m);
    for(int i = 0; i < m; i++) { g_lastBar[i] = 0; g_line[i] = ""; g_cand[i] = false; g_candBar[i] = 0; }
@@ -1528,7 +1792,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.04 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.05 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " | confirm ", InpMicroConfirm ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(1);
