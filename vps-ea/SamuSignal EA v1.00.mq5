@@ -1,6 +1,8 @@
 //+------------------------------------------------------------------+
 //|                                      SamuSignal EA v1.00.mq5       |
 //|  SamuSignal app (index.html) ka poora signal logic, auto trade.    |
+//|  (File ka naam v1.00 hi hai taaki chart setup na tute - asli       |
+//|   version neeche #property version aur chart panel me.)            |
 //|                                                                    |
 //|  Har pair pe har nayi 15m candle par app jaisa hisaab:             |
 //|    15m + 1H + 4H + 1D bias, 50 agents, quality, 10 technical       |
@@ -9,31 +11,38 @@
 //|  Logic ka core app ke JavaScript se 7000+ test cases me milaya     |
 //|  gaya hai (same candles -> same faisla).                           |
 //|                                                                    |
-//|  Niyam:                                                            |
-//|   * Lot fix (default 0.01). SL/TP $ me, app jaisa ($2.5 / $5 per   |
-//|     0.01 lot, R:R 1:2).                                            |
-//|   * Ek pair pe ek hi trade/order - SL/TP hit hone tak naya nahi.   |
-//|   * Ek pair pe din me max 2 (IST din). Kul trades ki seema nahi.   |
-//|   * Waqt 08:00-22:00 IST, Som-Shukra. High-impact news ke +-30 min |
-//|     naya trade nahi (MT5 ka apna Economic Calendar).                |
-//|   * LIMIT/STOP pending 3 ghante me na bhare to EA khud hata deta.  |
-//|   * v1.01: news se 30 min pehle us pair ka pending order bhi hatao.|
-//|   * v1.02: sahi symbol - chart ka suffix (jaise m) aur sirf tradable.|
-//|   * Breakeven 1R pe, trailing 1.5R ke baad (1R peeche).             |
-//|   * Default sirf DEMO account pe trade (InpAllowReal=false).        |
+//|  v1.03 niyam:                                                      |
+//|   * 28 pairs, 5 group (app ke Market page jaise). Har group me ek  |
+//|     samay sirf 1 trade/order. Ek candle pe group ke kai pairs me   |
+//|     signal ho to sabse zyada quality (phir technical %) wala.      |
+//|   * Micro-confirmation: TRADE LO pe turant nahi - price signal ki  |
+//|     taraf 0.15 ATR chale tab entry; ulta chale ya 15 min beete to  |
+//|     cancel. (LIMIT/STOP pending pe nahi.)                          |
+//|   * Spread filter: spread SL ke 10% se zyada ho to entry ruki.     |
+//|   * Lot fix 0.01, SL/TP $2.5 / $5 per 0.01 lot (R:R 1:2).          |
+//|   * Ek pair pe din me max 2 (IST din). 08:00-22:00 IST Som-Shukra. |
+//|   * High-impact news +-30 min naya trade nahi, pending bhi hatao.  |
+//|   * Pending 3 ghante me na bhare to hatao. Breakeven 1R, trailing  |
+//|     1.5R ke baad 1R peeche. Default sirf DEMO account.             |
 //|                                                                    |
-//|  Lagana: kisi bhi ek chart pe lagao (jaise EURUSD M15) - EA saare   |
-//|  13 pairs khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.  |
+//|  Lagana: kisi bhi ek chart pe (jaise XAUUSDm) - EA saare pairs     |
+//|  khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.           |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.02"
-#property description "SamuSignal app ka signal logic - 13 pairs auto trade (demo test)"
+#property version   "1.03"
+#property description "SamuSignal app ka signal logic - 28 pairs, 5 group, auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
 
-input group "Pairs"
-input string InpPairs         = "EURUSD,GBPUSD,USDJPY,USDCHF,USDCAD,AUDUSD,EURJPY,EURCHF,NZDUSD,GBPJPY,GBPCHF,AUDJPY,AUDCHF"; // Pairs (comma se alag)
+input group "Pairs - 5 group (har group me ek samay 1 trade)"
+input string InpGrpMajors     = "EURUSD,GBPUSD,USDJPY,USDCHF,USDCAD,AUDUSD,NZDUSD";          // Group 1: Majors
+input string InpGrpEur        = "EURJPY,EURGBP,EURCHF,EURCAD,EURAUD,EURNZD";                 // Group 2: EUR Cross
+input string InpGrpGbp        = "GBPJPY,GBPCHF,GBPCAD,GBPAUD,GBPNZD";                        // Group 3: GBP Cross
+input string InpGrpAudNzd     = "AUDJPY,AUDCHF,AUDCAD,AUDNZD,NZDJPY,NZDCHF,NZDCAD";          // Group 4: AUD / NZD
+input string InpGrpCadChf     = "CADCHF,CADJPY,CHFJPY";                                      // Group 5: CAD / CHF
 input string InpSuffix        = "";      // Broker suffix (jaise m) - khaali = chart ke symbol se
+input bool   InpOneTradePerGroup = true; // Har group me ek samay sirf 1 trade/order
+input int    InpGroupWaitSec  = 20;      // Nayi candle ke baad itne sec ruk kar group ka best chuno
 
 input group "Trading"
 input bool   InpEnableTrading = true;    // Trade lagana ON/OFF (OFF = sirf hisaab/log)
@@ -46,6 +55,13 @@ input double InpTpUsd         = 5.0;     // TP $ per 0.01 lot (app default)
 input double InpSlUsd         = 2.5;     // SL $ per 0.01 lot (app default)
 input int    InpMaxPerPairDay = 2;       // Ek pair pe din me max trades (IST din)
 input int    InpPendingHours  = 3;       // LIMIT/STOP itne ghante me na bhare to hatao
+
+input group "Entry (tick)"
+input bool   InpMicroConfirm  = true;    // TRADE LO pe micro-confirmation (price pehle signal ki taraf chale)
+input double InpConfirmAtr    = 0.15;    // Kitna chale (ATR ka hissa) - itna hi ulta chale to cancel
+input int    InpConfirmMin    = 15;      // Confirmation ka max intezaar (minute)
+input bool   InpSpreadFilter  = true;    // Spread bada ho to entry roko
+input double InpMaxSpreadPctSL = 10;     // Spread SL doori ke kitne % tak theek
 
 input group "Time / News (IST)"
 input int    InpStartHourIST  = 8;       // Shuru (IST ghanta)
@@ -841,13 +857,28 @@ void SsEvaluate(const Bar &m15raw[], const Bar &h1raw[], const Bar &h4raw[], con
 //CORE>>
 
 //==================================================================
-//  EA SHELL - data, order, breakeven/trailing, pending, panel
+//  EA SHELL v1.03 - data, 5 group, micro-confirmation, spread,
+//  order, breakeven/trailing, pending, panel
 //==================================================================
+#define NGRP 5
 CTrade   trade;
-string   g_sym[];
-datetime g_lastBar[];
-string   g_line[];
-datetime g_lastWarn = 0;
+string   g_sym[];          // broker ka naam (jaise EURUSDm)
+int      g_grp[];          // 0..4
+datetime g_lastBar[];      // aakhri hisaab wali M15 candle
+string   g_line[];         // panel ki chhoti line
+SsResult g_res[];          // aakhri hisaab
+bool     g_cand[];         // is candle pe trade ka umeedwar
+datetime g_candBar[];      // kis candle ka umeedwar
+string   g_grpName[NGRP] = {"Majors", "EUR Cross", "GBP Cross", "AUD/NZD", "CAD/CHF"};
+string   g_grpLine[NGRP];
+
+// micro-confirmation (har group me ek)
+bool     g_wOn[NGRP];
+int      g_wIdx[NGRP];
+double   g_wRef[NGRP];
+double   g_wTh[NGRP];
+datetime g_wStart[NGRP];
+datetime g_lastNewsChk = 0;
 
 string TrimStr(string s)
 {
@@ -865,17 +896,15 @@ string ChartSuffix()
    return StringSubstr(s, 6);
 }
 
-// Is account pe is symbol pe poori trading allowed hai? (doosre account type
-// ke symbols - jaise "#" ya bina suffix wale - list me hote hain par band hote hain)
+// Is account pe is symbol pe poori trading allowed hai?
 bool Tradable(string s)
 {
    if(!SymbolSelect(s, true)) return false;
    if(SymbolInfoInteger(s, SYMBOL_TRADE_MODE) == SYMBOL_TRADE_MODE_FULL) return true;
-   SymbolSelect(s, false);                      // Market Watch se wapas hatao
+   SymbolSelect(s, false);
    return false;
 }
 
-// v1.02: pehle (InpSuffix ya chart ka) suffix, phir koi bhi tradable variant
 string ResolveSymbol(string base)
 {
    string suf = (InpSuffix != "") ? InpSuffix : ChartSuffix();
@@ -889,6 +918,12 @@ string ResolveSymbol(string base)
       if(StringFind(s, base) == 0 && StringLen(s) <= StringLen(base) + 4 && Tradable(s)) return s;
    }
    return "";
+}
+
+int SymIndex(string sym)
+{
+   for(int i = 0; i < ArraySize(g_sym); i++) if(g_sym[i] == sym) return i;
+   return -1;
 }
 
 datetime IstNow() { return TimeGMT() + 19800; }
@@ -948,6 +983,29 @@ bool PairBusy(string sym)
    return false;
 }
 
+// Group me apna khula trade / pending / confirmation chal raha hai? kaun sa?
+string GroupBusyWith(int g)
+{
+   if(g_wOn[g]) return g_sym[g_wIdx[g]] + " (confirm)";
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      string s = PositionGetString(POSITION_SYMBOL);
+      int k = SymIndex(s);
+      if(k >= 0 && g_grp[k] == g) return s + " (khula)";
+   }
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong t = OrderGetTicket(i);
+      if(t == 0 || OrderGetInteger(ORDER_MAGIC) != InpMagic) continue;
+      string s = OrderGetString(ORDER_SYMBOL);
+      int k = SymIndex(s);
+      if(k >= 0 && g_grp[k] == g) return s + " (pending)";
+   }
+   return "";
+}
+
 double PipOf(string sym)
 {
    string q = SymbolInfoString(sym, SYMBOL_CURRENCY_PROFIT);
@@ -975,6 +1033,16 @@ double NormLots(string sym, double lots)
    return NormalizeDouble(v, 2);
 }
 
+// SL/TP ki price doori (lot ke hisaab se $ se)
+bool SymDists(string sym, double &lots, double &slDist, double &tpDist)
+{
+   lots = NormLots(sym, InpLots);
+   double mul = lots / 0.01;
+   slDist = PriceDistForUsd(sym, InpSlUsd * mul, lots);
+   tpDist = PriceDistForUsd(sym, InpTpUsd * mul, lots);
+   return slDist > 0 && tpDist > 0 && InpSlUsd > 0;
+}
+
 bool CcyNews(string ccy, datetime from, datetime to)
 {
    MqlCalendarValue vals[];
@@ -998,6 +1066,13 @@ bool NewsNear(string sym)
    return CcyNews(b, from, to) || CcyNews(q, from, to);
 }
 
+bool SpreadOk(string sym, double slDist)
+{
+   if(!InpSpreadFilter) return true;
+   double sp = SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID);
+   return sp <= slDist * InpMaxSpreadPctSL / 100.0;
+}
+
 bool GetBars(string sym, ENUM_TIMEFRAMES tf, Bar &out[])
 {
    MqlRates r[];
@@ -1015,6 +1090,7 @@ bool GetBars(string sym, ENUM_TIMEFRAMES tf, Bar &out[])
 string DirName(int d) { return (d == SS_BUY) ? "BUY" : (d == SS_SELL) ? "SELL" : (d == -99) ? "-" : "WAIT"; }
 string AgeName(int a) { return (a == 0) ? "FRESH" : (a == 1) ? "CHAL RAHA" : (a == 2) ? "PURANA" : (a == 3) ? "LATE" : "-"; }
 string DecName(int d) { return (d == SS_MARKET) ? "TRADE LO" : (d == SS_LIMIT) ? "LIMIT LAGAO" : (d == SS_STOP) ? "STOP LAGAO" : "WAIT"; }
+string DecShort(int d) { return (d == SS_MARKET) ? "MKT" : (d == SS_LIMIT) ? "LIM" : (d == SS_STOP) ? "STP" : "WAIT"; }
 
 string WhyText(int w)
 {
@@ -1049,18 +1125,32 @@ bool RetOk()
    return rc == TRADE_RETCODE_DONE || rc == TRADE_RETCODE_PLACED || rc == TRADE_RETCODE_DONE_PARTIAL;
 }
 
-string TryTrade(string sym, const SsResult &R, double slDist, double tpDist, double lots)
+// Order se pehle ke niyam. "" = theek. retry=true matlab abhi ruko, baad me phir dekho.
+string PreCheck(int i, int decision, bool &retry)
 {
+   retry = false;
+   string sym = g_sym[i];
    if(!InpEnableTrading) return "trading OFF (input)";
-   if(!InpAllowReal && AccountInfoInteger(ACCOUNT_TRADE_MODE) != ACCOUNT_TRADE_MODE_DEMO) return "REAL account - band (InpAllowReal=false)";
-   if(R.decision == SS_MARKET && !InpModeMarket) return "Market mode OFF";
-   if(R.decision == SS_LIMIT && !InpModeLimit) return "Limit mode OFF";
-   if(R.decision == SS_STOP && !InpModeStop) return "Stop mode OFF";
+   if(!InpAllowReal && AccountInfoInteger(ACCOUNT_TRADE_MODE) != ACCOUNT_TRADE_MODE_DEMO) return "REAL account - band";
+   if(decision == SS_MARKET && !InpModeMarket) return "Market mode OFF";
+   if(decision == SS_LIMIT && !InpModeLimit) return "Limit mode OFF";
+   if(decision == SS_STOP && !InpModeStop) return "Stop mode OFF";
    if(!InTradeTime()) return "waqt ke bahar (IST)";
-   if(PairBusy(sym)) return "is pair pe trade/order pehle se khula";
+   if(PairBusy(sym)) return "pair pe trade/order khula";
    if(DayCount(sym) >= InpMaxPerPairDay) return "aaj is pair ki seema puri";
-   if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) || !MQLInfoInteger(MQL_TRADE_ALLOWED)) return "MT5 me Algo Trading OFF hai";
+   if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) || !MQLInfoInteger(MQL_TRADE_ALLOWED)) return "MT5 me Algo Trading OFF";
+   double lots, slDist, tpDist;
+   if(!SymDists(sym, lots, slDist, tpDist)) return "tick value nahi mila";
+   if(!SpreadOk(sym, slDist)) { retry = true; return "spread zyada - intezaar"; }
+   return "";
+}
 
+// Asli order. Market = abhi ke ask/bid se, Limit/Stop = live se R.off door.
+string PlaceOrder(int i, int decision, int dir, double off, int q)
+{
+   string sym = g_sym[i];
+   double lots, slDist, tpDist;
+   if(!SymDists(sym, lots, slDist, tpDist)) return "tick value nahi mila";
    int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
    double point = SymbolInfoDouble(sym, SYMBOL_POINT);
    double lvl = (double)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
@@ -1069,11 +1159,11 @@ string TryTrade(string sym, const SsResult &R, double slDist, double tpDist, dou
    if(ask <= 0 || bid <= 0) return "price nahi mila";
    if(slDist <= lvl || tpDist <= lvl) return "SL/TP broker ki min doori se kam";
 
-   bool buy = (R.dir == SS_BUY);
-   string cm = StringFormat("SSEA %s q%d", (R.decision == SS_MARKET) ? "MKT" : (R.decision == SS_LIMIT) ? "LIM" : "STP", R.q);
+   bool buy = (dir == SS_BUY);
+   string cm = StringFormat("SSEA %s q%d", DecShort(decision), q);
    bool sent = false;
    double entry = 0;
-   if(R.decision == SS_MARKET)
+   if(decision == SS_MARKET)
    {
       entry = buy ? ask : bid;
       double sl = NormalizeDouble(buy ? entry - slDist : entry + slDist, digits);
@@ -1082,12 +1172,12 @@ string TryTrade(string sym, const SsResult &R, double slDist, double tpDist, dou
    }
    else
    {
-      double sign = (R.decision == SS_LIMIT) ? -1.0 : 1.0;
-      double sh = (buy ? sign : -sign) * R.off;
+      double sign = (decision == SS_LIMIT) ? -1.0 : 1.0;
+      double sh = (buy ? sign : -sign) * off;
       entry = NormalizeDouble(bid + sh, digits);
       double sl = NormalizeDouble(buy ? entry - slDist : entry + slDist, digits);
       double tp = NormalizeDouble(buy ? entry + tpDist : entry - tpDist, digits);
-      if(R.decision == SS_LIMIT)
+      if(decision == SS_LIMIT)
       {
          if(buy && entry >= ask - lvl) return "BUY LIMIT price live ke bahut paas";
          if(!buy && entry <= bid + lvl) return "SELL LIMIT price live ke bahut paas";
@@ -1105,51 +1195,141 @@ string TryTrade(string sym, const SsResult &R, double slDist, double tpDist, dou
    if(!sent || !RetOk())
       return StringFormat("ORDER FAIL %u %s", trade.ResultRetcode(), trade.ResultRetcodeDescription());
    DayAdd(sym, DayKeyOf(IstNow()), 1);
-   return StringFormat("ORDER LAGA: %s %s @ %s", DirName(R.dir),
-                       (R.decision == SS_MARKET) ? "MARKET" : (R.decision == SS_LIMIT) ? "LIMIT" : "STOP",
+   return StringFormat("ORDER LAGA: %s %s @ %s", DirName(dir),
+                       (decision == SS_MARKET) ? "MARKET" : (decision == SS_LIMIT) ? "LIMIT" : "STOP",
                        DoubleToString(entry, digits));
 }
 
-void CheckSymbol(int i)
+// Har nayi M15 candle pe ek pair ka hisaab (app jaisa). Trade yahan nahi - group tay karta hai.
+void EvaluateSymbol(int i)
 {
    string sym = g_sym[i];
    datetime bt = iTime(sym, PERIOD_M15, 0);
    if(bt == 0 || bt == g_lastBar[i]) return;
    Bar m15[]; Bar h1[]; Bar h4[]; Bar d1[];
    if(!GetBars(sym, PERIOD_M15, m15) || !GetBars(sym, PERIOD_H1, h1) ||
-      !GetBars(sym, PERIOD_H4, h4) || !GetBars(sym, PERIOD_D1, d1)) return;     // data abhi load ho raha - agle timer pe
+      !GetBars(sym, PERIOD_H4, h4) || !GetBars(sym, PERIOD_D1, d1)) return;     // data load ho raha - agle timer pe
    g_lastBar[i] = bt;
+   g_cand[i] = false;
 
-   double pip = PipOf(sym);
-   double lots = NormLots(sym, InpLots);
-   double mul = lots / 0.01;
-   double slDist = PriceDistForUsd(sym, InpSlUsd * mul, lots);
-   double tpDist = PriceDistForUsd(sym, InpTpUsd * mul, lots);
-   if(slDist <= 0 || tpDist <= 0 || InpSlUsd <= 0)
+   double lots, slDist, tpDist;
+   if(!SymDists(sym, lots, slDist, tpDist))
    {
-      g_line[i] = IstHM() + "  " + sym + " - tick value nahi mila";
+      g_line[i] = sym + " - tick value nahi mila";
       return;
    }
+   double pip = PipOf(sym);
    double rr = InpTpUsd / InpSlUsd;
    bool news = NewsNear(sym);
 
    SsResult R;
    SsEvaluate(m15, h1, h4, d1, pip, slDist, tpDist, rr, news, R);
+   g_res[i] = R;
 
    string head = StringFormat("%s %s q%d tech%d%% %dB/%dH/%dS(%d%%) umar:%s ema:%s",
                               sym, DirName(R.dir), R.q, R.pct, R.buy, R.hold, R.sell, R.conf,
                               AgeName(R.age), DirName(R.emaDir));
-   string status;
-   if(R.decision == SS_WAIT) status = WhyText(R.why);
-   else
+   string why = (R.dir == SS_HOLD) ? "koi saaf direction nahi" : WhyText(R.why);
+   if(R.decision == SS_WAIT)
    {
-      status = TryTrade(sym, R, slDist, tpDist, lots);
-      if(R.decision != SS_MARKET)
-         status = StringFormat("off %.1f pip | ", R.off / pip) + status;
-      if(R.why != 0) status += " | dhyan: " + WhyText(R.why);
+      g_line[i] = StringFormat("%-9s %s %-4s q%d t%d WAIT", sym, IstHM(), DirName(R.dir), R.q, R.pct);
+      if(InpVerboseLog) Print("[SSEA] ", IstHM(), "  ", head, " -> WAIT | ", why);
+      return;
    }
-   g_line[i] = IstHM() + "  " + head + " -> " + DecName(R.decision) + " | " + status;
-   if(InpVerboseLog) Print("[SSEA] ", g_line[i]);
+   g_cand[i] = true;
+   g_candBar[i] = bt;
+   g_line[i] = StringFormat("%-9s %s %-4s q%d t%d %s - group ka intezaar", sym, IstHM(), DirName(R.dir), R.q, R.pct, DecName(R.decision));
+   if(InpVerboseLog)
+      Print("[SSEA] ", IstHM(), "  ", head, " -> ", DecName(R.decision),
+            (R.decision != SS_MARKET ? StringFormat(" off %.1f pip", R.off / pip) : ""),
+            (R.why != 0 ? " | dhyan: " + why : ""));
+}
+
+void SetLine(int i, string status)
+{
+   SsResult R = g_res[i];
+   g_line[i] = StringFormat("%-9s %s %-4s q%d t%d %s - %s", g_sym[i], IstHM(), DirName(R.dir), R.q, R.pct, DecName(R.decision), status);
+   if(InpVerboseLog) Print("[SSEA] ", g_sym[i], " ", DecName(R.decision), " ", DirName(R.dir), " -> ", status);
+}
+
+// Har group: umeedwaron me se best chuno, phir order / micro-confirmation
+void ProcessGroups()
+{
+   for(int g = 0; g < NGRP; g++)
+   {
+      string busy = InpOneTradePerGroup ? GroupBusyWith(g) : "";
+      g_grpLine[g] = (busy == "") ? "khaali" : busy;
+      while(true)
+      {
+         int best = -1;
+         bool waitMore = false;
+         for(int i = 0; i < ArraySize(g_sym); i++)
+         {
+            if(g_grp[i] != g || !g_cand[i]) continue;
+            if(iTime(g_sym[i], PERIOD_M15, 0) != g_candBar[i]) { g_cand[i] = false; continue; }   // candle nikal gayi
+            if(TimeCurrent() - g_candBar[i] < InpGroupWaitSec) { waitMore = true; continue; }
+            if(best < 0 || g_res[i].q > g_res[best].q ||
+               (g_res[i].q == g_res[best].q && g_res[i].pct > g_res[best].pct)) best = i;
+         }
+         if(best < 0 || waitMore) break;
+         if(InpOneTradePerGroup && busy != "")
+         {
+            for(int i = 0; i < ArraySize(g_sym); i++)
+               if(g_grp[i] == g && g_cand[i]) { g_cand[i] = false; SetLine(i, "group busy: " + busy); }
+            break;
+         }
+         SsResult R = g_res[best];
+         bool retry;
+         string pc = PreCheck(best, R.decision, retry);
+         if(pc != "")
+         {
+            if(retry) { g_line[best] = g_sym[best] + " " + IstHM() + " " + DecName(R.decision) + " - " + pc; break; }
+            g_cand[best] = false;
+            SetLine(best, pc);
+            continue;                              // group ka agla umeedwar
+         }
+         // chuna gaya - baaki umeedwar is candle ke liye khatam
+         for(int i = 0; i < ArraySize(g_sym); i++)
+            if(g_grp[i] == g && g_cand[i] && i != best) { g_cand[i] = false; SetLine(i, "group me " + g_sym[best] + " behtar (q" + IntegerToString(R.q) + ")"); }
+         g_cand[best] = false;
+         if(R.decision == SS_MARKET && InpMicroConfirm)
+         {
+            g_wOn[g] = true; g_wIdx[g] = best;
+            g_wRef[g] = SymbolInfoDouble(g_sym[best], SYMBOL_BID);
+            g_wTh[g] = InpConfirmAtr * R.atr;
+            g_wStart[g] = TimeCurrent();
+            SetLine(best, StringFormat("confirm ka intezaar: %s %.1f pip chale", DirName(R.dir), g_wTh[g] / PipOf(g_sym[best])));
+         }
+         else SetLine(best, PlaceOrder(best, R.decision, R.dir, R.off, R.q));
+         break;
+      }
+   }
+}
+
+// Micro-confirmation: price signal ki taraf chale to market entry, ulta ya time khatam to cancel
+void ProcessWatches()
+{
+   for(int g = 0; g < NGRP; g++)
+   {
+      if(!g_wOn[g]) continue;
+      int i = g_wIdx[g];
+      string sym = g_sym[i];
+      SsResult R = g_res[i];
+      double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+      double moved = (R.dir == SS_BUY) ? bid - g_wRef[g] : g_wRef[g] - bid;
+      if(moved <= -g_wTh[g]) { g_wOn[g] = false; SetLine(i, "confirm FAIL - price ulta chala, cancel"); continue; }
+      if(TimeCurrent() - g_wStart[g] > InpConfirmMin * 60) { g_wOn[g] = false; SetLine(i, "confirm nahi hua (" + IntegerToString(InpConfirmMin) + " min) - cancel"); continue; }
+      if(moved < g_wTh[g]) continue;
+      bool retry;
+      string pc = PreCheck(i, SS_MARKET, retry);
+      if(pc != "")
+      {
+         if(retry) continue;                       // spread - time khatam hone tak ruko
+         g_wOn[g] = false; SetLine(i, "confirm hua par " + pc); continue;
+      }
+      g_wOn[g] = false;
+      SetLine(i, "confirm hua -> " + PlaceOrder(i, SS_MARKET, R.dir, 0, R.q));
+   }
 }
 
 // Breakeven + trailing (sirf apne trades)
@@ -1225,15 +1405,13 @@ void CleanPendings()
       if(trade.OrderDelete(t))
       {
          datetime ist = setup - srv + TimeGMT() + 19800;
-         DayAdd(sym, DayKeyOf(ist), -1);                // bhara hi nahi - din ki ginti me nahi
+         DayAdd(sym, DayKeyOf(ist), -1);
          Print("[SSEA] ", sym, " pending ", InpPendingHours, " ghante me nahi bhara - hata diya");
       }
    }
 }
 
-// News se pehle (aur dauraan) apna bhara-nahi pending hatao - news ka jhatka
-// pending ko galat price pe bhar deta hai. Har 30 sec check.
-datetime g_lastNewsChk = 0;
+// News se pehle (aur dauraan) apna bhara-nahi pending hatao. Har 30 sec.
 void CancelPendingsOnNews()
 {
    if(!InpAvoidNews || !InpCancelOnNews) return;
@@ -1251,12 +1429,13 @@ void CancelPendingsOnNews()
       if(trade.OrderDelete(t))
       {
          datetime ist = setup - srv + TimeGMT() + 19800;
-         DayAdd(sym, DayKeyOf(ist), -1);                // bhara hi nahi - din ki ginti me nahi
+         DayAdd(sym, DayKeyOf(ist), -1);
          Print("[SSEA] ", sym, " high-impact news paas - pending order hata diya");
       }
    }
 }
 
+// Chart panel (MT5 Comment ~2000 akshar tak - isliye chhoti lines)
 void DrawPanel()
 {
    int pos = 0, pend = 0;
@@ -1271,22 +1450,29 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.02 | %s | trading %s | %02d-%02d IST %s | news %s | BE %s | trail %s\n",
+   string s = StringFormat("SamuSignal EA v1.03 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
-                           InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)",
-                           InpAvoidNews ? "ON" : "OFF", InpBreakEven ? "ON" : "OFF", InpTrailing ? "ON" : "OFF");
-   s += StringFormat("Modes: Market %s, Limit %s, Stop %s | Lot %.2f | khule trade %d, pending %d | IST %s\n\n",
+                           InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)", IstHM());
+   s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s trail %s | khule %d pending %d\n",
                      InpModeMarket ? "ON" : "OFF", InpModeLimit ? "ON" : "OFF", InpModeStop ? "ON" : "OFF",
-                     InpLots, pos, pend, IstHM());
-   for(int i = 0; i < ArraySize(g_sym); i++) s += (g_line[i] == "" ? g_sym[i] + "  (pehli 15m candle ka intezaar)" : g_line[i]) + "\n";
+                     InpMicroConfirm ? "ON" : "OFF", InpSpreadFilter ? "ON" : "OFF", InpAvoidNews ? "ON" : "OFF",
+                     InpBreakEven ? "ON" : "OFF", InpTrailing ? "ON" : "OFF", pos, pend);
+   for(int g = 0; g < NGRP; g++) s += g_grpName[g] + ": " + g_grpLine[g] + "   ";
+   s += "\n";
+   for(int i = 0; i < ArraySize(g_sym); i++)
+   {
+      string ln = (g_line[i] == "") ? g_sym[i] + " ..." : g_line[i];
+      if(StringLen(ln) > 70) ln = StringSubstr(ln, 0, 70);
+      s += ln + "\n";
+   }
+   if(StringLen(s) > 2000) s = StringSubstr(s, 0, 2000);
    Comment(s);
 }
 
-int OnInit()
+void AddGroup(string list, int g)
 {
    string parts[];
-   int n = StringSplit(InpPairs, ',', parts);
-   ArrayResize(g_sym, 0);
+   int n = StringSplit(list, ',', parts);
    for(int i = 0; i < n; i++)
    {
       string base = TrimStr(parts[i]);
@@ -1294,22 +1480,40 @@ int OnInit()
       if(base == "") continue;
       string s = ResolveSymbol(base);
       if(s == "") { Print("[SSEA] ", base, " is account pe tradable nahi mila - chhod diya"); continue; }
-      Print("[SSEA] ", base, " -> ", s);
+      if(SymIndex(s) >= 0) continue;
       int k = ArraySize(g_sym);
       ArrayResize(g_sym, k + 1);
+      ArrayResize(g_grp, k + 1);
       g_sym[k] = s;
+      g_grp[k] = g;
+      Print("[SSEA] ", g_grpName[g], ": ", base, " -> ", s);
    }
+}
+
+int OnInit()
+{
+   ArrayResize(g_sym, 0);
+   ArrayResize(g_grp, 0);
+   AddGroup(InpGrpMajors, 0);
+   AddGroup(InpGrpEur, 1);
+   AddGroup(InpGrpGbp, 2);
+   AddGroup(InpGrpAudNzd, 3);
+   AddGroup(InpGrpCadChf, 4);
    int m = ArraySize(g_sym);
    ArrayResize(g_lastBar, m);
    ArrayResize(g_line, m);
-   for(int i = 0; i < m; i++) { g_lastBar[i] = 0; g_line[i] = ""; }
+   ArrayResize(g_res, m);
+   ArrayResize(g_cand, m);
+   ArrayResize(g_candBar, m);
+   for(int i = 0; i < m; i++) { g_lastBar[i] = 0; g_line[i] = ""; g_cand[i] = false; g_candBar[i] = 0; }
+   for(int g = 0; g < NGRP; g++) { g_wOn[g] = false; g_wIdx[g] = 0; g_grpLine[g] = ""; }
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.02 chalu - ", m, " pairs | ", demo ? "DEMO" : "REAL",
-         " | trading ", InpEnableTrading ? "ON" : "OFF", " ===");
+   Print("=== SamuSignal EA v1.03 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
+         " | trading ", InpEnableTrading ? "ON" : "OFF", " | confirm ", InpMicroConfirm ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
-   EventSetTimer(3);
+   EventSetTimer(1);
    return INIT_SUCCEEDED;
 }
 
@@ -1326,6 +1530,8 @@ void OnTimer()
    ManagePositions();
    CleanPendings();
    CancelPendingsOnNews();
-   for(int i = 0; i < ArraySize(g_sym); i++) CheckSymbol(i);
+   for(int i = 0; i < ArraySize(g_sym); i++) EvaluateSymbol(i);
+   ProcessWatches();
+   ProcessGroups();
    DrawPanel();
 }
