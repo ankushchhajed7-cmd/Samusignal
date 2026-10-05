@@ -231,7 +231,7 @@ void CheckRules()
       g_rulesMsg = "Rules check nahi ho paya (HTTP " + IntegerToString(res) + ", err " + IntegerToString(GetLastError()) + ")";
    }
    Print("Rules check: ", g_rulesMsg);
-   Comment("\n  FXBridge v3.53 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
+   Comment("\n  FXBridge v3.55 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
            "\n  " + g_rulesMsg +
            "\n  ConfirmRealAccount: " + (ConfirmRealAccount ? "true" : "false") +
            "\n  Orders: " + (TradingOn() ? "LAGENGE ✓" : "TEST MODE"));
@@ -345,7 +345,7 @@ int OnInit()
    // VPS restart ke baad duplicate order avoid
    lastOrderID = (long)GlobalVariableGet("FXBridge_LastOrderID");
 
-   Print("=== FXBridge EA v3.53 (Firebase) Started ===");
+   Print("=== FXBridge EA v3.55 (Firebase) Started ===");
    Print("URL: ", g_base, (StringLen(FirebaseAuth) > 0 ? "  (auth ON)" : "  (auth OFF)"));
    Print("Poll: ", PollSeconds, "s | Suffix: '", SymbolSuffix, "' | Trading: ", TradingOn(), (g_isReal ? " | REAL" : " | DEMO"));
    Print("Last processed order ID: ", lastOrderID);
