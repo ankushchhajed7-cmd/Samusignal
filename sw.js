@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.35 — Journal me profit lock + trailing; MT5 sheet me bhi AUTO mode; MT5 order me pm flag (FXBridgeEA v3.54)
    v9.9.34 — "Maine Ye Trade Liya" me AUTO mode (TREND / NORMAL / RANGE + ATR SL/TP, EA v1.05 jaisa)
    v9.9.33 — Max floating card ke neeche ki "rate sirf tab naapa jaata hai" line hatayi
    v9.9.32 — Logo launcher ke shape me na kate (safe zone)
@@ -39,7 +40,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.34';
+const VERSION = '9.9.35';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
