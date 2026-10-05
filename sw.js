@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.33 — Max floating card ke neeche ki "rate sirf tab naapa jaata hai" line hatayi
    v9.9.32 — Logo launcher ke shape me na kate (safe zone)
    v9.9.31 — Naya premium SAMU logo + naam SamuSignal (data wahi rehta hai)
    v9.9.30 — Journal ka pending (LIMIT/STOP) 3 ghante me na bhare to auto-cancel
@@ -37,7 +38,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.32';
+const VERSION = '9.9.33';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

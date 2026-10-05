@@ -2085,7 +2085,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.32';
+const VERSION = '9.9.33';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -6819,7 +6819,6 @@ function maeBox(H, win){
       <div class="pb"><b style="font-size:15px">${avgR !== null ? Math.round(avgR*100) + '%' : '—'}</b><span>SL KA HISSA</span>
         <em>avg</em></div>
     </div>
-    <p class="hint" style="margin-top:8px">Ye rate sirf tab naapa jaata hai jab app open trades ka bhaav check karti hai. Do check ke beech ka spike isme nahi aata — asli max floating isse thoda zyada ho sakta hai, kam nahi.</p>
     ${avgR !== null && avgR > 0.7 ? `<p class="hint" style="color:var(--gold);margin-top:8px">⚠ Jeetne wali trades bhi average ${Math.round(avgR*100)}% SL tak neeche ja rahi hain — matlab TP to lag raha hai, par har trade baal-baal bach rahi hai. Entry thodi behtar chahiye, ya SL thodi chaudi.</p>` : ''}`;
 }
 
