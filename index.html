@@ -1450,7 +1450,7 @@ body.ds-gold .brand .brandWord{height:24px}
 
     <button class="btn gold" onclick="shotIn.click()">🖼 CHART SCREENSHOT UPLOAD KARO</button>
     <input type="file" id="shotIn" accept="image/*" class="hide">
-    <p class="hint" style="margin:8px 0 0">Upar chart ko zoom/scroll karke set karo → phone se screenshot lo (Power + Volume-neeche) → yahan upload. Price axis aur pair ka naam dikhna zaroori hai. Upload ke baad usi pair ka live hisaab apne aap chalega.</p>
+    <p class="hint" style="margin:8px 0 0">Upar chart ko zoom/scroll karke set karo → phone se screenshot lo (Power + Volume-neeche) → screenshot ke preview me <b>Share → SamuSignal</b> dabao — app khud yahan photo dikha ke analysis shuru kar degi (gallery ki zaroorat nahi). Ya neeche wale button se upload. Price axis aur pair ka naam dikhna zaroori hai. Upload ke baad usi pair ka live hisaab apne aap chalega.</p>
 
     <div id="shotBox" style="margin-top:12px"></div>
   </div>
@@ -2127,7 +2127,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.41';
+const VERSION = '9.9.42';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -8950,22 +8950,29 @@ Rules:
 }
 
 const shotIn = $('shotIn');
-if(shotIn) shotIn.addEventListener('change', async e => {
+let shotPrev = null;                       /* abhi wali photo ka preview (sirf is session me) */
+if(shotIn) shotIn.addEventListener('change', e => {
   const f = e.target.files[0];
   e.target.value = '';
+  if(f) shotAnalyze(f);
+});
+async function shotAnalyze(f){
   if(!f) return;
   if(!S.gKey){ toast('Settings me Gemini API key daalo'); openSheet('setSheet'); return }
   if(f.size > 12 * 1024 * 1024){ toast('Image bahut badi hai \u2014 12 MB se chhoti chuno'); return }
 
   const box = $('shotBox');
+  if(shotPrev) URL.revokeObjectURL(shotPrev.url);
+  shotPrev = {url: URL.createObjectURL(f), at: Date.now()};
+  const pv = () => `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">`;
   $('shotState').textContent = 'chart padh raha hoon\u2026';
-  box.innerHTML = '<p class="hint"><span class="spin"></span> Image taiyaar ho rahi hai\u2026</p>';
+  box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Image taiyaar ho rahi hai\u2026</p>';
 
   try{
     const img = await shrinkImage(f, 1280);
-    box.innerHTML = '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai\u2026</p>';
+    box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai\u2026</p>';
     const d = await gVision(shotPrompt(), img.b64, (m, wait) => {
-      box.innerHTML = `<p class="hint"><span class="spin"></span> ` +
+      box.innerHTML = pv() + `<p class="hint"><span class="spin"></span> ` +
         (wait ? `Rate limit \u2014 ${wait}s ruk raha hoon (${m})` : `${m} se padh raha hoon\u2026`) + `</p>`;
     });
 
@@ -8979,11 +8986,11 @@ if(shotIn) shotIn.addEventListener('change', async e => {
     if(d.signal === 'BUY' || d.signal === 'SELL') toast(`${d.signal} \u00b7 ${d.confidence}% confidence`);
   }catch(err){
     $('shotState').textContent = 'fail';
-    box.innerHTML = `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:12px">
+    box.innerHTML = pv() + `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:12px">
       <b style="color:var(--dn);font-size:11.5px;letter-spacing:1.2px">ANALYSIS FAIL</b>
       <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${err.message}</p></div>`;
   }
-});
+}
 
 /* model ne jo naam bola use apne symbol pe map karo */
 function matchSymbol(raw){
@@ -9013,6 +9020,7 @@ function renderShot(){
   const box = $('shotBox'); if(!box) return;
   const d = S.shot;
   if(!d){ box.innerHTML = ''; return }
+  const pvImg = shotPrev && d.at >= shotPrev.at ? `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">` : '';
 
   const sym = d.sym;
   const P = v => (sym && isFinite(v)) ? fmt(sym, v) : (isFinite(v) ? (+v).toString() : '\u2014');
@@ -9024,14 +9032,14 @@ function renderShot(){
   const lvls = a => (Array.isArray(a) ? a : []).filter(x => isFinite(x)).slice(0,3).map(P).join(' \u00b7 ') || '\u2014';
 
   if(dir === 'UNREADABLE'){
-    box.innerHTML = `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.07);border-radius:6px;padding:12px">
+    box.innerHTML = pvImg + `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.07);border-radius:6px;padding:12px">
       <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.2px">\u26a0 CHART PADHA NAHI GAYA</b>
       <p class="hint" style="margin:5px 0 0">${escH(d.reasoning || 'Image saaf nahi thi.')}</p>
       <p class="hint" style="margin:8px 0 0">Aisa screenshot lo jisme price axis aur pair ka naam dono dikhe.</p></div>`;
     return;
   }
 
-  box.innerHTML = `
+  box.innerHTML = pvImg + `
     <div style="display:flex;align-items:center;gap:10px;background:${dir==='BUY'?'rgba(18,201,138,.10)':dir==='SELL'?'rgba(242,84,91,.10)':'rgba(255,184,0,.08)'};
          border:1px solid ${col};border-radius:11px;padding:11px 13px;margin-bottom:12px">
       <b class="shine ${dir==='BUY'?'up':dir==='SELL'?'dn':'gd'}" style="font-size:17px;letter-spacing:.5px">${escH(dir)}</b>
@@ -9905,6 +9913,19 @@ window.addEventListener('appinstalled', ()=> toast('SamuSignal install ho gaya')
 /* Page khud purana cache saaf karta hai — sw.js purani ho to bhi.
    index.html hamesha naya aata hai, isliye ye jaal se bahar nikal aata hai. */
 const CACHE_TAG = 'samusignal-v' + VERSION.replace(/\./g,'-');
+async function shareInbox(){
+  if(!/[?&]share=1/.test(location.search)) return;
+  try{ history.replaceState(null, '', location.pathname + location.hash) }catch(e){}
+  try{
+    let r = null, c = null;
+    for(const k of await caches.keys()){ const cc = await caches.open(k); const hit = await cc.match('./__share__/img'); if(hit){ r = hit; c = cc; break } }
+    if(!r){ toast('Share ki hui photo nahi mili — dobara Share → SamuSignal karo'); return }
+    const blob = await r.blob(); await c.delete('./__share__/img');
+    go('Chart');
+    shotAnalyze(new File([blob], 'shared-chart.' + ((blob.type.split('/')[1]) || 'png'), {type: blob.type || 'image/png'}));
+    setTimeout(() => { const el = $('shotBox'); if(el) el.closest('.card').scrollIntoView({behavior:'smooth', block:'start'}) }, 300);
+  }catch(e){ toast('Share ki hui photo padh nahi paye: ' + e.message) }
+}
 
 async function purgeOldCaches(){
   if(!window.caches) return 0;
@@ -9918,6 +9939,8 @@ async function purgeOldCaches(){
 }
 
 if('serviceWorker' in navigator){
+  /* v9.9.42: "Share → SamuSignal" se aayi screenshot (sw.js cache me rakhta hai) */
+  window.addEventListener('load', () => setTimeout(shareInbox, 600));
   window.addEventListener('load', async () => {
     const killed = await purgeOldCaches();   /* pehle purana kachra hatao */
     try{
