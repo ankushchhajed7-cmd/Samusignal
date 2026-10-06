@@ -26,6 +26,9 @@
 //|  v1.04: Profit lock - profit $2 pahunche to SL +$1 par (kam se kam |
 //|     $1 book). Trailing $ me: $3 ke baad SL price se $2 peeche.     |
 //|     (+$1 -> +$2 -> ... -> TP $5). Breakeven ab $1.5 pe.            |
+//|  v1.08: Waqt ki seema hatayi (poora din, Som-Shukra). Sirf high-  |
+//|     impact news se 1 ghanta pehle aur 1 ghanta baad naya trade   |
+//|     nahi (pending bhi hatao). Inputs se waqt wapas laga sakte ho. |
 //|  v1.07: A+ setup -                                                |
 //|   * Jagah: BUY sirf 6 ghante ki range ke neeche wale hisse se,    |
 //|     SELL upar wale se (kinare pe ho to LIMIT pullback pe).        |
@@ -47,7 +50,7 @@
 //|  khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.           |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.07"
+#property version   "1.08"
 #property description "SamuSignal app ka signal logic - 28 pairs, 5 group, auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
@@ -104,14 +107,14 @@ input double InpPosMaxTrend   = 0.7;     // A+: TREND me thodi chhoot
 input int    InpSwingBars     = 10;      // A+: swing high/low kitni candles ka
 input double InpRrMin         = 1.3;     // A+: kam se kam R:R
 input bool   InpOneTradePerCcy = true;   // Ek currency pe ek hi trade (JPY, USD ...)
-input bool   InpLondonNy      = true;    // Sirf 12:30 - 21:30 IST (London + New York)
+input bool   InpLondonNy      = false;    // Sirf 12:30 - 21:30 IST (London + New York)
 input double InpMaxDayLossUsd = 5.0;     // Din (IST) ka loss itna ho to us din naya trade nahi (0 = off)
 
 input group "Time / News (IST)"
-input int    InpStartHourIST  = 8;       // Shuru (IST ghanta)
-input int    InpEndHourIST    = 22;      // Band (IST ghanta)
+input int    InpStartHourIST  = 0;       // Shuru (IST ghanta) - 0 = koi seema nahi
+input int    InpEndHourIST    = 24;      // Band (IST ghanta) - 24 = koi seema nahi
 input bool   InpAvoidNews     = true;    // High-impact news ke paas naya trade nahi
-input int    InpNewsMinutes   = 30;      // News se pehle/baad kitne minute
+input int    InpNewsMinutes   = 60;      // News se pehle/baad kitne minute
 input bool   InpCancelOnNews  = true;    // News aane wali ho to bhara-nahi pending order hatao
 
 input group "Breakeven / Trailing"
@@ -1471,6 +1474,7 @@ string PreCheck(int i, int decision, bool &retry)
    if(decision == SS_LIMIT && !InpModeLimit) return "Limit mode OFF";
    if(decision == SS_STOP && !InpModeStop) return "Stop mode OFF";
    if(!InTradeTime()) return "waqt ke bahar (IST)";
+   if(NewsNear(sym)) return StringFormat("high-impact news %d min ke andar", InpNewsMinutes);
    if(PairBusy(sym)) return "pair pe trade/order khula";
    if(DayCount(sym) >= InpMaxPerPairDay) return "aaj is pair ki seema puri";
    if(InpOneTradePerCcy)
@@ -1834,7 +1838,7 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.07 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
+   string s = StringFormat("SamuSignal EA v1.08 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)", IstHM());
    s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s lock %s trail %s | khule %d pending %d\n",
@@ -1899,7 +1903,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.07 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.08 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " | confirm ", InpMicroConfirm ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(1);
