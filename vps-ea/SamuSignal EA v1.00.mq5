@@ -26,6 +26,7 @@
 //|  v1.04: Profit lock - profit $2 pahunche to SL +$1 par (kam se kam |
 //|     $1 book). Trailing $ me: $3 ke baad SL price se $2 peeche.     |
 //|     (+$1 -> +$2 -> ... -> TP $5). Breakeven ab $1.5 pe.            |
+//|  v1.06: Pin Bar agent band (live record 15%) - vote 49 agents pe. |
 //|  v1.05: market ke hisaab se 3 mode, sab auto:                     |
 //|   * NORMAL - app jaisa faisla. TREND - tagde trend me EMA9         |
 //|     pullback pe entry (timing ki wajah se WAIT nahi). RANGE -      |
@@ -39,7 +40,7 @@
 //|  khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.           |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.05"
+#property version   "1.06"
 #property description "SamuSignal app ka signal logic - 28 pairs, 5 group, auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
@@ -119,6 +120,7 @@ input bool   InpVerboseLog    = true;    // Har pair ka hisaab Experts log me
 #define SS_SELL -1
 #define SS_HOLD  0
 #define SS_NAGENTS 50
+#define SS_NACTIVE 49     // Pin Bar (38) band - vote me 49
 
 struct Bar { double o; double h; double l; double c; };
 
@@ -537,16 +539,7 @@ void SsAgents(const Bar &b[], int h1, int h4, int d1, double p, int &v[])
       else if(a.c < a.o && pv.c > pv.o && a.c < pv.o && a.o > pv.c) v[37] = SS_SELL;
       else v[37] = SS_HOLD;
    }
-   {
-      Bar a = b[n];
-      double rg = a.h - a.l;
-      if(rg == 0) v[38] = SS_HOLD;
-      else
-      {
-         double lw = MathMin(a.o, a.c) - a.l, uw = a.h - MathMax(a.o, a.c);
-         v[38] = (lw / rg > 0.55) ? SS_BUY : (uw / rg > 0.55) ? SS_SELL : SS_HOLD;
-      }
-   }
+   v[38] = SS_HOLD;      // Pin Bar band (app v9.9.36 jaisa) - jagah wahi, vote me nahi
    if(b[n - 1].h < b[n - 2].h && b[n - 1].l > b[n - 2].l)
       v[39] = (b[n].c > b[n - 1].h) ? SS_BUY : (b[n].c < b[n - 1].l) ? SS_SELL : SS_HOLD;
    else v[39] = SS_HOLD;
@@ -601,11 +594,11 @@ void SsVoteCount(const int &v[], int &buy, int &sell, int &hold, int &verdict, i
    {
       if(v[i] == SS_BUY) buy++;
       else if(v[i] == SS_SELL) sell++;
-      else hold++;
+      else if(i != 38) hold++;
    }
    verdict = (buy > sell) ? SS_BUY : (sell > buy) ? SS_SELL : SS_HOLD;
    int lead = (buy > sell) ? buy : sell;
-   conf = (int)SsRound((double)lead / SS_NAGENTS * 100);
+   conf = (int)SsRound((double)lead / SS_NACTIVE * 100);
 }
 
 // ---------------- app ka analyse(): 10 checks, ok 0/1/2 ----------------
@@ -1728,7 +1721,7 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.05 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
+   string s = StringFormat("SamuSignal EA v1.06 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)", IstHM());
    s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s lock %s trail %s | khule %d pending %d\n",
@@ -1792,7 +1785,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.05 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.06 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " | confirm ", InpMicroConfirm ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(1);

@@ -2085,7 +2085,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.35';
+const VERSION = '9.9.36';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -3683,10 +3683,9 @@ const AGENTS = [
  {n:'Engulfing Candle',    g:'Price Action', f:d=>{const b=d.b,n=b.length-1,a=b[n],pv=b[n-1];
     if(a.c>a.o&&pv.c<pv.o&&a.c>pv.o&&a.o<pv.c) return B;
     if(a.c<a.o&&pv.c>pv.o&&a.c<pv.o&&a.o>pv.c) return SE; return H}},
- {n:'Pin Bar',             g:'Price Action', f:d=>{const a=last(d.b),rg=a.h-a.l;
-    if(!rg) return H;
-    const lw=Math.min(a.o,a.c)-a.l, uw=a.h-Math.max(a.o,a.c);
-    return lw/rg>0.55?B:uw/rg>0.55?SE:H}},
+ /* v9.9.36: Pin Bar band — live record me sabse kharab (15%, 13 vote). Jagah wahi
+    rehti hai taaki baaki agents ke number (Smart Filter 33/44/49, live record) na badlein. */
+ {n:'Pin Bar',             g:'Price Action', off:true, f:()=>H},
  {n:'Inside Bar Break',    g:'Price Action', f:d=>{const b=d.b,n=b.length-1;
     if(b[n-1].h<b[n-2].h&&b[n-1].l>b[n-2].l) return b[n].c>b[n-1].h?B:b[n].c<b[n-1].l?SE:H;
     return H}},
@@ -3713,6 +3712,7 @@ const AGENTS = [
     if(v.length<2) return H;
     return v.every(x=>x===B)?B:v.every(x=>x===SE)?SE:H}}
 ];
+const AGENT_N = AGENTS.filter(a => !a.off).length;     /* vote me ginne wale agents (49) */
 
 function runAgents(bars, htfBias, price){
   const c = bars.map(x=>x.c);
@@ -3725,14 +3725,14 @@ function runAgents(bars, htfBias, price){
   const out = AGENTS.map(ag => {
     let v = H;
     try{ v = ag.f(d) || H }catch(e){ v = H }
-    return {n:ag.n, g:ag.g, v};
+    return {n:ag.n, g:ag.g, v, off:!!ag.off};
   });
   const buy = out.filter(x=>x.v===B).length;
   const sell = out.filter(x=>x.v===SE).length;
-  const hold = out.filter(x=>x.v===H).length;
+  const hold = out.filter(x=>x.v===H && !x.off).length;
   const win = buy>sell ? B : sell>buy ? SE : H;
   const lead = Math.max(buy,sell);
-  const conf = Math.round(lead / AGENTS.length * 100);
+  const conf = Math.round(lead / AGENT_N * 100);
   return {list:out, buy, sell, hold, verdict:win, conf};
 }
 
@@ -4151,7 +4151,7 @@ function finalCall(s){
       why: `Direction abhi pakki nahi — ${Cf.map(x => x.why).join(' · ')}. Breakout hone par hi trade khule.`};
   }
   return {t:'TRADE LO', go:true, ord:orderLeg(s, 'MARKET'), c:'var(--up)', bg:'rgba(0,255,150,.08)', pass, total, warns, fails,
-    why: `Sab zaroori check paas — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy, v.sell)}/50 agents saath` +
+    why: `Sab zaroori check paas — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy, v.sell)}/${AGENT_N} agents saath` +
       (warns.length ? ` · ⚠ dhyan: ${warns[0]}` : '')};
 }
 
@@ -4795,7 +4795,7 @@ function agScore(g, won){
 
 function agLiveRows(){
   return AGENTS.map((a,i) => {
-    const d = S.agLive[i] || {n:0,w:0};
+    const d = a.off ? {n:0,w:0} : (S.agLive[i] || {n:0,w:0});
     return {i, n:a.n, g:a.g, votes:d.n, wr: d.n ? Math.round(d.w/d.n*100) : null};
   }).filter(x => x.votes > 0).sort((a,b) => b.wr - a.wr);
 }
@@ -5309,7 +5309,7 @@ function renderVotes(){
   $('voteListCard').classList.remove('hide');
   $('voteT').innerHTML = `${SPECS[v.sym].n} · ${v.tf} · <span data-ago="${v.at}">${ago(v.at)}</span>`;
 
-  const T = AGENTS.length;
+  const T = AGENT_N;
   const bp = v.buy/T*100, sp = v.sell/T*100, hp = v.hold/T*100;
   const vc = v.verdict==='BUY' ? 'var(--up)' : v.verdict==='SELL' ? 'var(--dn)' : 'var(--mut)';
   const strength = v.conf>=70 ? 'STRONG' : v.conf>=50 ? 'MEDIUM' : 'WEAK';
@@ -5342,7 +5342,7 @@ function renderVotes(){
     `<button class="chip ${voteFilter===g?'on':''}" onclick="voteFilter='${g}';renderVotes()">${g}</button>`).join('');
   $('voteFilt').textContent = voteFilter === 'All' ? 'sab' : voteFilter;
 
-  const rows = v.list.filter(a => voteFilter==='All' || a.g===voteFilter);
+  const rows = v.list.filter(a => !a.off && (voteFilter==='All' || a.g===voteFilter));
   const rank = {BUY:0, SELL:1, HOLD:2};
   rows.sort((a,b) => rank[a.v]-rank[b.v]);
   $('voteList').innerHTML = rows.map(a => `
