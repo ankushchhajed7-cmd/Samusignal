@@ -10,6 +10,9 @@
 //|                "lots":0.01,"entry":4022.36,"sl":4048.51,         |
 //|                "tp":3970.06}                                     |
 //|                                                                  |
+//|  v3.56 (06-Oct-2026): BE / lock / trailing app v9.9.37 jaisa -   |
+//|     TP ka 50% -> SL entry, 65% -> SL +25%, 75% ke baad trailing. |
+//|                                                                  |
 //|  v3.55 (06-Oct-2026):                                            |
 //|   * License check abhi band (RequireLicense = false). Wapas      |
 //|     chahiye to input true karo - ActivationKey wala purana niyam.|
@@ -39,7 +42,7 @@
 //|     nahi lagega (test mode). Auto-trade REAL pe kabhi nahi.      |
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "3.55"
+#property version   "3.56"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -58,11 +61,11 @@ input double  MaxLots        = 0.50;       // Safety: max lot allowed per order
 input int     MagicNumber    = 777001;     // Magic number
 input int     ExpiryHours    = 3;          // Pending order expiry (0 = no expiry) — app jaisa 3 ghante
 input bool    AutoProfitLock = true;       // App ke "pm" wale trades: BE + profit lock + trailing (TP ke % se)
-input double  PL_BePct       = 30;         // TP ka itna % chale -> SL entry
-input double  PL_LockAtPct   = 40;         // TP ka itna % chale -> ...
-input double  PL_LockPct     = 20;         // ...SL TP ke itne % profit par
+input double  PL_BePct       = 50;         // TP ka itna % chale -> SL entry
+input double  PL_LockAtPct   = 65;         // TP ka itna % chale -> ...
+input double  PL_LockPct     = 25;         // ...SL TP ke itne % profit par
 input double  PL_MinLockUsd  = 0.75;       // Lock kam se kam itne $ (0.01 lot) jahan TP itna bada ho
-input double  PL_TrailStartPct = 60;       // TP ka itna % ke baad trailing
+input double  PL_TrailStartPct = 75;       // TP ka itna % ke baad trailing
 input double  PL_TrailDistPct  = 40;       // SL price se TP ke itne % peeche
 input bool    EnableTrading  = false;      // Master switch (false = read-only test)
 input string  TgBotToken     = "";         // Telegram Bot Token (confirmation, optional)
@@ -231,7 +234,7 @@ void CheckRules()
       g_rulesMsg = "Rules check nahi ho paya (HTTP " + IntegerToString(res) + ", err " + IntegerToString(GetLastError()) + ")";
    }
    Print("Rules check: ", g_rulesMsg);
-   Comment("\n  FXBridge v3.55 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
+   Comment("\n  FXBridge v3.56 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
            "\n  " + g_rulesMsg +
            "\n  ConfirmRealAccount: " + (ConfirmRealAccount ? "true" : "false") +
            "\n  Orders: " + (TradingOn() ? "LAGENGE ✓" : "TEST MODE"));
@@ -345,7 +348,7 @@ int OnInit()
    // VPS restart ke baad duplicate order avoid
    lastOrderID = (long)GlobalVariableGet("FXBridge_LastOrderID");
 
-   Print("=== FXBridge EA v3.55 (Firebase) Started ===");
+   Print("=== FXBridge EA v3.56 (Firebase) Started ===");
    Print("URL: ", g_base, (StringLen(FirebaseAuth) > 0 ? "  (auth ON)" : "  (auth OFF)"));
    Print("Poll: ", PollSeconds, "s | Suffix: '", SymbolSuffix, "' | Trading: ", TradingOn(), (g_isReal ? " | REAL" : " | DEMO"));
    Print("Last processed order ID: ", lastOrderID);
