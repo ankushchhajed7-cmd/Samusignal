@@ -2127,7 +2127,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.42';
+const VERSION = '9.9.44';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -7118,7 +7118,7 @@ function rsBtnHTML(s){
   if(!s || s.dir === undefined) return '';
   const R = rangeInfo(s);
   return `<button class="btn ghost" style="width:100%;margin-top:8px;${R.ok ? 'border-color:#38BDF8;color:#38BDF8' : 'opacity:.6'}" onclick="openRangeSetup()">
-    ⇅ Range Setup ${R.ok ? '· BUY/SELL dono taraf' : '· abhi range nahi'}</button>`;
+    ⇅ Range Setup ${R.ok ? '· BUY/SELL dono taraf' : '· range nahi — breakout joda dekho'}</button>`;
 }
 
 function openRangeSetup(){
@@ -7142,7 +7142,10 @@ function drawRangeSetup(){
                  : `<p class="hint" style="margin:3px 0 0;font-size:10.5px;color:var(--dn)">✕ ${escH(L.why)}</p>`}`;
   const card = (type, title, note) => {
     if(!st.legs) return '';
-    const L = st.legs[type], on = st.tab === type, ok = R.ok && L.every(x => x.ok);
+    /* v9.9.44: Breakout (Stop) joda ko range ki shart nahi — bas data ho, news na ho, dono order niyam pe */
+    const gateOk = type === 'STOP' ? !!(R.hi && !R.news) : R.ok;
+    const gateWhy = type === 'STOP' ? (R.news ? `${R.news.c} news ${t12(R.news.d)} pe` : 'data nahi') : R.why;
+    const L = st.legs[type], on = st.tab === type, ok = gateOk && L.every(x => x.ok);
     return `<div onclick="rsTab('${type}')" style="border:1px solid ${on ? '#38BDF8' : 'var(--line)'};border-radius:10px;padding:10px 11px;margin-bottom:10px;background:var(--bg)">
       <div style="display:flex;align-items:center;gap:8px"><b style="letter-spacing:1px;font-size:12px">${title}</b>
         <span class="hint" style="margin:0 0 0 auto;font-size:10px">${on ? 'chart pe dikh raha' : 'chart pe dekho ›'}</span></div>
@@ -7151,7 +7154,9 @@ function drawRangeSetup(){
         <span>ORDER</span><span>ENTRY</span><span>SL</span><span>TP</span></div>
       ${L.map(legRow).join('')}
       ${ok ? `<button class="btn g" style="width:100%;margin-top:10px" onclick="event.stopPropagation();rsTake('${type}')">✓ Maine Ye Trade Liya — dono (OCO)</button>`
-           : `<p class="hint" style="margin:10px 0 0;color:var(--gold)">${R.ok ? 'Dono order sahi nahi — ye joda abhi mat lo.' : 'Market range me nahi — joda band hai.'}</p>`}
+           : `<button class="btn ghost" style="width:100%;margin-top:10px;opacity:.5;cursor:not-allowed" onclick="event.stopPropagation();toast(this.dataset.why)"
+                data-why="${escH(!gateOk ? (type === 'STOP' ? 'Band: ' : 'Range nahi: ') + gateWhy : 'Dono order niyam pe poore nahi: ' + L.filter(x => !x.ok).map(x => x.dir + ' ' + x.type + ' — ' + x.why).join(' · '))}">✓ Maine Ye Trade Liya — band 🔒</button>
+              <p class="hint" style="margin:6px 0 0;color:var(--gold)">${!gateOk ? (type === 'STOP' ? '🔒 Button band — ' : '🔒 Button band — market range me nahi: ') + escH(gateWhy) : '🔒 Button band — dono order niyam (R:R / SL / $) pe poore hone chahiye.'}</p>`}
     </div>`;
   };
   const hist = S.hist.filter(t => t.setup === 'RANGE' || t.setup === 'BREAKOUT');
@@ -7182,7 +7187,7 @@ function drawRangeSetup(){
 
     <p class="ttl" style="margin:16px 0 6px">4 · Result — dono taraf ke order</p>
     ${card('LIMIT', 'RANGE JODA · LIMIT', 'Price range ke kinare tak aaye aur palte — neeche se BUY, upar se SELL.')}
-    ${card('STOP', 'BREAKOUT JODA · STOP', 'Price range tod ke nikle — upar toote to BUY, neeche toote to SELL.')}
+    ${card('STOP', 'BREAKOUT JODA · STOP', 'Price range tod ke nikle — upar toote to BUY, neeche toote to SELL. Ye joda trend me bhi chalta hai (range ki shart nahi).')}
     <p class="hint" style="margin:0 0 12px">Jo order pehle bhara, doosra journal se apne aap cancel. 3 ghante me koi na bhare to dono hat jayenge. Ye sirf app ka journal hai — MT5 pe kuch nahi jaata.</p>
 
     <p class="ttl" style="margin:6px 0 6px">Ab tak ka record</p>
@@ -7291,7 +7296,8 @@ async function rsShot(toTg){
 }
 
 function rsTake(type){
-  const st = rsState; if(!st || !st.R.ok || !st.legs) return;
+  const st = rsState; if(!st || !st.legs) return;
+  if(type === 'STOP' ? !(st.R.hi && !st.R.news) : !st.R.ok){ toast(type === 'STOP' ? 'Abhi breakout joda band (news / data)' : 'Market range me nahi — range joda band'); return }
   const L = st.legs[type];
   if(!L.every(x => x.ok)){ toast('Ye joda abhi sahi nahi'); return }
   if(S.open.some(t => t.sym === st.s.sym)){ alert(`${st.s.sym} pe pehle se trade / pending khula hai — pehle use band karo.`); return }
