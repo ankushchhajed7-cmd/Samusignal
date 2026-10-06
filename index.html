@@ -46,6 +46,7 @@ header.hide{display:none}
 .hbox h1{margin:0;font-size:15px;color:var(--gold);letter-spacing:2.2px;font-weight:700;line-height:1.2}
 .hbox p{margin:0;font-size:9px;font-weight:700;color:var(--lbl);letter-spacing:1px;white-space:nowrap;opacity:.9}
 .hrow{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.hrow .ib-cht{grid-column:1 / -1;order:-1;border-color:#38BDF8;color:#38BDF8}
 .ib{padding:6px 8px;background:var(--bg);border:2px solid var(--line);border-radius:6px;
   color:var(--lbl);font-size:10.5px;font-weight:700;letter-spacing:.5px;white-space:nowrap;line-height:1.4}
 .ib:active{border-color:var(--gold);color:var(--gold)}
@@ -1154,7 +1155,9 @@ body.ds-gold .clock b{font-family:'Manrope',system-ui,sans-serif !important;font
   font-weight:700 !important;letter-spacing:2.4px;color:var(--mut) !important;text-transform:uppercase}
 body.ds-gold #clkD{display:none}
 body.ds-gold .ib-ref{grid-column:1;grid-row:1 / span 2}
-body.ds-gold .ib-set{grid-column:3;grid-row:1 / span 2}
+body.ds-gold .ib-set{grid-column:4;grid-row:1 / span 2}
+body.ds-gold .ib-cht{grid-column:3;grid-row:1 / span 2}
+body.ds-gold .hbox{grid-template-columns:44px minmax(0,1fr) 44px 44px !important}
 body.ds-gold .ib-ins,body.ds-gold .ib-gd{display:none !important}
 body.ds-gold .hrow .ib{width:44px !important;height:44px;padding:0 !important;gap:0 !important}
 body.ds-gold .hrow .ib span{display:none}
@@ -1343,6 +1346,7 @@ body.ds-gold .brand .brandWord{height:24px}
       <button class="ib ib-ref" id="btnRef" onclick="refreshAll()"><i class="em">⟳</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4.5V11h-6.5"></path></svg><span>REFRESH</span></button>
       <button class="ib ib-ins" id="btnInstall"><i class="em">⬇</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 20h14"></path></svg><span>INSTALL</span></button>
       <button class="ib ib-gd" onclick="openSheet('guideSheet')"><i class="em">📘</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"></path><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20"></path></svg><span>KAISE USE KARE</span></button>
+      <button class="ib ib-cht" onclick="openChartPage()"><i class="em">📈</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="M7 15l4-5 3 3 5-7"></path></svg><span>CHART ANALYSIS</span></button>
       <button class="ib ib-set" onclick="openSheet('setSheet')"><i class="em">⚙</i><svg class="dsi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.5a7.6 7.6 0 0 0-2.6 1.5l-2.3-.9-2 3.4 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.4 2.3-.9a7.6 7.6 0 0 0 2.6 1.5l.5 2.5h4l.5-2.5a7.6 7.6 0 0 0 2.6-1.5l2.3.9 2-3.4z"></path></svg><span>SETTINGS</span></button>
     </div>
   </div>
@@ -1385,11 +1389,6 @@ body.ds-gold .brand .brandWord{height:24px}
     <button class="btn gold sm" style="margin-top:10px" onclick="runAI()">🤖 AI SE SAMJHO</button>
   </div>
 
-  <div class="card" id="anCard">
-    <p class="ttl">Chart Analysis <span class="sp" id="anT">—</span></p>
-    <div id="anBox"><p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p></div>
-  </div>
-
   <div class="card">
     <p class="ttl">News Filter <span class="sp" id="newsT">—</span></p>
     <div id="newsToday" class="newsToday hide"></div>
@@ -1405,8 +1404,25 @@ body.ds-gold .brand .brandWord{height:24px}
     </div>
   </div>
 
+</section>
+
+
+<!-- ============ CHART ANALYSIS (v9.9.39) — chart se juda sab ek jagah ============ -->
+<section id="pgChart" class="hide">
   <div class="card">
-    <p class="ttl">Chart <span class="sp" id="chartSym">—</span></p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn ghost sm" style="width:auto;padding:0 12px" onclick="go('Signals', document.querySelector('nav button[data-pg=&quot;Signals&quot;]'))">← Signals</button>
+      <b style="letter-spacing:1.5px;font-size:14px">📈 CHART ANALYSIS</b>
+      <span class="sp mono" id="cpSym" style="margin-left:auto"></span>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <button class="pick" id="cpPair" onclick="openPick('main')"></button>
+      <button class="btn gold sm" onclick="cpAnalyze()">⟳ Analyze</button>
+    </div>
+    <p class="hint" style="margin:8px 0 0">Live chart → setup photo → analysis → result. Pair badlo to Analyze dabao (Signals page jaisa hi hisaab).</p>
+  </div>
+  <div class="card">
+    <p class="ttl">1 · Live Chart <span class="sp" id="chartSym">—</span></p>
     <div class="chips" id="chartTf" style="margin-bottom:10px"></div>
     <div class="tvbox" id="tvBox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
     <div class="pressure-box" id="pressureBox">
@@ -1417,6 +1433,16 @@ body.ds-gold .brand .brandWord{height:24px}
     <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
   </div>
 
+  <div class="card" id="rsCard">
+    <p class="ttl">⇅ Range Setup <span class="sp" id="rsT">—</span></p>
+    <div id="rsBody"><p class="hint">Pehle Analyze karo.</p></div>
+  </div>
+
+  <div class="card" id="anCard">
+    <p class="ttl">Technical Analysis <span class="sp" id="anT">—</span></p>
+    <div id="anBox"><p class="hint">Analyze karne ke baad yahan poori wajah milegi — kyun ye trade, kya risk hai.</p></div>
+  </div>
+
   <div class="card">
     <p class="ttl">EMA 9 / 21 / 55 <span class="sp" id="emaTf">—</span></p>
     <canvas id="emaChart" style="width:100%;height:230px;display:block;
@@ -1424,6 +1450,25 @@ body.ds-gold .brand .brandWord{height:24px}
     <div id="emaBox"><p class="hint" style="margin-top:10px">Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.</p></div>
     <button class="btn ghost sm" id="emaRefBtn" style="margin-top:10px" onclick="loadEma(true)">⟳ EMA REFRESH · 1 credit</button>
   </div>
+
+  <div class="card">
+    <p class="ttl">Screenshot se AI Analysis <span class="sp" id="shotState">screenshot upload karo</span></p>
+
+    <label>Trading style</label>
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip" id="mdScalp" onclick="setStyle('SCALP')">Scalping</button>
+      <button class="chip" id="mdDay"   onclick="setStyle('DAY')">Day</button>
+      <button class="chip" id="mdSwing" onclick="setStyle('SWING')">Swing</button>
+    </div>
+    <p class="hint" id="styleNote" style="margin:-4px 0 12px">—</p>
+
+    <button class="btn gold" onclick="shotIn.click()">🖼 CHART SCREENSHOT UPLOAD KARO</button>
+    <input type="file" id="shotIn" accept="image/*" class="hide">
+    <p class="hint" style="margin:8px 0 0">Gallery se saaf chart screenshot chuno. Price axis aur pair ka naam dikhna zaroori hai.</p>
+
+    <div id="shotBox" style="margin-top:12px"></div>
+  </div>
+
 </section>
 
 <!-- ============ SCAN ============ -->
@@ -1587,24 +1632,6 @@ body.ds-gold .brand .brandWord{height:24px}
       <button class="btn ghost sm" onclick="testTg()">Test Bhejo</button>
     </div>
     <p class="hint">Token @BotFather se banao. Chat ID ke liye apne bot ko koi message bhejo, phir "Test Bhejo" dabao — nahi aaya to @userinfobot se ID lo.</p>
-  </div>
-
-  <div class="card">
-    <p class="ttl">Chart Analysis <span class="sp" id="shotState">screenshot upload karo</span></p>
-
-    <label>Trading style</label>
-    <div class="chips" style="margin-bottom:12px">
-      <button class="chip" id="mdScalp" onclick="setStyle('SCALP')">Scalping</button>
-      <button class="chip" id="mdDay"   onclick="setStyle('DAY')">Day</button>
-      <button class="chip" id="mdSwing" onclick="setStyle('SWING')">Swing</button>
-    </div>
-    <p class="hint" id="styleNote" style="margin:-4px 0 12px">—</p>
-
-    <button class="btn gold" onclick="shotIn.click()">🖼 CHART SCREENSHOT UPLOAD KARO</button>
-    <input type="file" id="shotIn" accept="image/*" class="hide">
-    <p class="hint" style="margin:8px 0 0">Gallery se saaf chart screenshot chuno. Price axis aur pair ka naam dikhna zaroori hai.</p>
-
-    <div id="shotBox" style="margin-top:12px"></div>
   </div>
 
   <div class="card">
@@ -2018,11 +2045,6 @@ body.ds-gold .brand .brandWord{height:24px}
   <div id="qtBody"></div>
 </div></div>
 
-<div class="ov" id="rsSheet"><div class="sheet">
-  <div class="sh-h"><h3 id="rsTitle">⇅ Range Setup</h3><button onclick="closeSheet('rsSheet')">×</button></div>
-  <div id="rsBody"></div>
-</div></div>
-
 <div class="ov" id="hgSheet"><div class="sheet">
   <div class="sh-h"><h3 id="hgTitle">Against Trade</h3><button onclick="closeSheet('hgSheet')">×</button></div>
   <div id="hgBody"></div>
@@ -2090,7 +2112,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.38';
+const VERSION = '9.9.39';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -2977,7 +2999,7 @@ document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{
   if(e.target===o){ o.classList.remove('on'); syncLock() }
 }));
 function go(pg,btn){
-  ['Signals','Scan','Votes','Market','Trades','Alerts','Copy'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
+  ['Signals','Chart','Scan','Votes','Market','Trades','Alerts','Copy'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   /* header sirf Signals page pe — baaki pages pe poori screen milti hai */
   const hd = document.querySelector('header');
   hd.classList.toggle('hide', pg !== 'Signals');
@@ -2988,7 +3010,8 @@ function go(pg,btn){
     $('btTf').textContent = S.tf; $('btT').innerHTML = S.bt ? `<span data-ago="${S.bt.at}">${ago(S.bt.at)}</span>` : '—' }
   if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
-  if(pg==='Alerts'){ renderLog(); renderCloud(); renderStorage(); renderShot(); renderTrack() }
+  if(pg==='Alerts'){ renderLog(); renderCloud(); renderStorage(); renderTrack() }
+  if(pg==='Chart') chartPageShow();
   /* v9.9.0 Copy Trade — naya tab, sirf apna kaam */
   if(pg==='Copy'){ if(window.cpOnShow) cpOnShow() } else if(window.cpOnHide) cpOnHide();
 }
@@ -6919,6 +6942,30 @@ function rsLeg(R, dir, type, lots){
     slPips:+(Math.abs(e - sl) / sp.pip).toFixed(1), tpPips:+(Math.abs(tp - e) / sp.pip).toFixed(1), ok:!why, why};
 }
 
+/* ---- Chart Analysis page ---- */
+function openChartPage(){ go('Chart'); }
+function chartPageShow(){
+  const sym = S.pair, sp = SPECS[sym];
+  $('cpSym').textContent = sp ? sp.n + ' · ' + S.tf : '—';
+  $('cpPair').textContent = sp ? sp.n : 'Pair chuno';
+  requestAnimationFrame(() => {
+    try{ loadEma(false) }catch(e){}
+    try{ renderShot() }catch(e){}
+    rsRefresh();
+  });
+}
+async function cpAnalyze(){ await runAnalyze(); if(!$('pgChart').classList.contains('hide')) chartPageShow(); }
+function rsRefresh(){
+  const s = lastSignal;
+  if(!s || s.sym !== S.pair){ rsState = null; $('rsT').textContent = '—';
+    $('rsBody').innerHTML = '<p class="hint">Is pair ko Analyze karo — phir yahan range, setup photo aur dono taraf ke order aayenge.</p>'; return }
+  const R = rangeInfo(s), lots = +$('inLots').value || S.dLot;
+  rsState = {s, R, lots, tab: rsState && rsState.s.sym === s.sym ? rsState.tab : 'LIMIT',
+    legs: R.hi ? {LIMIT:[rsLeg(R,'BUY','LIMIT',lots), rsLeg(R,'SELL','LIMIT',lots)],
+                  STOP:[rsLeg(R,'BUY','STOP',lots), rsLeg(R,'SELL','STOP',lots)]} : null};
+  drawRangeSetup();
+}
+
 function rsBtnHTML(s){
   if(!s || s.dir === undefined) return '';
   const R = rangeInfo(s);
@@ -6927,19 +6974,15 @@ function rsBtnHTML(s){
 }
 
 function openRangeSetup(){
-  const s = lastSignal;
-  if(!s){ toast('Pehle ek pair Analyze karo'); return }
-  const R = rangeInfo(s), lots = +$('inLots').value || S.dLot;
-  rsState = {s, R, lots, tab: rsState && rsState.s.sym === s.sym ? rsState.tab : 'LIMIT',
-    legs: R.hi ? {LIMIT:[rsLeg(R,'BUY','LIMIT',lots), rsLeg(R,'SELL','LIMIT',lots)],
-                  STOP:[rsLeg(R,'BUY','STOP',lots), rsLeg(R,'SELL','STOP',lots)]} : null};
-  drawRangeSetup(); openSheet('rsSheet');
+  if(!lastSignal){ toast('Pehle ek pair Analyze karo'); return }
+  go('Chart');
+  setTimeout(() => { const c = $('rsCard'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}) }, 120);
 }
 
 function drawRangeSetup(){
   const st = rsState, s = st.s, R = st.R, sym = s.sym, sp = SPECS[sym];
   const tfv = (TFS.find(t => t.id === s.tf) || {tv:'15'}).tv;
-  $('rsTitle').textContent = `⇅ Range Setup — ${sp.n}`;
+  $('rsT').textContent = R.ok ? 'RANGE ✓' : 'abhi range nahi';
   const row = (k, v, c) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12px">
     <span style="color:var(--lbl)">${k}</span><b class="mono" style="text-align:right;${c ? 'color:' + c : ''}">${v}</b></div>`;
   const legRow = L => `<div style="display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:6px;align-items:center;font-size:11.5px;padding:7px 0;border-bottom:1px dashed var(--line)">
@@ -6969,18 +7012,14 @@ function drawRangeSetup(){
     return row(k === 'RANGE' ? 'Range joda' : 'Breakout joda', `${h.length} band · ${w} jeet · ${money(net)}`, net >= 0 ? 'var(--up)' : 'var(--dn)') };
 
   $('rsBody').innerHTML = `
-    <p class="ttl" style="margin:0 0 6px">1 · Live chart <span class="hint" style="font-size:10px">(TradingView · OANDA price — Exness se 0.5–2 pip farak ho sakta hai)</span></p>
-    <iframe src="https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(sp.tv)}&interval=${tfv}&theme=dark&style=1&timezone=Asia/Kolkata&hidesidetoolbar=1&hidetoptoolbar=0&withdateranges=0&saveimage=0&studies=STD%3BSupertrend&locale=en"
-      style="width:100%;height:300px;border:1px solid var(--line);border-radius:10px;display:block" loading="lazy"></iframe>
-
-    <p class="ttl" style="margin:16px 0 6px">2 · Setup chart (screenshot)</p>
+    <p class="ttl" style="margin:0 0 6px">2 · Setup chart (screenshot)</p>
     <canvas id="rsChart" style="width:100%;height:280px;display:block;background:var(--bg);border:1px solid var(--line);border-radius:10px"></canvas>
     <div class="grid2" style="margin:8px 0 0">
       <button class="btn ghost sm" onclick="rsShot(false)">📸 Photo save / share</button>
       <button class="btn ghost sm" onclick="rsShot(true)">Telegram pe bhejo</button>
     </div>
 
-    <p class="ttl" style="margin:16px 0 6px">3 · Analysis</p>
+    <p class="ttl" style="margin:16px 0 6px">3 · Range Analysis</p>
     <div style="border:1px solid ${R.ok ? '#38BDF8' : 'var(--gold)'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
       <b style="color:${R.ok ? '#38BDF8' : 'var(--gold)'};letter-spacing:1px">${R.ok ? '✓ RANGE MARKET' : '✕ ABHI RANGE NAHI'}</b>
       <p class="hint" style="margin:4px 0 0">${R.ok ? 'Price pichhli 24 candles se ek daayre me ghoom raha hai — kinaron se palatne (Limit) ya todne (Stop) ka setup.' : escH(R.why)}</p>
@@ -7111,7 +7150,6 @@ function rsTake(type){
   const oco = 'O' + Date.now(), setup = type === 'LIMIT' ? 'RANGE' : 'BREAKOUT';
   L.forEach((l, i) => addTrade({sym:st.s.sym, dir:l.dir, lots:st.lots, entry:l.e, sl:l.sl, tp:l.tp, slD:l.slD, tpD:l.tpD,
     q:st.s.q, grade:st.s.grade, pend:type, oco, setup, ocoN:i}));
-  closeSheet('rsSheet');
   toast(`${setup === 'RANGE' ? 'Range' : 'Breakout'} joda laga — jo pehle bhare, doosra cancel`);
 }
 
@@ -8476,6 +8514,7 @@ function choosePick(sym){
   if(pickCtx === 'main'){
     S.pair = sym; save(); pickLabel($('selPair'), sym);
     setChart(sym); lastSignal = null; renderSignal();
+    if(!$('pgChart').classList.contains('hide')) chartPageShow();
   } else if(pickCtx === 'manual'){
     pickLabel($('mtPair'), sym);
     const ml = +$('mtLots').value || S.dLot;

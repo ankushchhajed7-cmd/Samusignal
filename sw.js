@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.39 — Naya "Chart Analysis" page (header button): live chart, Range Setup, technical/EMA/screenshot analysis
    v9.9.38 — ⇅ Range Setup: live chart, setup photo, analysis, Limit/Stop joda (OCO) journal me
    v9.9.37 — A+ setup (jagah, swing SL, ek currency ek trade, London/NY), BE 50%
    v9.9.36 — Pin Bar agent band (vote 49 agents pe)
@@ -43,7 +44,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.38';
+const VERSION = '9.9.39';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
