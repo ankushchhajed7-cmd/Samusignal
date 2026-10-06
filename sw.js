@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.43 — Range Setup: band button dikhe aur saaf wajah (gayab nahi)
    v9.9.42 — Screenshot Share → SamuSignal (gallery nahi), photo preview
    v9.9.41 — Buyer/Seller pressure wapas Signals page pe
    v9.9.40 — Chart page: screenshot AI → S/R, pivot, Fibonacci levels → Final result (tier A/B/Watch/Range)
@@ -47,7 +48,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.42';
+const VERSION = '9.9.43';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

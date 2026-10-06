@@ -2127,7 +2127,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.42';
+const VERSION = '9.9.43';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -7151,7 +7151,9 @@ function drawRangeSetup(){
         <span>ORDER</span><span>ENTRY</span><span>SL</span><span>TP</span></div>
       ${L.map(legRow).join('')}
       ${ok ? `<button class="btn g" style="width:100%;margin-top:10px" onclick="event.stopPropagation();rsTake('${type}')">✓ Maine Ye Trade Liya — dono (OCO)</button>`
-           : `<p class="hint" style="margin:10px 0 0;color:var(--gold)">${R.ok ? 'Dono order sahi nahi — ye joda abhi mat lo.' : 'Market range me nahi — joda band hai.'}</p>`}
+           : `<button class="btn ghost" style="width:100%;margin-top:10px;opacity:.5;cursor:not-allowed" onclick="event.stopPropagation();toast(this.dataset.why)"
+                data-why="${escH(!R.ok ? 'Range nahi: ' + R.why : 'Dono order niyam pe poore nahi: ' + L.filter(x => !x.ok).map(x => x.dir + ' ' + x.type + ' — ' + x.why).join(' · '))}">✓ Maine Ye Trade Liya — band 🔒</button>
+              <p class="hint" style="margin:6px 0 0;color:var(--gold)">${!R.ok ? '🔒 Button band — market range me nahi: ' + escH(R.why) : '🔒 Button band — dono order niyam (R:R / SL / $) pe poore hone chahiye.'}</p>`}
     </div>`;
   };
   const hist = S.hist.filter(t => t.setup === 'RANGE' || t.setup === 'BREAKOUT');
