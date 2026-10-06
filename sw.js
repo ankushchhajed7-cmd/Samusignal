@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.38 — ⇅ Range Setup: live chart, setup photo, analysis, Limit/Stop joda (OCO) journal me
    v9.9.37 — A+ setup (jagah, swing SL, ek currency ek trade, London/NY), BE 50%
    v9.9.36 — Pin Bar agent band (vote 49 agents pe)
    v9.9.35 — Journal me profit lock + trailing; MT5 sheet me bhi AUTO mode; MT5 order me pm flag (FXBridgeEA v3.54)
@@ -42,7 +43,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.37';
+const VERSION = '9.9.38';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

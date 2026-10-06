@@ -2018,6 +2018,11 @@ body.ds-gold .brand .brandWord{height:24px}
   <div id="qtBody"></div>
 </div></div>
 
+<div class="ov" id="rsSheet"><div class="sheet">
+  <div class="sh-h"><h3 id="rsTitle">⇅ Range Setup</h3><button onclick="closeSheet('rsSheet')">×</button></div>
+  <div id="rsBody"></div>
+</div></div>
+
 <div class="ov" id="hgSheet"><div class="sheet">
   <div class="sh-h"><h3 id="hgTitle">Against Trade</h3><button onclick="closeSheet('hgSheet')">×</button></div>
   <div id="hgBody"></div>
@@ -2085,7 +2090,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.37';
+const VERSION = '9.9.38';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -4524,6 +4529,7 @@ function renderSignal(){
       </div>`; })()}
       <div class="gWarn">${newsBox}${weak}${warn}</div>
       ${s.dir !== 'NEUTRAL' ? `<button class="btn ${s.dir==='SELL'?'r':'g'} gJournal" onclick="openQuick('APP')">✓ Maine Ye Trade Liya</button>` : ''}
+      ${rsBtnHTML(s)}
       <button class="sigMoreBtn" onclick="const c=this.closest('.sig');c.classList.toggle('open');requestAnimationFrame(paintSignalChart)">
         <span class="mm">Details — chart, timeframe, journal, share</span><span class="ml">Details band karo</span></button>
       <div class="sigMore">
@@ -6561,7 +6567,7 @@ function saveManual(){
 
 /* ---------------- trades ---------------- */
 function addTrade(t){
-  const dup = S.open.find(x => x.sym === t.sym);
+  const dup = S.open.find(x => x.sym === t.sym && !(t.oco && x.oco === t.oco));   /* OCO joda ka bhai chalega */
   if(dup){
     alert(`${t.sym} pe pehle se ek trade khuli hai —\n\n` +
       `${dup.dir} ${dup.lots} lot @ ${fmt(dup.sym, dup.entry)}\n${dt12(dup.at)}\n\n` +
@@ -6816,6 +6822,7 @@ async function refreshOpen(force){
     scoreSignals(q);
     const hits = [], expired = [];
     let okCount = 0;
+    ocoResolve(bars, q);                           /* OCO joda: jo pehle bhara wahi rahe */
     S.open.forEach(t=>{
       const d = q[t.sym]; if(!d || !d.p) return;
       okCount++;
@@ -6838,6 +6845,7 @@ async function refreshOpen(force){
         if(t.tp > 0 && d.p <= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p >= t.sl) hits.push([t.id,slHit]);
       }
     });
+    ocoSweep();
     lastOpenSync = Date.now();
     save(); renderTrades();
     paintSignalChart();
@@ -6852,6 +6860,292 @@ async function refreshOpen(force){
     if(force === true) toast(e.message);
   }
   syncBusy = false; syncStatus();
+}
+
+/* ================= ⇅ RANGE SETUP (v9.9.38) =================
+   Sirf RANGE market me (ADX 20 se kam, saaf range 3–10 ATR chaudi, news nahi).
+   Range = pichhli 24 band candles ka high/low. Levels Fibonacci se (range ke 0–100%):
+     Range joda   : BUY LIMIT 23.6% · SL range ke neeche · TP 61.8%
+                    SELL LIMIT 76.4% · SL range ke upar  · TP 38.2%
+     Breakout joda: BUY STOP 100% ke upar · SL 76.4% · TP 161.8%
+                    SELL STOP 0% ke neeche · SL 23.6% · TP −61.8%
+   SL kam se kam 10 pip, R:R kam se kam 1.3, TP $1–$5 / SL ≤ $2.5 (0.01 lot pe).
+   Journal me dono pending ek joda (OCO): jo pehle bhara, doosra apne aap cancel.
+   Abhi sirf app — MT5 pe kuch nahi jaata. */
+const RS = {bars:24, adxMax:20, minW:3, maxW:10, minSlPips:10, rrMin:1.3, minTp:1.0, maxTp:5.0, maxSl:2.5};
+const RS_FIB = [[0,'0'],[.236,'23.6'],[.382,'38.2'],[.5,'50'],[.618,'61.8'],[.764,'76.4'],[1,'100']];
+let rsState = null;
+
+function rangeInfo(s){
+  const R = {ok:false, why:'', sym:s.sym};
+  const raw = barCache[s.sym], sp = SPECS[s.sym];
+  const bars = raw ? completedBars(raw, s.tf) : null;
+  if(!sp || !bars || bars.length < 40 || !(s.atr > 0)){ R.why = 'pehle is pair ko Analyze karo'; return R }
+  const ax = adx(bars, 14);
+  Object.assign(R, {adx:ax.adx, hi:hh(bars, RS.bars), lo:ll(bars, RS.bars), atr:s.atr, live:s.live, rsi:s.rsi, bars, raw});
+  R.w = R.hi - R.lo; R.wAtr = R.w / s.atr; R.wPips = R.w / sp.pip;
+  R.pos = R.w > 0 ? (s.live - R.lo) / R.w : 0.5;
+  R.news = newsRisk(s.sym);
+  if(ax.adx >= RS.adxMax) R.why = `ADX ${ax.adx.toFixed(0)} — market trend me hai, range nahi (${RS.adxMax} se kam chahiye)`;
+  else if(R.wAtr < RS.minW) R.why = `range bahut patli (${R.wAtr.toFixed(1)} ATR) — kam se kam ${RS.minW} ATR chahiye`;
+  else if(R.wAtr > RS.maxW) R.why = `range bahut chaudi (${R.wAtr.toFixed(1)} ATR) — ye range nahi, bada move hai`;
+  else if(s.live <= R.lo || s.live >= R.hi) R.why = 'price range ke bahar nikal chuka';
+  else if(R.news) R.why = `${R.news.c} news ${t12(R.news.d)} pe — abhi range setup nahi`;
+  else R.ok = true;
+  return R;
+}
+
+function rsLeg(R, dir, type, lots){
+  const sym = R.sym, sp = SPECS[sym], L = R.lo, w = R.w, a = R.atr, f = k => L + k * w;
+  const buy = dir === 'BUY', k = lots / 0.01;
+  let e, sl, tp;
+  if(type === 'LIMIT'){ if(buy){ e = f(.236); sl = L - .3*a; tp = f(.618) } else { e = f(.764); sl = R.hi + .3*a; tp = f(.382) } }
+  else { if(buy){ e = R.hi + .1*a; sl = f(.764); tp = f(1.618) } else { e = L - .1*a; sl = f(.236); tp = f(-.618) } }
+  const minSl = RS.minSlPips * sp.pip;
+  if(Math.abs(e - sl) < minSl) sl = buy ? e - minSl : e + minSl;
+  const usd = d => distToDollars(sym, e, lots, Math.abs(d));
+  if(usd(tp - e) > RS.maxTp * k){                                  /* TP $5 tak hi */
+    const d = dollarsToDist(sym, e, lots, RS.maxTp * k); tp = buy ? e + d : e - d;
+  }
+  const slD = +usd(e - sl).toFixed(2), tpD = +usd(tp - e).toFixed(2), rr = Math.abs(tp - e) / Math.abs(e - sl);
+  const sideOk = (buy === (type === 'LIMIT')) ? R.live > e : R.live < e;
+  let why = '';
+  if(!sideOk) why = type === 'LIMIT' ? `price pehle hi ${buy ? 'neeche' : 'upar'} wale zone me — limit yahan nahi lagegi` : 'price entry ke galat taraf';
+  else if(rr < RS.rrMin) why = `R:R sirf 1:${rr.toFixed(2)} (1:${RS.rrMin} chahiye)`;
+  else if(slD > RS.maxSl * k) why = `SL $${slD} — $${(RS.maxSl * k).toFixed(2)} se bada`;
+  else if(tpD < RS.minTp * k) why = `TP sirf $${tpD} — kam se kam $${(RS.minTp * k).toFixed(2)} chahiye`;
+  const r = v => +v.toFixed(sp.d);
+  return {dir, type, e:r(e), sl:r(sl), tp:r(tp), slD, tpD, rr,
+    slPips:+(Math.abs(e - sl) / sp.pip).toFixed(1), tpPips:+(Math.abs(tp - e) / sp.pip).toFixed(1), ok:!why, why};
+}
+
+function rsBtnHTML(s){
+  if(!s || s.dir === undefined) return '';
+  const R = rangeInfo(s);
+  return `<button class="btn ghost" style="width:100%;margin-top:8px;${R.ok ? 'border-color:#38BDF8;color:#38BDF8' : 'opacity:.6'}" onclick="openRangeSetup()">
+    ⇅ Range Setup ${R.ok ? '· BUY/SELL dono taraf' : '· abhi range nahi'}</button>`;
+}
+
+function openRangeSetup(){
+  const s = lastSignal;
+  if(!s){ toast('Pehle ek pair Analyze karo'); return }
+  const R = rangeInfo(s), lots = +$('inLots').value || S.dLot;
+  rsState = {s, R, lots, tab: rsState && rsState.s.sym === s.sym ? rsState.tab : 'LIMIT',
+    legs: R.hi ? {LIMIT:[rsLeg(R,'BUY','LIMIT',lots), rsLeg(R,'SELL','LIMIT',lots)],
+                  STOP:[rsLeg(R,'BUY','STOP',lots), rsLeg(R,'SELL','STOP',lots)]} : null};
+  drawRangeSetup(); openSheet('rsSheet');
+}
+
+function drawRangeSetup(){
+  const st = rsState, s = st.s, R = st.R, sym = s.sym, sp = SPECS[sym];
+  const tfv = (TFS.find(t => t.id === s.tf) || {tv:'15'}).tv;
+  $('rsTitle').textContent = `⇅ Range Setup — ${sp.n}`;
+  const row = (k, v, c) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12px">
+    <span style="color:var(--lbl)">${k}</span><b class="mono" style="text-align:right;${c ? 'color:' + c : ''}">${v}</b></div>`;
+  const legRow = L => `<div style="display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:6px;align-items:center;font-size:11.5px;padding:7px 0;border-bottom:1px dashed var(--line)">
+      <b style="color:${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}">${L.dir} ${L.type}</b>
+      <span class="mono">${fmt(sym, L.e)}</span>
+      <span class="mono dn">${fmt(sym, L.sl)}<small style="display:block;font-size:9.5px">−$${L.slD} · ${L.slPips}p</small></span>
+      <span class="mono up">${fmt(sym, L.tp)}<small style="display:block;font-size:9.5px">+$${L.tpD} · ${L.tpPips}p</small></span>
+    </div>${L.ok ? `<p class="hint" style="margin:3px 0 0;font-size:10.5px">R:R 1:${L.rr.toFixed(2)}</p>`
+                 : `<p class="hint" style="margin:3px 0 0;font-size:10.5px;color:var(--dn)">✕ ${escH(L.why)}</p>`}`;
+  const card = (type, title, note) => {
+    if(!st.legs) return '';
+    const L = st.legs[type], on = st.tab === type, ok = R.ok && L.every(x => x.ok);
+    return `<div onclick="rsTab('${type}')" style="border:1px solid ${on ? '#38BDF8' : 'var(--line)'};border-radius:10px;padding:10px 11px;margin-bottom:10px;background:var(--bg)">
+      <div style="display:flex;align-items:center;gap:8px"><b style="letter-spacing:1px;font-size:12px">${title}</b>
+        <span class="hint" style="margin:0 0 0 auto;font-size:10px">${on ? 'chart pe dikh raha' : 'chart pe dekho ›'}</span></div>
+      <p class="hint" style="margin:3px 0 4px">${note}</p>
+      <div style="display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:6px;font-size:9.5px;color:var(--lbl);letter-spacing:.5px">
+        <span>ORDER</span><span>ENTRY</span><span>SL</span><span>TP</span></div>
+      ${L.map(legRow).join('')}
+      ${ok ? `<button class="btn g" style="width:100%;margin-top:10px" onclick="event.stopPropagation();rsTake('${type}')">✓ Maine Ye Trade Liya — dono (OCO)</button>`
+           : `<p class="hint" style="margin:10px 0 0;color:var(--gold)">${R.ok ? 'Dono order sahi nahi — ye joda abhi mat lo.' : 'Market range me nahi — joda band hai.'}</p>`}
+    </div>`;
+  };
+  const hist = S.hist.filter(t => t.setup === 'RANGE' || t.setup === 'BREAKOUT');
+  const recRow = k => { const h = hist.filter(t => t.setup === k); if(!h.length) return row(k === 'RANGE' ? 'Range joda' : 'Breakout joda', 'abhi koi nahi');
+    const w = h.filter(t => t.pl > 0).length, net = h.reduce((a, t) => a + t.pl, 0);
+    return row(k === 'RANGE' ? 'Range joda' : 'Breakout joda', `${h.length} band · ${w} jeet · ${money(net)}`, net >= 0 ? 'var(--up)' : 'var(--dn)') };
+
+  $('rsBody').innerHTML = `
+    <p class="ttl" style="margin:0 0 6px">1 · Live chart <span class="hint" style="font-size:10px">(TradingView · OANDA price — Exness se 0.5–2 pip farak ho sakta hai)</span></p>
+    <iframe src="https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(sp.tv)}&interval=${tfv}&theme=dark&style=1&timezone=Asia/Kolkata&hidesidetoolbar=1&hidetoptoolbar=0&withdateranges=0&saveimage=0&studies=STD%3BSupertrend&locale=en"
+      style="width:100%;height:300px;border:1px solid var(--line);border-radius:10px;display:block" loading="lazy"></iframe>
+
+    <p class="ttl" style="margin:16px 0 6px">2 · Setup chart (screenshot)</p>
+    <canvas id="rsChart" style="width:100%;height:280px;display:block;background:var(--bg);border:1px solid var(--line);border-radius:10px"></canvas>
+    <div class="grid2" style="margin:8px 0 0">
+      <button class="btn ghost sm" onclick="rsShot(false)">📸 Photo save / share</button>
+      <button class="btn ghost sm" onclick="rsShot(true)">Telegram pe bhejo</button>
+    </div>
+
+    <p class="ttl" style="margin:16px 0 6px">3 · Analysis</p>
+    <div style="border:1px solid ${R.ok ? '#38BDF8' : 'var(--gold)'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      <b style="color:${R.ok ? '#38BDF8' : 'var(--gold)'};letter-spacing:1px">${R.ok ? '✓ RANGE MARKET' : '✕ ABHI RANGE NAHI'}</b>
+      <p class="hint" style="margin:4px 0 0">${R.ok ? 'Price pichhli 24 candles se ek daayre me ghoom raha hai — kinaron se palatne (Limit) ya todne (Stop) ka setup.' : escH(R.why)}</p>
+    </div>
+    ${R.hi ? row('Range high / low', `${fmt(sym, R.hi)} / ${fmt(sym, R.lo)}`) +
+      row('Range chaudai', `${R.wPips.toFixed(1)} pips · ${R.wAtr.toFixed(1)} ATR`) +
+      row('ADX (trend ki taakat)', `${R.adx.toFixed(0)} ${R.adx < RS.adxMax ? '· kamzor (range)' : '· tagda (trend)'}`, R.adx < RS.adxMax ? 'var(--up)' : 'var(--dn)') +
+      row('RSI', (+R.rsi).toFixed(0)) +
+      row('Price range me kahan', `${Math.round(R.pos * 100)}% (0 = neeche, 100 = upar)`) +
+      row('News', R.news ? `${R.news.c} ${t12(R.news.d)}` : 'paas me koi high-impact nahi', R.news ? 'var(--dn)' : '') +
+      row('Timeframe', s.tf) : ''}
+
+    <p class="ttl" style="margin:16px 0 6px">4 · Result — dono taraf ke order</p>
+    ${card('LIMIT', 'RANGE JODA · LIMIT', 'Price range ke kinare tak aaye aur palte — neeche se BUY, upar se SELL.')}
+    ${card('STOP', 'BREAKOUT JODA · STOP', 'Price range tod ke nikle — upar toote to BUY, neeche toote to SELL.')}
+    <p class="hint" style="margin:0 0 12px">Jo order pehle bhara, doosra journal se apne aap cancel. 3 ghante me koi na bhare to dono hat jayenge. Ye sirf app ka journal hai — MT5 pe kuch nahi jaata.</p>
+
+    <p class="ttl" style="margin:6px 0 6px">Ab tak ka record</p>
+    ${recRow('RANGE')}${recRow('BREAKOUT')}`;
+  requestAnimationFrame(() => paintRangeChart(false));
+}
+function rsTab(t){ if(!rsState) return; rsState.tab = t; drawRangeSetup() }
+
+function paintRangeChart(withTitle){
+  const st = rsState; if(!st || !st.R.hi) return;
+  const cv = $('rsChart'); if(!cv) return;
+  const R = st.R, sym = st.s.sym, sp = SPECS[sym];
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 360, H = cv.clientHeight || 280;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.fillStyle = '#0d0b08'; x.fillRect(0, 0, W, H);
+  const b = R.raw.slice(-60), n = b.length, PR = 70, PT = withTitle ? 30 : 10, PB = 12, CW = W - PR, CH = H - PT - PB;
+  const legs = st.legs ? st.legs[st.tab] : [];
+  const lv = [R.hi, R.lo].concat(...legs.map(L => [L.e, L.sl, L.tp]));
+  let lo = Math.min(...b.map(k => k.l), ...lv), hi = Math.max(...b.map(k => k.h), ...lv);
+  const pad = (hi - lo) * .05; lo -= pad; hi += pad;
+  const Y = v => PT + (hi - v) / (hi - lo) * CH, bw = CW / n;
+  /* range box (pichhli 24 candles) */
+  const x0 = Math.max(0, (n - RS.bars - 1) * bw);
+  x.fillStyle = 'rgba(56,189,248,.07)'; x.fillRect(x0, Y(R.hi), CW - x0, Y(R.lo) - Y(R.hi));
+  /* fibonacci */
+  x.font = '600 9px ui-monospace, Menlo, monospace'; x.textAlign = 'left';
+  RS_FIB.forEach(([k, t]) => {
+    const y = Y(R.lo + k * R.w);
+    x.strokeStyle = k === 0 || k === 1 ? 'rgba(56,189,248,.8)' : 'rgba(212,175,55,.45)';
+    x.setLineDash(k === 0 || k === 1 ? [] : [4, 4]); x.lineWidth = 1;
+    x.beginPath(); x.moveTo(0, y); x.lineTo(CW, y); x.stroke(); x.setLineDash([]);
+    x.fillStyle = 'rgba(212,175,55,.85)'; x.fillText(t + '%', 3, y - 2);
+  });
+  /* candles */
+  b.forEach((k, i) => {
+    const cx = i * bw + bw / 2, g = k.c >= k.o;
+    x.strokeStyle = x.fillStyle = g ? 'rgba(0,255,150,.85)' : 'rgba(255,68,68,.85)';
+    x.beginPath(); x.moveTo(cx, Y(k.h)); x.lineTo(cx, Y(k.l)); x.stroke();
+    x.fillRect(cx - Math.max(1, bw * .28), Math.min(Y(k.o), Y(k.c)), Math.max(2, bw * .56), Math.max(1, Math.abs(Y(k.o) - Y(k.c))));
+  });
+  /* entry / SL / TP — dono order */
+  const labels = [];
+  legs.forEach(L => {
+    const c = L.dir === 'BUY' ? '#00FF96' : '#FF5A5F';
+    [[L.e, c, `${L.dir[0]} ${L.type === 'LIMIT' ? 'LIM' : 'STP'} ${fmt(sym, L.e)}`, []],
+     [L.sl, '#FF4444', `SL ${fmt(sym, L.sl)}`, [2, 3]], [L.tp, '#00FF96', `TP ${fmt(sym, L.tp)}`, [2, 3]]].forEach(([v, col, t, d]) => {
+      x.strokeStyle = col; x.setLineDash(d); x.lineWidth = d.length ? 1 : 1.6;
+      x.beginPath(); x.moveTo(CW * .45, Y(v)); x.lineTo(CW, Y(v)); x.stroke(); x.setLineDash([]);
+      labels.push({y:Y(v), c:col, t, dim:!L.ok});
+    });
+  });
+  const cur = last(R.raw).c;
+  x.strokeStyle = '#00CCFF'; x.setLineDash([3, 3]); x.beginPath(); x.moveTo(0, Y(cur)); x.lineTo(CW, Y(cur)); x.stroke(); x.setLineDash([]);
+  labels.push({y:Y(cur), c:'#00CCFF', t:fmt(sym, cur)});
+  labels.sort((a, c) => a.y - c.y);
+  for(let i = 1; i < labels.length; i++) if(labels[i].y - labels[i-1].y < 13) labels[i].y = labels[i-1].y + 13;
+  x.font = '700 9px ui-monospace, Menlo, monospace';
+  labels.forEach(l => {
+    const y = Math.max(PT + 6, Math.min(H - 4, l.y));
+    x.globalAlpha = l.dim ? .45 : 1; x.fillStyle = l.c; x.fillRect(CW + 2, y - 6, PR - 4, 12);
+    x.fillStyle = '#0d0d0d'; x.fillText(l.t.slice(0, 13), CW + 4, y + 3); x.globalAlpha = 1;
+  });
+  if(withTitle){
+    x.fillStyle = '#D4AF37'; x.font = '700 12px system-ui, sans-serif';
+    x.fillText(`SamuSignal · ${sp.n} · ${st.s.tf} · ${st.tab === 'LIMIT' ? 'Range joda (Limit)' : 'Breakout joda (Stop)'} · ${t12(Date.now())}`, 6, 18);
+  }
+}
+
+function rsCaption(){
+  const st = rsState, sym = st.s.sym, R = st.R, sp = SPECS[sym];
+  const L = st.legs ? st.legs[st.tab] : [];
+  return `⇅ <b>Range Setup — ${sp.n}</b> (${st.s.tf})\n` +
+    `Range ${fmt(sym, R.lo)} – ${fmt(sym, R.hi)} · ${R.wPips.toFixed(0)} pips · ADX ${R.adx.toFixed(0)}\n\n` +
+    L.map(l => `${l.dir} ${l.type} <code>${fmt(sym, l.e)}</code>  SL <code>${fmt(sym, l.sl)}</code> (−$${l.slD})  TP <code>${fmt(sym, l.tp)}</code> (+$${l.tpD})${l.ok ? '' : '  ✕ ' + l.why}`).join('\n') +
+    `\n\nJo pehle bhare, doosra cancel (OCO).`;
+}
+
+async function rsShot(toTg){
+  if(!rsState || !rsState.R.hi){ toast('Range nahi — chart nahi bana'); return }
+  paintRangeChart(true);
+  const cv = $('rsChart');
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  paintRangeChart(false);
+  if(!blob){ toast('Photo nahi ban saki'); return }
+  const name = `samusignal_range_${SPECS[rsState.s.sym].n}_${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.png`;
+  if(toTg){
+    if(!S.tgTok || !S.tgId){ toast('Telegram token aur chat ID daalo'); return }
+    const tok = String(S.tgTok).replace(/\s+/g, '').replace(/^bot(?=\d)/i, '');
+    const fd = new FormData();
+    fd.append('chat_id', String(S.tgId).trim()); fd.append('photo', blob, name);
+    fd.append('caption', rsCaption()); fd.append('parse_mode', 'HTML');
+    try{
+      const j = await (await fetch(`https://api.telegram.org/bot${tok}/sendPhoto`, {method:'POST', body:fd})).json();
+      toast(j.ok ? 'Telegram pe photo chali gayi' : 'Telegram error: ' + (j.description || 'fail'));
+    }catch(e){ toast('Telegram nahi gaya — ' + e.message) }
+    return;
+  }
+  try{
+    const f = new File([blob], name, {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f], title:name, text:strip(rsCaption())}); return }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = name;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 1500);
+    toast('Photo download ho rahi hai');
+  }catch(e){ if(e && e.name !== 'AbortError') toast('Photo save nahi hui: ' + e.message) }
+}
+
+function rsTake(type){
+  const st = rsState; if(!st || !st.R.ok || !st.legs) return;
+  const L = st.legs[type];
+  if(!L.every(x => x.ok)){ toast('Ye joda abhi sahi nahi'); return }
+  if(S.open.some(t => t.sym === st.s.sym)){ alert(`${st.s.sym} pe pehle se trade / pending khula hai — pehle use band karo.`); return }
+  const oco = 'O' + Date.now(), setup = type === 'LIMIT' ? 'RANGE' : 'BREAKOUT';
+  L.forEach((l, i) => addTrade({sym:st.s.sym, dir:l.dir, lots:st.lots, entry:l.e, sl:l.sl, tp:l.tp, slD:l.slD, tpD:l.tpD,
+    q:st.s.q, grade:st.s.grade, pend:type, oco, setup, ocoN:i}));
+  closeSheet('rsSheet');
+  toast(`${setup === 'RANGE' ? 'Range' : 'Breakout'} joda laga — jo pehle bhare, doosra cancel`);
+}
+
+/* ---- OCO: ek bhara to joda ka doosra pending hatao ---- */
+function pendFillMs(t, bars){
+  const pf = Math.max(Math.ceil(t.pendAt / BAR5) * BAR5, (t.chkAt || 0) - BAR5);
+  const fb = (bars || []).find(b => { const ms = barMs(b.t); return ms >= pf && ms < t.pendAt + PEND_MS && pendHit(t, b.h, b.l) });
+  return fb ? barMs(fb.t) : null;
+}
+function ocoCancel(t, win){
+  S.open = S.open.filter(x => x.id !== t.id);
+  logAdd(`OCO: ${win.dir} ${win.pend || ''} bhara — ${t.dir} ${t.pend} ${t.sym} @ ${fmt(t.sym, t.entry)} cancel`);
+  toast(`${SPECS[t.sym].n}: ${win.dir} bhara — ${t.dir} ${t.pend} cancel`);
+  if(S.tgAuto) tgSend(`⇅ <b>OCO — ${SPECS[t.sym].n}</b>\n\n${win.dir} bhara · ${t.dir} ${t.pend} @ <code>${fmt(t.sym, t.entry)}</code> cancel\n⏰ ${t12(Date.now())}`, true);
+}
+/* candles se dekho joda me pehle kaun bhara — baaki cancel (refreshOpen ke loop se pehle) */
+function ocoResolve(bars, q){
+  const G = {};
+  S.open.forEach(t => { if(t.oco && t.pend) (G[t.oco] = G[t.oco] || []).push(t) });
+  Object.values(G).forEach(g => {
+    if(g.length < 2) return;
+    let win = null, wms = Infinity;
+    g.forEach(t => {
+      let ms = pendFillMs(t, bars && bars[t.sym]);
+      const d = q && q[t.sym];
+      if(ms === null && d && d.p && Date.now() - t.pendAt <= PEND_MS && pendHit(t, d.p, d.p)) ms = Date.now();
+      if(ms !== null && ms < wms){ wms = ms; win = t }
+    });
+    if(win) g.filter(t => t !== win).forEach(t => ocoCancel(t, win));
+  });
+}
+/* bhara hua (ab pending nahi) ho to uske joda ka pending hatao */
+function ocoSweep(){
+  S.open.filter(t => t.oco && !t.pend).forEach(w => S.open.filter(x => x.oco === w.oco && x.pend).forEach(x => ocoCancel(x, w)));
 }
 
 /* ---------------- pending auto-cancel (v9.9.30) ----------------
@@ -6965,7 +7259,7 @@ function renderTrades(){
         ${t.pend ? `<span class="pl mono" style="color:var(--gold);font-size:12px">⏳ PENDING</span>`
                  : `<span class="pl mono glow ${pl>=0?'up':'dn'}">${money(pl)}</span>`}
       </div>
-      ${t.pend ? `<p class="hint" style="margin:6px 0 4px;color:var(--gold)">Price ${fmt(t.sym, t.entry)} ${(t.dir === 'BUY') === (t.pend === 'LIMIT') ? 'tak neeche' : 'tak upar'} aayega tab trade khulegi · abhi ${(Math.abs(cur - t.entry) / SPECS[t.sym].pip).toFixed(1)} pips door · ${Math.max(0, Math.ceil((t.pendAt + PEND_MS - Date.now()) / 60000))} min me auto-cancel</p>` : ''}
+      ${t.pend ? `<p class="hint" style="margin:6px 0 4px;color:var(--gold)">Price ${fmt(t.sym, t.entry)} ${(t.dir === 'BUY') === (t.pend === 'LIMIT') ? 'tak neeche' : 'tak upar'} aayega tab trade khulegi · abhi ${(Math.abs(cur - t.entry) / SPECS[t.sym].pip).toFixed(1)} pips door · ${Math.max(0, Math.ceil((t.pendAt + PEND_MS - Date.now()) / 60000))} min me auto-cancel${t.oco ? ` · ⇅ ${t.setup === 'BREAKOUT' ? 'Breakout' : 'Range'} joda — doosra bhara to ye cancel` : ''}</p>` : ''}
       <div class="bar"><i style="width:${prog*100}%;background:${pl>=0?'var(--up)':'var(--dn)'}"></i></div>
       ${barCache[t.sym] ? levelChartHTML('tc_'+t.id) : ''}
       <div class="tr-g mono">
@@ -7284,6 +7578,7 @@ async function refreshAll(){
           if(t.tp > 0 && d.p <= t.tp) hits.push([t.id,'TP']); else if(t.sl > 0 && d.p >= t.sl) hits.push([t.id, slReason(t)]);
         }
       });
+      ocoSweep();
       lastOpenSync = Date.now();
       save(); buildTicker(); renderTrades();       const bad = (q.__failed||[]).length;
       toast(bad ? `${all.length-bad} update, ${bad} fail` : `${all.length} pairs ka rate aa gaya`);
