@@ -1912,7 +1912,7 @@ body.ds-gold .brand .brandWord{height:24px}
   <button class="btn ghost sm" style="margin-bottom:10px" onclick="resetPairDef()">↺ Is pair ko default pe wapas</button>
   <div class="sw" id="swBe" onclick="toggleSw(this,'beOn')">
     <div class="tg"></div>
-    <div>Breakeven + Profit lock + Trailing<small>TP ka 30% → SL entry · 40% → SL +20% (kam se kam $0.75) · 60% ke baad trailing</small></div>
+    <div>Breakeven + Profit lock + Trailing<small>TP ka 50% → SL entry · 65% → SL +25% (kam se kam $0.75) · 75% ke baad trailing</small></div>
   </div>
   <p class="hint" style="margin:-2px 0 12px">Journal me SL apne aap khiskegi. App se 🚀 MT5 pe bheje order me FXBridgeEA (v3.54+) bhi yahi karega — jab ye switch ON ho. MT5 me haath se liya trade ho to SL wahan khud khiskana.</p>
 
@@ -2085,7 +2085,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.36';
+const VERSION = '9.9.37';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -4163,7 +4163,9 @@ function finalCall(s){
    RANGE  — ADX 20 se kam, faisla WAIT: range (24 candles) ke kinare se beech tak
    TP $1–$5, SL $2.5 se bada = trade nahi (0.01 lot ke hisaab se; lot ke saath badhta). */
 const AUTO = {slAtr:1.2, rrNormal:1.6, rrTrend:2.0, rrRangeMin:1.2, minTp:1.0, maxTp:5.0, maxSl:2.5,
-              maxTpAtr:3.0, trendAdx:25, rangeAdx:20, rangeBars:24};
+              maxTpAtr:3.0, trendAdx:25, rangeAdx:20, rangeBars:24,
+              /* v9.9.37 A+ (EA v1.07 jaisa) */
+              aplus:true, minSlPips:10, maxSlAtr:2.5, posMaxNormal:0.5, posMaxTrend:0.7, swingBars:10, rrMin:1.3};
 function autoPlan(s, fc, lots){
   const P = {mode:'NORMAL', t:'WAIT', dir:s.dir, off:0, sl:0, tp:0, adx:0, slUsd:0, tpUsd:0, why:'', via:false};
   const sym = s.sym, sp = SPECS[sym];
@@ -4193,11 +4195,49 @@ function autoPlan(s, fc, lots){
     P.tpUsd = P.tp * upp;
     return true;
   };
+  /* A+: jagah (range ka sahi hissa) + swing ke peeche SL + R:R */
+  const aplus = rr => {
+    const buy = P.dir === 'BUY', rangeTrade = P.mode === 'RANGE' && P.via;
+    let entry = s.live + (P.t === 'LIMIT' ? (buy ? -P.off : P.off) : P.t === 'STOP' ? (buy ? P.off : -P.off) : 0);
+    if(!rangeTrade){
+      const hi = hh(bars, AUTO.rangeBars), lo = ll(bars, AUTO.rangeBars), w = hi - lo;
+      const maxPos = P.mode === 'TREND' ? AUTO.posMaxTrend : AUTO.posMaxNormal;
+      if(w > 0){
+        const pos = buy ? (entry - lo) / w : (hi - entry) / w;
+        if(pos > maxPos){
+          if(P.t === 'STOP'){ P.why = 'A+: breakout range ke kinare pe — chase'; return false }
+          const target = buy ? lo + maxPos * w : hi - maxPos * w;
+          let off = buy ? s.live - target : target - s.live;
+          if(off > 1.5 * atr){ P.why = `A+: price range ke ${buy ? 'upar' : 'neeche'} wale hisse me — pullback ka intezaar`; return false }
+          if(off < 0.25 * atr) off = 0.25 * atr;
+          P.t = 'LIMIT'; P.off = off;
+          entry = buy ? s.live - off : s.live + off;
+        }
+      }
+    }
+    let sl;
+    if(rangeTrade) sl = P.sl;
+    else {
+      const sw = buy ? ll(bars, AUTO.swingBars) - 0.3 * atr : hh(bars, AUTO.swingBars) + 0.3 * atr;
+      sl = buy ? entry - sw : sw - entry;
+      if(sl > AUTO.maxSlAtr * atr) sl = AUTO.maxSlAtr * atr;
+      if(sl < AUTO.slAtr * atr) sl = AUTO.slAtr * atr;
+    }
+    if(sl < AUTO.minSlPips * sp.pip) sl = AUTO.minSlPips * sp.pip;
+    P.tp = rangeTrade ? P.tp : sl * rr; P.sl = sl;
+    if(!fit()) return false;
+    if(P.tp / P.sl < (rangeTrade ? AUTO.rrRangeMin : AUTO.rrMin)){ P.why = `R:R sirf 1:${(P.tp/P.sl).toFixed(2)}`; return false }
+    return true;
+  };
+  const size = rr => {
+    if(AUTO.aplus) return aplus(rr);
+    if(!(P.mode === 'RANGE' && P.via)){ P.sl = AUTO.slAtr * atr; P.tp = P.sl * rr }
+    return fit();
+  };
   const core = fc.go && fc.ord ? fc.ord.type : 'WAIT';
   if(core !== 'WAIT' && !(P.mode === 'TREND' && core === 'LIMIT')){
     P.t = core; P.off = fc.ord.off || 0;
-    P.sl = AUTO.slAtr * atr; P.tp = P.sl * (P.mode === 'TREND' ? AUTO.rrTrend : AUTO.rrNormal);
-    if(!fit()) P.t = 'WAIT';
+    if(!size(P.mode === 'TREND' ? AUTO.rrTrend : AUTO.rrNormal)) P.t = 'WAIT';
     return P;
   }
   if(newsRisk(sym)){ P.why = 'news paas'; return P }
@@ -4219,8 +4259,7 @@ function autoPlan(s, fc, lots){
       if(!slowOk || !candleOk){ P.why = 'pullback par confirm candle nahi'; return P }
       P.t = 'MARKET';
     }
-    P.sl = AUTO.slAtr * atr; P.tp = P.sl * AUTO.rrTrend;
-    if(!fit()) P.t = 'WAIT';
+    if(!size(AUTO.rrTrend)) P.t = 'WAIT';
     return P;
   }
 
@@ -4236,11 +4275,23 @@ function autoPlan(s, fc, lots){
     P.sl = d === 'BUY' ? live - slPx : slPx - live;
     P.tp = d === 'BUY' ? tpPx - live : live - tpPx;
     if(!(P.tp > 0) || P.tp / P.sl < AUTO.rrRangeMin){ P.t = 'WAIT'; P.why = 'range me R:R kam'; return P }
-    if(!fit()){ P.t = 'WAIT'; return P }
+    if(!size(0)){ P.t = 'WAIT'; return P }
     if(P.tp > (d === 'BUY' ? hi - live : live - lo)){ P.t = 'WAIT'; P.why = 'market shaant — target range ke bahar'; }
     return P;
   }
   P.why = fc.why || 'faisla WAIT';
+  return P;
+}
+/* v9.9.37: plan ke baad do aur niyam (EA v1.07 jaisa) — ek currency ek trade, aur
+   sirf London + New York (12:30–21:30 IST). Journal ke khule/pending trades dekhte hain. */
+function autoGate(P, sym){
+  if(P.t === 'WAIT') return P;
+  const cc = x => (SPECS[x] ? SPECS[x].n : x.replace('/', '')).match(/.{3}/g) || [];
+  const mine = cc(sym);
+  const hit = S.open.find(t => t.sym !== sym && cc(t.sym).some(x => mine.includes(x)));
+  if(hit) return Object.assign(P, {t:'WAIT', why:`ek currency ek trade — ${hit.sym} pehle se khula hai`});
+  const d = new Date(Date.now() + 5.5 * 3600000), m = d.getUTCHours() * 60 + d.getUTCMinutes();
+  if(m < 750 || m >= 1290) return Object.assign(P, {t:'WAIT', why:'London/NY ka waqt nahi (12:30–21:30 IST)'});
   return P;
 }
 function autoBadge(P){
@@ -6175,7 +6226,7 @@ function openQuick(target){
   qtState.offPx = qtState.sugg[qtState.ordType] || 0;
   qtState.sigDir = s.dir;
   /* AUTO mode (EA v1.05 jaisa) — journal aur MT5 dono me. Trade bole to sheet usi pe khule */
-  qtState.auto = autoPlan(s, fc, qtState.lots);
+  qtState.auto = autoGate(autoPlan(s, fc, qtState.lots), s.sym);
   if(qtState.auto.t !== 'WAIT') qtAutoApply();
   drawQuick(); openSheet('qtSheet');
 }
@@ -6572,13 +6623,13 @@ function riskDist(t){
   return d;
 }
 
-/* v9.9.35: breakeven + profit lock + trailing — SamuSignal EA v1.05 jaisa, trade ke TP ke % se:
-     TP ka 30% chale  → SL entry par (breakeven)
-     40% chale        → SL profit me: TP ka 20%, kam se kam $0.75 (0.01 lot) jahan TP itna bada ho
-     60% ke baad      → SL price se TP ka 40% peeche (trailing)
+/* breakeven + profit lock + trailing — SamuSignal EA jaisa, trade ke TP ke % se (v9.9.37):
+     TP ka 50% chale  → SL entry par (breakeven)
+     65% chale        → SL profit me: TP ka 25%, kam se kam $0.75 (0.01 lot) jahan TP itna bada ho
+     75% ke baad      → SL price se TP ka 40% peeche (trailing)
    TP na ho to purana tareeka: 1R pe breakeven. SL sirf aage khisakti hai.
-   App se MT5 pe bheje order me FXBridgeEA v3.54 bhi yahi karta hai. */
-const PLR = {be:0.30, lockAt:0.40, lock:0.20, minLock:0.75, trStart:0.60, trDist:0.40};
+   App se MT5 pe bheje order me FXBridgeEA (v3.56+) bhi yahi karta hai. */
+const PLR = {be:0.50, lockAt:0.65, lock:0.25, minLock:0.75, trStart:0.75, trDist:0.40};   /* v9.9.37: BE 50% (halchal me kat na jaye) */
 function slLadder(t, gain){
   const T = t.tp > 0 ? Math.abs(t.tp - t.entry) : 0;
   if(!T){ const r = riskDist(t); return (r && gain >= r * 0.9999) ? 0 : null }

@@ -26,6 +26,13 @@
 //|  v1.04: Profit lock - profit $2 pahunche to SL +$1 par (kam se kam |
 //|     $1 book). Trailing $ me: $3 ke baad SL price se $2 peeche.     |
 //|     (+$1 -> +$2 -> ... -> TP $5). Breakeven ab $1.5 pe.            |
+//|  v1.07: A+ setup -                                                |
+//|   * Jagah: BUY sirf 6 ghante ki range ke neeche wale hisse se,    |
+//|     SELL upar wale se (kinare pe ho to LIMIT pullback pe).        |
+//|   * SL pichhle swing ke peeche, kam se kam 10 pip. R:R >= 1.3.    |
+//|   * Ek currency pe ek hi trade (USDJPY + CHFJPY saath nahi).      |
+//|   * Sirf London + New York: 12:30 - 21:30 IST.                    |
+//|   * Breakeven 50%, lock 65% -> +25%, trailing 75% ke baad.        |
 //|  v1.06: Pin Bar agent band (live record 15%) - vote 49 agents pe. |
 //|  v1.05: market ke hisaab se 3 mode, sab auto:                     |
 //|   * NORMAL - app jaisa faisla. TREND - tagde trend me EMA9         |
@@ -40,7 +47,7 @@
 //|  khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.           |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.06"
+#property version   "1.07"
 #property description "SamuSignal app ka signal logic - 28 pairs, 5 group, auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
@@ -89,6 +96,15 @@ input bool   InpRangeMode     = true;    // RANGE mode (kinare se beech tak)
 input double InpRangeAdx      = 20;      // ADX isse kam = range
 input int    InpRangeBars     = 24;      // Range kitni candles ki (24 x 15m = 6 ghante)
 input double InpRrRangeMin    = 1.2;     // RANGE me kam se kam R:R
+input bool   InpAplus         = true;    // A+ setup: jagah + swing SL + R:R (v1.07)
+input double InpMinSlPips     = 10;      // A+: SL kam se kam itne pip
+input double InpMaxSlAtr      = 2.5;     // A+: swing SL zyada se zyada itne ATR
+input double InpPosMaxNormal  = 0.5;     // A+: BUY range ke neeche itne hisse tak (0.5 = aadha)
+input double InpPosMaxTrend   = 0.7;     // A+: TREND me thodi chhoot
+input int    InpSwingBars     = 10;      // A+: swing high/low kitni candles ka
+input double InpRrMin         = 1.3;     // A+: kam se kam R:R
+input bool   InpOneTradePerCcy = true;   // Ek currency pe ek hi trade (JPY, USD ...)
+input bool   InpLondonNy      = true;    // Sirf 12:30 - 21:30 IST (London + New York)
 input double InpMaxDayLossUsd = 5.0;     // Din (IST) ka loss itna ho to us din naya trade nahi (0 = off)
 
 input group "Time / News (IST)"
@@ -100,13 +116,13 @@ input bool   InpCancelOnNews  = true;    // News aane wali ho to bhara-nahi pend
 
 input group "Breakeven / Trailing"
 input bool   InpBreakEven     = true;    // Breakeven ON/OFF
-input double InpBePct         = 30;      // TP ka itna % chale to SL entry par
+input double InpBePct         = 50;      // TP ka itna % chale to SL entry par
 input bool   InpProfitLock    = true;    // Profit lock ON/OFF (kam se kam $ book)
-input double InpLockAtPct     = 40;      // TP ka itna % chale to...
-input double InpLockPct       = 20;      // ...SL TP ke itne % profit par
+input double InpLockAtPct     = 65;      // TP ka itna % chale to...
+input double InpLockPct       = 25;      // ...SL TP ke itne % profit par
 input double InpMinLockUsd    = 0.75;    // Lock kam se kam itne $ ka (jahan TP itna bada ho)
 input bool   InpTrailing      = true;    // Trailing ON/OFF
-input double InpTrailStartPct = 60;      // TP ka itna % ke baad trailing shuru
+input double InpTrailStartPct = 75;      // TP ka itna % ke baad trailing shuru
 input double InpTrailDistPct  = 40;      // SL price se TP ke itne % peeche chale
 
 input group "Other"
@@ -900,12 +916,15 @@ void SsEvaluate(const Bar &m15raw[], const Bar &h1raw[], const Bar &h4raw[], con
 #define SK_RR     5    // range me R:R kam
 #define SK_STRECH 6    // trend me price EMA se bahut door
 #define SK_NOCONF 7    // trend pullback par confirm candle nahi
+#define SK_LOC    8    // A+: entry range ke galat kinare pe (chase)
 
 struct SsModeCfg {
    bool   trendOn; bool rangeOn;
    double slAtr;  double rrTrend; double rrNormal; double rrRangeMin;
    double minTpUsd; double maxTpUsd; double maxSlUsd; double maxTpAtr;
    double trendAdx; double rangeAdx; int rangeBars;
+   bool   aplus; double minSlPips; double maxSlAtr; double posMaxNormal; double posMaxTrend;
+   int    swingBars; double rrMin;
 };
 
 struct SsPlan {
@@ -944,8 +963,72 @@ bool SsFitUsd(double atr, double usdPerPrice, const SsModeCfg &K, SsPlan &P)
    return true;
 }
 
+// v1.07 A+ : (1) jagah - BUY sirf range ke neeche wale hisse se, SELL upar wale se
+// (kinare pe ho to LIMIT pullback pe, door ho to trade nahi), (2) SL pichhle swing
+// ke peeche (kam se kam minSlPips), (3) TP = SL x rr, R:R kam se kam rrMin.
+bool SsAplus(const Bar &m15[], double live, double spread, double pip, double atr, double rr,
+             double usdPerPrice, const SsModeCfg &K, SsPlan &P)
+{
+   bool buy = (P.dir == SS_BUY);
+   bool rangeTrade = (P.mode == MD_RANGE && P.viaMode);
+   double sgnOff = 0;
+   if(P.decision == SS_LIMIT) sgnOff = buy ? -P.off : P.off;
+   if(P.decision == SS_STOP)  sgnOff = buy ? P.off : -P.off;
+   double entry = live + sgnOff;
+   if(!rangeTrade)
+   {
+      double hi = SsHH(m15, K.rangeBars), lo = SsLL(m15, K.rangeBars), w = hi - lo;
+      double maxPos = (P.mode == MD_TREND) ? K.posMaxTrend : K.posMaxNormal;
+      if(w > 0)
+      {
+         double pos = buy ? (entry - lo) / w : (hi - entry) / w;
+         if(pos > maxPos)
+         {
+            if(P.decision == SS_STOP) { P.skip = SK_LOC; return false; }
+            double target = buy ? lo + maxPos * w : hi - maxPos * w;
+            double off = buy ? live - target : target - live;
+            if(off > 1.5 * atr) { P.skip = SK_LOC; return false; }
+            if(off < 0.25 * atr) off = 0.25 * atr;
+            P.decision = SS_LIMIT; P.off = off;
+            entry = buy ? live - off : live + off;
+         }
+      }
+   }
+   double fill = (buy && P.decision == SS_MARKET) ? entry + spread : entry;   // BUY market ask pe
+   double sl, tp;
+   if(rangeTrade) sl = P.sl;                                     // range: kinare ke bahar (pehle se)
+   else
+   {
+      double sw = buy ? SsLL(m15, K.swingBars) - 0.3 * atr : SsHH(m15, K.swingBars) + 0.3 * atr + spread;
+      sl = buy ? fill - sw : sw - fill;
+      if(sl > K.maxSlAtr * atr) sl = K.maxSlAtr * atr;
+      if(sl < K.slAtr * atr) sl = K.slAtr * atr;
+   }
+   if(sl < K.minSlPips * pip) sl = K.minSlPips * pip;
+   if(sl < 3 * spread) sl = 3 * spread;
+   tp = rangeTrade ? P.tp : sl * rr;
+   P.sl = sl; P.tp = tp;
+   if(!SsFitUsd(atr, usdPerPrice, K, P)) return false;
+   if(P.tp / P.sl < (rangeTrade ? K.rrRangeMin : K.rrMin)) { P.skip = SK_RR; return false; }
+   return true;
+}
+
+// SL/TP lagao. false = trade nahi (P.skip me wajah)
+bool SsSize(const Bar &m15[], double live, double spread, double pip, double atr, double rr,
+            double usdPerPrice, const SsModeCfg &K, SsPlan &P)
+{
+   P.skip = SK_NONE;
+   if(K.aplus) return SsAplus(m15, live, spread, pip, atr, rr, usdPerPrice, K, P);
+   if(!(P.mode == MD_RANGE && P.viaMode))
+   {
+      P.sl = K.slAtr * atr; if(P.sl < 3 * spread) P.sl = 3 * spread;
+      P.tp = P.sl * rr;
+   }
+   return SsFitUsd(atr, usdPerPrice, K, P);
+}
+
 // m15 = sirf band candles. live = abhi ka bid. usdPerPrice = 1.0 price chalne pe kitne $ (is lot pe)
-void SsMakePlan(const Bar &m15[], double live, double spread, int h1Bias, int h4Bias,
+void SsMakePlan(const Bar &m15[], double live, double spread, double pip, int h1Bias, int h4Bias,
                 const SsResult &R, bool news, double usdPerPrice, const SsModeCfg &K, SsPlan &P)
 {
    P.mode = MD_NORMAL; P.decision = SS_WAIT; P.dir = R.dir; P.off = 0; P.sl = 0; P.tp = 0;
@@ -958,16 +1041,13 @@ void SsMakePlan(const Bar &m15[], double live, double spread, int h1Bias, int h4
    P.adx = adx;
    if(!K.trendOn && reg == MD_TREND) reg = MD_NORMAL;
    P.mode = reg;
-   double slMin = 3 * spread;
 
    if(R.decision != SS_WAIT && !(reg == MD_TREND && R.decision == SS_LIMIT))
    {
-      // core ne trade bola - wahi, bas SL/TP market ke hisaab se
+      // core ne trade bola - wahi, bas SL/TP (aur A+ me jagah) market ke hisaab se
       P.decision = R.decision; P.dir = R.dir; P.off = R.off;
-      P.sl = K.slAtr * atr; if(P.sl < slMin) P.sl = slMin;
-      P.tp = P.sl * ((reg == MD_TREND) ? K.rrTrend : K.rrNormal);
-      P.skip = SK_NONE;
-      if(!SsFitUsd(atr, usdPerPrice, K, P)) P.decision = SS_WAIT;
+      if(!SsSize(m15, live, spread, pip, atr, (reg == MD_TREND) ? K.rrTrend : K.rrNormal, usdPerPrice, K, P))
+         P.decision = SS_WAIT;
       return;
    }
    if(news) return;
@@ -1000,10 +1080,7 @@ void SsMakePlan(const Bar &m15[], double live, double spread, int h1Bias, int h4
          if(!aboveSlow || !candleOk) { P.skip = SK_NOCONF; return; }
          P.decision = SS_MARKET;
       }
-      P.sl = K.slAtr * atr; if(P.sl < slMin) P.sl = slMin;
-      P.tp = P.sl * K.rrTrend;
-      P.skip = SK_NONE;
-      if(!SsFitUsd(atr, usdPerPrice, K, P)) P.decision = SS_WAIT;
+      if(!SsSize(m15, live, spread, pip, atr, K.rrTrend, usdPerPrice, K, P)) P.decision = SS_WAIT;
       return;
    }
 
@@ -1023,10 +1100,9 @@ void SsMakePlan(const Bar &m15[], double live, double spread, int h1Bias, int h4
       P.dir = d; P.viaMode = true; P.decision = SS_MARKET;
       P.sl = (d == SS_BUY) ? entry - slPx : slPx - entry;
       P.tp = (d == SS_BUY) ? tpPx - entry : entry - tpPx;
-      if(P.sl < slMin) P.sl = slMin;
+      if(P.sl < 3 * spread) P.sl = 3 * spread;
       if(!(P.tp > 0) || P.tp / P.sl < K.rrRangeMin) { P.skip = SK_RR; P.decision = SS_WAIT; return; }
-      P.skip = SK_NONE;
-      if(!SsFitUsd(atr, usdPerPrice, K, P)) { P.decision = SS_WAIT; return; }
+      if(!SsSize(m15, live, spread, pip, atr, 0, usdPerPrice, K, P)) { P.decision = SS_WAIT; return; }
       double room = (d == SS_BUY) ? hi - entry : entry - lo;     // $min ke liye TP range ke bahar na jaye
       if(P.tp > room) { P.skip = SK_QUIET; P.decision = SS_WAIT; }
       return;
@@ -1129,7 +1205,10 @@ bool InTradeTime()
    MqlDateTime d;
    TimeToStruct(IstNow(), d);
    if(d.day_of_week == 0 || d.day_of_week == 6) return false;
-   return d.hour >= InpStartHourIST && d.hour < InpEndHourIST;
+   if(!(d.hour >= InpStartHourIST && d.hour < InpEndHourIST)) return false;
+   int m = d.hour * 60 + d.min;
+   if(InpLondonNy && (m < 12 * 60 + 30 || m >= 21 * 60 + 30)) return false;   // London + New York
+   return true;
 }
 
 string GvKey(string sym, string day) { return "SSEA." + IntegerToString(InpMagic) + "." + sym + "." + day; }
@@ -1163,6 +1242,32 @@ bool PairBusy(string sym)
       if(OrderGetInteger(ORDER_MAGIC) == InpMagic && OrderGetString(ORDER_SYMBOL) == sym) return true;
    }
    return false;
+}
+
+// v1.07: is pair ki koi currency (base/quote) apne kisi khule trade / pending / confirmation me hai?
+bool CcyIn(string a, string b) { return SymbolInfoString(a, SYMBOL_CURRENCY_BASE) == SymbolInfoString(b, SYMBOL_CURRENCY_BASE) ||
+                                        SymbolInfoString(a, SYMBOL_CURRENCY_BASE) == SymbolInfoString(b, SYMBOL_CURRENCY_PROFIT) ||
+                                        SymbolInfoString(a, SYMBOL_CURRENCY_PROFIT) == SymbolInfoString(b, SYMBOL_CURRENCY_BASE) ||
+                                        SymbolInfoString(a, SYMBOL_CURRENCY_PROFIT) == SymbolInfoString(b, SYMBOL_CURRENCY_PROFIT); }
+string CcyBusyWith(string sym)
+{
+   for(int g = 0; g < NGRP; g++)
+      if(g_wOn[g] && g_sym[g_wIdx[g]] != sym && CcyIn(sym, g_sym[g_wIdx[g]])) return g_sym[g_wIdx[g]];
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      string s = PositionGetString(POSITION_SYMBOL);
+      if(CcyIn(sym, s)) return s;
+   }
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong t = OrderGetTicket(i);
+      if(t == 0 || OrderGetInteger(ORDER_MAGIC) != InpMagic) continue;
+      string s = OrderGetString(ORDER_SYMBOL);
+      if(CcyIn(sym, s)) return s;
+   }
+   return "";
 }
 
 // Group me apna khula trade / pending / confirmation chal raha hai? kaun sa?
@@ -1284,6 +1389,7 @@ string SkipText(int k)
    if(k == SK_STRECH) return "trend me price EMA se bahut door";
    if(k == SK_NOCONF) return "pullback par confirm candle nahi";
    if(k == SK_DATA)   return "data kam";
+   if(k == SK_LOC)    return "A+: entry range ke galat kinare pe (chase)";
    return "";
 }
 
@@ -1317,6 +1423,8 @@ void ModeCfg(SsModeCfg &K)
    K.slAtr = InpSlAtr; K.rrTrend = InpRrTrend; K.rrNormal = InpRrNormal; K.rrRangeMin = InpRrRangeMin;
    K.minTpUsd = InpMinTpUsd; K.maxTpUsd = InpMaxTpUsd; K.maxSlUsd = InpMaxSlUsd; K.maxTpAtr = InpMaxTpAtr;
    K.trendAdx = InpTrendAdx; K.rangeAdx = InpRangeAdx; K.rangeBars = InpRangeBars;
+   K.aplus = InpAplus; K.minSlPips = InpMinSlPips; K.maxSlAtr = InpMaxSlAtr;
+   K.posMaxNormal = InpPosMaxNormal; K.posMaxTrend = InpPosMaxTrend; K.swingBars = InpSwingBars; K.rrMin = InpRrMin;
 }
 
 string WhyText(int w)
@@ -1365,6 +1473,11 @@ string PreCheck(int i, int decision, bool &retry)
    if(!InTradeTime()) return "waqt ke bahar (IST)";
    if(PairBusy(sym)) return "pair pe trade/order khula";
    if(DayCount(sym) >= InpMaxPerPairDay) return "aaj is pair ki seema puri";
+   if(InpOneTradePerCcy)
+   {
+      string cb = CcyBusyWith(sym);
+      if(cb != "") return "currency pehle se " + cb + " me";
+   }
    if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) || !MQLInfoInteger(MQL_TRADE_ALLOWED)) return "MT5 me Algo Trading OFF";
    if(InpMaxDayLossUsd > 0 && TodayPl() <= -InpMaxDayLossUsd)
       return StringFormat("aaj ka loss seema puri ($%.2f)", TodayPl());
@@ -1466,7 +1579,7 @@ void EvaluateSymbol(int i)
       SsDropLast(m15, m15c); SsDropLast(h1, h1c); SsDropLast(h4, h4c);
       SsModeCfg K;
       ModeCfg(K);
-      SsMakePlan(m15c, bid, ask - bid, SsTfBiasDir(h1c), SsTfBiasDir(h4c), R, news, usdPerPrice, K, P);
+      SsMakePlan(m15c, bid, ask - bid, pip, SsTfBiasDir(h1c), SsTfBiasDir(h4c), R, news, usdPerPrice, K, P);
    }
    else
    {
@@ -1721,15 +1834,16 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.06 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
+   string s = StringFormat("SamuSignal EA v1.07 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)", IstHM());
    s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s lock %s trail %s | khule %d pending %d\n",
                      InpModeMarket ? "ON" : "OFF", InpModeLimit ? "ON" : "OFF", InpModeStop ? "ON" : "OFF",
                      InpMicroConfirm ? "ON" : "OFF", InpSpreadFilter ? "ON" : "OFF", InpAvoidNews ? "ON" : "OFF",
                      InpBreakEven ? "ON" : "OFF", InpProfitLock ? "ON" : "OFF", InpTrailing ? "ON" : "OFF", pos, pend);
-   s += StringFormat("SL/TP %s (TP $%.2f-$%.0f) | TREND %s RANGE %s | aaj P/L $%.2f%s\n",
-                     InpAutoSlTp ? "AUTO" : "FIX", InpMinTpUsd, InpMaxTpUsd, InpTrendMode ? "ON" : "OFF", InpRangeMode ? "ON" : "OFF",
+   s += StringFormat("SL/TP %s%s (TP $%.2f-$%.0f) | TREND %s RANGE %s | 1/ccy %s | %s | aaj P/L $%.2f%s\n",
+                     InpAutoSlTp ? "AUTO" : "FIX", InpAplus ? " A+" : "", InpMinTpUsd, InpMaxTpUsd, InpTrendMode ? "ON" : "OFF", InpRangeMode ? "ON" : "OFF",
+                     InpOneTradePerCcy ? "ON" : "OFF", InpLondonNy ? "12:30-21:30" : "poora din",
                      TodayPl(), (InpMaxDayLossUsd > 0 && TodayPl() <= -InpMaxDayLossUsd) ? " (seema puri - aaj band)" : "");
    for(int g = 0; g < NGRP; g++) s += g_grpName[g] + ": " + g_grpLine[g] + "   ";
    s += "\n";
@@ -1785,7 +1899,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.06 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.07 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " | confirm ", InpMicroConfirm ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(1);
