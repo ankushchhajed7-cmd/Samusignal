@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.41 — Buyer/Seller pressure wapas Signals page pe
    v9.9.40 — Chart page: screenshot AI → S/R, pivot, Fibonacci levels → Final result (tier A/B/Watch/Range)
    v9.9.39 — Naya "Chart Analysis" page (header button): live chart, Range Setup, technical/EMA/screenshot analysis
    v9.9.38 — ⇅ Range Setup: live chart, setup photo, analysis, Limit/Stop joda (OCO) journal me
@@ -45,7 +46,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.40';
+const VERSION = '9.9.41';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

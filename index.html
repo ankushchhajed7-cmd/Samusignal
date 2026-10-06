@@ -1404,6 +1404,13 @@ body.ds-gold .brand .brandWord{height:24px}
     </div>
   </div>
 
+  <div class="card">
+    <div class="pressure-box" style="margin-top:0" id="pressureBox">
+      <div class="pressure-head"><span>BUYER / SELLER PRESSURE</span><small>approx. candle estimate</small></div>
+      <p class="hint">Chart select karne ke baad yahan latest candles ka pressure dikhega.</p>
+    </div>
+  </div>
+
 </section>
 
 
@@ -1425,10 +1432,6 @@ body.ds-gold .brand .brandWord{height:24px}
     <p class="ttl">1 · Live Chart <span class="sp" id="chartSym">—</span></p>
     <div class="chips" id="chartTf" style="margin-bottom:10px"></div>
     <div class="tvbox" id="tvBox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
-    <div class="pressure-box" id="pressureBox">
-      <div class="pressure-head"><span>BUYER / SELLER PRESSURE</span><small>approx. candle estimate</small></div>
-      <p class="hint">Chart select karne ke baad yahan latest candles ka pressure dikhega.</p>
-    </div>
     <button class="btn ghost sm" style="margin-top:10px" onclick="chartBig()">⛶ Full Screen</button>
     <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
     <p class="hint" style="margin:8px 0 0">Chart ko do ungli se zoom karo, khiska ke set karo, phir phone ka screenshot lo aur neeche upload karo.</p>
@@ -2124,7 +2127,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.40';
+const VERSION = '9.9.41';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
