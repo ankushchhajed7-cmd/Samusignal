@@ -1404,6 +1404,13 @@ body.ds-gold .brand .brandWord{height:24px}
     </div>
   </div>
 
+  <div class="card">
+    <div class="pressure-box" style="margin-top:0" id="pressureBox">
+      <div class="pressure-head"><span>BUYER / SELLER PRESSURE</span><small>approx. candle estimate</small></div>
+      <p class="hint">Chart select karne ke baad yahan latest candles ka pressure dikhega.</p>
+    </div>
+  </div>
+
 </section>
 
 
@@ -1419,22 +1426,47 @@ body.ds-gold .brand .brandWord{height:24px}
       <button class="pick" id="cpPair" onclick="openPick('main')"></button>
       <button class="btn gold sm" onclick="cpAnalyze()">⟳ Analyze</button>
     </div>
-    <p class="hint" style="margin:8px 0 0">Live chart → setup photo → analysis → result. Pair badlo to Analyze dabao (Signals page jaisa hi hisaab).</p>
+    <p class="hint" style="margin:8px 0 0">1 Live chart → 2 Screenshot AI → 3 Levels → 4 Final result → 5 Range setup. Pair badlo to Analyze dabao.</p>
   </div>
   <div class="card">
     <p class="ttl">1 · Live Chart <span class="sp" id="chartSym">—</span></p>
     <div class="chips" id="chartTf" style="margin-bottom:10px"></div>
     <div class="tvbox" id="tvBox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
-    <div class="pressure-box" id="pressureBox">
-      <div class="pressure-head"><span>BUYER / SELLER PRESSURE</span><small>approx. candle estimate</small></div>
-      <p class="hint">Chart select karne ke baad yahan latest candles ka pressure dikhega.</p>
-    </div>
     <button class="btn ghost sm" style="margin-top:10px" onclick="chartBig()">⛶ Full Screen</button>
     <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
+    <p class="hint" style="margin:8px 0 0">Chart ko do ungli se zoom karo, khiska ke set karo, phir phone ka screenshot lo aur neeche upload karo.</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">2 · Screenshot → AI Analysis <span class="sp" id="shotState">screenshot upload karo</span></p>
+
+    <label>Trading style</label>
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip" id="mdScalp" onclick="setStyle('SCALP')">Scalping</button>
+      <button class="chip" id="mdDay"   onclick="setStyle('DAY')">Day</button>
+      <button class="chip" id="mdSwing" onclick="setStyle('SWING')">Swing</button>
+    </div>
+    <p class="hint" id="styleNote" style="margin:-4px 0 12px">—</p>
+
+    <button class="btn gold" onclick="shotIn.click()">🖼 CHART SCREENSHOT UPLOAD KARO</button>
+    <input type="file" id="shotIn" accept="image/*" class="hide">
+    <p class="hint" style="margin:8px 0 0">Upar chart ko zoom/scroll karke set karo → phone se screenshot lo (Power + Volume-neeche) → screenshot ke preview me <b>Share → SamuSignal</b> dabao — app khud yahan photo dikha ke analysis shuru kar degi (gallery ki zaroorat nahi). Ya neeche wale button se upload. Price axis aur pair ka naam dikhna zaroori hai. Upload ke baad usi pair ka live hisaab apne aap chalega.</p>
+
+    <div id="shotBox" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="lvCard">
+    <p class="ttl">3 · Levels — Support / Resistance / Pivot / Fibonacci</p>
+    <div id="lvBox"><p class="hint">Pehle Analyze karo.</p></div>
+  </div>
+
+  <div class="card" id="finCard">
+    <p class="ttl">4 · Final Result</p>
+    <div id="finBox"><p class="hint">Pehle Analyze karo.</p></div>
   </div>
 
   <div class="card" id="rsCard">
-    <p class="ttl">⇅ Range Setup <span class="sp" id="rsT">—</span></p>
+    <p class="ttl">5 · ⇅ Range Setup <span class="sp" id="rsT">—</span></p>
     <div id="rsBody"><p class="hint">Pehle Analyze karo.</p></div>
   </div>
 
@@ -1451,23 +1483,6 @@ body.ds-gold .brand .brandWord{height:24px}
     <button class="btn ghost sm" id="emaRefBtn" style="margin-top:10px" onclick="loadEma(true)">⟳ EMA REFRESH · 1 credit</button>
   </div>
 
-  <div class="card">
-    <p class="ttl">Screenshot se AI Analysis <span class="sp" id="shotState">screenshot upload karo</span></p>
-
-    <label>Trading style</label>
-    <div class="chips" style="margin-bottom:12px">
-      <button class="chip" id="mdScalp" onclick="setStyle('SCALP')">Scalping</button>
-      <button class="chip" id="mdDay"   onclick="setStyle('DAY')">Day</button>
-      <button class="chip" id="mdSwing" onclick="setStyle('SWING')">Swing</button>
-    </div>
-    <p class="hint" id="styleNote" style="margin:-4px 0 12px">—</p>
-
-    <button class="btn gold" onclick="shotIn.click()">🖼 CHART SCREENSHOT UPLOAD KARO</button>
-    <input type="file" id="shotIn" accept="image/*" class="hide">
-    <p class="hint" style="margin:8px 0 0">Gallery se saaf chart screenshot chuno. Price axis aur pair ka naam dikhna zaroori hai.</p>
-
-    <div id="shotBox" style="margin-top:12px"></div>
-  </div>
 
 </section>
 
@@ -2112,7 +2127,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.39';
+const VERSION = '9.9.42';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -3791,6 +3806,7 @@ async function runAnalyze(){
     let barsBase = null, rawBase = null, baseTf = null, done = 0;
     for(const tf of wanted){
       const rawBars = await getSeries(sym, tf, 120, note);
+      (HTFC[sym] = HTFC[sym] || {})[tf] = rawBars;      /* Chart page: S/R + pivot */
       const bars = completedBars(rawBars, tf);
       if(tf === S.tf || wanted[0] === tf){
         if(!barsBase) baseTf = tf;
@@ -6942,6 +6958,138 @@ function rsLeg(R, dir, type, lots){
     slPips:+(Math.abs(e - sl) / sp.pip).toFixed(1), tpPips:+(Math.abs(tp - e) / sp.pip).toFixed(1), ok:!why, why};
 }
 
+/* ================= CHART PAGE: LEVELS + FINAL RESULT (v9.9.40) =================
+   Flow: live chart set karo → phone se screenshot → upload (AI padhta hai) →
+   app usi pair ka live data se hisaab (S/R, pivot, Fibonacci, A+ plan) → final.
+   Numbers hamesha live candles se — AI ke padhe numbers sirf tulna ke liye. */
+const HTFC = {};                       /* runAnalyze ki 1H / 1D candles (koi extra credit nahi) */
+
+/* fractal swing (dono taraf 2 candle) se S/R — paas-paas wale ek saath (0.3 ATR) */
+function srLevels(bars, live, atrV){
+  if(!bars || bars.length < 10 || !(atrV > 0)) return {sup:[], res:[]};
+  const pts = [];
+  for(let i = 2; i < bars.length - 2; i++){
+    const b = bars[i];
+    if(b.h > bars[i-1].h && b.h > bars[i-2].h && b.h >= bars[i+1].h && b.h >= bars[i+2].h) pts.push(b.h);
+    if(b.l < bars[i-1].l && b.l < bars[i-2].l && b.l <= bars[i+1].l && b.l <= bars[i+2].l) pts.push(b.l);
+  }
+  pts.sort((a, c) => a - c);
+  const cl = [];
+  pts.forEach(v => { const c = cl[cl.length - 1]; if(c && v - c.v <= 0.3 * atrV){ c.v = (c.v * c.n + v) / (c.n + 1); c.n++ } else cl.push({v, n:1}) });
+  return {
+    sup: cl.filter(c => c.v < live).sort((a, c) => c.v - a.v).slice(0, 3),
+    res: cl.filter(c => c.v > live).sort((a, c) => a.v - c.v).slice(0, 3)
+  };
+}
+/* classic daily pivot — kal ki poori din ki candle se */
+function pivotLevels(d1){
+  if(!d1 || d1.length < 2) return null;
+  const y = d1[d1.length - 2], H = y.h, L = y.l, C = y.c, P = (H + L + C) / 3;
+  return {P, R1:2*P - L, S1:2*P - H, R2:P + (H - L), S2:P - (H - L), R3:H + 2*(P - L), S3:L - 2*(H - P), day:y.t};
+}
+function cpLevels(){
+  const s = lastSignal; if(!s || s.sym !== S.pair) return null;
+  const h = HTFC[s.sym] || {};
+  const h1 = h['1h'] ? completedBars(h['1h'], '1h') : null;
+  const base = barCache[s.sym] ? completedBars(barCache[s.sym], s.tf) : null;
+  const src = h1 && h1.length >= 30 ? h1 : base;
+  const atrSrc = src ? last(atr(src, 14)) : 0;
+  return {sr: srLevels(src, s.live, atrSrc), srTf: src === h1 ? '1H' : s.tf, piv: pivotLevels(h['1day']), live:s.live};
+}
+
+function renderLevels(){
+  const box = $('lvBox'); if(!box) return;
+  const L = cpLevels(), s = lastSignal;
+  if(!L){ box.innerHTML = '<p class="hint">Pair Analyze karo — phir live candles se support / resistance / pivot yahan aayenge.</p>'; return }
+  const sym = s.sym, sp = SPECS[sym], pp = v => ((v - L.live) / sp.pip).toFixed(0);
+  const line = (k, v, c, n) => `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line);font-size:12px">
+    <span style="color:${c}">${k}${n ? ` <small style="color:var(--mut)">(${n} baar)</small>` : ''}</span>
+    <b class="mono">${fmt(sym, v)} <small style="color:var(--mut);font-weight:600">${pp(v) > 0 ? '+' : ''}${pp(v)}p</small></b></div>`;
+  const R = rangeInfo(s);
+  box.innerHTML = `
+    <p class="hint" style="margin:0 0 6px">Live price <b class="mono">${fmt(sym, L.live)}</b> · S/R ${L.srTf} swing se · pivot kal ki daily candle se</p>
+    <b style="color:var(--dn);font-size:11px;letter-spacing:1.2px">RESISTANCE</b>
+    ${L.sr.res.length ? L.sr.res.slice().reverse().map((c, i) => line('R' + (L.sr.res.length - i), c.v, 'var(--dn)', c.n)).join('') : '<p class="hint">upar koi saaf swing nahi</p>'}
+    <b style="color:var(--up);font-size:11px;letter-spacing:1.2px;display:block;margin-top:8px">SUPPORT</b>
+    ${L.sr.sup.length ? L.sr.sup.map((c, i) => line('S' + (i + 1), c.v, 'var(--up)', c.n)).join('') : '<p class="hint">neeche koi saaf swing nahi</p>'}
+    ${L.piv ? `<b style="color:var(--gold);font-size:11px;letter-spacing:1.2px;display:block;margin-top:8px">PIVOT POINTS (daily)</b>
+      ${['R3','R2','R1','P','S1','S2','S3'].map(k => line(k === 'P' ? 'Pivot' : k, L.piv[k], k[0] === 'R' ? 'var(--dn)' : k[0] === 'S' ? 'var(--up)' : 'var(--gold)')).join('')}`
+      : '<p class="hint" style="margin-top:8px">Pivot ke liye 1D data nahi — HTF filter ON karke Analyze karo.</p>'}
+    ${R.hi ? `<b style="color:#38BDF8;font-size:11px;letter-spacing:1.2px;display:block;margin-top:8px">FIBONACCI (pichhli 24 candle ki range)</b>
+      ${RS_FIB.slice().reverse().map(([k, t]) => line(t + '%', R.lo + k * R.w, '#38BDF8')).join('')}` : ''}`;
+}
+
+/* entry/SL/TP kis level ke paas — 0.25 ATR ke andar */
+function cpNear(v, L, atrV){
+  const all = [];
+  L.sr.res.forEach((c, i) => all.push(['Resistance R' + (i + 1), c.v]));
+  L.sr.sup.forEach((c, i) => all.push(['Support S' + (i + 1), c.v]));
+  if(L.piv) ['R3','R2','R1','P','S1','S2','S3'].forEach(k => all.push([k === 'P' ? 'Pivot' : 'Pivot ' + k, L.piv[k]]));
+  const hit = all.filter(([, x]) => Math.abs(x - v) <= 0.25 * atrV).map(([n]) => n);
+  return hit.length ? hit.join(', ') : '';
+}
+
+function renderFinal(){
+  const box = $('finBox'); if(!box) return;
+  const s = lastSignal;
+  if(!s || s.sym !== S.pair){ box.innerHTML = '<p class="hint">Analyze ke baad yahan aakhri faisla aayega — app ka hisaab + screenshot ka AI + levels, teeno mila ke.</p>'; return }
+  const sym = s.sym, sp = SPECS[sym], lots = +$('inLots').value || S.dLot;
+  const fc = finalCall(s), P = autoGate(autoPlan(s, fc, lots), sym), R = rangeInfo(s), L = cpLevels();
+  const shot = S.shot && S.shot.sym === sym && Date.now() - S.shot.at < 3 * 3600000 ? S.shot : null;
+  const ai = shot ? shot.signal : null;
+  const appDir = P.t !== 'WAIT' ? P.dir : null;
+  let tier, col, head, why;
+  if(appDir && ai === appDir){ tier = 'A'; col = 'var(--up)'; head = `✅ ${P.dir} — ${P.t === 'MARKET' ? 'TRADE LO' : P.t + ' LAGAO'}`; why = 'App ka A+ hisaab aur screenshot ka AI dono ek hi taraf.' }
+  else if(appDir && ai && ai !== 'NO TRADE' && ai !== 'UNREADABLE' && ai !== appDir){ tier = 'X'; col = 'var(--dn)'; head = '⏸ WAIT — dono alag bol rahe'; why = `App ${appDir} bol raha, screenshot ka AI ${ai}. Jab tak dono ek na hon, trade mat lo.` }
+  else if(appDir){ tier = 'B'; col = 'var(--gold)'; head = `☑ ${P.dir} — ${P.t === 'MARKET' ? 'TRADE' : P.t} (sirf app)`; why = shot ? `Screenshot ka AI "${ai}" bol raha — sirf app ka hisaab, thoda sambhal ke.` : 'Screenshot abhi upload nahi kiya — sirf app ke live hisaab se.' }
+  else if(R.ok){ tier = 'R'; col = '#38BDF8'; head = '⇅ RANGE — dono taraf ka setup'; why = 'Market range me hai — neeche Range Setup ke jode dekho.' }
+  else if(ai === 'BUY' || ai === 'SELL'){ tier = 'W'; col = 'var(--gold)'; head = `👁 WATCH — AI ko ${ai} dikha`; why = `Par app ke niyam poore nahi: ${P.why || fc.why}. Isliye trade nahi, sirf nazar rakho.` }
+  else { tier = 'N'; col = 'var(--gold)'; head = '⏸ WAIT'; why = P.why || fc.why || 'abhi koi saaf setup nahi' }
+
+  let lv = '';
+  if(appDir){
+    const buy = P.dir === 'BUY', e = s.live + (P.t === 'LIMIT' ? (buy ? -P.off : P.off) : P.t === 'STOP' ? (buy ? P.off : -P.off) : 0);
+    const sl = buy ? e - P.sl : e + P.sl, tp = buy ? e + P.tp : e - P.tp;
+    const near = v => L ? cpNear(v, L, s.atr) : '';
+    const row = (k, v, c, extra) => `<div class="lvl ${k === 'STOP LOSS' ? 'sl' : k === 'TAKE PROFIT' ? 'tp' : ''}"><span>${k}</span><b class="mono">${fmt(sym, v)}</b>
+      <small style="display:block;font-size:9.5px;color:${c};font-weight:700">${extra}</small>${near(v) ? `<small style="display:block;font-size:9px;color:var(--gold)">≈ ${near(v)}</small>` : ''}</div>`;
+    lv = `<div class="lvls" style="margin:10px 0 6px">
+      ${row('ENTRY', e, 'var(--mut)', P.t)}
+      ${row('STOP LOSS', sl, 'var(--dn)', `−$${P.slUsd.toFixed(2)} · ${(P.sl / sp.pip).toFixed(0)}p`)}
+      ${row('TAKE PROFIT', tp, 'var(--up)', `+$${P.tpUsd.toFixed(2)} · ${(P.tp / sp.pip).toFixed(0)}p`)}</div>
+      <p class="hint" style="margin:0 0 8px">Mode ${P.mode} · R:R 1:${(P.tp / P.sl).toFixed(2)} · levels live candles se (A+ niyam)</p>`;
+  }
+  const aiBox = shot ? `<div style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin:8px 0;font-size:12px">
+      <b style="letter-spacing:1px">📷 Screenshot AI:</b> ${escH(shot.signal)} · ${shot.confidence}% · ${escH(shot.timeframe || '')}
+      ${(shot.signal === 'BUY' || shot.signal === 'SELL') ? `<br><span class="mono" style="color:var(--mut)">AI levels: E ${fmt(sym, +shot.entry)} · SL ${fmt(sym, +shot.stop_loss)} · TP ${fmt(sym, +shot.take_profit_1)}</span>` : ''}</div>`
+    : `<p class="hint" style="margin:8px 0">📷 Screenshot upload nahi hua — upar chart set karke phone ka screenshot lo aur "Screenshot upload" dabao.</p>`;
+  box.innerHTML = `
+    <div style="border:1px solid ${col};border-radius:11px;padding:11px 13px;background:rgba(255,255,255,.02)">
+      <div style="display:flex;align-items:center;gap:8px"><b style="color:${col};font-size:15px;letter-spacing:.5px">${head}</b>
+        <span class="gr" style="margin-left:auto">${{A:'TIER A', B:'TIER B', W:'WATCH', R:'RANGE', X:'WAIT', N:'WAIT'}[tier]}</span></div>
+      <p class="hint" style="margin:5px 0 0">${escH(why)}</p>
+    </div>
+    ${lv}${aiBox}
+    <p class="hint" style="margin:0 0 8px">App faisla: <b>${fc.t}</b> · Auto mode: <b>${P.mode} ${P.t}</b>${P.t === 'WAIT' && P.why ? ' — ' + escH(P.why) : ''}</p>
+    ${tier === 'A' || tier === 'B' ? `<div class="grid2">
+        <button class="btn ${P.dir === 'SELL' ? 'r' : 'g'} sm" onclick="openQuick('APP')">✓ Maine Ye Trade Liya</button>
+        <button class="btn gold sm" onclick="openQuick('MT5')">🚀 MT5 pe Bhejo</button></div>`
+      : tier === 'R' ? `<button class="btn ghost sm" style="width:100%;border-color:#38BDF8;color:#38BDF8" onclick="$('rsCard').scrollIntoView({behavior:'smooth'})">⇅ Range Setup dekho</button>` : ''}
+    <p class="hint" style="margin:10px 0 0">Watch ka matlab trade nahi — app khud kabhi watch ko market order nahi banati.</p>`;
+}
+
+/* screenshot aaya: uske pair ka live hisaab chalao (pair alag ho to badlo) */
+async function cpAfterShot(){
+  const d = S.shot;
+  if(!d || !d.sym || $('pgChart').classList.contains('hide')) return;
+  if(d.sym !== S.pair){
+    S.pair = d.sym; save(); pickLabel($('selPair'), d.sym); setChart(d.sym); lastSignal = null;
+    toast(`Screenshot ${SPECS[d.sym].n} ka hai — usi ka live hisaab chala raha hoon`);
+  }
+  if(!lastSignal || lastSignal.sym !== S.pair || Date.now() - lastSignal.at > 10 * 60000) await cpAnalyze();
+  else chartPageShow();
+}
+
 /* ---- Chart Analysis page ---- */
 function openChartPage(){ go('Chart'); }
 function chartPageShow(){
@@ -6951,7 +7099,7 @@ function chartPageShow(){
   requestAnimationFrame(() => {
     try{ loadEma(false) }catch(e){}
     try{ renderShot() }catch(e){}
-    rsRefresh();
+    rsRefresh(); renderLevels(); renderFinal();
   });
 }
 async function cpAnalyze(){ await runAnalyze(); if(!$('pgChart').classList.contains('hide')) chartPageShow(); }
@@ -8802,22 +8950,29 @@ Rules:
 }
 
 const shotIn = $('shotIn');
-if(shotIn) shotIn.addEventListener('change', async e => {
+let shotPrev = null;                       /* abhi wali photo ka preview (sirf is session me) */
+if(shotIn) shotIn.addEventListener('change', e => {
   const f = e.target.files[0];
   e.target.value = '';
+  if(f) shotAnalyze(f);
+});
+async function shotAnalyze(f){
   if(!f) return;
   if(!S.gKey){ toast('Settings me Gemini API key daalo'); openSheet('setSheet'); return }
   if(f.size > 12 * 1024 * 1024){ toast('Image bahut badi hai \u2014 12 MB se chhoti chuno'); return }
 
   const box = $('shotBox');
+  if(shotPrev) URL.revokeObjectURL(shotPrev.url);
+  shotPrev = {url: URL.createObjectURL(f), at: Date.now()};
+  const pv = () => `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">`;
   $('shotState').textContent = 'chart padh raha hoon\u2026';
-  box.innerHTML = '<p class="hint"><span class="spin"></span> Image taiyaar ho rahi hai\u2026</p>';
+  box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Image taiyaar ho rahi hai\u2026</p>';
 
   try{
     const img = await shrinkImage(f, 1280);
-    box.innerHTML = '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai\u2026</p>';
+    box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai\u2026</p>';
     const d = await gVision(shotPrompt(), img.b64, (m, wait) => {
-      box.innerHTML = `<p class="hint"><span class="spin"></span> ` +
+      box.innerHTML = pv() + `<p class="hint"><span class="spin"></span> ` +
         (wait ? `Rate limit \u2014 ${wait}s ruk raha hoon (${m})` : `${m} se padh raha hoon\u2026`) + `</p>`;
     });
 
@@ -8826,15 +8981,16 @@ if(shotIn) shotIn.addEventListener('change', async e => {
     d.sym = matchSymbol(d.symbol);
     S.shot = d; save();
     renderShot();
+    cpAfterShot();
     $('shotState').textContent = 'ho gaya';
     if(d.signal === 'BUY' || d.signal === 'SELL') toast(`${d.signal} \u00b7 ${d.confidence}% confidence`);
   }catch(err){
     $('shotState').textContent = 'fail';
-    box.innerHTML = `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:12px">
+    box.innerHTML = pv() + `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:12px">
       <b style="color:var(--dn);font-size:11.5px;letter-spacing:1.2px">ANALYSIS FAIL</b>
       <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${err.message}</p></div>`;
   }
-});
+}
 
 /* model ne jo naam bola use apne symbol pe map karo */
 function matchSymbol(raw){
@@ -8864,6 +9020,7 @@ function renderShot(){
   const box = $('shotBox'); if(!box) return;
   const d = S.shot;
   if(!d){ box.innerHTML = ''; return }
+  const pvImg = shotPrev && d.at >= shotPrev.at ? `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">` : '';
 
   const sym = d.sym;
   const P = v => (sym && isFinite(v)) ? fmt(sym, v) : (isFinite(v) ? (+v).toString() : '\u2014');
@@ -8875,14 +9032,14 @@ function renderShot(){
   const lvls = a => (Array.isArray(a) ? a : []).filter(x => isFinite(x)).slice(0,3).map(P).join(' \u00b7 ') || '\u2014';
 
   if(dir === 'UNREADABLE'){
-    box.innerHTML = `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.07);border-radius:6px;padding:12px">
+    box.innerHTML = pvImg + `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.07);border-radius:6px;padding:12px">
       <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.2px">\u26a0 CHART PADHA NAHI GAYA</b>
       <p class="hint" style="margin:5px 0 0">${escH(d.reasoning || 'Image saaf nahi thi.')}</p>
       <p class="hint" style="margin:8px 0 0">Aisa screenshot lo jisme price axis aur pair ka naam dono dikhe.</p></div>`;
     return;
   }
 
-  box.innerHTML = `
+  box.innerHTML = pvImg + `
     <div style="display:flex;align-items:center;gap:10px;background:${dir==='BUY'?'rgba(18,201,138,.10)':dir==='SELL'?'rgba(242,84,91,.10)':'rgba(255,184,0,.08)'};
          border:1px solid ${col};border-radius:11px;padding:11px 13px;margin-bottom:12px">
       <b class="shine ${dir==='BUY'?'up':dir==='SELL'?'dn':'gd'}" style="font-size:17px;letter-spacing:.5px">${escH(dir)}</b>
@@ -9756,6 +9913,19 @@ window.addEventListener('appinstalled', ()=> toast('SamuSignal install ho gaya')
 /* Page khud purana cache saaf karta hai — sw.js purani ho to bhi.
    index.html hamesha naya aata hai, isliye ye jaal se bahar nikal aata hai. */
 const CACHE_TAG = 'samusignal-v' + VERSION.replace(/\./g,'-');
+async function shareInbox(){
+  if(!/[?&]share=1/.test(location.search)) return;
+  try{ history.replaceState(null, '', location.pathname + location.hash) }catch(e){}
+  try{
+    let r = null, c = null;
+    for(const k of await caches.keys()){ const cc = await caches.open(k); const hit = await cc.match('./__share__/img'); if(hit){ r = hit; c = cc; break } }
+    if(!r){ toast('Share ki hui photo nahi mili — dobara Share → SamuSignal karo'); return }
+    const blob = await r.blob(); await c.delete('./__share__/img');
+    go('Chart');
+    shotAnalyze(new File([blob], 'shared-chart.' + ((blob.type.split('/')[1]) || 'png'), {type: blob.type || 'image/png'}));
+    setTimeout(() => { const el = $('shotBox'); if(el) el.closest('.card').scrollIntoView({behavior:'smooth', block:'start'}) }, 300);
+  }catch(e){ toast('Share ki hui photo padh nahi paye: ' + e.message) }
+}
 
 async function purgeOldCaches(){
   if(!window.caches) return 0;
@@ -9769,6 +9939,8 @@ async function purgeOldCaches(){
 }
 
 if('serviceWorker' in navigator){
+  /* v9.9.42: "Share → SamuSignal" se aayi screenshot (sw.js cache me rakhta hai) */
+  window.addEventListener('load', () => setTimeout(shareInbox, 600));
   window.addEventListener('load', async () => {
     const killed = await purgeOldCaches();   /* pehle purana kachra hatao */
     try{

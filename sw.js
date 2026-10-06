@@ -1,5 +1,8 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.42 — Screenshot Share → SamuSignal (gallery nahi), photo preview
+   v9.9.41 — Buyer/Seller pressure wapas Signals page pe
+   v9.9.40 — Chart page: screenshot AI → S/R, pivot, Fibonacci levels → Final result (tier A/B/Watch/Range)
    v9.9.39 — Naya "Chart Analysis" page (header button): live chart, Range Setup, technical/EMA/screenshot analysis
    v9.9.38 — ⇅ Range Setup: live chart, setup photo, analysis, Limit/Stop joda (OCO) journal me
    v9.9.37 — A+ setup (jagah, swing SL, ek currency ek trade, London/NY), BE 50%
@@ -44,7 +47,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.39';
+const VERSION = '9.9.42';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
@@ -98,6 +101,21 @@ self.addEventListener('activate', e => {
 /* ---------------- fetch ---------------- */
 self.addEventListener('fetch', e => {
   const req = e.request;
+
+  /* v9.9.42: phone ka screenshot "Share → SamuSignal" — photo cache me rakho,
+     app Chart page pe khud uthakar analysis chalati hai */
+  if(req.method === 'POST' && new URL(req.url).pathname.endsWith('/share-target')){
+    e.respondWith((async () => {
+      try{
+        const fd = await req.formData();
+        let f = fd.get('image');
+        if(!f || typeof f === 'string') f = [...fd.values()].find(v => v && typeof v === 'object' && /^image\//.test(v.type || ''));
+        if(f) await (await caches.open(CACHE)).put('./__share__/img', new Response(f, {headers: {'Content-Type': f.type || 'image/png'}}));
+      }catch(err){}
+      return Response.redirect('./?share=1', 303);
+    })());
+    return;
+  }
   if(req.method !== 'GET') return;
 
   const url = new URL(req.url);
