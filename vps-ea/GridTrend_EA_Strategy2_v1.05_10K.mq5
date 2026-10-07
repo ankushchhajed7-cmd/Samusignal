@@ -3,6 +3,9 @@
 //|  10K EDITION: 10000 balance ke liye. Strategy/lots/gaps/$ limits |
 //|   30000 wale jaise hi. Sirf Global_Target_Pct 0.5 → 1.5 kiya,    |
 //|   taaki combined basket target 150 hi rahe (pehle 30000×0.5%).   |
+//|  10K TRADING HOURS: 7 AM - 5 PM IST hi naya cycle shuru hoga.   |
+//|   5 PM ke baad sab trades band hon to koi naya trade nahi. Koi   |
+//|   trade khula ho to cycle (grid, flip, TP) 5 PM ke baad bhi chale|
 //|  v1.05 SAFETY ONLY (v1.03 base — settings/strategy 100% same):    |
 //|   - TOTAL DD LOCKOUT: limit hit → sab band aur EA LOCK. Pehle     |
 //|     agle H1 pe dobara trading shuru ho jaati thi. Ab lock restart |
@@ -236,6 +239,10 @@ input group "══ WEEKEND FILTER ══"
 input bool Enable_WeekendBlock = true;   // ON = weekend/market-open ke pehle-baad naya (pehla) trade nahi khulega
 input int  Friday_Stop_Hour    = 14;     // Friday ko is IST hour ke baad naya trade band (weekend gap se bachne)
 input int  Monday_Start_Hour   = 7;      // Monday ko is IST hour se pehle naya trade band (illiquid open se bachne)
+input group "══ TRADING HOURS (10K) ══"
+input bool Enable_TradingHours = true;   // ON = sirf Start-End IST ke beech naya cycle. Koi trade khula ho to cycle bahar bhi chalti rahegi
+input int  Trade_Start_Hour    = 7;      // Is IST hour se naya cycle shuru ho sakta hai (7 = 7:00 AM)
+input int  Trade_End_Hour      = 17;     // Is IST hour ke baad naya cycle nahi (17 = 5:00 PM)
 input group "══ NOTIFICATIONS ══"
 input bool   Enable_PushNotify  = true;    // ON = MT5 mobile app pe push notification alerts milenge
 input bool   Enable_Telegram    = false;   // ON = Telegram alerts (abhi placeholder — actual sending implement nahi hai)
@@ -958,8 +965,9 @@ void UpdateDB()
    UpdateDBLine(R_NEWS,nMsg,nw?CL_RED:CL_GREEN,BG_DARK);
    int spPts=GetCurrentSpread(); bool spHigh=IsSpreadTooHigh();
    UpdateDBLine(R_SPREAD,DRow("Spread")+""+IntegerToString(spPts)+" / 280",spHigh?CL_RED:CL_GREEN,BG_MID);
-   bool wkd=IsWeekendBlock();
-   UpdateDBLine(R_WKD,wkd?DRow("Weekend")+"BLOCKED":DRow("Weekend")+"OK",wkd?CL_RED:CL_GREEN,BG_MID);
+   bool wkd=IsWeekendBlock(), offH=IsOutsideHours();
+   string wTxt=wkd?"BLOCKED":offH?("OFF HRS "+IntegerToString(Trade_Start_Hour)+"-"+IntegerToString(Trade_End_Hour)):"OK";
+   UpdateDBLine(R_WKD,DRow("Weekend")+wTxt,wkd?CL_RED:offH?CL_AMBER:CL_GREEN,BG_MID);
    bool spikeBlocked=IsSpikeBlocked();
    if(spikeBlocked)
    {
@@ -1216,6 +1224,15 @@ bool IsWeekendBlock()
    return false;
 }
 
+// 10K: trading hours ke bahar? (IST). Sirf NAYA cycle rokta hai — OpenTrade mein b+s==0 check
+bool IsOutsideHours()
+{
+   if(!Enable_TradingHours) return false;
+   datetime nowIST=TimeGMT()+5*3600+30*60;
+   MqlDateTime dt; TimeToStruct(nowIST,dt);
+   return (dt.hour<Trade_Start_Hour || dt.hour>=Trade_End_Hour);
+}
+
 void SendAlert(string msg){Print("ALERT: ",msg);if(Enable_PushNotify)SendNotification(msg);BrEvent(msg);}   // v1.03: app feed mein bhi
 
 //+------------------------------------------------------------------+
@@ -1417,6 +1434,7 @@ void OpenTrade(int dir,double forceLot=0)
    if(Enable_TotalDD_Limit && GetCurrentDD_Dollar()>=Total_DD_Dollar_Limit) return;   // v3.12 — ab yehi single DD gate hai
    int idx=CountTrades(dir);
    if(IsWeekendBlock()&&idx==0) return;
+   if(IsOutsideHours() && CountTrades(1)+CountTrades(-1)==0) return;   // 10K: 5 PM-7 AM naya cycle nahi
    if(IsNews()) return;
    int max=GetMaxTrades();
    if(idx>=max||idx>=45||lotArr[idx]<=0) return;
@@ -2153,6 +2171,7 @@ string BrStatus()
    if(g_totalDDTriggered)  return "DD LOCKED - MANUAL RESET";   // v1.05
    if(Enable_TotalDD_Limit && GetCurrentDD_Dollar()>=Total_DD_Dollar_Limit) return "DD LIMIT HIT";
    if(IsWeekendBlock() && b+s==0) return "WEEKEND BLOCK";
+   if(IsOutsideHours() && b+s==0) return "OUTSIDE HOURS";   // 10K
    if(IsNews())            return "NEWS BLOCK";
    if(IsSpikeBlocked())    return "SPIKE BLOCK";
    if(IsSpreadTooHigh())   return "SPREAD HIGH";
