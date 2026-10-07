@@ -25,7 +25,7 @@ async function year(cfg, from, to){
         retryOnEmpty: true, failAfterRetryCount: true
       });
     }catch(e){
-      if(k >= 6) throw e;
+      if(k >= 3){ console.log(`  ⚠ ${cfg.duka} ${from.toISOString().slice(0, 10)}: chhod diya (${e.message})`); return [] }
       console.log(`  ${cfg.duka} ${from.toISOString().slice(0, 10)}: ${e.message} — ${k * 20}s ruk ke dobara`);
       await sleep(k * 20000);
     }
@@ -40,6 +40,7 @@ for(const [pair, cfg] of Object.entries(PAIRS)){
     for(const r of await year(cfg, from, to)) if(!rows.length || r[0] > rows.at(-1)[0]) rows.push(r);
     await sleep(2000);
   }
+  if(!rows.length) throw new Error(`${pair}: koi data nahi mila`);
   /* weekend ki flat candles (o=h=l=c, bazaar band) hatao — ye trend/ATR bigaadti hain */
   const real = rows.filter(r => !(r[1] === r[2] && r[2] === r[3] && r[3] === r[4]));
   console.log(`${pair}: ${rows.length - real.length} flat candles hatayi`);
