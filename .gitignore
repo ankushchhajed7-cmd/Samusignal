@@ -1,3 +1,4 @@
 node_modules/
 bot-state/
 quant/data/
+__pycache__/

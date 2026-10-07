@@ -109,4 +109,5 @@ Indicator ki bheed nahi — do saaf maths niyam: **trend t-score** (20 din ke lo
 
 - **Backtest report:** `quant/report.html` (GitHub Pages pe `/quant/report.html`). Actions → *SamuQuant Backtest* har mahine aur strategy badalne pe khud chalta hai.
 - **Live signal:** Actions → *SamuQuant Signal (Telegram)*. Secrets wahi: `TD_KEY`, `TG_TOKEN`, `TG_CHAT`. 2 TwelveData credits/run, 5 run/din.
+- **Research:** `quant/research/RESEARCH.md` — ~20 maths ideas DEV/VAL/HOLD + naye pairs pe test kiye. Abhi tak koi bhi pass nahi hua, isliye live signal pe **safety lock** laga hai (backtest edge sabit kare tabhi signal jaata hai).
 - **100% accuracy koi system nahi deta.** Win rate aur drawdown report me dekho, pehle demo pe chalao.
