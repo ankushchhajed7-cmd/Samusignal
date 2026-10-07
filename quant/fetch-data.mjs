@@ -10,7 +10,9 @@ import { PAIRS } from './strategy.mjs';
 const { getHistoricalRates } = duka;
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const FROM = new Date(process.argv[2] || '2016-01-01');
-const SIDE = process.argv[3] || 'bid';            /* bid (default) ya ask — spread naapne ke liye */
+const SIDE = process.argv[3] || 'bid';
+/* research ke liye aur pairs: node quant/fetch-data.mjs 2008-01-01 bid gbpusd,usdjpy */
+const LIST = process.argv[4] ? Object.fromEntries(process.argv[4].split(',').map(x => [x.trim().toUpperCase(), {duka: x.trim().toLowerCase()}])) : PAIRS;            /* bid (default) ya ask — spread naapne ke liye */
 fs.mkdirSync(DIR, {recursive: true});
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -33,7 +35,7 @@ async function year(cfg, from, to){
   }
 }
 
-for(const [pair, cfg] of Object.entries(PAIRS)){
+for(const [pair, cfg] of Object.entries(LIST)){
   const file = path.join(DIR, `${pair}_H1${SIDE === 'bid' ? '' : '_' + SIDE}.csv`);
   const rows = [];
   for(let y = FROM.getUTCFullYear(); y <= new Date().getUTCFullYear(); y++){

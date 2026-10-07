@@ -9,6 +9,7 @@ on:
       - 'quant/strategy.mjs'
       - 'quant/backtest.mjs'
       - 'quant/fetch-data.mjs'
+      - 'quant/research-pairs.txt'
       - '.github/workflows/quant-backtest.yml'
   schedule:
     - cron: '17 3 2 * *'
@@ -24,7 +25,7 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +47,9 @@ jobs:
         run: |
           node quant/fetch-data.mjs 2008-01-01 bid
           node quant/fetch-data.mjs 2008-01-01 ask
+          if [ -f quant/research-pairs.txt ]; then
+            for side in bid ask; do node quant/fetch-data.mjs 2008-01-01 $side "$(tr -d ' \n' < quant/research-pairs.txt)"; done
+          fi
           mkdir -p quant/history
           for f in quant/data/*_H1*.csv; do gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
           ls -la quant/history
