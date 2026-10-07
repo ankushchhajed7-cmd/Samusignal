@@ -1,0 +1,58 @@
+name: SamuQuant Backtest
+
+# Strategy/backtest badle to (ya haath se "Run workflow") — Dukascopy se asli
+# H1 data (2016 se) laata hai, backtest chalata hai, aur quant/report.html +
+# quant/results.json usi branch pe commit kar deta hai. Har mahine bhi naye data pe.
+on:
+  push:
+    paths:
+      - 'quant/strategy.mjs'
+      - 'quant/backtest.mjs'
+      - 'quant/fetch-data.mjs'
+      - '.github/workflows/quant-backtest.yml'
+  schedule:
+    - cron: '17 3 2 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: quant-backtest-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Data cache
+        uses: actions/cache@v4
+        with:
+          path: quant/data
+          key: quant-data-${{ github.run_id }}
+          restore-keys: quant-data-
+
+      - name: Install dukascopy-node
+        run: npm install --no-save --no-package-lock dukascopy-node@1.50.0
+
+      - name: Download H1 data (Dukascopy)
+        run: node quant/fetch-data.mjs 2016-01-01
+
+      - name: Run backtest
+        run: node quant/backtest.mjs
+
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
+          git add quant/report.html quant/results.json
+          if git diff --cached --quiet; then echo "Report me koi badlav nahi"; exit 0; fi
+          git commit -m "SamuQuant backtest report update [skip ci]"
+          git push origin HEAD:${GITHUB_REF_NAME}

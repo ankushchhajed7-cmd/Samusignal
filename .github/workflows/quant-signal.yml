@@ -1,0 +1,49 @@
+name: SamuQuant Signal (Telegram)
+
+# London session me har ghante (08:03–12:03 UTC = 13:33–17:33 IST, Som–Shukra),
+# H1 candle band hone ke baad. Niyam: quant/strategy.mjs (backtest wale hi).
+# Secrets wahi jo Auto Signal ke: TD_KEY, TG_TOKEN, TG_CHAT. Kharcha: 2 credits/run.
+on:
+  schedule:
+    - cron: '3 8-12 * * 1-5'
+  workflow_dispatch:
+
+concurrency:
+  group: quant-signal
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore memory
+        uses: actions/cache/restore@v4
+        with:
+          path: bot-state/quant.json
+          key: quant-state-${{ github.run_id }}
+          restore-keys: quant-state-
+
+      - name: Check signal
+        env:
+          TD_KEY: ${{ secrets.TD_KEY }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT }}
+          BOT_FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+        run: node quant/signal.mjs
+
+      - name: Save memory
+        if: always() && hashFiles('bot-state/quant.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: bot-state/quant.json
+          key: quant-state-${{ github.run_id }}
