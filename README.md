@@ -96,3 +96,17 @@ VPS pe EA files GitHub se khud aati hain aur compile hoti hain. Ek baar VPS ki P
 [Net.ServicePointManager]::SecurityProtocol='Tls12';iex(iwr https://raw.githubusercontent.com/ankushchhajed7-cmd/samusignal/main/vps-helper/install.ps1 -UseBasicParsing).Content
 ```
 Report app ke COPY tab me "VPS Helper" card me dikhti hai (Bridge v1.02 chahiye).
+
+## 🧮 SamuQuant (maths wala signal, EURUSD + XAUUSD)
+Indicator ki bheed nahi — do saaf maths niyam: **trend t-score** (20 din ke log-price pe OLS regression, slope ÷ standard error) aur **Asia range breakout** (London me, ATR se SL/TP). Har trade pe SL, 1% risk, koi martingale/grid nahi.
+
+| File | Kaam |
+|------|------|
+| `quant/strategy.mjs` | Niyam — backtest aur live dono yahi code chalate hain |
+| `quant/backtest.mjs` | Backtest → `quant/report.html` (IS/OOS, Monte Carlo, randomness test, robustness grid) |
+| `quant/fetch-data.mjs` | Dukascopy se 2016 se H1 data |
+| `quant/signal.mjs` | Live signal → Telegram (London ke waqt har ghante) |
+
+- **Backtest report:** `quant/report.html` (GitHub Pages pe `/quant/report.html`). Actions → *SamuQuant Backtest* har mahine aur strategy badalne pe khud chalta hai.
+- **Live signal:** Actions → *SamuQuant Signal (Telegram)*. Secrets wahi: `TD_KEY`, `TG_TOKEN`, `TG_CHAT`. 2 TwelveData credits/run, 5 run/din.
+- **100% accuracy koi system nahi deta.** Win rate aur drawdown report me dekho, pehle demo pe chalao.
