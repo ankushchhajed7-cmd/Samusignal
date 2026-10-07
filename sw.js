@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.45 — Chart page Analyze: chalte waqt spinner, kab hua wo time
    v9.9.44 — Breakout (Stop) joda range ki shart ke bina (news + niyam wahi)
    v9.9.43 — Range Setup: band button dikhe aur saaf wajah (gayab nahi)
    v9.9.42 — Screenshot Share → SamuSignal (gallery nahi), photo preview
@@ -49,7 +50,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.44';
+const VERSION = '9.9.45';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

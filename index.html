@@ -1424,7 +1424,7 @@ body.ds-gold .brand .brandWord{height:24px}
     </div>
     <div class="grid2" style="margin-top:10px">
       <button class="pick" id="cpPair" onclick="openPick('main')"></button>
-      <button class="btn gold sm" onclick="cpAnalyze()">⟳ Analyze</button>
+      <button class="btn gold sm" id="cpAnBtn" onclick="cpAnalyze()">⟳ Analyze</button>
     </div>
     <p class="hint" style="margin:8px 0 0">1 Live chart → 2 Screenshot AI → 3 Levels → 4 Final result → 5 Range setup. Pair badlo to Analyze dabao.</p>
   </div>
@@ -2127,7 +2127,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.44';
+const VERSION = '9.9.45';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -7094,7 +7094,8 @@ async function cpAfterShot(){
 function openChartPage(){ go('Chart'); }
 function chartPageShow(){
   const sym = S.pair, sp = SPECS[sym];
-  $('cpSym').textContent = sp ? sp.n + ' · ' + S.tf : '—';
+  const fresh = lastSignal && lastSignal.sym === sym ? lastSignal.at : 0;
+  $('cpSym').textContent = (sp ? sp.n + ' · ' + S.tf : '—') + (fresh ? ' · Analyze ' + t12(fresh) : ' · Analyze nahi hua');
   $('cpPair').textContent = sp ? sp.n : 'Pair chuno';
   requestAnimationFrame(() => {
     try{ loadEma(false) }catch(e){}
@@ -7102,7 +7103,16 @@ function chartPageShow(){
     rsRefresh(); renderLevels(); renderFinal();
   });
 }
-async function cpAnalyze(){ await runAnalyze(); if(!$('pgChart').classList.contains('hide')) chartPageShow(); }
+/* v9.9.45: Chart page pe bhi dikhe ki Analyze chal raha hai, aur kab hua */
+async function cpAnalyze(){
+  const b = $('cpAnBtn');
+  if(busy){ toast('Analyze pehle se chal raha hai…'); return }
+  if(b){ b.disabled = true; b.innerHTML = '<span class="spin"></span> Analyze ho raha hai…' }
+  const before = lastSignal && lastSignal.at;
+  try{ await runAnalyze() }finally{ if(b){ b.disabled = false; b.textContent = '⟳ Analyze' } }
+  if(lastSignal && lastSignal.at !== before) toast(`${SPECS[lastSignal.sym].n} — naye candles se levels update ho gaye`);
+  if(!$('pgChart').classList.contains('hide')) chartPageShow();
+}
 function rsRefresh(){
   const s = lastSignal;
   if(!s || s.sym !== S.pair){ rsState = null; $('rsT').textContent = '—';
