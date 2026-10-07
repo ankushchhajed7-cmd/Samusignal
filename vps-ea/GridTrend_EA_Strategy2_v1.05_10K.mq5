@@ -6,6 +6,8 @@
 //|  10K TRADING HOURS: 7 AM - 5 PM IST hi naya cycle shuru hoga.   |
 //|   5 PM ke baad sab trades band hon to koi naya trade nahi. Koi   |
 //|   trade khula ho to cycle (grid, flip, TP) 5 PM ke baad bhi chale|
+//|  10K DAILY TARGET: din (7 AM IST se) ka profit us waqt ke       |
+//|   balance ka 1% ho → sab trades band, agle din 7 AM tak stop.    |
 //|  v1.05 SAFETY ONLY (v1.03 base — settings/strategy 100% same):    |
 //|   - TOTAL DD LOCKOUT: limit hit → sab band aur EA LOCK. Pehle     |
 //|     agle H1 pe dobara trading shuru ho jaati thi. Ab lock restart |
@@ -243,6 +245,9 @@ input group "══ TRADING HOURS (10K) ══"
 input bool Enable_TradingHours = true;   // ON = sirf Start-End IST ke beech naya cycle. Koi trade khula ho to cycle bahar bhi chalti rahegi
 input int  Trade_Start_Hour    = 7;      // Is IST hour se naya cycle shuru ho sakta hai (7 = 7:00 AM)
 input int  Trade_End_Hour      = 17;     // Is IST hour ke baad naya cycle nahi (17 = 5:00 PM)
+input group "══ DAILY PROFIT TARGET (10K) ══"
+input bool   Enable_DailyTarget = true;  // ON = din ka profit target hit → sab trades band, agle din Trade_Start_Hour (7 AM IST) tak trading stop
+input double Daily_Target_Pct   = 1.0;   // Din shuru (7 AM IST) hone pe jo balance tha uska itna % = daily target (10000 → 100)
 input group "══ NOTIFICATIONS ══"
 input bool   Enable_PushNotify  = true;    // ON = MT5 mobile app pe push notification alerts milenge
 input bool   Enable_Telegram    = false;   // ON = Telegram alerts (abhi placeholder — actual sending implement nahi hai)
@@ -270,6 +275,8 @@ bool     buyFrozen=false, sellFrozen=false;
 int      cycleCount=0;
 double   cycleStartBal=0, dailyStartBal=0;
 datetime lastDayReset=0;
+int      g_dayKey=-1;          // 10K: aaj ka din (7 AM IST se 7 AM IST)
+bool     g_dailyLocked=false;  // 10K: aaj ka daily target hit ho chuka
 int      g_lastSig=0, g_lastSTDir=0;
 int      g_pendingSig=0, g_pendingCount=0;   // whipsaw confirmation
 int      atrHandle=INVALID_HANDLE;
@@ -965,9 +972,12 @@ void UpdateDB()
    UpdateDBLine(R_NEWS,nMsg,nw?CL_RED:CL_GREEN,BG_DARK);
    int spPts=GetCurrentSpread(); bool spHigh=IsSpreadTooHigh();
    UpdateDBLine(R_SPREAD,DRow("Spread")+""+IntegerToString(spPts)+" / 280",spHigh?CL_RED:CL_GREEN,BG_MID);
-   bool wkd=IsWeekendBlock(), offH=IsOutsideHours();
-   string wTxt=wkd?"BLOCKED":offH?("OFF HRS "+IntegerToString(Trade_Start_Hour)+"-"+IntegerToString(Trade_End_Hour)):"OK";
-   UpdateDBLine(R_WKD,DRow("Weekend")+wTxt,wkd?CL_RED:offH?CL_AMBER:CL_GREEN,BG_MID);
+   bool wkd=IsWeekendBlock(), offH=IsOutsideHours(), dayL=(Enable_DailyTarget&&g_dailyLocked);
+   // column chhota hai — daily target ON ho to "OK D45/100" (aaj ka P&L / target)
+   string wTxt=wkd?"BLOCKED":dayL?"DAY TGT DONE":offH?(Enable_DailyTarget?"OFF":"OFF HRS "+IntegerToString(Trade_Start_Hour)+"-"+IntegerToString(Trade_End_Hour)):"OK";
+   if(Enable_DailyTarget && !wkd && !dayL)
+      wTxt+=" D"+DoubleToString(GetDailyPnL(),0)+"/"+DoubleToString(GetDailyTarget(),0);
+   UpdateDBLine(R_WKD,DRow("Weekend")+wTxt,wkd?CL_RED:dayL?CL_GREEN:offH?CL_AMBER:CL_GREEN,BG_MID);
    bool spikeBlocked=IsSpikeBlocked();
    if(spikeBlocked)
    {
@@ -1427,6 +1437,7 @@ double GetNetPnL(int dir)
 void OpenTrade(int dir,double forceLot=0)
 {
    if(g_totalDDTriggered) return;      // v1.05: DD lock — manual reset tak koi naya trade nahi
+   if(Enable_DailyTarget && g_dailyLocked) return;   // 10K: aaj ka target ho gaya — kal 7 AM tak stop
    if(IsClosePending(dir)) return;     // v1.05: is side ka close abhi pending hai — pehle flat ho
    if(TimeCurrent()-g_lastOpenTime<3) return;
    if(IsSpreadTooHigh()) return;
@@ -1839,11 +1850,72 @@ void CheckProfitTarget()
    }
 }
 
+// 10K: din Trade_Start_Hour (7 AM) IST pe badalta hai. Din ki state terminal GlobalVariables
+// mein — MT5/VPS restart ke baad bhi aaj ka start balance aur lock yaad rahe.
+string DayGV(string k){ return "GT10K_"+IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN))+"_"+_Symbol+"_"+IntegerToString(Magic_Number)+"_"+k; }
+int DayKeyIST(){ return (int)((TimeGMT()+5*3600+30*60-Trade_Start_Hour*3600)/86400); }
+
 void DailyReset()
 {
    MqlDateTime dt; TimeToStruct(TimeCurrent(),dt);
    datetime today=TimeCurrent()-(long)(dt.hour*3600+dt.min*60+dt.sec);
    if(lastDayReset!=today) lastDayReset=today;
+   int key=DayKeyIST();
+   static bool loaded=false;
+   if(!loaded)
+   {
+      loaded=true;
+      if(GlobalVariableCheck(DayGV("day")) && (int)GlobalVariableGet(DayGV("day"))==key)
+      {
+         g_dayKey=key;
+         dailyStartBal=GlobalVariableGet(DayGV("bal"));
+         g_dailyLocked=(GlobalVariableGet(DayGV("lock"))>0.5);
+      }
+   }
+   if(key!=g_dayKey)
+   {
+      // naya din: aaj ka start = abhi ka BALANCE (floating loss target mein gina jayega)
+      g_dayKey=key; g_dailyLocked=false;
+      dailyStartBal=AccountInfoDouble(ACCOUNT_BALANCE);
+      GlobalVariableSet(DayGV("day"),key);
+      GlobalVariableSet(DayGV("lock"),0);
+   }
+   // deposit/withdrawal (OnTradeTransaction) dailyStartBal badalta hai → GV sync
+   if(!GlobalVariableCheck(DayGV("bal")) || MathAbs(GlobalVariableGet(DayGV("bal"))-dailyStartBal)>0.001)
+      GlobalVariableSet(DayGV("bal"),dailyStartBal);
+}
+
+double GetDailyTarget(){ return dailyStartBal*Daily_Target_Pct/100.0; }
+double GetDailyPnL(){ return AccountInfoDouble(ACCOUNT_EQUITY)-dailyStartBal; }
+
+// 10K: DAILY TARGET — equity (realized + floating) din ke start balance se target jitna upar
+// → dono side band + lock. Lock agle din 7 AM IST pe DailyReset() kholta hai.
+void CheckDailyTarget()
+{
+   if(!Enable_DailyTarget || dailyStartBal<=0) return;
+   if(g_dailyLocked)
+   {
+      // close fail hua ho to har tick dobara try
+      if(CountTrades(1)>0)  CloseAll(1);
+      if(CountTrades(-1)>0) CloseAll(-1);
+      return;
+   }
+   double dayPnl=GetDailyPnL(), tgt=GetDailyTarget();
+   if(dayPnl<tgt) return;
+   g_dailyLocked=true;
+   GlobalVariableSet(DayGV("lock"),1);
+   int bCnt=CountTrades(1),sCnt=CountTrades(-1);
+   if(bCnt+sCnt>0)
+   {
+      double durHrs=0; datetime st=GetGlobalBasketStart();
+      if(st>0) durHrs=(double)(TimeCurrent()-st)/3600.0;
+      LogCycleResult("BOTH",GetNetPnL(1)+GetNetPnL(-1),durHrs,"DAILY_TARGET");
+   }
+   SendAlert("DAILY TARGET HIT! Aaj +$"+DoubleToString(dayPnl,2)+" >= $"+DoubleToString(tgt,2)+
+             " — sab band, kal "+IntegerToString(Trade_Start_Hour)+":00 IST tak trading stop");
+   CloseAll(1); CloseAll(-1);
+   basketStartEquity=0;
+   SaveEAState();
 }
 
 //+------------------------------------------------------------------+
@@ -2170,6 +2242,7 @@ string BrStatus()
    int b=CountTrades(1),s=CountTrades(-1);
    if(g_totalDDTriggered)  return "DD LOCKED - MANUAL RESET";   // v1.05
    if(Enable_TotalDD_Limit && GetCurrentDD_Dollar()>=Total_DD_Dollar_Limit) return "DD LIMIT HIT";
+   if(Enable_DailyTarget && g_dailyLocked) return "DAILY TARGET HIT - STOP TILL 7 AM";   // 10K
    if(IsWeekendBlock() && b+s==0) return "WEEKEND BLOCK";
    if(IsOutsideHours() && b+s==0) return "OUTSIDE HOURS";   // 10K
    if(IsNews())            return "NEWS BLOCK";
@@ -2482,6 +2555,7 @@ void OnTick()
    DailyReset();
    UpdateMaxDDEver();     // v3.28: sirf analytics tracker (pehle CheckStagedDD ke andar chalta tha)
    CheckTotalDDLimit();   // v3.12: fixed $ total loss hard-stop + v1.05 latched lock
+   CheckDailyTarget();    // 10K: din ka 1% target → sab band + kal 7 AM tak lock
    RetryPendingCloses();  // v1.05: pichla fail hua close dobara try
    CheckVolatilitySpike();   // v3.16: sudden $ spike detect karke naya trade temporarily block karo
    CheckDDFlip();   // S2: per-side DD limit cross ho to us side freeze + opposite grid start
