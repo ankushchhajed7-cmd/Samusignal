@@ -43,21 +43,29 @@ jobs:
       - name: Install dukascopy-node
         run: npm install --no-save --no-package-lock dukascopy-node@1.50.0
 
-      - name: Download H1 data (Dukascopy)
+      - name: Download H1 data (Dukascopy, incremental)
+        timeout-minutes: 150
+        continue-on-error: true
         run: |
           node quant/fetch-data.mjs 2008-01-01 bid
           node quant/fetch-data.mjs 2008-01-01 ask
           if [ -f quant/research-pairs.txt ]; then
             for side in bid ask; do node quant/fetch-data.mjs 2008-01-01 $side "$(tr -d ' \n' < quant/research-pairs.txt)"; done
           fi
+
+      - name: Pack history
+        if: always()
+        run: |
           mkdir -p quant/history
-          for f in quant/data/*_H1*.csv; do gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
+          for f in quant/data/*_H1*.csv; do [ -f "$f" ] && gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
           ls -la quant/history
 
       - name: Run backtest
+        if: always()
         run: node quant/backtest.mjs
 
       - name: Commit report
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
