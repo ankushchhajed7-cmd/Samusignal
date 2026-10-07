@@ -55,4 +55,8 @@ jobs:
           git add quant/report.html quant/results.json
           if git diff --cached --quiet; then echo "Report me koi badlav nahi"; exit 0; fi
           git commit -m "SamuQuant backtest report update [skip ci]"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep 5
+          done
+          exit 1
