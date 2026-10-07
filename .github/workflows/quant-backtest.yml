@@ -24,7 +24,7 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -44,9 +44,10 @@ jobs:
 
       - name: Download H1 data (Dukascopy)
         run: |
-          node quant/fetch-data.mjs 2008-01-01
+          node quant/fetch-data.mjs 2008-01-01 bid
+          node quant/fetch-data.mjs 2008-01-01 ask
           mkdir -p quant/history
-          for f in quant/data/*_H1.csv; do gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
+          for f in quant/data/*_H1*.csv; do gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
           ls -la quant/history
 
       - name: Run backtest

@@ -10,6 +10,7 @@ import { PAIRS } from './strategy.mjs';
 const { getHistoricalRates } = duka;
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const FROM = new Date(process.argv[2] || '2016-01-01');
+const SIDE = process.argv[3] || 'bid';            /* bid (default) ya ask — spread naapne ke liye */
 fs.mkdirSync(DIR, {recursive: true});
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -20,7 +21,7 @@ async function year(cfg, from, to){
     try{
       return await getHistoricalRates({
         instrument: cfg.duka, dates: {from, to},
-        timeframe: 'h1', priceType: 'bid', format: 'array', volumes: false, ignoreFlats: true,
+        timeframe: 'h1', priceType: SIDE, format: 'array', volumes: false, ignoreFlats: true,
         batchSize: 3, pauseBetweenBatchesMs: 1500, retryCount: 8, pauseBetweenRetriesMs: 5000,
         retryOnEmpty: true, failAfterRetryCount: true
       });
@@ -33,7 +34,7 @@ async function year(cfg, from, to){
 }
 
 for(const [pair, cfg] of Object.entries(PAIRS)){
-  const file = path.join(DIR, `${pair}_H1.csv`);
+  const file = path.join(DIR, `${pair}_H1${SIDE === 'bid' ? '' : '_' + SIDE}.csv`);
   const rows = [];
   for(let y = FROM.getUTCFullYear(); y <= new Date().getUTCFullYear(); y++){
     const from = new Date(Math.max(FROM, Date.UTC(y, 0, 1))), to = new Date(Math.min(Date.now(), Date.UTC(y + 1, 0, 1)));
@@ -48,5 +49,5 @@ for(const [pair, cfg] of Object.entries(PAIRS)){
   const lines = rows.map(r => r.slice(0, 5).join(','));
   fs.writeFileSync(file, 't,o,h,l,c\n' + lines.join('\n') + '\n');
   const first = new Date(rows[0][0]).toISOString(), last = new Date(rows.at(-1)[0]).toISOString();
-  console.log(`${pair}: ${rows.length} candles  ${first} → ${last}`);
+  console.log(`${pair} ${SIDE}: ${rows.length} candles  ${first} → ${last}`);
 }
