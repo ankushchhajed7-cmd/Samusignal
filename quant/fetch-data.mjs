@@ -12,14 +12,38 @@ const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const FROM = new Date(process.argv[2] || '2016-01-01');
 fs.mkdirSync(DIR, {recursive: true});
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* Dukascopy zyada tez maango to 429 deta hai — chhote batch, saal-saal, ruk ruk ke */
+async function year(cfg, from, to){
+  for(let k = 1; ; k++){
+    try{
+      return await getHistoricalRates({
+        instrument: cfg.duka, dates: {from, to},
+        timeframe: 'h1', priceType: 'bid', format: 'array', volumes: false, ignoreFlats: true,
+        batchSize: 3, pauseBetweenBatchesMs: 1500, retryCount: 8, pauseBetweenRetriesMs: 5000,
+        retryOnEmpty: true, failAfterRetryCount: true
+      });
+    }catch(e){
+      if(k >= 6) throw e;
+      console.log(`  ${cfg.duka} ${from.toISOString().slice(0, 10)}: ${e.message} — ${k * 20}s ruk ke dobara`);
+      await sleep(k * 20000);
+    }
+  }
+}
+
 for(const [pair, cfg] of Object.entries(PAIRS)){
   const file = path.join(DIR, `${pair}_H1.csv`);
-  const rows = await getHistoricalRates({
-    instrument: cfg.duka, dates: {from: FROM, to: new Date()},
-    timeframe: 'h1', priceType: 'bid', format: 'array', volumes: false, ignoreFlats: true,
-    batchSize: 10, pauseBetweenBatchesMs: 500, retryCount: 5, pauseBetweenRetriesMs: 1500,
-    retryOnEmpty: true, failAfterRetryCount: true
-  });
+  const rows = [];
+  for(let y = FROM.getUTCFullYear(); y <= new Date().getUTCFullYear(); y++){
+    const from = new Date(Math.max(FROM, Date.UTC(y, 0, 1))), to = new Date(Math.min(Date.now(), Date.UTC(y + 1, 0, 1)));
+    for(const r of await year(cfg, from, to)) if(!rows.length || r[0] > rows.at(-1)[0]) rows.push(r);
+    await sleep(2000);
+  }
+  /* weekend ki flat candles (o=h=l=c, bazaar band) hatao — ye trend/ATR bigaadti hain */
+  const real = rows.filter(r => !(r[1] === r[2] && r[2] === r[3] && r[3] === r[4]));
+  console.log(`${pair}: ${rows.length - real.length} flat candles hatayi`);
+  rows.length = 0; rows.push(...real);
   const lines = rows.map(r => r.slice(0, 5).join(','));
   fs.writeFileSync(file, 't,o,h,l,c\n' + lines.join('\n') + '\n');
   const first = new Date(rows[0][0]).toISOString(), last = new Date(rows.at(-1)[0]).toISOString();

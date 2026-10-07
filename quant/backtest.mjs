@@ -21,7 +21,8 @@ function rng(seed){ return () => { seed = (seed * 1664525 + 1013904223) >>> 0; r
 
 function loadCsv(file){
   const lines = fs.readFileSync(file, 'utf8').trim().split('\n').slice(1);
-  return lines.map(l => { const [t, o, h, l2, c] = l.split(',').map(Number); return {t, o, h, l: l2, c} });
+  return lines.map(l => { const [t, o, h, l2, c] = l.split(',').map(Number); return {t, o, h, l: l2, c} })
+    .filter(b => !(b.o === b.h && b.h === b.l && b.l === b.c));        /* weekend flat candles nahi */
 }
 
 function stats(trades){
