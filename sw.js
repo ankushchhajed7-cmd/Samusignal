@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.47 — Range joda: kinare pe entry adjust, sirf-ek-order button; Scan page pe Range/Breakout list
    v9.9.46 — Range joda (Limit) TP saamne wale 76.4% / 23.6% pe
    v9.9.45 — Chart page Analyze: chalte waqt spinner, kab hua wo time
    v9.9.44 — Breakout (Stop) joda range ki shart ke bina (news + niyam wahi)
@@ -51,7 +52,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.46';
+const VERSION = '9.9.47';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
