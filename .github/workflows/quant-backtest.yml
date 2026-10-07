@@ -43,7 +43,11 @@ jobs:
         run: npm install --no-save --no-package-lock dukascopy-node@1.50.0
 
       - name: Download H1 data (Dukascopy)
-        run: node quant/fetch-data.mjs 2016-01-01
+        run: |
+          node quant/fetch-data.mjs 2008-01-01
+          mkdir -p quant/history
+          for f in quant/data/*_H1.csv; do gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
+          ls -la quant/history
 
       - name: Run backtest
         run: node quant/backtest.mjs
@@ -52,7 +56,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
-          git add quant/report.html quant/results.json
+          git add quant/report.html quant/results.json quant/history
           if git diff --cached --quiet; then echo "Report me koi badlav nahi"; exit 0; fi
           git commit -m "SamuQuant backtest report update [skip ci]"
           for i in 1 2 3; do

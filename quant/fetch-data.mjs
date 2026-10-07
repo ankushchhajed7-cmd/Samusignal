@@ -1,4 +1,4 @@
-/* Dukascopy se H1 candles (free, 2016 se) → quant/data/<PAIR>_H1.csv
+/* Dukascopy se H1 candles (free, 2008 se) → quant/data/<PAIR>_H1.csv
    GitHub Actions me chalta hai (npm install --no-save dukascopy-node).
    Chalao: node quant/fetch-data.mjs [fromYYYY-MM-DD] */
 import fs from 'node:fs';
