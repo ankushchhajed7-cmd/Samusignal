@@ -2127,7 +2127,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.45';
+const VERSION = '9.9.46';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -6904,8 +6904,8 @@ async function refreshOpen(force){
 /* ================= ⇅ RANGE SETUP (v9.9.38) =================
    Sirf RANGE market me (ADX 20 se kam, saaf range 3–10 ATR chaudi, news nahi).
    Range = pichhli 24 band candles ka high/low. Levels Fibonacci se (range ke 0–100%):
-     Range joda   : BUY LIMIT 23.6% · SL range ke neeche · TP 61.8%
-                    SELL LIMIT 76.4% · SL range ke upar  · TP 38.2%
+     Range joda   : BUY LIMIT 23.6% · SL range ke neeche · TP 76.4%
+                    SELL LIMIT 76.4% · SL range ke upar  · TP 23.6%   (v9.9.46)
      Breakout joda: BUY STOP 100% ke upar · SL 76.4% · TP 161.8%
                     SELL STOP 0% ke neeche · SL 23.6% · TP −61.8%
    SL kam se kam 10 pip, R:R kam se kam 1.3, TP $1–$5 / SL ≤ $2.5 (0.01 lot pe).
@@ -6938,7 +6938,8 @@ function rsLeg(R, dir, type, lots){
   const sym = R.sym, sp = SPECS[sym], L = R.lo, w = R.w, a = R.atr, f = k => L + k * w;
   const buy = dir === 'BUY', k = lots / 0.01;
   let e, sl, tp;
-  if(type === 'LIMIT'){ if(buy){ e = f(.236); sl = L - .3*a; tp = f(.618) } else { e = f(.764); sl = R.hi + .3*a; tp = f(.382) } }
+  /* v9.9.46: Limit ka TP saamne wale 76.4% / 23.6% pe (pehle 61.8% / 38.2% — R:R 1.3 sirf 5+ ATR range me banta tha) */
+  if(type === 'LIMIT'){ if(buy){ e = f(.236); sl = L - .3*a; tp = f(.764) } else { e = f(.764); sl = R.hi + .3*a; tp = f(.236) } }
   else { if(buy){ e = R.hi + .1*a; sl = f(.764); tp = f(1.618) } else { e = L - .1*a; sl = f(.236); tp = f(-.618) } }
   const minSl = RS.minSlPips * sp.pip;
   if(Math.abs(e - sl) < minSl) sl = buy ? e - minSl : e + minSl;
