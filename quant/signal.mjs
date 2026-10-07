@@ -43,6 +43,17 @@ const ist = t => new Date(t + 5.5 * HOUR).toISOString().slice(11, 16) + ' IST';
 
 async function main(){
   if(!KEY || (!DRY && (!TOK || !CHAT))){ console.error('❌ Secrets chahiye: TD_KEY, TG_TOKEN, TG_CHAT'); process.exit(1) }
+  /* SAFETY LOCK: backtest (quant/results.json) me out-of-sample edge sabit na ho to signal nahi.
+     Out-of-sample: 50+ trades, expectancy > 0, randomness test p < 0.05. Sirf testing: QUANT_UNSAFE=1 */
+  try{
+    const r = JSON.parse(fs.readFileSync(path.join(ROOT, 'quant/results.json'), 'utf8'));
+    const o = r.summary['Dono (EURUSD + XAUUSD)'].oos, p = r.randomTest.oos.p;
+    if(!(o.n >= 50 && o.exp > 0 && p < 0.05) && process.env.QUANT_UNSAFE !== '1'){
+      log(`🔒 Band: backtest me edge sabit nahi (OOS ${o.n} trades, ${o.exp.toFixed(3)}R/trade, p=${p.toFixed(3)}). Paise ke signal nahi bhejunga.`);
+      return;
+    }
+  }catch(e){ log('🔒 Band: quant/results.json nahi mila — pehle backtest chalao'); return }
+
   let st = {};
   try{ st = JSON.parse(fs.readFileSync(STATE, 'utf8')) }catch(e){}
   st.sent ||= {};
