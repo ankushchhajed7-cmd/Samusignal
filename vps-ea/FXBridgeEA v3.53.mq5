@@ -10,6 +10,10 @@
 //|                "lots":0.01,"entry":4022.36,"sl":4048.51,         |
 //|                "tp":3970.06}                                     |
 //|                                                                  |
+//|  v3.57 (08-Oct-2026): Joda (OCO) - app ek hi order.json me dono  |
+//|     order bhejta hai ('oco':1 + type2/entry2/sl2/tp2). Dono pending |
+//|     lagte hain; jo pehle bhare, doosra khud hat jata hai.          |
+//|                                                                  |
 //|  v3.56 (06-Oct-2026): BE / lock / trailing app v9.9.37 jaisa -   |
 //|     TP ka 50% -> SL entry, 65% -> SL +25%, 75% ke baad trailing. |
 //|                                                                  |
@@ -42,7 +46,7 @@
 //|     nahi lagega (test mode). Auto-trade REAL pe kabhi nahi.      |
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "3.56"
+#property version   "3.57"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -234,7 +238,7 @@ void CheckRules()
       g_rulesMsg = "Rules check nahi ho paya (HTTP " + IntegerToString(res) + ", err " + IntegerToString(GetLastError()) + ")";
    }
    Print("Rules check: ", g_rulesMsg);
-   Comment("\n  FXBridge v3.56 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
+   Comment("\n  FXBridge v3.57 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
            "\n  " + g_rulesMsg +
            "\n  ConfirmRealAccount: " + (ConfirmRealAccount ? "true" : "false") +
            "\n  Orders: " + (TradingOn() ? "LAGENGE ✓" : "TEST MODE"));
@@ -348,7 +352,7 @@ int OnInit()
    // VPS restart ke baad duplicate order avoid
    lastOrderID = (long)GlobalVariableGet("FXBridge_LastOrderID");
 
-   Print("=== FXBridge EA v3.56 (Firebase) Started ===");
+   Print("=== FXBridge EA v3.57 (Firebase) Started ===");
    Print("URL: ", g_base, (StringLen(FirebaseAuth) > 0 ? "  (auth ON)" : "  (auth OFF)"));
    Print("Poll: ", PollSeconds, "s | Suffix: '", SymbolSuffix, "' | Trading: ", TradingOn(), (g_isReal ? " | REAL" : " | DEMO"));
    Print("Last processed order ID: ", lastOrderID);
@@ -409,6 +413,7 @@ void OnTimer()
    CheckCommands();            // app se BE / Trailing commands
    ApplyTrailing();            // trailing on ho to har tick SL follow karao
    ManageProfitLock();         // app ke "pm" trades: BE + profit lock + trailing (v3.54)
+   OcoSweep();                 // joda (OCO): ek bhara to doosra pending hatao (v3.57)
    if(EnablePaperTrades) CheckPaperResults();   // paper trades ka TP/SL check (24/7)
 
    // Har 60 sec: Market Watch symbols ki spec app ko bhejo (auto SL/TP $)
@@ -1092,7 +1097,43 @@ string JsonString(string json, string key)
 //+------------------------------------------------------------------+
 //| Order parse karke place karo                                      |
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//| v3.57: order aaya — ek, ya joda (OCO: "oco":1 + type2/entry2/sl2/tp2) |
+//| Joda: doosra order id+1 (comment FXDiag_<id+1>). Jo pehle bhare,  |
+//| doosra pending khud hat jata hai (OnTradeTransaction + OcoSweep). |
+//+------------------------------------------------------------------+
 void ProcessOrder(string json)
+{
+   int r1 = PlaceOne(json);
+   if(JsonNumber(json, "oco") <= 0 || r1 < 0) return;            // akela order / pehle aa chuka
+   long id = (long)JsonNumber(json, "id");
+   if(r1 == 0)
+   {
+      Print("OCO: pehla order nahi laga - doosra bhi nahi bheja (id ", id, ")");
+      SendReply("OCO joda: pehla order nahi laga - doosra bhi nahi lagaya");
+      return;
+   }
+   long id2 = id + 1;
+   string j2 = "{\"id\":" + IntegerToString(id2) +
+               ",\"pair\":\"" + JsonString(json, "pair") + "\"" +
+               ",\"type\":\"" + JsonString(json, "type2") + "\"" +
+               ",\"lots\":" + DoubleToString(JsonNumber(json, "lots"), 2) +
+               ",\"entry\":" + DoubleToString(JsonNumber(json, "entry2"), 8) +
+               ",\"sl\":" + DoubleToString(JsonNumber(json, "sl2"), 8) +
+               ",\"tp\":" + DoubleToString(JsonNumber(json, "tp2"), 8) +
+               ",\"pm\":" + (JsonNumber(json, "pm") > 0 ? "1" : "0") + "}";
+   int r2 = PlaceOne(j2);
+   if(r1 == 1 && r2 == 1)
+   {
+      GlobalVariableSet(OcoKey(id), (double)id2);
+      GlobalVariableSet(OcoKey(id2), (double)id);
+      Print("OCO joda laga: ", id, " + ", id2, " - jo pehle bhare, doosra cancel");
+   }
+   else if(r1 == 1 && r2 == 0)
+      SendReply("OCO joda: doosra order nahi laga - pehla akela pending hai");
+}
+
+int PlaceOne(string json)
 {
    long   orderID = (long)JsonNumber(json, "id");
    string pair    = JsonString(json, "pair");
@@ -1105,12 +1146,12 @@ void ProcessOrder(string json)
    if(orderID <= 0 || pair == "" || type == "")
    {
       Print("Invalid JSON: ", json);
-      return;
+      return 0;
    }
 
    // Duplicate guard - same order dobara place nahi hoga
    if(orderID <= lastOrderID)
-      return;
+      return -1;
 
    // Extra guard - agar is orderID ka order/position MT5 me pehle se hai to skip
    string checkComment = "FXDiag_" + IntegerToString(orderID);
@@ -1119,7 +1160,7 @@ void ProcessOrder(string json)
       Print("Order ID ", orderID, " already exists in MT5 - skip (duplicate)");
       lastOrderID = orderID;
       GlobalVariableSet("FXBridge_LastOrderID", (double)lastOrderID);
-      return;
+      return -1;
    }
 
    Print("--- Naya order mila: ID ", orderID, " ---");
@@ -1130,7 +1171,7 @@ void ProcessOrder(string json)
       Print("REJECTED: invalid prices  E=", entry, " SL=", sl, " TP=", tp);
       lastOrderID = orderID;
       GlobalVariableSet("FXBridge_LastOrderID", (double)lastOrderID);
-      return;
+      return 0;
    }
 
    string symbol = ResolveSymbol(pair);
@@ -1140,7 +1181,7 @@ void ProcessOrder(string json)
       SendReply("REJECTED: symbol " + pair + " nahi mila — EA ke SymbolMap me daalo");
       lastOrderID = orderID;
       GlobalVariableSet("FXBridge_LastOrderID", (double)lastOrderID);
-      return;
+      return 0;
    }
 
    // ===== AUTO-ADJUST: symbol ke rules ke hisaab se lot aur price fix karo =====
@@ -1168,7 +1209,7 @@ void ProcessOrder(string json)
                 "\n(" + symbol + " ka min lot " + DoubleToString(minLot,2) + " hai - MaxLots badhao)");
       lastOrderID = orderID;
       GlobalVariableSet("FXBridge_LastOrderID", (double)lastOrderID);
-      return;
+      return 0;
    }
 
    if(origLots != lots)
@@ -1269,7 +1310,7 @@ void ProcessOrder(string json)
                 "\nEntry: " + DoubleToString(entry, digits) +
                 "\nSL: " + DoubleToString(sl, digits) +
                 "\nTP: " + DoubleToString(tp, digits));
-      return;
+      return 2;
    }
 
    datetime expiry = (ExpiryHours > 0) ? TimeCurrent() + ExpiryHours * 3600 : 0;
@@ -1296,7 +1337,7 @@ void ProcessOrder(string json)
    else
    {
       Print("Unknown order type: ", type);
-      return;
+      return 0;
    }
 
    rc = (int)trade.ResultRetcode();
@@ -1334,11 +1375,82 @@ void ProcessOrder(string json)
                 "\nError " + IntegerToString(rc) + ": " + trade.ResultRetcodeDescription() +
                 (rc == 10012 ? "\n(Timeout - VPS internet ya broker slow hai)" : ""));
    }
+   return ok ? 1 : 0;
 }
 
 //+------------------------------------------------------------------+
 //| Telegram pe confirmation (ye direction kaam karta hai)            |
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//| v3.57 OCO: joda ka ek bhara -> doosra pending hatao               |
+//+------------------------------------------------------------------+
+string OcoKey(long id) { return "FXB.oco." + IntegerToString(id); }
+string g_ocoMsg = "";
+
+void OcoCancelPartner(long id)
+{
+   if(!GlobalVariableCheck(OcoKey(id))) return;
+   long other = (long)GlobalVariableGet(OcoKey(id));
+   string oc = "FXDiag_" + IntegerToString(other);
+   bool left = false;
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong t = OrderGetTicket(i);
+      if(t == 0) continue;
+      if(OrderGetInteger(ORDER_MAGIC) != MagicNumber) continue;
+      if(OrderGetString(ORDER_COMMENT) != oc) continue;
+      string sym = OrderGetString(ORDER_SYMBOL);
+      if(trade.OrderDelete(t))
+      {
+         Print("OCO: ", sym, " order ", id, " bhara - joda ka doosra pending (", other, ") hataya");
+         g_ocoMsg += "OCO: " + sym + " ek order bhara - doosra pending hataya\n";
+      }
+      else
+      {
+         left = true;
+         Print("OCO: pending ", other, " hata nahi paaye - retcode ", trade.ResultRetcode(), " (agli baar phir)");
+      }
+   }
+   if(!left)
+   {
+      GlobalVariableDel(OcoKey(id));
+      GlobalVariableDel(OcoKey(other));
+   }
+}
+
+// timer se: joda ka koi order position ban chuka ho to doosra hatao (transaction chhoot jaye to bhi)
+void OcoSweep()
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != MagicNumber) continue;
+      string cmt = PositionGetString(POSITION_COMMENT);
+      if(StringFind(cmt, "FXDiag_") != 0) continue;
+      long id = (long)StringToInteger(StringSubstr(cmt, 7));
+      if(id > 0) OcoCancelPartner(id);
+   }
+   if(g_ocoMsg != "") { SendReply(g_ocoMsg); g_ocoMsg = ""; }
+}
+
+void OnTradeTransaction(const MqlTradeTransaction &tr, const MqlTradeRequest &rq, const MqlTradeResult &rs)
+{
+   if(tr.type != TRADE_TRANSACTION_DEAL_ADD) return;
+   if(!HistoryDealSelect(tr.deal)) return;
+   if(HistoryDealGetInteger(tr.deal, DEAL_MAGIC) != MagicNumber) return;
+   if(HistoryDealGetInteger(tr.deal, DEAL_ENTRY) != DEAL_ENTRY_IN) return;
+   string cmt = HistoryDealGetString(tr.deal, DEAL_COMMENT);
+   if(StringFind(cmt, "FXDiag_") != 0)
+   {
+      ulong ord = (ulong)HistoryDealGetInteger(tr.deal, DEAL_ORDER);
+      if(ord > 0 && HistoryOrderSelect(ord)) cmt = HistoryOrderGetString(ord, ORDER_COMMENT);
+   }
+   if(StringFind(cmt, "FXDiag_") != 0) return;
+   long id = (long)StringToInteger(StringSubstr(cmt, 7));
+   if(id > 0) OcoCancelPartner(id);     // Telegram message OnTimer (OcoSweep) se jaata hai
+}
+
 //+------------------------------------------------------------------+
 //| Is comment ka pending order pehle se hai?                         |
 //+------------------------------------------------------------------+
