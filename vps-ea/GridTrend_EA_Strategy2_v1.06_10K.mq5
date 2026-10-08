@@ -1,5 +1,14 @@
 //+------------------------------------------------------------------+
-//|            GridTrend_EA_Strategy2.mq5   v1.05                    |
+//|            GridTrend_EA_Strategy2.mq5   v1.06 (10K)              |
+//|  v1.06 10K: Strategy 2 (30K) ke saath same account/VPS pe clash   |
+//|   na ho, aur 10K ke hisaab se flip chhota (settings only, logic   |
+//|   v1.05 jaisa hi):                                                |
+//|   - Magic 20250001 -> 20250010, comment "Grid10k_EA"              |
+//|   - State/CSV/JSON files "Grid10K_*" (pehle S2 wale hi the)        |
+//|   - App bridge Firebase root "gt2" -> "g10k"                       |
+//|   - DD_Flip_Dollars 400 -> 300 (10000 ka 3%)                      |
+//|   NOTE: Magic badla hai — v1.05 ke khule trades yeh EA manage     |
+//|   NAHI karega. v1.05 ke sab trades band hone ke baad switch karo. |
 //|  10K EDITION: 10000 balance ke liye. Strategy/lots/gaps/$ limits |
 //|   30000 wale jaise hi. Sirf Global_Target_Pct 0.5 → 1.5 kiya,    |
 //|   taaki combined basket target 150 hi rahe (pehle 30000×0.5%).   |
@@ -116,8 +125,8 @@
 //|  NEW: Basket Trailing + Supertrend Whipsaw Confirmation          |
 //|  v3.04 FIX: Global-basket baseline BALANCE-anchored + float guard |
 //+------------------------------------------------------------------+
-#property copyright "GridTrend S2 v1.05"
-#property version   "1.05"
+#property copyright "GridTrend S2 v1.06 10K"
+#property version   "1.06"
 #property strict
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
@@ -147,7 +156,7 @@ input int    RecoveryHold_MinOppositeTrades = 10;  // v3.15: opposite side kam s
 // S2: purana STOP & REVERSE ($180 move wala) pura remove — ab flip DD se hota hai, price move se nahi.
 input group "══ PER-SIDE DD FLIP (Strategy 2) ══"
 input bool   Enable_DDFlip          = true;   // ON = kisi ek side ka DD limit cross hote hi trend flip
-input double DD_Flip_Dollars        = 400.0;  // Per-side floating loss $ — buy aur sell ka ALAG-ALAG count
+input double DD_Flip_Dollars        = 300.0;  // v1.06 10K: per-side floating loss $ (10000 ka 3%, pehle 400) — buy aur sell ka ALAG-ALAG count
 input int    DD_Flip_Max_Per_Cycle  = 4;      // Ek cycle mein max itne flips, uske baad pause
 input int    DD_Flip_Pause_Hrs      = 6;      // Cap hit hone par itne ghante naya flip nahi
 input int    DD_Flip_Cooldown_Min   = 60;     // Do flips ke beech minimum gap (whipsaw se bachav)
@@ -254,14 +263,14 @@ input bool   Enable_Telegram    = false;   // ON = Telegram alerts (abhi placeho
 input string Telegram_Bot_Token = "";      // Telegram Bot ka API token (Telegram feature use karna ho to)
 input string Telegram_Chat_ID   = "";      // Jis Telegram chat/group mein alert bhejni hai uski Chat ID
 input group "══ GENERAL ══"
-input long   Magic_Number  = 20250001;    // Is EA ki apni unique ID — isi Magic wali trades hi yeh manage karega
+input long   Magic_Number  = 20250010;    // v1.06 10K: apni unique ID (Strategy 2 30K = 20250001) — isi Magic wali trades hi yeh manage karega
 input int    Slippage      = 3;           // Order execution mein max allowed slippage (points)
-input string Trade_Comment = "GridTrend_EA";   // Har trade ke comment mein yeh prefix lagega (identify karne ke liye)
+input string Trade_Comment = "Grid10k_EA";   // Har trade ke comment mein yeh prefix lagega (identify karne ke liye)
 input bool   Reset_Cycle_Baseline = false;  // v3.20: EMERGENCY FALLBACK ONLY — deposit/withdrawal ab AUTO-detect hoti hai (OnTradeTransaction), isko normally kabhi chhoona nahi padega
 input group "══ GRID 2 MOBILE APP BRIDGE (v1.03) ══"
 input bool   Enable_Bridge          = true;   // ON = live data Firebase pe push (GRID 2 phone app ke liye). Tester mein auto-OFF
 input string Bridge_FB_URL          = "https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app";   // Firebase Realtime DB host (MT5 WebRequest list mein hona chahiye)
-input string Bridge_Root            = "gt2";  // Firebase node — data /gt2/{account number} pe jayega
+input string Bridge_Root            = "g10k"; // v1.06 10K: Firebase node — data /g10k/{account number} pe jayega (30K = gt2). App SETUP mein Root node "g10k" karo
 input int    Bridge_Push_Sec        = 5;      // Har kitne second live data push ho (5 = recommended)
 input double Bridge_Opening_Balance = 0;      // App mein dikhne wala OPENING BALANCE. 0 = AUTO (account ke total deposits - withdrawals)
 
@@ -303,9 +312,9 @@ int      g_flipCount=0;            // is cycle mein kitne flips ho chuke
 datetime g_lastFlipTime=0;         // last flip ka time (cooldown ke liye)
 datetime g_flipPauseUntil=0;       // cap hit hone ke baad itne time tak koi flip nahi
 int      g_ddFrozenDir=0;          // kaunsi side DD ki wajah se frozen hai (1=BUY, -1=SELL, 0=koi nahi)
-#define  STATS_CSV_FILE_BASE  "GridTrendS2_TradeLog"
-#define  DASHBOARD_EXPORT_FILE_BASE  "GridTrendS2_Dashboard"
-#define  STATE_FILE_BASE             "GridTrendS2_EA_State"
+#define  STATS_CSV_FILE_BASE  "Grid10K_TradeLog"
+#define  DASHBOARD_EXPORT_FILE_BASE  "Grid10K_Dashboard"
+#define  STATE_FILE_BASE             "Grid10K_EA_State"
 // v3.25: har symbol ki apni alag file — XAUUSD aur EURUSD (ya kisi bhi 2 symbols) EK SAATH
 // chalane par ab state/log/JSON files overwrite/corrupt nahi hongi, har symbol ka data alag rahega.
 string g_statsCsvFile, g_dashboardJsonFile, g_stateFile;
@@ -678,7 +687,7 @@ void BuildDB()
 {
    ClearDB();
    CreateMasterPanel();   // v3.14: solid backing panel — candles kahin se bhi peeche se nahi dikhenge
-   CreateDBLine(R_TITLE, "  GRIDTREND S2 - PER-SIDE DD FLIP v1.05", C'0,0,0', BG_TITLE);
+   CreateDBLine(R_TITLE, "  GRIDTREND S2 10K - DD FLIP v1.06", C'0,0,0', BG_TITLE);
    CreateDBLine(R_SEP1,  "  [F1] SIGNAL",                      CL_AMBER, BG_SEP);
    CreateDBLine(R_SIG,   DRow("Signal")+"...",            TXT_VAL,  BG_SIG);
    CreateDBLine(R_SEP2,  "  [F2] PROFIT & GRIDS",              CL_AMBER, BG_SEP);
@@ -2055,7 +2064,7 @@ void LoadEAState()
 //|  /gt2/{acct}/events   = alerts + trade opens (activity feed)      |
 //|  /gt2/{acct}/cycles   = har basket close ka result                |
 //+------------------------------------------------------------------+
-#define  BR_VER  "1.05"
+#define  BR_VER  "1.06"
 bool     g_brOn=false;
 string   g_brQ[];            // /events ke liye pending JSON
 string   g_brCycQ[];         // /cycles ke liye pending JSON
@@ -2261,7 +2270,7 @@ string BrLiveJSON()
    double opening=(Bridge_Opening_Balance>0)?Bridge_Opening_Balance:((netDep>0)?netDep:cycleStartBal);
    int bCnt=CountTrades(1), sCnt=CountTrades(-1);
    string j="{";
-   j+="\"ver\":\""+BR_VER+"\",\"ea\":\"GridTrend S2 v1.03\",\"ts\":"+IntegerToString(BrEpoch());
+   j+="\"ver\":\""+BR_VER+"\",\"ea\":\"GridTrend S2 10K v1.06\",\"ts\":"+IntegerToString(BrEpoch());
    j+=",\"acct\":"+IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
    j+=",\"name\":"+BrStr(AccountInfoString(ACCOUNT_NAME))+",\"server\":"+BrStr(AccountInfoString(ACCOUNT_SERVER));
    j+=",\"company\":"+BrStr(AccountInfoString(ACCOUNT_COMPANY))+",\"cur\":"+BrStr(AccountInfoString(ACCOUNT_CURRENCY));
@@ -2479,7 +2488,7 @@ int OnInit()
    BuildHistoryPanel();
    BuildNewsPanel();
    Print("═══════════════════════════════════════");
-   Print("GridTrend S2 v1.05 — READY (dashboard scale ",DoubleToString(g_dbScale,2),"x)");
+   Print("GridTrend S2 10K v1.06 — READY (dashboard scale ",DoubleToString(g_dbScale,2),"x)");
    Print("Spike Filter   : ", Enable_SpikeFilter?("ON  $"+DoubleToString(Spike_Move_Dollars,0)+"/"+IntegerToString(Spike_Window_Min)+"min -> block "+IntegerToString(Spike_Block_Min)+"min"):"OFF");
    Print("Recovery Hold  : ", Enable_RecoveryHold?("ON  min "+IntegerToString(RecoveryHold_MinOppositeTrades)+" trades deep, last "+IntegerToString(RecoveryHold_LastN)+" all-profit check"):"OFF");
    Print("Total DD $     : ", Enable_TotalDD_Limit?("ON  liquidate + LOCK at -$"+DoubleToString(Total_DD_Dollar_Limit,0)):"OFF",g_totalDDTriggered?"  [LOCKED NOW]":"");
@@ -2503,7 +2512,7 @@ int OnInit()
    if(g_brOn)
    {
       EventSetTimer(MathMax(2,Bridge_Push_Sec));
-      BrEventT("START","GridTrend S2 v1.05 start — "+_Symbol+" | Magic "+IntegerToString(Magic_Number));
+      BrEventT("START","GridTrend S2 10K v1.06 start — "+_Symbol+" | Magic "+IntegerToString(Magic_Number));
       Print("GRID 2 Bridge  : ON  every ",MathMax(2,Bridge_Push_Sec),"s -> ",Bridge_FB_URL,"/",Bridge_Root,"/",AccountInfoInteger(ACCOUNT_LOGIN));
    }
    else Print("GRID 2 Bridge  : OFF",(MQLInfoInteger(MQL_TESTER)?" (tester)":""));
