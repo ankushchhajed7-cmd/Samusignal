@@ -1426,20 +1426,30 @@ body.ds-gold .brand .brandWord{height:24px}
       <button class="pick" id="cpPair" onclick="openPick('main')"></button>
       <button class="btn gold sm" id="cpAnBtn" onclick="cpAnalyze()">⟳ Analyze</button>
     </div>
-    <p class="hint" style="margin:8px 0 0">1 Live chart → 2 Screenshot AI → 3 Levels → 4 Final result → 5 Range setup. Pair badlo to Analyze dabao.</p>
   </div>
   <div class="card">
-    <p class="ttl">1 · Live Chart <span class="sp" id="chartSym">—</span></p>
+    <p class="ttl">Live Chart <span class="sp" id="chartSym">—</span></p>
     <div class="chips" id="chartTf" style="margin-bottom:10px"></div>
     <div class="tvbox" id="tvBox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
     <button class="btn ghost sm" style="margin-top:10px" onclick="chartBig()">⛶ Full Screen</button>
     <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
-    <p class="hint" style="margin:8px 0 0">Chart ko do ungli se zoom karo, khiska ke set karo, phir phone ka screenshot lo aur neeche upload karo.</p>
   </div>
 
   <div class="card">
-    <p class="ttl">2 · Screenshot → AI Analysis <span class="sp" id="shotState">screenshot upload karo</span></p>
+    <p class="ttl">Screenshot <span class="sp" id="shotState">—</span></p>
+    <button class="btn gold" onclick="shotIn.click()">📸 SCREENSHOT</button>
+    <input type="file" id="shotIn" accept="image/*" class="hide">
+    <div id="shotBox" style="margin-top:12px"></div>
+  </div>
 
+  <div class="card" id="finCard">
+    <p class="ttl">Result <span class="sp" id="finT">—</span></p>
+    <div id="finBox"><p class="hint">Analyze dabao.</p></div>
+  </div>
+
+  <!-- v9.9.49: purane hisse (levels, range details, EMA, style) chhupe — hisaab inhi se chalta hai (EMA plan ko canvas ka size chahiye, isliye display:none nahi) -->
+  <div aria-hidden="true" style="position:absolute;left:-10000px;top:0;width:360px;height:0;overflow:hidden;visibility:hidden">
+  <div class="card">
     <label>Trading style</label>
     <div class="chips" style="margin-bottom:12px">
       <button class="chip" id="mdScalp" onclick="setStyle('SCALP')">Scalping</button>
@@ -1447,23 +1457,12 @@ body.ds-gold .brand .brandWord{height:24px}
       <button class="chip" id="mdSwing" onclick="setStyle('SWING')">Swing</button>
     </div>
     <p class="hint" id="styleNote" style="margin:-4px 0 12px">—</p>
-
-    <button class="btn gold" onclick="shotIn.click()">🖼 CHART SCREENSHOT UPLOAD KARO</button>
-    <input type="file" id="shotIn" accept="image/*" class="hide">
-    <p class="hint" style="margin:8px 0 0">Upar chart ko zoom/scroll karke set karo → phone se screenshot lo (Power + Volume-neeche) → screenshot ke preview me <b>Share → SamuSignal</b> dabao — app khud yahan photo dikha ke analysis shuru kar degi (gallery ki zaroorat nahi). Ya neeche wale button se upload. Price axis aur pair ka naam dikhna zaroori hai. Upload ke baad usi pair ka live hisaab apne aap chalega.</p>
-
-    <div id="shotBox" style="margin-top:12px"></div>
   </div>
-
   <div class="card" id="lvCard">
     <p class="ttl">3 · Levels — Support / Resistance / Pivot / Fibonacci</p>
     <div id="lvBox"><p class="hint">Pehle Analyze karo.</p></div>
   </div>
 
-  <div class="card" id="finCard">
-    <p class="ttl">4 · Final Result</p>
-    <div id="finBox"><p class="hint">Pehle Analyze karo.</p></div>
-  </div>
 
   <div class="card" id="rsCard">
     <p class="ttl">5 · ⇅ Range Setup <span class="sp" id="rsT">—</span></p>
@@ -1482,7 +1481,7 @@ body.ds-gold .brand .brandWord{height:24px}
     <div id="emaBox"><p class="hint" style="margin-top:10px">Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.</p></div>
     <button class="btn ghost sm" id="emaRefBtn" style="margin-top:10px" onclick="loadEma(true)">⟳ EMA REFRESH · 1 credit</button>
   </div>
-
+  </div>
 
 </section>
 
@@ -1933,11 +1932,11 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
   <p class="hint" id="pairDefNote" style="margin-bottom:8px"></p>
   <button class="btn ghost sm" style="margin-bottom:10px" onclick="resetPairDef()">↺ Is pair ko default pe wapas</button>
-  <div class="sw" id="swBe" onclick="toggleSw(this,'beOn')">
+  <div class="sw on" id="swBe">
     <div class="tg"></div>
-    <div>Breakeven + Profit lock + Trailing<small>TP ka 50% → SL entry · 65% → SL +25% (kam se kam $0.75) · 75% ke baad trailing</small></div>
+    <div>Breakeven + Profit lock + Trailing — hamesha ON<small>TP ka 50% → SL entry · 65% → SL +25% (kam se kam $0.75) · 75% ke baad trailing</small></div>
   </div>
-  <p class="hint" style="margin:-2px 0 12px">Journal me SL apne aap khiskegi. App se 🚀 MT5 pe bheje order me FXBridgeEA (v3.54+) bhi yahi karega — jab ye switch ON ho. MT5 me haath se liya trade ho to SL wahan khud khiskana.</p>
+  <p class="hint" style="margin:-2px 0 12px">Journal me SL apne aap khiskegi. App se 🚀 MT5 pe bheje order me FXBridgeEA (v3.54+) bhi yahi karta hai. MT5 me haath se liya trade ho to SL wahan khud khiskana.</p>
 
   <div class="sw" id="swFresh" onclick="toggleSw(this,'freshPx')">
     <div class="tg"></div>
@@ -2108,7 +2107,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.48';
+const VERSION = '9.9.49';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -2263,7 +2262,7 @@ let S = {
   vbal:  LS.get('vbal',500),   /* virtual account balance — sirf app ke hisaab ke liye */
   dTp:   LS.get('dTp',5),      /* default R:R 1:2 — 33% win rate se breakeven */
   dSl:   LS.get('dSl',2.5),
-  beOn:  LS.get('beOn',true),  /* 1R par SL breakeven pe (sirf app journal) */
+  beOn:  true,                 /* v9.9.49: BE + profit lock + trailing hamesha ON (niyam) — switch nahi */
   fbUrl: LS.get('fbUrl',''),
   fbAuth:LS.get('fbAuth',''),
   /* ---- MetaApi direct bridge (no VPS) ---- */
@@ -4611,7 +4610,7 @@ function renderRangeScan(){
 async function rsScanOpen(sym){
   S.pair = sym; save(); pickLabel($('selPair'), sym); setChart(sym); lastSignal = null; renderSignal();
   go('Chart'); await cpAnalyze();
-  setTimeout(() => { const c = $('rsCard'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}) }, 150);
+  setTimeout(() => { const c = $('finCard'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}) }, 150);
 }
 
 function renderScan(){
@@ -6598,7 +6597,9 @@ function addTrade(t){
       `Pehle use band karo, phir nayi lagao.`);
     return;
   }
-  t.id = 'T' + Date.now();
+  let n = Date.now();
+  while(S.open.some(x => x.id === 'T' + n) || S.hist.some(x => x.id === 'T' + n)) n++;   /* joda: do trade ek hi ms me */
+  t.id = 'T' + n;
   t.at = Date.now();
   t.cur = t.entry;
   t.pl = 0;
@@ -6679,7 +6680,7 @@ function slReason(t){
   return (t.dir === 'BUY' ? t.sl > t.entry + tiny : t.sl < t.entry - tiny) ? 'LOCK' : 'BE';
 }
 function beCheck(t, px, atMs){
-  if(!S.beOn || !isFinite(px) || !(t.sl > 0) || t.pend) return false;
+  if(!isFinite(px) || !(t.sl > 0) || t.pend) return false;   /* v9.9.49: hamesha ON */
   const gain = t.dir === 'BUY' ? px - t.entry : t.entry - px;
   const want = slLadder(t, gain);
   if(want === null) return false;
@@ -7012,63 +7013,145 @@ function renderLevels(){
       ${RS_FIB.slice().reverse().map(([k, t]) => line(t + '%', R.lo + k * R.w, '#38BDF8')).join('')}` : ''}`;
 }
 
-/* entry/SL/TP kis level ke paas — 0.25 ATR ke andar */
-function cpNear(v, L, atrV){
-  const all = [];
-  L.sr.res.forEach((c, i) => all.push(['Resistance R' + (i + 1), c.v]));
-  L.sr.sup.forEach((c, i) => all.push(['Support S' + (i + 1), c.v]));
-  if(L.piv) ['R3','R2','R1','P','S1','S2','S3'].forEach(k => all.push([k === 'P' ? 'Pivot' : 'Pivot ' + k, L.piv[k]]));
-  const hit = all.filter(([, x]) => Math.abs(x - v) <= 0.25 * atrV).map(([n]) => n);
-  return hit.length ? hit.join(', ') : '';
+/* ================= CHART PAGE RESULT (v9.9.49) =================
+   Analyze ke baad sirf EK result, aur card me sirf wahi order(s):
+     1. app ka A+ plan (MARKET / LIMIT / STOP, ek taraf) — screenshot AI ulta bole to WAIT
+     2. warna range market me Range joda (LIMIT) — dono ya jo ek taraf niyam pe poora
+     3. warna Breakout joda (STOP) — dono ya ek
+     4. kuch nahi to WAIT
+   SL/TP niyam se bhare aate hain, badal sakte ho. Breakeven + lock + trailing hamesha ON. */
+let cpRes = null;
+function cpDecide(){
+  const s = lastSignal;
+  if(!s || s.sym !== S.pair) return null;
+  const sym = s.sym, lots = +$('inLots').value || S.dLot, r = v => +(+v).toFixed(SPECS[sym].d);
+  const base = {sym, lots, s, at:s.at};
+  const fc = finalCall(s), P = autoGate(autoPlan(s, fc, lots), sym);
+  if(P.t !== 'WAIT'){
+    const shot = S.shot && S.shot.sym === sym && Date.now() - S.shot.at < 3 * 3600000 ? S.shot : null;
+    const ai = shot ? shot.signal : null;
+    if((ai === 'BUY' || ai === 'SELL') && ai !== P.dir) return Object.assign(base, {kind:'WAIT', legs:[]});
+    const buy = P.dir === 'BUY', e = s.live + (P.t === 'LIMIT' ? (buy ? -P.off : P.off) : P.t === 'STOP' ? (buy ? P.off : -P.off) : 0);
+    return Object.assign(base, {kind:P.t, src:'A+', legs:[{dir:P.dir, type:P.t, e:r(e), sl:r(buy ? e - P.sl : e + P.sl), tp:r(buy ? e + P.tp : e - P.tp)}]});
+  }
+  const R = rangeInfo(s);
+  if(R.hi){
+    const ok = type => [rsLeg(R, 'BUY', type, lots), rsLeg(R, 'SELL', type, lots)].filter(L => L.ok)
+      .map(L => ({dir:L.dir, type:L.type, e:L.e, sl:L.sl, tp:L.tp}));
+    if(R.ok){ const L = ok('LIMIT'); if(L.length) return Object.assign(base, {kind:'LIMIT', src:'RANGE', legs:L}) }
+    if(!R.news){ const L = ok('STOP'); if(L.length) return Object.assign(base, {kind:'STOP', src:'BREAKOUT', legs:L}) }
+  }
+  return Object.assign(base, {kind:'WAIT', legs:[]});
 }
 
 function renderFinal(){
   const box = $('finBox'); if(!box) return;
-  const s = lastSignal;
-  if(!s || s.sym !== S.pair){ box.innerHTML = '<p class="hint">Analyze ke baad yahan aakhri faisla aayega — app ka hisaab + screenshot ka AI + levels, teeno mila ke.</p>'; return }
-  const sym = s.sym, sp = SPECS[sym], lots = +$('inLots').value || S.dLot;
-  const fc = finalCall(s), P = autoGate(autoPlan(s, fc, lots), sym), R = rangeInfo(s), L = cpLevels();
-  const shot = S.shot && S.shot.sym === sym && Date.now() - S.shot.at < 3 * 3600000 ? S.shot : null;
-  const ai = shot ? shot.signal : null;
-  const appDir = P.t !== 'WAIT' ? P.dir : null;
-  let tier, col, head, why;
-  if(appDir && ai === appDir){ tier = 'A'; col = 'var(--up)'; head = `✅ ${P.dir} — ${P.t === 'MARKET' ? 'TRADE LO' : P.t + ' LAGAO'}`; why = 'App ka A+ hisaab aur screenshot ka AI dono ek hi taraf.' }
-  else if(appDir && ai && ai !== 'NO TRADE' && ai !== 'UNREADABLE' && ai !== appDir){ tier = 'X'; col = 'var(--dn)'; head = '⏸ WAIT — dono alag bol rahe'; why = `App ${appDir} bol raha, screenshot ka AI ${ai}. Jab tak dono ek na hon, trade mat lo.` }
-  else if(appDir){ tier = 'B'; col = 'var(--gold)'; head = `☑ ${P.dir} — ${P.t === 'MARKET' ? 'TRADE' : P.t} (sirf app)`; why = shot ? `Screenshot ka AI "${ai}" bol raha — sirf app ka hisaab, thoda sambhal ke.` : 'Screenshot abhi upload nahi kiya — sirf app ke live hisaab se.' }
-  else if(R.ok){ tier = 'R'; col = '#38BDF8'; head = '⇅ RANGE — dono taraf ka setup'; why = 'Market range me hai — neeche Range Setup ke jode dekho.' }
-  else if(ai === 'BUY' || ai === 'SELL'){ tier = 'W'; col = 'var(--gold)'; head = `👁 WATCH — AI ko ${ai} dikha`; why = `Par app ke niyam poore nahi: ${P.why || fc.why}. Isliye trade nahi, sirf nazar rakho.` }
-  else { tier = 'N'; col = 'var(--gold)'; head = '⏸ WAIT'; why = P.why || fc.why || 'abhi koi saaf setup nahi' }
-
-  let lv = '';
-  if(appDir){
-    const buy = P.dir === 'BUY', e = s.live + (P.t === 'LIMIT' ? (buy ? -P.off : P.off) : P.t === 'STOP' ? (buy ? P.off : -P.off) : 0);
-    const sl = buy ? e - P.sl : e + P.sl, tp = buy ? e + P.tp : e - P.tp;
-    const near = v => L ? cpNear(v, L, s.atr) : '';
-    const row = (k, v, c, extra) => `<div class="lvl ${k === 'STOP LOSS' ? 'sl' : k === 'TAKE PROFIT' ? 'tp' : ''}"><span>${k}</span><b class="mono">${fmt(sym, v)}</b>
-      <small style="display:block;font-size:9.5px;color:${c};font-weight:700">${extra}</small>${near(v) ? `<small style="display:block;font-size:9px;color:var(--gold)">≈ ${near(v)}</small>` : ''}</div>`;
-    lv = `<div class="lvls" style="margin:10px 0 6px">
-      ${row('ENTRY', e, 'var(--mut)', P.t)}
-      ${row('STOP LOSS', sl, 'var(--dn)', `−$${P.slUsd.toFixed(2)} · ${(P.sl / sp.pip).toFixed(0)}p`)}
-      ${row('TAKE PROFIT', tp, 'var(--up)', `+$${P.tpUsd.toFixed(2)} · ${(P.tp / sp.pip).toFixed(0)}p`)}</div>
-      <p class="hint" style="margin:0 0 8px">Mode ${P.mode} · R:R 1:${(P.tp / P.sl).toFixed(2)} · levels live candles se (A+ niyam)</p>`;
+  const d = cpRes = cpDecide();
+  if(!d){ $('finT').textContent = '—'; box.innerHTML = '<p class="hint">Analyze dabao.</p>'; return }
+  $('finT').textContent = t12(d.at);
+  if(d.kind === 'WAIT'){
+    box.innerHTML = `<div style="border:1px solid var(--gold);border-radius:11px;padding:14px;text-align:center">
+      <b class="shine gd" style="font-size:17px;letter-spacing:1px">⏸ WAIT</b></div>`;
+    return;
   }
-  const aiBox = shot ? `<div style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin:8px 0;font-size:12px">
-      <b style="letter-spacing:1px">📷 Screenshot AI:</b> ${escH(shot.signal)} · ${shot.confidence}% · ${escH(shot.timeframe || '')}
-      ${(shot.signal === 'BUY' || shot.signal === 'SELL') ? `<br><span class="mono" style="color:var(--mut)">AI levels: E ${fmt(sym, +shot.entry)} · SL ${fmt(sym, +shot.stop_loss)} · TP ${fmt(sym, +shot.take_profit_1)}</span>` : ''}</div>`
-    : `<p class="hint" style="margin:8px 0">📷 Screenshot upload nahi hua — upar chart set karke phone ka screenshot lo aur "Screenshot upload" dabao.</p>`;
+  const sym = d.sym, two = d.legs.length > 1;
+  const head = d.kind === 'MARKET' ? `${d.legs[0].dir} · MARKET ORDER` : two ? `${d.kind} JODA · BUY + SELL` : `${d.legs[0].dir} ${d.kind}`;
+  const hcol = two ? '#38BDF8' : d.legs[0].dir === 'BUY' ? 'var(--up)' : 'var(--dn)';
+  const inp = (id, v) => `<input class="mono" id="${id}" type="number" inputmode="decimal" step="${SPECS[sym].pip}" value="${fmt(sym, v)}" oninput="cpEdit()" style="padding:8px;font-size:13px">`;
+  const leg = (L, i) => `<div style="border:1px solid ${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};border-radius:10px;padding:10px 11px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <b style="color:${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};letter-spacing:1px">${L.dir} ${L.type}</b>
+        <span class="mono" style="margin-left:auto;font-size:12px">Entry <b>${L.type === 'MARKET' ? 'market ' : ''}${fmt(sym, L.e)}</b></span></div>
+      <div class="grid2">
+        <div><label style="color:var(--dn)">SL <small class="mono" id="cpSlD${i}"></small></label>${inp('cpSl' + i, L.sl)}</div>
+        <div><label style="color:var(--up)">TP <small class="mono" id="cpTpD${i}"></small></label>${inp('cpTp' + i, L.tp)}</div>
+      </div></div>`;
   box.innerHTML = `
-    <div style="border:1px solid ${col};border-radius:11px;padding:11px 13px;background:rgba(255,255,255,.02)">
-      <div style="display:flex;align-items:center;gap:8px"><b style="color:${col};font-size:15px;letter-spacing:.5px">${head}</b>
-        <span class="gr" style="margin-left:auto">${{A:'TIER A', B:'TIER B', W:'WATCH', R:'RANGE', X:'WAIT', N:'WAIT'}[tier]}</span></div>
-      <p class="hint" style="margin:5px 0 0">${escH(why)}</p>
-    </div>
-    ${lv}${aiBox}
-    <p class="hint" style="margin:0 0 8px">App faisla: <b>${fc.t}</b> · Auto mode: <b>${P.mode} ${P.t}</b>${P.t === 'WAIT' && P.why ? ' — ' + escH(P.why) : ''}</p>
-    ${tier === 'A' || tier === 'B' ? `<div class="grid2">
-        <button class="btn ${P.dir === 'SELL' ? 'r' : 'g'} sm" onclick="openQuick('APP')">✓ Maine Ye Trade Liya</button>
-        <button class="btn gold sm" onclick="openQuick('MT5')">🚀 MT5 pe Bhejo</button></div>`
-      : tier === 'R' ? `<button class="btn ghost sm" style="width:100%;border-color:#38BDF8;color:#38BDF8" onclick="$('rsCard').scrollIntoView({behavior:'smooth'})">⇅ Range Setup dekho</button>` : ''}
-    <p class="hint" style="margin:10px 0 0">Watch ka matlab trade nahi — app khud kabhi watch ko market order nahi banati.</p>`;
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <b style="color:${hcol};font-size:15px;letter-spacing:.5px">${head}</b>
+      <span class="gr" style="margin-left:auto">${SPECS[sym].n} · ${d.lots} lot</span></div>
+    ${d.legs.map(leg).join('')}
+    <p class="hint" style="margin:0 0 10px">🛡 Breakeven + profit lock + trailing: ON${two ? ' · jo pehle bhare, doosra cancel' : ''}</p>
+    <div class="grid2">
+      <button class="btn gold" onclick="cpSendMT5()">🚀 MT5 pe bhejo</button>
+      <button class="btn ${two ? 'g' : d.legs[0].dir === 'BUY' ? 'g' : 'r'}" onclick="cpTake()">✓ Maine trade liya</button>
+    </div>`;
+  cpEdit();
+}
+/* card ke SL/TP box padho — $ bhi nikalo */
+function cpLegs(){
+  const d = cpRes; if(!d || d.kind === 'WAIT') return [];
+  return d.legs.map((L, i) => {
+    const sl = parseFloat(($('cpSl' + i) || {}).value), tp = parseFloat(($('cpTp' + i) || {}).value);
+    const slD = isFinite(sl) ? +distToDollars(d.sym, L.e, d.lots, Math.abs(L.e - sl)).toFixed(2) : 0;
+    const tpD = isFinite(tp) ? +distToDollars(d.sym, L.e, d.lots, Math.abs(tp - L.e)).toFixed(2) : 0;
+    return Object.assign({}, L, {sl, tp, slD, tpD});
+  });
+}
+function cpEdit(){
+  cpLegs().forEach((L, i) => {
+    const a = $('cpSlD' + i), b = $('cpTpD' + i);
+    if(a) a.textContent = isFinite(L.sl) ? `−$${L.slD.toFixed(2)}` : '';
+    if(b) b.textContent = isFinite(L.tp) ? `+$${L.tpD.toFixed(2)}` : '';
+  });
+}
+/* SL/TP sahi taraf + broker ki kam se kam doori — galat ho to roko */
+function cpCheck(){
+  const d = cpRes;
+  if(!d || d.kind === 'WAIT'){ toast('Abhi koi order nahi'); return null }
+  if(!lastSignal || lastSignal.at !== d.at){ toast('Result purana ho gaya — Analyze dobara dabao'); return null }
+  const legs = cpLegs();
+  for(const L of legs){
+    const bad = !isFinite(L.sl) || !isFinite(L.tp) ? ['SL / TP khaali hai'] : checkStops(d.sym, L.dir, L.e, L.sl, L.tp);
+    if(bad.length){ alert(`${L.dir} ${L.type} —\n\n${bad.join('\n')}`); return null }
+  }
+  return legs;
+}
+function cpTake(){
+  const legs = cpCheck(); if(!legs) return;
+  const d = cpRes, s = d.s;
+  if(S.open.some(t => t.sym === d.sym)){ alert(`${d.sym} pe pehle se trade / pending khula hai — pehle use band karo.`); return }
+  const oco = legs.length > 1 ? 'O' + Date.now() : null;
+  legs.forEach((L, i) => addTrade(Object.assign(
+    {sym:d.sym, dir:L.dir, lots:d.lots, entry:L.e, sl:L.sl, tp:L.tp, slD:L.slD, tpD:L.tpD, q:s.q, grade:s.grade},
+    L.type !== 'MARKET' ? {pend:L.type} : {},
+    d.src === 'RANGE' || d.src === 'BREAKOUT' ? {setup:d.src} : {},
+    oco ? {oco, ocoN:i} : {})));
+}
+async function cpSendMT5(){
+  const legs = cpCheck(); if(!legs) return;
+  const d = cpRes, sym = d.sym;
+  const txt = legs.map(L => `${L.dir} ${L.type}  ${L.type === 'MARKET' ? 'market' : fmt(sym, L.e)}\nSL ${fmt(sym, L.sl)} (−$${L.slD.toFixed(2)})  ·  TP ${fmt(sym, L.tp)} (+$${L.tpD.toFixed(2)})`).join('\n\n');
+  if(!confirm(`${SPECS[sym].n} · ${d.lots} lot\n\n${txt}${legs.length > 1 ? '\n\nJo pehle bhare, doosra MT5 pe apne aap cancel.' : ''}\n\nMT5 pe bhejein?`)) return;
+  if(legs.length === 1){
+    const L = legs[0];
+    await sendMT5(sym, L.dir, d.lots, L.e, L.sl, L.tp, L.type, false, L.type !== 'MARKET');
+  } else await sendMT5Oco(sym, d.lots, legs);
+}
+/* v9.9.49: joda (OCO) — dono order EK hi Firebase likhai me (EA ek hi order.json padhta hai).
+   FXBridgeEA v3.57+: pehla bhara to doosra pending khud hat jata hai. */
+async function sendMT5Oco(sym, lots, legs){
+  if(S.metaOn){ alert('Joda (OCO) sirf FXBridgeEA (Firebase) se jaata hai — MetaApi pe ek-ek order bhejo.'); return false }
+  if(!fbEndpoint()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return false }
+  const prev = mt5Has(sym);
+  if(prev){ alert(`${SPECS[sym].n} pe pehle se ek order MT5 pe bheja hua hai —\n\n${prev.dir} ${prev.lots} lot · ${dt12(prev.at)}\n\nWo MT5 pe band ho chuka hai to Trades page se uska lock hata do, phir dobara bhejo.`); return false }
+  const [A, B] = legs, dg = SPECS[sym].d;
+  const body = Object.assign(mt5Payload(sym, A.dir, lots, A.e, A.sl, A.tp, A.type),
+    {oco:1, type2:B.dir + B.type, entry2:+(+B.e).toFixed(dg), sl2:+(+B.sl).toFixed(dg), tp2:+(+B.tp).toFixed(dg)});
+  try{
+    const r = await fetch(fbEndpoint(), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
+    LS.set('lastOrder', {t:Date.now(), body, ok:true});
+    mt5Mark(sym, 'BUY+SELL', body.lots);
+    logAdd(`MT5 joda bhej diya: ${body.type} @ ${body.entry} + ${body.type2} @ ${body.entry2} ${body.pair} (id ${body.id})`);
+    toast(`Joda gaya — ${body.type} + ${body.type2}`);
+    if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → MT5 (joda)</b>\n\n<b>${body.pair}</b> ${body.lots} lot\n${body.type} <code>${body.entry}</code> SL <code>${body.sl}</code> TP <code>${body.tp}</code>\n${body.type2} <code>${body.entry2}</code> SL <code>${body.sl2}</code> TP <code>${body.tp2}</code>\nJo pehle bhare, doosra cancel.\n⏰ ${t12(Date.now())}`, true);
+    return true;
+  }catch(e){
+    LS.set('lastOrder', {t:Date.now(), body, ok:false, err:e.message});
+    logAdd('MT5 joda fail: ' + e.message); toast('MT5 bridge fail — ' + e.message);
+    return false;
+  }
 }
 
 /* screenshot aaya: uske pair ka live hisaab chalao (pair alag ho to badlo) */
@@ -7093,7 +7176,8 @@ function chartPageShow(){
   requestAnimationFrame(() => {
     try{ loadEma(false) }catch(e){}
     try{ renderShot() }catch(e){}
-    rsRefresh(); renderLevels(); renderFinal();
+    try{ rsRefresh() }catch(e){} try{ renderLevels() }catch(e){}   /* chhupe hisse — result card inse na ruke */
+    renderFinal();
   });
 }
 /* v9.9.45: Chart page pe bhi dikhe ki Analyze chal raha hai, aur kab hua */
@@ -7127,7 +7211,7 @@ function rsBtnHTML(s){
 function openRangeSetup(){
   if(!lastSignal){ toast('Pehle ek pair Analyze karo'); return }
   go('Chart');
-  setTimeout(() => { const c = $('rsCard'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}) }, 120);
+  setTimeout(() => { const c = $('finCard'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}) }, 120);
 }
 
 function drawRangeSetup(){
@@ -7859,7 +7943,7 @@ function mt5Payload(sym, dir, lots, entry, sl, tp, kind){
     entry: +Number(entry).toFixed(d),
     sl: +Number(sl).toFixed(d),
     tp: +Number(tp).toFixed(d),
-    pm: S.beOn ? 1 : 0                        /* FXBridgeEA: BE + profit lock + trailing (app jaisa) */
+    pm: 1                                     /* FXBridgeEA: BE + profit lock + trailing (app jaisa) — hamesha ON */
   };
 }
 
@@ -8989,83 +9073,20 @@ function renderShot(){
   if(dir === 'UNREADABLE'){
     box.innerHTML = pvImg + `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.07);border-radius:6px;padding:12px">
       <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.2px">\u26a0 CHART PADHA NAHI GAYA</b>
-      <p class="hint" style="margin:5px 0 0">${escH(d.reasoning || 'Image saaf nahi thi.')}</p>
-      <p class="hint" style="margin:8px 0 0">Aisa screenshot lo jisme price axis aur pair ka naam dono dikhe.</p></div>`;
+      <button class="btn ghost sm" style="width:auto;margin-top:8px;padding:0 12px" onclick="clearShot()">\u2715</button></div>`;
     return;
   }
 
-  box.innerHTML = pvImg + `
-    <div style="display:flex;align-items:center;gap:10px;background:${dir==='BUY'?'rgba(18,201,138,.10)':dir==='SELL'?'rgba(242,84,91,.10)':'rgba(255,184,0,.08)'};
-         border:1px solid ${col};border-radius:11px;padding:11px 13px;margin-bottom:12px">
-      <b class="shine ${dir==='BUY'?'up':dir==='SELL'?'dn':'gd'}" style="font-size:17px;letter-spacing:.5px">${escH(dir)}</b>
-      <span class="mono" style="font-size:13px">${sym ? SPECS[sym].n : escH(d.symbol || '\u2014')}</span>
-      <span class="gr" style="margin-left:auto">${escH(d.timeframe || '')}</span>
-    </div>
-
-    <div class="lbl" style="margin-bottom:4px"><span>Confidence</span><b class="mono" style="color:${ccol}">${conf}%</b></div>
-    <div style="height:6px;background:var(--bg);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-bottom:12px">
-      <div style="height:100%;width:${conf}%;background:${ccol}"></div>
-    </div>
-
-    ${isTrade ? `
-      <div class="lvls" style="margin-bottom:10px">
-        <div class="lvl"><span>ENTRY</span><b class="mono">${P(d.entry)}</b></div>
-        <div class="lvl sl"><span>STOP LOSS</span><b class="mono">${P(d.stop_loss)}</b></div>
-        <div class="lvl tp"><span>TAKE PROFIT</span><b class="mono">${P(d.take_profit_1)}</b>
-          ${isFinite(d.take_profit_2) ? `<small style="display:block;font-size:10.5px;color:var(--mut);font-weight:600">TP2 ${P(d.take_profit_2)}</small>` : ''}</div>
-      </div>
-      <p class="hint" style="margin:0 0 12px">${rrLine(d)}</p>` : ''}
-
-    <div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
-      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udcc8 TREND &amp; STRUCTURE</b>
-      <p class="hint" style="margin:5px 0 8px">${escH(d.trend || '\u2014')}</p>
-      <div class="lbl"><span>Resistance</span><b class="mono" style="font-size:11px">${lvls(d.resistance)}</b></div>
-      <div class="lbl"><span>Support</span><b class="mono" style="font-size:11px">${lvls(d.support)}</b></div>
-    </div>
-
-    <div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
-      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udcad WAJAH</b>
-      <p class="hint" style="margin:5px 0 0">${escH(d.reasoning || '\u2014')}</p>
-    </div>
-
-    ${d.invalidation ? `<div style="border:1px solid var(--gold);border-radius:6px;padding:11px;margin-bottom:10px;background:rgba(255,184,0,.05)">
-      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83c\udfaf SETUP KAB KHATAM</b>
-      <p class="hint" style="margin:5px 0 0">${escH(d.invalidation)}</p></div>` : ''}
-
-    ${d.counter_trade ? `<div style="border:1px solid var(--line);border-radius:6px;padding:11px;margin-bottom:10px">
-      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.5px">\ud83d\udd04 ULTA CASE</b>
-      <p class="hint" style="margin:5px 0 0">${escH(d.counter_trade)}</p></div>` : ''}
-
-    ${(() => {
-      /* Agar levels live price ke aas-paas hi nahi hain to model ne
-         galat instrument padha hai. Chup rehna tracking ko todta hai,
-         isliye saaf bata do. */
-      if(!sym || !isFinite(d.entry)) return '';
-      const live = prices[sym] && prices[sym].p;
-      if(!live) return '';
-      const off = Math.abs(d.entry - live) / live;
-      if(off < 0.25) return '';
-      return `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.12);border-radius:6px;padding:11px;margin-bottom:12px">
-        <b style="color:var(--dn);font-size:10.5px;letter-spacing:1.2px">\u26a0 GALAT PAIR?</b>
-        <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">
-        Ye levels live ${SPECS[sym].n} price ${fmt(sym,live)} se ${(off*100).toFixed(0)}% door hain.
-        Shayad pair galat padha gaya. Isko track mat karo \u2014 aisa screenshot do jisme pair ka naam saaf dikhe.</p></div>`;
-    })()}
-    <div style="border:1px solid var(--dn);background:rgba(255,68,68,.07);border-radius:6px;padding:10px;margin-bottom:12px">
-      <p class="hint" style="color:#ffb3b3;font-weight:600;margin:0">Ye levels tumhare screenshot se padhe gaye hain, live data se nahi. Trade lene se pehle current price se milaao.</p>
-    </div>
-
-    ${isTrade && sym ? `<button class="btn gold" style="margin-bottom:8px" onclick="startTrack()">\u26a1 IS SETUP KO TRACK KARO</button>` : ''}
-    ${!sym && isTrade ? `<p class="hint" style="color:var(--gold);margin-bottom:8px">Ye instrument app ke kisi pair se match nahi hua, isliye live tracking nahi ho sakti.</p>` : ''}
-    <div class="grid2">
-      <button class="btn ghost sm" onclick="shareShot()">\ud83d\udcac SHARE</button>
-      <button class="btn ghost sm" onclick="clearShot()">\u2715 HATAO</button>
-    </div>`;
+  /* v9.9.49: sirf photo + AI ka ek shabd — wajah/levels nahi (faisla neeche Result me) */
+  box.innerHTML = pvImg + `<div style="display:flex;align-items:center;gap:10px;border:1px solid ${col};border-radius:10px;padding:9px 12px">
+      <b style="color:${col};letter-spacing:.5px">📷 ${escH(dir)}</b>
+      <span class="mono" style="font-size:12px">${sym ? SPECS[sym].n : escH(d.symbol || '\u2014')} · ${conf}%</span>
+      <button class="btn ghost sm" style="width:auto;margin-left:auto;padding:0 12px" onclick="clearShot()">\u2715</button></div>`;
 }
 
 function clearShot(){
   S.shot = null; save(); renderShot();
-  $('shotState').textContent = 'screenshot upload karo';
+  $('shotState').textContent = '\u2014';
 }
 
 function shotText(){
