@@ -47,11 +47,11 @@ jobs:
         timeout-minutes: 150
         continue-on-error: true
         run: |
+          R=""; [ -f quant/research-pairs.txt ] && R="$(tr -d ' \n' < quant/research-pairs.txt)"
+          [ -n "$R" ] && node quant/fetch-data.mjs 2013-01-01 bid "$R"
           node quant/fetch-data.mjs 2008-01-01 bid
+          [ -n "$R" ] && node quant/fetch-data.mjs 2013-01-01 ask "$R"
           node quant/fetch-data.mjs 2008-01-01 ask
-          if [ -f quant/research-pairs.txt ]; then
-            for side in bid ask; do node quant/fetch-data.mjs 2008-01-01 $side "$(tr -d ' \n' < quant/research-pairs.txt)"; done
-          fi
 
       - name: Pack history
         if: always()
