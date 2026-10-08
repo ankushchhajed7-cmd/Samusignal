@@ -47,11 +47,25 @@ jobs:
         timeout-minutes: 150
         continue-on-error: true
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
+          save(){   # har download ke baad data turant commit — beech me ruke to bhi bacha rahe
+            mkdir -p quant/history
+            for f in quant/data/*_H1*.csv; do [ -f "$f" ] && gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
+            git add quant/history
+            git diff --cached --quiet && return 0
+            git commit -q -m "SamuQuant data update: $1 [skip ci]"
+            for i in 1 2 3; do git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}" && return 0; sleep 5; done
+          }
           R=""; [ -f quant/research-pairs.txt ] && R="$(tr -d ' \n' < quant/research-pairs.txt)"
-          [ -n "$R" ] && node quant/fetch-data.mjs 2013-01-01 bid "$R"
-          node quant/fetch-data.mjs 2008-01-01 bid
-          [ -n "$R" ] && node quant/fetch-data.mjs 2013-01-01 ask "$R"
-          node quant/fetch-data.mjs 2008-01-01 ask
+          if [ -n "$R" ]; then
+            for p in ${R//,/ }; do node quant/fetch-data.mjs 2013-01-01 bid "$p" || true; save "$p bid"; done
+          fi
+          node quant/fetch-data.mjs 2008-01-01 bid || true; save "EURUSD/XAUUSD bid"
+          if [ -n "$R" ]; then
+            for p in ${R//,/ }; do node quant/fetch-data.mjs 2013-01-01 ask "$p" || true; save "$p ask"; done
+          fi
+          node quant/fetch-data.mjs 2008-01-01 ask || true; save "EURUSD/XAUUSD ask"
 
       - name: Pack history
         if: always()
