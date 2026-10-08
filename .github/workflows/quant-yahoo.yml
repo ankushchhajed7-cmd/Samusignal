@@ -1,0 +1,38 @@
+name: SamuQuant Yahoo data
+
+# Research ke liye daily data (Yahoo Finance) — quant/research/yahoo.txt badle to chalta hai.
+on:
+  push:
+    paths:
+      - 'quant/research/yahoo.txt'
+      - 'quant/research/fetch_yahoo.py'
+      - '.github/workflows/quant-yahoo.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: quant-yahoo-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet yfinance pandas
+      - run: python quant/research/fetch_yahoo.py
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
+          git add quant/history/yahoo
+          git diff --cached --quiet && exit 0
+          git commit -q -m "SamuQuant Yahoo daily data [skip ci]"
+          for i in 1 2 3 4 5; do git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}" && exit 0; sleep 10; done
+          exit 1
