@@ -62,3 +62,25 @@ Kharcha: 3 points round-trip + raat ka financing (Fed rate + 2.5%).
 DEV me hi koi idea t > 2 (sahi disha me) nahi aaya, isliye VAL/HOLD khole hi nahi. US30 pe bhi koi strategy pass nahi.
 
 Dobara chalana: `HIST=../history python3 idx_screen.py USA30IDXUSD DEV`
+
+## Round 3 — hedge-fund style portfolios (Yahoo daily, 2000–2026, 36 markets)
+Parameters research papers se (Hurst-Ooi-Pedersen trend, Menkhoff FX momentum, risk parity) — tune nahi kiye.
+Universe: 13 indices (Nifty/Sensex samet), 4 US bond futures, 7 FX, gold/silver/copper, Brent, 8 agri.
+Kharab roll data wale (crude WTI, nat gas, hogs, gasoline, heating oil, platinum) pehle hi bahar.
+Do venue: **CFD** (2.5% financing markup) aur **futures** (exchange, markup nahi — India me legal raasta NSE/MCX).
+
+| Strategy (futures venue, 10% vol) | DEV 2000–12 | VAL 2013–18 | HOLD 2019–26 |
+|---|---|---|---|
+| S1 trend-following (CTA) | +3.0%, SR 0.19 | −2.5% | +0.9% |
+| S2 FX cross-sectional momentum | −1.9% | +0.5% | +1.2% |
+| S3 risk parity long-only (indices+bonds+gold) | +5.3%, SR 0.51 | +5.7%, SR 0.53 | +7.4%, SR 0.63, DD 32% |
+| S&P 500 buy & hold (tulna) | +2.2% (DD 54%) | +8.4% | +18.3% |
+
+CFD venue par teeno negative (financing ~3x gross pe 7%+ saalana kha jaata hai).
+Bug jo pakda: shuruaat me 1–2 market pe vol-scaling 5x ho gaya tha (Jan 2000 me nakli −60%) → warm-up rule.
+Note: debug ke dauran S1 ke VAL/HOLD saal-dar-saal number dikh gaye the (PREREG.md me likha).
+
+**Nateeja:** koi *trading* edge pass nahi. Sirf S3 (diversified long-only, risk barabar) teeno periods me positive —
+ye trading hack nahi, investment hai (risk premia), aur 2022 me ~30% gira. Pre-registered DD < 25% shart (10% vol pe) fail.
+
+Dobara chalana: `python3 fetch_yahoo.py` (Actions) phir `python3 porty.py DEV,VAL,HOLD`
