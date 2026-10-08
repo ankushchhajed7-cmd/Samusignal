@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import duka from 'dukascopy-node';          /* CommonJS package */
 import { PAIRS } from './strategy.mjs';
 
-const { getHistoricalRates } = duka;
+const { getHistoricalRates, instrumentMetaData } = duka;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.join(HERE, 'data'), HIST = path.join(HERE, 'history');
 const FROM = new Date(process.argv[2] || '2016-01-01');
@@ -62,8 +62,12 @@ for(const [pair, cfg] of Object.entries(LIST)){
   const perYear = {};
   for(const t of rows.keys()){ const y = new Date(t).getUTCFullYear(); perYear[y] = (perYear[y] || 0) + 1 }
   const nowY = new Date().getUTCFullYear();
+  /* instrument jis saal se Dukascopy pe hai, usse pehle ke saal mat maango */
+  const meta = (instrumentMetaData || {})[cfg.duka] || {};
+  const start = new Date(meta[TF === 'd1' ? 'startYearForDailyCandles' : 'startMonthForHourlyCandles'] || FROM);
+  const y0 = Math.max(FROM.getUTCFullYear(), start.getUTCFullYear());
   let todo = [];
-  for(let y = FROM.getUTCFullYear(); y <= nowY; y++) if(y === nowY || (perYear[y] || 0) < FULL_YEAR) todo.push(y);
+  for(let y = y0; y <= nowY; y++) if(y === nowY || (perYear[y] || 0) < FULL_YEAR) todo.push(y);
   console.log(`${pair} ${SIDE}: ${rows.size} purani candles, laana hai: ${todo.join(' ') || 'kuch nahi'}`);
   for(let pass = 1; pass <= 3 && todo.length; pass++){
     const failed = [];
@@ -74,7 +78,7 @@ for(const [pair, cfg] of Object.entries(LIST)){
       if(TF === 'd1' && c && y === c.at(-1) + 1 && c.length < 3) c.push(y); else chunks.push([y]);
     }
     for(const ys of chunks){
-      const from = new Date(Math.max(FROM, Date.UTC(ys[0], 0, 1))), to = new Date(Math.min(Date.now(), Date.UTC(ys.at(-1) + 1, 0, 1)));
+      const from = new Date(Math.max(FROM, start, Date.UTC(ys[0], 0, 1))), to = new Date(Math.min(Date.now(), Date.UTC(ys.at(-1) + 1, 0, 1)));
       const got = await year(cfg, from, to, 2);
       if(got === null){ failed.push(...ys); await sleep(60000); continue }
       for(const r of got) rows.set(r[0], r.slice(0, 5));
