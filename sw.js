@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.52 — Result card: SL/TP ke neeche $ box — $ likho to price khud adjust
    v9.9.51 — Chart Analysis Result me Signal strength meter (0-100%: quality + agents + technical + checks)
    v9.9.50 — App se bhi waqt ki seema (12:30–21:30 IST) hatayi — EA jaisa poora din, sirf news ka niyam
    v9.9.49 — Chart Analysis saaf: live chart, screenshot, Analyze, aur sirf ek result card (Market / Limit / Stop) — SL/TP badal sakte, MT5 + journal, joda OCO; Breakeven hamesha ON
@@ -56,7 +57,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.51';
+const VERSION = '9.9.52';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
