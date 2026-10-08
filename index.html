@@ -2107,7 +2107,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.49';
+const VERSION = '9.9.50';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -4302,16 +4302,14 @@ function autoPlan(s, fc, lots){
   P.why = fc.why || 'faisla WAIT';
   return P;
 }
-/* v9.9.37: plan ke baad do aur niyam (EA v1.07 jaisa) — ek currency ek trade, aur
-   sirf London + New York (12:30–21:30 IST). Journal ke khule/pending trades dekhte hain. */
+/* v9.9.37: plan ke baad niyam (EA jaisa) — ek currency ek trade. Journal ke khule/pending trades dekhte hain.
+   v9.9.50: waqt ki seema (12:30–21:30 IST) hatayi — EA v1.08 jaisa poora din; news ka niyam finalCall/autoPlan me. */
 function autoGate(P, sym){
   if(P.t === 'WAIT') return P;
   const cc = x => (SPECS[x] ? SPECS[x].n : x.replace('/', '')).match(/.{3}/g) || [];
   const mine = cc(sym);
   const hit = S.open.find(t => t.sym !== sym && cc(t.sym).some(x => mine.includes(x)));
   if(hit) return Object.assign(P, {t:'WAIT', why:`ek currency ek trade — ${hit.sym} pehle se khula hai`});
-  const d = new Date(Date.now() + 5.5 * 3600000), m = d.getUTCHours() * 60 + d.getUTCMinutes();
-  if(m < 750 || m >= 1290) return Object.assign(P, {t:'WAIT', why:'London/NY ka waqt nahi (12:30–21:30 IST)'});
   return P;
 }
 function autoBadge(P){
