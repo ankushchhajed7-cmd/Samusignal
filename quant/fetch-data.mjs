@@ -20,7 +20,8 @@ const FROM = new Date(process.argv[2] || '2016-01-01');
 const SIDE = process.argv[3] || 'bid';            /* bid (default) ya ask — spread naapne ke liye */
 /* research ke liye aur pairs: node quant/fetch-data.mjs 2008-01-01 bid gbpusd,usdjpy */
 const LIST = process.argv[4] ? Object.fromEntries(process.argv[4].split(',').map(x => [x.trim().toUpperCase(), {duka: x.trim().toLowerCase()}])) : PAIRS;
-const FULL_YEAR = 5000;                           /* isse kam candles = saal adhoora */
+const TF = process.env.QUANT_TF || 'h1';           /* h1 (default) ya d1 (research: bahut saare markets) */
+const FULL_YEAR = TF === 'd1' ? 200 : 5000;       /* isse kam candles = saal adhoora */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 fs.mkdirSync(DIR, {recursive: true});
 
@@ -38,12 +39,12 @@ function readOld(name){
   return rows;
 }
 
-async function year(cfg, from, to, tries){
+async function year(cfg, from, to, tries){       /* from..to ka data (ek ya kai saal) */
   for(let k = 1; k <= tries; k++){
     try{
       return await getHistoricalRates({
         instrument: cfg.duka, dates: {from, to},
-        timeframe: 'h1', priceType: SIDE, format: 'array', volumes: false, ignoreFlats: true,
+        timeframe: TF, priceType: SIDE, format: 'array', volumes: false, ignoreFlats: true,
         batchSize: 3, pauseBetweenBatchesMs: 1500, retryCount: 4, pauseBetweenRetriesMs: 5000,
         retryOnEmpty: true, failAfterRetryCount: true
       });
@@ -56,7 +57,7 @@ async function year(cfg, from, to, tries){
 }
 
 for(const [pair, cfg] of Object.entries(LIST)){
-  const name = `${pair}_H1${SIDE === 'bid' ? '' : '_' + SIDE}.csv`;
+  const name = `${pair}_${TF.toUpperCase()}${SIDE === 'bid' ? '' : '_' + SIDE}.csv`;
   const rows = readOld(name);
   const perYear = {};
   for(const t of rows.keys()){ const y = new Date(t).getUTCFullYear(); perYear[y] = (perYear[y] || 0) + 1 }
@@ -66,10 +67,16 @@ for(const [pair, cfg] of Object.entries(LIST)){
   console.log(`${pair} ${SIDE}: ${rows.size} purani candles, laana hai: ${todo.join(' ') || 'kuch nahi'}`);
   for(let pass = 1; pass <= 2 && todo.length; pass++){
     const failed = [];
+    /* d1: lagatar saalon ko 10-10 ke tukdon me ek saath (requests kam) */
+    const chunks = [];
     for(const y of todo){
-      const from = new Date(Math.max(FROM, Date.UTC(y, 0, 1))), to = new Date(Math.min(Date.now(), Date.UTC(y + 1, 0, 1)));
+      const c = chunks.at(-1);
+      if(TF === 'd1' && c && y === c.at(-1) + 1 && c.length < 10) c.push(y); else chunks.push([y]);
+    }
+    for(const ys of chunks){
+      const from = new Date(Math.max(FROM, Date.UTC(ys[0], 0, 1))), to = new Date(Math.min(Date.now(), Date.UTC(ys.at(-1) + 1, 0, 1)));
       const got = await year(cfg, from, to, 2);
-      if(got === null){ failed.push(y); await sleep(60000); continue }
+      if(got === null){ failed.push(...ys); await sleep(60000); continue }
       for(const r of got) rows.set(r[0], r.slice(0, 5));
       await sleep(3000);
     }

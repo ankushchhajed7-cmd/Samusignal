@@ -10,6 +10,7 @@ on:
       - 'quant/backtest.mjs'
       - 'quant/fetch-data.mjs'
       - 'quant/research-pairs.txt'
+      - 'quant/research-daily.txt'
       - '.github/workflows/quant-backtest.yml'
   schedule:
     - cron: '17 3 2 * *'
@@ -51,12 +52,15 @@ jobs:
           git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
           save(){   # har download ke baad data turant commit — beech me ruke to bhi bacha rahe
             mkdir -p quant/history
-            for f in quant/data/*_H1*.csv; do [ -f "$f" ] && gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
+            for f in quant/data/*_H1*.csv quant/data/*_D1*.csv; do [ -f "$f" ] && gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
             git add quant/history
             git diff --cached --quiet && return 0
             git commit -q -m "SamuQuant data update: $1 [skip ci]"
             for i in 1 2 3; do git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}" && return 0; sleep 5; done
           }
+          if [ -f quant/research-daily.txt ]; then
+            for p in $(tr ',\n' '  ' < quant/research-daily.txt); do QUANT_TF=d1 node quant/fetch-data.mjs 1990-01-01 bid "$p" || true; save "$p D1"; done
+          fi
           R=""; [ -f quant/research-pairs.txt ] && R="$(tr -d ' \n' < quant/research-pairs.txt)"
           if [ -n "$R" ]; then
             for p in ${R//,/ }; do node quant/fetch-data.mjs 2013-01-01 bid "$p" || true; save "$p bid"; done
@@ -71,7 +75,7 @@ jobs:
         if: always()
         run: |
           mkdir -p quant/history
-          for f in quant/data/*_H1*.csv; do [ -f "$f" ] && gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
+          for f in quant/data/*_H1*.csv quant/data/*_D1*.csv; do [ -f "$f" ] && gzip -9 -n -c "$f" > "quant/history/$(basename "$f").gz"; done
           ls -la quant/history
 
       - name: Run backtest
