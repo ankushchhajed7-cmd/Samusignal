@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.50 — App se bhi waqt ki seema (12:30–21:30 IST) hatayi — EA jaisa poora din, sirf news ka niyam
    v9.9.49 — Chart Analysis saaf: live chart, screenshot, Analyze, aur sirf ek result card (Market / Limit / Stop) — SL/TP badal sakte, MT5 + journal, joda OCO; Breakeven hamesha ON
    v9.9.48 — Market page (Market Overview + Against Trade) hataya — kabhi use nahi hua, kholte hi credits lagte the
    v9.9.47 — Range joda: kinare pe entry adjust, sirf-ek-order button; Scan page pe Range/Breakout list
@@ -54,7 +55,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.49';
+const VERSION = '9.9.50';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
