@@ -2107,7 +2107,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.50';
+const VERSION = '9.9.51';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -7042,13 +7042,35 @@ function cpDecide(){
   return Object.assign(base, {kind:'WAIT', legs:[]});
 }
 
+/* v9.9.51: signal strength meter — quality + agents + technical + faisle ke check, sabka ausat (0-100) */
+function cpStrength(s){
+  const dir = s.dir === 'BUY' || s.dir === 'SELL' ? s.dir : null;
+  if(!dir) return {p:0, dir:null};
+  const parts = [s.q];
+  const v = lastVotes && lastVotes.sym === s.sym ? lastVotes : null;
+  if(v) parts.push(Math.round((dir === 'BUY' ? v.buy : v.sell) / AGENT_N * 100));
+  if(lastAn && isFinite(lastAn.pct)) parts.push(lastAn.pct);
+  const fc = finalCall(s);
+  if(fc.total) parts.push(Math.round(fc.pass / fc.total * 100));
+  return {p:Math.max(0, Math.min(100, Math.round(parts.reduce((a, b) => a + b, 0) / parts.length))), dir};
+}
+function strengthHTML(s){
+  const {p, dir} = cpStrength(s);
+  const col = p >= 70 ? 'var(--up)' : p >= 50 ? 'var(--gold)' : 'var(--dn)', n = Math.round(p / 5);
+  return `<div class="meter" style="margin:0 0 12px">
+      <div class="lbl"><span>Signal strength${dir ? ` · <b style="color:${dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}">${dir}</b>` : ''}</span>
+        <b class="mono" style="color:${col}">${dir ? `${p >= 70 ? 'STRONG' : p >= 50 ? 'MEDIUM' : 'WEAK'} ${p}%` : '—'}</b></div>
+      <div class="segs">${Array.from({length:20}, (_, i) => `<i class="${i < n ? 'f' : ''}" style="${i < n ? 'background:' + col : ''}"></i>`).join('')}</div>
+    </div>`;
+}
+
 function renderFinal(){
   const box = $('finBox'); if(!box) return;
   const d = cpRes = cpDecide();
   if(!d){ $('finT').textContent = '—'; box.innerHTML = '<p class="hint">Analyze dabao.</p>'; return }
   $('finT').textContent = t12(d.at);
   if(d.kind === 'WAIT'){
-    box.innerHTML = `<div style="border:1px solid var(--gold);border-radius:11px;padding:14px;text-align:center">
+    box.innerHTML = strengthHTML(d.s) + `<div style="border:1px solid var(--gold);border-radius:11px;padding:14px;text-align:center">
       <b class="shine gd" style="font-size:17px;letter-spacing:1px">⏸ WAIT</b></div>`;
     return;
   }
@@ -7064,7 +7086,7 @@ function renderFinal(){
         <div><label style="color:var(--dn)">SL <small class="mono" id="cpSlD${i}"></small></label>${inp('cpSl' + i, L.sl)}</div>
         <div><label style="color:var(--up)">TP <small class="mono" id="cpTpD${i}"></small></label>${inp('cpTp' + i, L.tp)}</div>
       </div></div>`;
-  box.innerHTML = `
+  box.innerHTML = strengthHTML(d.s) + `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
       <b style="color:${hcol};font-size:15px;letter-spacing:.5px">${head}</b>
       <span class="gr" style="margin-left:auto">${SPECS[sym].n} · ${d.lots} lot</span></div>
