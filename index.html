@@ -2107,7 +2107,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.51';
+const VERSION = '9.9.52';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -7078,13 +7078,17 @@ function renderFinal(){
   const head = d.kind === 'MARKET' ? `${d.legs[0].dir} · MARKET ORDER` : two ? `${d.kind} JODA · BUY + SELL` : `${d.legs[0].dir} ${d.kind}`;
   const hcol = two ? '#38BDF8' : d.legs[0].dir === 'BUY' ? 'var(--up)' : 'var(--dn)';
   const inp = (id, v) => `<input class="mono" id="${id}" type="number" inputmode="decimal" step="${SPECS[sym].pip}" value="${fmt(sym, v)}" oninput="cpEdit()" style="padding:8px;font-size:13px">`;
+  /* v9.9.52: $ box — $ likho to price khud badle (aur price badlo to $) */
+  const usd = (id, i, k) => `<div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+      <b class="mono" style="font-size:13px;white-space:nowrap;flex:none;color:${k === 'sl' ? 'var(--dn)' : 'var(--up)'}">${k === 'sl' ? '−$' : '+$'}</b>
+      <input class="mono" id="${id}" type="number" inputmode="decimal" step="0.05" min="0" oninput="cpUsd(${i},'${k}')" style="padding:8px;font-size:13px;flex:1;min-width:0"></div>`;
   const leg = (L, i) => `<div style="border:1px solid ${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};border-radius:10px;padding:10px 11px;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <b style="color:${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};letter-spacing:1px">${L.dir} ${L.type}</b>
         <span class="mono" style="margin-left:auto;font-size:12px">Entry <b>${L.type === 'MARKET' ? 'market ' : ''}${fmt(sym, L.e)}</b></span></div>
       <div class="grid2">
-        <div><label style="color:var(--dn)">SL <small class="mono" id="cpSlD${i}"></small></label>${inp('cpSl' + i, L.sl)}</div>
-        <div><label style="color:var(--up)">TP <small class="mono" id="cpTpD${i}"></small></label>${inp('cpTp' + i, L.tp)}</div>
+        <div><label style="color:var(--dn)">SL</label>${inp('cpSl' + i, L.sl)}${usd('cpSlU' + i, i, 'sl')}</div>
+        <div><label style="color:var(--up)">TP</label>${inp('cpTp' + i, L.tp)}${usd('cpTpU' + i, i, 'tp')}</div>
       </div></div>`;
   box.innerHTML = strengthHTML(d.s) + `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -7108,12 +7112,23 @@ function cpLegs(){
     return Object.assign({}, L, {sl, tp, slD, tpD});
   });
 }
+/* price badla -> $ box bharo (jis $ box me abhi likh rahe ho use nahi chhedte) */
 function cpEdit(){
   cpLegs().forEach((L, i) => {
-    const a = $('cpSlD' + i), b = $('cpTpD' + i);
-    if(a) a.textContent = isFinite(L.sl) ? `−$${L.slD.toFixed(2)}` : '';
-    if(b) b.textContent = isFinite(L.tp) ? `+$${L.tpD.toFixed(2)}` : '';
+    const a = $('cpSlU' + i), b = $('cpTpU' + i);
+    if(a && document.activeElement !== a) a.value = isFinite(L.sl) ? L.slD.toFixed(2) : '';
+    if(b && document.activeElement !== b) b.value = isFinite(L.tp) ? L.tpD.toFixed(2) : '';
   });
+}
+/* $ badla -> SL/TP price khud adjust (entry se utni doori, sahi taraf) */
+function cpUsd(i, k){
+  const d = cpRes; if(!d || !d.legs[i]) return;
+  const L = d.legs[i], u = parseFloat(($(k === 'sl' ? 'cpSlU' + i : 'cpTpU' + i) || {}).value);
+  if(!(u > 0)) return;
+  const dist = dollarsToDist(d.sym, L.e, d.lots, u), buy = L.dir === 'BUY';
+  const px = k === 'sl' ? (buy ? L.e - dist : L.e + dist) : (buy ? L.e + dist : L.e - dist);
+  const el = $(k === 'sl' ? 'cpSl' + i : 'cpTp' + i);
+  if(el && px > 0) el.value = fmt(d.sym, px);
 }
 /* SL/TP sahi taraf + broker ki kam se kam doori — galat ho to roko */
 function cpCheck(){
