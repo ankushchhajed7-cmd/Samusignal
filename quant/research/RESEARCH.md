@@ -44,3 +44,21 @@ python3 screen.py            # DEV screening
 python3 val1.py DEV          # bid/ask execution (VAL / HOLD bhi de sakte ho)
 python3 multi_bid.py AUDUSD,USDJPY,GBPUSD
 ```
+
+## Round 2 — US30 (Dow Jones CFD), 2013 se
+Niyam pehle likhe (`PREREG.md`, Round 2): US30 par chuna niyam US500 aur US100 par bina badle chalna chahiye.
+Kharcha: 3 points round-trip + raat ka financing (Fed rate + 2.5%).
+
+| Idea (DEV 2013–2019) | Per trade | t | Faisla |
+|---|---|---|---|
+| Buy & hold (financing ke saath) | +3.8 bp/din | 1.41 | kamzor |
+| Raat ki drift (16:00 → 09/10:00 ET) | +1.1 / +1.8 bp | 0.55 / 0.86 | financing kha jaata hai |
+| Turn-of-month (4 variants) | +18…+32 bp | 0.5–0.8 | trade kam, sabit nahi |
+| Intraday momentum (10:00 ET disha → aakhri ghanta) | −2.3 bp | −2.87 | ulta; ulta karne par bhi kharcha zyada |
+| 200-din MA long-only | +0.8 bp | 0.44 | bekaar |
+| Din (Mon–Fri) | — | < 1.4 | kuch nahi |
+| Ghanta (NY) | 17:00 ET t −3.5 | — | CFD rollover ka spread asar, nakli |
+
+DEV me hi koi idea t > 2 (sahi disha me) nahi aaya, isliye VAL/HOLD khole hi nahi. US30 pe bhi koi strategy pass nahi.
+
+Dobara chalana: `HIST=../history python3 idx_screen.py USA30IDXUSD DEV`
