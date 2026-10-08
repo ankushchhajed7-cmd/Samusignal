@@ -1566,31 +1566,9 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 </section>
 
-<!-- ============ MARKET ============ -->
-<section id="pgMarket" class="hide">
-  <div class="pghd"><span class="pn">04</span><b>Market</b><small>Live rates aur pip calculator</small></div>
-  <div class="card">
-    <p class="ttl">Market Overview <span class="sp" id="mktT">—</span></p>
-    <div class="chips" id="mktChips" style="margin-bottom:12px"></div>
-    <table><thead><tr><th>Pair</th><th style="text-align:right">Price</th><th style="text-align:right">Change</th><th style="text-align:right">Bias</th></tr></thead>
-    <tbody id="mktBody"><tr><td colspan="4" class="mu" style="text-align:center;padding:20px">Refresh dabao</td></tr></tbody></table>
-    <button class="btn ghost sm" style="margin-top:12px" onclick="loadMarket()">Refresh Karo</button>
-  </div>
-  <div class="card">
-    <p class="ttl">Against Trade</p>
-    <label>Tumhari trade</label>
-    <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button class="pick" style="flex:1" id="corrPair" onclick="openPick('corr')"></button>
-      <button class="chip" id="corrDirBtn" style="padding:10px 18px" onclick="corrFlip()">BUY</button>
-    </div>
-    <div id="corrBox"></div>
-  </div>
-
-</section>
-
 <!-- ============ TRADES ============ -->
 <section id="pgTrades" class="hide">
-  <div class="pghd"><span class="pn">05</span><b>Trades</b><small>Journal · lot 0.01 fixed</small></div>
+  <div class="pghd"><span class="pn">04</span><b>Trades</b><small>Journal · lot 0.01 fixed</small></div>
   <div class="stat3">
     <div class="st"><span>Live P&amp;L</span><b class="mono" id="stLive">$0.00</b></div>
     <div class="st"><span>Closed P&amp;L</span><b class="mono" id="stClosed">$0.00</b></div>
@@ -1637,7 +1615,7 @@ body.ds-gold .brand .brandWord{height:24px}
 
 <!-- ============ ALERTS ============ -->
 <section id="pgAlerts" class="hide">
-  <div class="pghd"><span class="pn">06</span><b>Alerts</b><small>Telegram · chart AI · tracking · backup</small></div>
+  <div class="pghd"><span class="pn">05</span><b>Alerts</b><small>Telegram · chart AI · tracking · backup</small></div>
   <div class="card">
     <p class="ttl">Telegram — SamuSignal</p>
     <div style="margin-bottom:10px"><label>Bot Token</label><input id="tgTok" type="password" placeholder="1234567890:AA..."></div>
@@ -1688,7 +1666,7 @@ body.ds-gold .brand .brandWord{height:24px}
 
 <!-- ============ COPY TRADE (v9.9.0 — naya, alag system) ============ -->
 <section id="pgCopy" class="hide">
-  <div class="pghd"><span class="pn">07</span><b>Copy Trade</b><small>Investor account · VPS copier</small></div>
+  <div class="pghd"><span class="pn">06</span><b>Copy Trade</b><small>Investor account · VPS copier</small></div>
 
   <div class="card">
     <p class="ttl">Copy Trade <span class="sp" id="cpLive">—</span></p>
@@ -1856,7 +1834,6 @@ body.ds-gold .brand .brandWord{height:24px}
   <button class="on" data-pg="Signals" onclick="go('Signals',this)"><i>📡</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a7 7 0 0 1 7-7"></path><path d="M5 19a12 12 0 0 1 12-12"></path><path d="M5 19a17 17 0 0 1 17-17"></path><circle cx="5" cy="19" r="1.4"></circle></svg><span class="nl">SIGNALS</span></button>
   <button data-pg="Scan" onclick="go('Scan',this)"><i>🎯</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="1.2"></circle></svg><span class="nl">SCAN</span></button>
   <button data-pg="Votes" onclick="go('Votes',this)"><i>🗳</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8.5" r="3"></circle><circle cx="16.5" cy="8.5" r="3"></circle><path d="M2.5 19.5c.8-3 2.9-4.5 5.5-4.5s4.7 1.5 5.5 4.5"></path><path d="M11.5 19.5c.8-3 2.4-4.5 5-4.5s4.2 1.5 5 4.5"></path></svg><span class="nl">VOTES</span></button>
-  <button data-pg="Market" onclick="go('Market',this)"><i>📊</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20.5h18"></path><path d="M6 17V11"></path><path d="M11 17V5"></path><path d="M16 17V9"></path><path d="M20 17v-4"></path></svg><span class="nl">MARKET</span></button>
   <button data-pg="Trades" onclick="go('Trades',this)"><i>💼</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7.5" width="18" height="12.5" rx="2"></rect><path d="M9 7.5V5.5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path><path d="M3 12.5h18"></path></svg><span class="nl">TRADES</span></button>
   <button data-pg="Alerts" onclick="go('Alerts',this)"><i>🔔</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span class="nl">ALERTS</span></button>
   <button data-pg="Copy" onclick="go('Copy',this)"><i>🔁</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l3.5 3.5L17 10"></path><path d="M3.5 11.5V10a3.5 3.5 0 0 1 3.5-3.5h13.5"></path><path d="M7 21l-3.5-3.5L7 14"></path><path d="M20.5 12.5V14a3.5 3.5 0 0 1-3.5 3.5H3.5"></path></svg><span class="nl">COPY</span></button>
@@ -2131,7 +2108,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.47';
+const VERSION = '9.9.48';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -2188,7 +2165,7 @@ function fixLot(sym, lots){
   return +(Math.round(v / m) * m).toFixed(3);
 }
 
-/* Market page ke groups — har group max 8 symbol = max 8 credits */
+/* pair groups (watchlist, picker) — har group max 8 symbol = max 8 credits */
 const GROUPS = {
   'Majors':    ['XAU/USD','EUR/USD','GBP/USD','USD/JPY','USD/CHF','USD/CAD','AUD/USD','NZD/USD'],
   'EUR Cross': ['EUR/JPY','EUR/GBP','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD'],
@@ -2318,7 +2295,6 @@ let S = {
   autoLog:    LS.get('autoLog',{d:'', n:0, last:{}, why:'', at:0}),
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
-  mktG:  LS.get('mktG','Majors'),
   cap:   LS.get('cap',700),
   autoM: LS.get('autoM',5),
   day:   LS.get('day',{d:'',used:0,blocked:false}),
@@ -2354,7 +2330,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','mktG','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.9.24: purani cached news list ka text bhi ek baar escape karo */
@@ -2426,8 +2402,6 @@ if(!LS.get('mig21', false)){ LS.set('mig21', true); }
 
 let lastSignal = null;
 let lastVotes = null;
-let mktLoaded = false;
-let mktAt = 0;
 let prices = {};   // sym -> {p, chg}
 
 /* ---------- relative time ---------- */
@@ -3018,7 +2992,7 @@ document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{
   if(e.target===o){ o.classList.remove('on'); syncLock() }
 }));
 function go(pg,btn){
-  ['Signals','Chart','Scan','Votes','Market','Trades','Alerts','Copy'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
+  ['Signals','Chart','Scan','Votes','Trades','Alerts','Copy'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   /* header sirf Signals page pe — baaki pages pe poori screen milti hai */
   const hd = document.querySelector('header');
   hd.classList.toggle('hide', pg !== 'Signals');
@@ -3027,7 +3001,6 @@ function go(pg,btn){
   if(pg==='Scan'){ renderScan(); if(typeof wlMark === 'function') wlMark(); }
   if(pg==='Votes'){ renderVotes(); renderSigHist(); renderBt(); renderAgLive();
     $('btTf').textContent = S.tf; $('btT').innerHTML = S.bt ? `<span data-ago="${S.bt.at}">${ago(S.bt.at)}</span>` : '—' }
-  if(pg==='Market' && !mktLoaded){ mktLoaded = true; loadMarket(); }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
   if(pg==='Alerts'){ renderLog(); renderCloud(); renderStorage(); renderTrack() }
   if(pg==='Chart') chartPageShow();
@@ -4851,7 +4824,7 @@ function toggleWatch(p){
   else { if(S.watch.length >= 12){ toast('Zyada se zyada 12 pairs'); return } S.watch.push(p) }
   save(); drawWatch(); renderScan();
 }
-/* v9.9.7: 5 watchlist — Market page ke GROUPS se hi */
+/* v9.9.7: 5 watchlist — GROUPS se hi */
 const WL_SETS = {wl1:'Majors', wl2:'EUR Cross', wl3:'GBP Cross', wl4:'AUD / NZD', wl5:'CAD / CHF'};
 function wlMark(){
   const cur = (S.watch || []).slice().sort().join(',');
@@ -5694,34 +5667,6 @@ function renderNews(){
 
 
 /* ---------------- market ---------------- */
-async function loadMarket(){
-  if(needKey()) return;
-  const list = (GROUPS[S.mktG] || GROUPS['Majors']).filter(x=>!isBad(x));
-  $('mktT').innerHTML = '<span class="spin"></span>';
-  try{
-    const q = await getQuotes(list, sec => $('mktT').textContent = sec+'s');
-    Object.assign(prices, q);
-    $('mktBody').innerHTML = (GROUPS[S.mktG]||[]).map(sym=>{
-      const d = q[sym];
-      if(isBad(sym)) return `<tr><td class="mono">${sym}</td><td colspan="3" class="mu" style="text-align:right">plan me nahi</td></tr>`;
-      if(!d) return `<tr><td class="mono">${sym}</td><td colspan="3" class="mu" style="text-align:right">—</td></tr>`;
-      const up = d.chg >= 0;
-      return `<tr>
-        <td class="mono"><b>${sym}</b></td>
-        <td class="mono" style="text-align:right">${fmt(sym,d.p)}</td>
-        <td class="mono ${up?'up':'dn'}" style="text-align:right">${up?'+':''}${d.chg.toFixed(2)}%</td>
-        <td style="text-align:right"><span class="tag ${up?'buy':'sell'}">${up?'BULL':'BEAR'}</span></td>
-      </tr>`;
-    }).join('');
-    mktAt = Date.now();
-    $('mktT').innerHTML = `<span data-ago="${mktAt}">abhi</span>`;
-    buildTicker();   }catch(e){
-    $('mktT').textContent='error';
-    if(e.code===404 && e.sym) e.sym.split(',').forEach(markBad);
-    toast(e.message);
-  }
-}
-
 /* fallback reference prices sirf pip-table ke liye */
 function refPrice(sym){
   return {'XAU/USD':3300,'EUR/USD':1.09,'GBP/USD':1.27,'AUD/USD':0.66,'NZD/USD':0.60,
@@ -8278,64 +8223,6 @@ function renderHedge(){
     </p>`;
 }
 
-let corrDir = 'BUY';
-function corrFlip(){
-  corrDir = corrDir === 'BUY' ? 'SELL' : 'BUY';
-  renderCorrBrowser();
-}
-function renderCorrBrowser(){
-  const base = pickVal.corr || S.pair;
-  const btn = $('corrDirBtn');
-  if(btn){
-    btn.textContent = corrDir;
-    btn.style.color = corrDir==='BUY' ? 'var(--up)' : 'var(--dn)';
-    btn.style.borderColor = corrDir==='BUY' ? 'var(--up)' : 'var(--dn)';
-    btn.style.background = corrDir==='BUY' ? 'rgba(0,255,150,.12)' : 'rgba(255,68,68,.12)';
-  }
-  const flipD = corrDir === 'BUY' ? 'SELL' : 'BUY';
-  const rows = PAIRS.filter(q => q !== base && !isBad(q))
-    .map(q => {
-      const c = getCorr(base, q);
-      return {sym:q, v:c.v, live:c.live, dir: c.v > 0 ? flipD : corrDir};
-    })
-    .filter(r => Math.abs(r.v) >= 0.6)
-    .sort((a,b) => Math.abs(b.v) - Math.abs(a.v))
-    .slice(0, 6);
-
-  if(!rows.length){
-    $('corrBox').innerHTML = `<div style="border:1px solid var(--gold);border-radius:6px;
-      background:rgba(255,184,0,.07);padding:13px;text-align:center">
-      <b class="shine gd" style="font-size:13px;letter-spacing:1.5px;display:block;margin-bottom:5px">
-        ${SPECS[base].n} ${flipD}
-      </b>
-      <p style="margin:0;font-size:11.5px;line-height:1.6;color:#ffd98a">
-        Koi strong jodidar nahi mila — seedha same pair ulti direction hi sabse saaf hedge hai.
-      </p></div>`;
-    return;
-  }
-  $('corrBox').innerHTML = `
-    <div class="hist" style="border-bottom:1px solid var(--gold);padding-bottom:10px">
-      <div class="ic m" style="border-color:var(--gold);color:var(--gold)">↔</div>
-      <div class="in"><b class="mono">${SPECS[base].n} <span class="${flipD==='BUY'?'up':'dn'}">${flipD}</span></b>
-        <small>same pair · 100% offset</small></div>
-    </div>` +
-    rows.map(r => `<div class="hist">
-      <div class="ic ${r.dir==='BUY'?'w':'l'}" style="font-size:9px">${r.dir==='BUY'?'▲':'▼'}</div>
-      <div class="in"><b class="mono">${SPECS[r.sym].n} <span class="${r.dir==='BUY'?'up':'dn'}">${r.dir}</span></b>
-        <small>${r.live?'live':'anuman'} ${r.v>0?'+':''}${r.v}</small></div>
-    </div>`).join('') +
-    `<div style="border:1px solid ${corrDir==='BUY'?'var(--dn)':'var(--up)'};border-radius:6px;
-        background:${corrDir==='BUY'?'rgba(255,68,68,.07)':'rgba(0,255,150,.07)'};
-        padding:13px;margin-top:14px;text-align:center">
-      <b class="shine ${corrDir==='BUY'?'dn':'up'}" style="font-size:13px;letter-spacing:1.5px;display:block;margin-bottom:5px">
-        ${SPECS[base].n} ${corrDir} LOSS ME HAI?
-      </b>
-      <p style="margin:0;font-size:11.5px;line-height:1.6;color:${corrDir==='BUY'?'#ffb0b0':'#a8ffd8'}">
-        Inme se <b>koi ek</b> lo — sabse upar wala sabse pakka.
-      </p>
-    </div>`;
-}
-
 async function runLiveCorr(){
   if(needKey()) return;
   const t = hedgeFor; if(!t) return;
@@ -8354,7 +8241,7 @@ async function runLiveCorr(){
 
 function takeHedge(sym, dir, lots){
   const px = (S.px[sym] && S.px[sym].p) || (prices[sym] && prices[sym].p);
-  if(!px){ toast('Pehle is pair ka rate lao — Market page se'); return }
+  if(!px){ toast('Pehle is pair ka rate lao — Scan ya Signal se'); return }
   const sd = dollarsToDist(sym, px, lots, S.dSl), td_ = dollarsToDist(sym, px, lots, S.dTp);
   const sl = dir==='BUY' ? px-sd : px+sd, tp = dir==='BUY' ? px+td_ : px-td_;
   addTrade({ sym, dir, lots, entry: px, sl, tp, slD: S.dSl, tpD: S.dTp, q: 0, grade: 'HDG' });
@@ -8688,10 +8575,8 @@ function pickLabel(el, sym){
 function fillPairs(){
   pickVal.main = pickVal.main || S.pair;
   pickVal.manual = pickVal.manual || S.pair;
-  pickVal.corr = pickVal.corr || S.pair;
   pickLabel($('selPair'), pickVal.main);
   pickLabel($('mtPair'), pickVal.manual);
-  pickLabel($('corrPair'), pickVal.corr);
   pickVal.minstop = pickVal.minstop || 'XAU/USD';
   pickLabel($('minPairBtn'), pickVal.minstop);
   pickVal.bt = pickVal.bt || S.pair;
@@ -8701,7 +8586,6 @@ function fillPairs(){
 function openPick(ctx){
   pickCtx = ctx;
   $('pickTitle').textContent = ctx==='manual' ? 'Manual Trade — Pair'
-    : ctx==='corr' ? 'Correlation — Base Pair'
     : ctx==='minstop' ? 'Minimum Stops — Pair'
     : ctx==='bt' ? 'Backtest — Pair' : 'Pair Chuno';
   $('pickSearch').value = '';
@@ -8748,8 +8632,6 @@ function choosePick(sym){
   } else if(pickCtx === 'minstop'){
     pickLabel($('minPairBtn'), sym);
     loadPairDef(sym);
-  } else {
-    pickLabel($('corrPair'), sym); renderCorrBrowser();
   }
 }
 async function apiTest(){
@@ -9561,16 +9443,6 @@ const GUIDE = [
   ['w','Ek pair aur ek timeframe ka backtest bahut kam sabit karta hai. Bharosa karne se pehle teen-chaar chalao. Agent tabhi sach me kamzor hai jab har jagah kamzor ho.']
 ]},
 
-{ id:'market', t:'Market', body:[
-  ['h','Live rates'],
-  ['p','Majors, crosses, metals, index aur crypto me baante hue current prices. Har group ke har symbol ka 1 credit lagta hai.'],
-  ['h','Pip calculator'],
-  ['p','Pair aur lot size daalo, ek pip ki dollar value dikh jayegi. Size set karne se pehle kaam ka hai, khaaskar gold aur index me jahan value seedhi nahi dikhti.'],
-  ['h','Minimum lot size'],
-  ['t',[['Zyadatar pairs','0.01'],['BTCUSD','0.02'],['ETHUSD','0.10']]],
-  ['p','App lot box ko in par khud clamp kar deta hai. Neeche jaane pe broker order reject kar dega.']
-]},
-
 { id:'trades', t:'Trades', body:[
   ['h','Tumhara journal'],
   ['p','Yahan log kiye trades tumhare apne hain. Signal pe "Maine Ye Trade Liya" dabao, ya kahin aur liya trade ho to "+ Add Manual Trade".'],
@@ -9751,7 +9623,7 @@ async function runSelfTest(){
   const t0 = performance.now();
 
   /* --- A. har page ka layout --- */
-  const pages = ['Signals','Scan','Votes','Market','Trades','Alerts','Copy'];
+  const pages = ['Signals','Scan','Votes','Trades','Alerts','Copy'];
   const wasOn = pages.find(p => !$('pg'+p).classList.contains('hide')) || 'Signals';
   const sheetOpen = [...document.querySelectorAll('.ov.on')].map(o => o.id);
   sheetOpen.forEach(id => $(id).classList.remove('on'));
@@ -9864,17 +9736,7 @@ function boot(){
     $('tfChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('gold', c===b));
   };
 
-  renderCorrBrowser();
   renderNews();
-
-  $('mktChips').innerHTML = Object.keys(GROUPS).map(g=>
-    `<button class="chip ${g===S.mktG?'on':''}" data-g="${g}">${g}</button>`).join('');
-  $('mktChips').onclick = e => {
-    const b = e.target.closest('[data-g]'); if(!b) return;
-    S.mktG = b.dataset.g; save();
-    $('mktChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
-    loadMarket();
-  };
 
   $('chartTf').innerHTML = TFS.map(t=>`<button class="chip ${t.tv===S.chartTf?'on':''}" data-ctf="${t.tv}">${t.l}</button>`).join('');
   $('chartTf').onclick = e => {
@@ -9950,7 +9812,7 @@ window.addEventListener('online', () => { netState(); toast('Wapas online') });
 window.addEventListener('offline', netState);
 
 /* ---------------- swipe to switch pages ---------------- */
-const PAGES = ['Signals','Scan','Votes','Market','Trades','Alerts','Copy'];
+const PAGES = ['Signals','Scan','Votes','Trades','Alerts','Copy'];
 let tx=0, ty=0, tt=0;
 document.addEventListener('touchstart', e => {
   if(e.touches.length !== 1) return;
