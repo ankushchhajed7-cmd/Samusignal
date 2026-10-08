@@ -1,1 +1,1 @@
-usa500idxusd,eurusd,xauusd,lightcmdusd,ustbondtrusd,usdjpy,gbpusd,jpnidxjpy,fraidxeur,gbridxgbp,usatechidxusd,audusd,usdcad,usdchf,xagusd,brentcmdusd,nzdusd,eurjpy,gbpjpy,eurgbp,audjpy,euraud,eurchf,deuidxeur,usa30idxusd,bundtreur,coppercmdusd
+euraud,eurchf,deuidxeur,usa30idxusd,bundtreur,coppercmdusd,usa500idxusd,eurgbp,fraidxeur,xauusd,jpnidxjpy,gbridxgbp,audjpy,usdcad,gbpjpy,usdchf,nzdusd,usatechidxusd,brentcmdusd,audusd,eurjpy,usdjpy,xagusd,eurusd,gbpusd,lightcmdusd,ustbondtrusd

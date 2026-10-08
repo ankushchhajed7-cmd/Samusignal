@@ -65,13 +65,13 @@ for(const [pair, cfg] of Object.entries(LIST)){
   let todo = [];
   for(let y = FROM.getUTCFullYear(); y <= nowY; y++) if(y === nowY || (perYear[y] || 0) < FULL_YEAR) todo.push(y);
   console.log(`${pair} ${SIDE}: ${rows.size} purani candles, laana hai: ${todo.join(' ') || 'kuch nahi'}`);
-  for(let pass = 1; pass <= 2 && todo.length; pass++){
+  for(let pass = 1; pass <= 3 && todo.length; pass++){
     const failed = [];
-    /* d1: lagatar saalon ko 10-10 ke tukdon me ek saath (requests kam) */
+    /* d1: lagatar saalon ko 3-3 ke tukdon me ek saath (requests kam, 429 pe kam nuksaan) */
     const chunks = [];
     for(const y of todo){
       const c = chunks.at(-1);
-      if(TF === 'd1' && c && y === c.at(-1) + 1 && c.length < 10) c.push(y); else chunks.push([y]);
+      if(TF === 'd1' && c && y === c.at(-1) + 1 && c.length < 3) c.push(y); else chunks.push([y]);
     }
     for(const ys of chunks){
       const from = new Date(Math.max(FROM, Date.UTC(ys[0], 0, 1))), to = new Date(Math.min(Date.now(), Date.UTC(ys.at(-1) + 1, 0, 1)));
