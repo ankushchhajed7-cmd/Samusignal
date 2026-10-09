@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v9.9.54 — Chart Analysis order: SL $10 / TP $10 bhara aata hai; lock: har pura $1 profit ka 75% pakka (+$1→+$0.75, +$2→+$1.50 …)
    v9.9.53 — +$1 profit pe SL +$0.75 pakka (journal + FXBridge v3.58), SL/TP $10 tak; Performance WIN ke neeche TP/manual hataya
    v9.9.52 — Result card: SL/TP ke neeche $ box — $ likho to price khud adjust
    v9.9.51 — Chart Analysis Result me Signal strength meter (0-100%: quality + agents + technical + checks)
@@ -58,7 +59,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '9.9.53';
+const VERSION = '9.9.54';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
