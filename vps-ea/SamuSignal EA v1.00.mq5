@@ -26,6 +26,9 @@
 //|  v1.04: Profit lock - profit $2 pahunche to SL +$1 par (kam se kam |
 //|     $1 book). Trailing $ me: $3 ke baad SL price se $2 peeche.     |
 //|     (+$1 -> +$2 -> ... -> TP $5). Breakeven ab $1.5 pe.            |
+//|  v1.09: +$1 profit (0.01 lot) pe SL +$0.75 pakka (InpFixAtUsd /  |
+//|     InpFixUsd) - app + FXBridge v3.58 jaisa. Baaki BE/lock/trail   |
+//|     waise hi, SL sirf aage.                                       |
 //|  v1.08: Waqt ki seema hatayi (poora din, Som-Shukra). Sirf high-  |
 //|     impact news se 1 ghanta pehle aur 1 ghanta baad naya trade   |
 //|     nahi (pending bhi hatao). Inputs se waqt wapas laga sakte ho. |
@@ -50,7 +53,7 @@
 //|  khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.           |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.08"
+#property version   "1.09"
 #property description "SamuSignal app ka signal logic - 28 pairs, 5 group, auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
@@ -124,6 +127,8 @@ input bool   InpProfitLock    = true;    // Profit lock ON/OFF (kam se kam $ boo
 input double InpLockAtPct     = 65;      // TP ka itna % chale to...
 input double InpLockPct       = 25;      // ...SL TP ke itne % profit par
 input double InpMinLockUsd    = 0.75;    // Lock kam se kam itne $ ka (jahan TP itna bada ho)
+input double InpFixAtUsd      = 1.00;    // v1.09: itna $ profit (0.01 lot) hote hi...
+input double InpFixUsd        = 0.75;    // ...SL itne $ profit pe pakka (0 = band)
 input bool   InpTrailing      = true;    // Trailing ON/OFF
 input double InpTrailStartPct = 75;      // TP ka itna % ke baad trailing shuru
 input double InpTrailDistPct  = 40;      // SL price se TP ke itne % peeche chale
@@ -1725,6 +1730,8 @@ void ManagePositions()
       double lockD = MathMax(InpLockPct / 100.0 * T, MathMin(InpMinLockUsd * U, 0.5 * T));
       double lockAtD = MathMax(InpLockAtPct / 100.0 * T, lockD + 0.2 * T);
       double trStD = InpTrailStartPct / 100.0 * T, trDD = InpTrailDistPct / 100.0 * T;
+      bool   fixOn = InpProfitLock && InpFixUsd > 0 && InpFixAtUsd > InpFixUsd;   // v1.09: +$1 pe +$0.75 pakka
+      double fixAtD = InpFixAtUsd * U, fixD = InpFixUsd * U;
       int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       double point = SymbolInfoDouble(sym, SYMBOL_POINT);
       double lvl = (double)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
@@ -1739,6 +1746,11 @@ void ManagePositions()
          {
             double lk = open + lockD;
             if(newSl == 0 || lk > newSl) newSl = lk;
+         }
+         if(fixOn && gain >= fixAtD * 0.9999)
+         {
+            double fk = open + fixD;
+            if(newSl == 0 || fk > newSl) newSl = fk;
          }
          if(InpTrailing && gain >= trStD)
          {
@@ -1761,6 +1773,11 @@ void ManagePositions()
          {
             double lk = open - lockD;
             if(newSl == 0 || lk < newSl) newSl = lk;
+         }
+         if(fixOn && gain >= fixAtD * 0.9999)
+         {
+            double fk = open - fixD;
+            if(newSl == 0 || fk < newSl) newSl = fk;
          }
          if(InpTrailing && gain >= trStD)
          {
@@ -1838,7 +1855,7 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.08 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
+   string s = StringFormat("SamuSignal EA v1.09 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)", IstHM());
    s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s lock %s trail %s | khule %d pending %d\n",
@@ -1903,7 +1920,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.08 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.09 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " | confirm ", InpMicroConfirm ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(1);
