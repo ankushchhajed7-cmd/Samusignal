@@ -1934,7 +1934,7 @@ body.ds-gold .brand .brandWord{height:24px}
   <button class="btn ghost sm" style="margin-bottom:10px" onclick="resetPairDef()">↺ Is pair ko default pe wapas</button>
   <div class="sw on" id="swBe">
     <div class="tg"></div>
-    <div>Breakeven + Profit lock + Trailing — hamesha ON<small>TP ka 50% → SL entry · +$1 profit → SL +$0.75 pakka · 65% → SL +25% (kam se kam $0.75) · 75% ke baad trailing</small></div>
+    <div>Breakeven + Profit lock + Trailing — hamesha ON<small>+$1 profit → SL +$0.75, +$2 → +$1.50 … (har $1 ka 75% pakka) · TP ka 50% → SL entry · 65% → SL +25% (kam se kam $0.75) · 75% ke baad trailing</small></div>
   </div>
   <p class="hint" style="margin:-2px 0 12px">Journal me SL apne aap khiskegi. App se 🚀 MT5 pe bheje order me FXBridgeEA (v3.54+) bhi yahi karta hai. MT5 me haath se liya trade ho to SL wahan khud khiskana.</p>
 
@@ -2107,7 +2107,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.53';
+const VERSION = '9.9.54';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -6655,12 +6655,12 @@ function riskDist(t){
 /* breakeven + profit lock + trailing — SamuSignal EA jaisa, trade ke TP ke % se (v9.9.37):
      TP ka 50% chale  → SL entry par (breakeven)
      65% chale        → SL profit me: TP ka 25%, kam se kam $0.75 (0.01 lot) jahan TP itna bada ho
-     +$1 profit       → SL +$0.75 pakka (0.01 lot, v9.9.53) — TP kitna bhi ho
+     har pura $1 profit → uska 75% pakka: +$1→+$0.75, +$2→+$1.50 … (0.01 lot, v9.9.54) — TP kitna bhi ho
      75% ke baad      → SL price se TP ka 40% peeche (trailing)
    TP na ho to purana tareeka: 1R pe breakeven. SL sirf aage khisakti hai.
    App se MT5 pe bheje order me FXBridgeEA (v3.56+) bhi yahi karta hai. */
 const PLR = {be:0.50, lockAt:0.65, lock:0.25, minLock:0.75, trStart:0.75, trDist:0.40,   /* v9.9.37: BE 50% (halchal me kat na jaye) */
-             fixAt:1.00, fix:0.75};   /* v9.9.53: +$1 profit pe SL +$0.75 pakka (0.01 lot; FXBridge v3.58 jaisa) */
+             step:1.00, keep:0.75};   /* v9.9.54: har pura $1 profit pe uska 75% pakka — +$1→+$0.75, +$2→+$1.50 … (0.01 lot; FXBridge v3.59 / EA v1.10 jaisa) */
 function slLadder(t, gain){
   const T = t.tp > 0 ? Math.abs(t.tp - t.entry) : 0;
   if(!T){ const r = riskDist(t); return (r && gain >= r * 0.9999) ? 0 : null }
@@ -6670,8 +6670,9 @@ function slLadder(t, gain){
   let want = null;
   if(gain >= PLR.be * T * 0.9999) want = 0;
   if(gain >= lockAt * 0.9999) want = Math.max(want, lockD);
-  const fixAt = dollarsToDist(t.sym, t.entry, t.lots, PLR.fixAt * t.lots / 0.01);
-  if(gain >= fixAt * 0.9999) want = Math.max(want, dollarsToDist(t.sym, t.entry, t.lots, PLR.fix * t.lots / 0.01));
+  const k = t.lots / 0.01, g = distToDollars(t.sym, t.entry, t.lots, Math.max(0, gain)) / k;   /* profit $ (0.01 lot pe) */
+  const steps = Math.floor(g / PLR.step + 1e-6);
+  if(steps >= 1) want = Math.max(want, dollarsToDist(t.sym, t.entry, t.lots, PLR.keep * steps * PLR.step * k));
   if(gain >= PLR.trStart * T) want = Math.max(want, gain - PLR.trDist * T);
   return want;
 }
@@ -7023,7 +7024,12 @@ function renderLevels(){
      4. kuch nahi to WAIT
    SL/TP niyam se bhare aate hain, badal sakte ho. Breakeven + lock + trailing hamesha ON. */
 let cpRes = null;
-const CAP_USD = 10;                 /* SL / TP ki upar ki seema (0.01 lot) */
+const CAP_USD = 10;                 /* SL / TP: card pe yahi bhara aata hai (v9.9.54) aur isse zyada nahi (0.01 lot) */
+/* v9.9.54: har order ka SL / TP entry se $10 (0.01 lot, lot ke saath badhta) — $ box se badal sakte ho */
+function cpFix10(sym, lots, L){
+  const dd = dollarsToDist(sym, L.e, lots, CAP_USD * lots / 0.01), buy = L.dir === 'BUY', r = v => +(+v).toFixed(SPECS[sym].d);
+  return Object.assign({}, L, {sl:r(buy ? L.e - dd : L.e + dd), tp:r(buy ? L.e + dd : L.e - dd)});
+}
 function cpDecide(){
   const s = lastSignal;
   if(!s || s.sym !== S.pair) return null;
@@ -7072,6 +7078,7 @@ function strengthHTML(s){
 function renderFinal(){
   const box = $('finBox'); if(!box) return;
   const d = cpRes = cpDecide();
+  if(d && d.legs.length) d.legs = d.legs.map(L => cpFix10(d.sym, d.lots, L));   /* v9.9.54: SL / TP $10 */
   if(!d){ $('finT').textContent = '—'; box.innerHTML = '<p class="hint">Analyze dabao.</p>'; return }
   $('finT').textContent = t12(d.at);
   if(d.kind === 'WAIT'){
@@ -7144,7 +7151,7 @@ function cpCheck(){
   for(const L of legs){
     const bad = !isFinite(L.sl) || !isFinite(L.tp) ? ['SL / TP khaali hai'] : checkStops(d.sym, L.dir, L.e, L.sl, L.tp);
     const cap = CAP_USD * d.lots / 0.01;                              /* v9.9.53: SL/TP $10 tak (FXBridge v3.58 bhi yahi) */
-    if(L.slD > cap || L.tpD > cap){ alert(`${L.dir} ${L.type} —\n\nSL / TP $${cap.toFixed(2)} se zyada nahi ho sakta (abhi SL $${L.slD.toFixed(2)}, TP $${L.tpD.toFixed(2)}).`); return null }
+    if(L.slD > cap + 0.01 || L.tpD > cap + 0.01){ alert(`${L.dir} ${L.type} —\n\nSL / TP $${cap.toFixed(2)} se zyada nahi ho sakta (abhi SL $${L.slD.toFixed(2)}, TP $${L.tpD.toFixed(2)}).`); return null }
     if(bad.length){ alert(`${L.dir} ${L.type} —\n\n${bad.join('\n')}`); return null }
   }
   return legs;

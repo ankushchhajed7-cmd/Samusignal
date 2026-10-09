@@ -10,6 +10,10 @@
 //|                "lots":0.01,"entry":4022.36,"sl":4048.51,         |
 //|                "tp":3970.06}                                     |
 //|                                                                  |
+//|  v3.59 (09-Oct-2026): Lock seedhi $ seedhi - har pura $1 profit   |
+//|     (0.01 lot) ka 75% pakka: +$1 -> +$0.75, +$2 -> +$1.50 ...     |
+//|     (PL_StepUsd / PL_KeepPct). App SL/TP $10 bhejta hai.           |
+//|                                                                  |
 //|  v3.58 (09-Oct-2026): +$1 profit (0.01 lot) pe SL +$0.75 pakka    |
 //|     (PL_FixAtUsd / PL_FixUsd). SL / TP $10 se zyada ho to $10 pe  |
 //|     (MaxSlUsd / MaxTpUsd, lot ke saath badhta) + Telegram.        |
@@ -50,7 +54,7 @@
 //|     nahi lagega (test mode). Auto-trade REAL pe kabhi nahi.      |
 //+------------------------------------------------------------------+
 #property copyright "Ankush New Vision"
-#property version   "3.58"
+#property version   "3.59"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -75,8 +79,8 @@ input double  PL_LockPct     = 25;         // ...SL TP ke itne % profit par
 input double  PL_MinLockUsd  = 0.75;       // Lock kam se kam itne $ (0.01 lot) jahan TP itna bada ho
 input double  PL_TrailStartPct = 75;       // TP ka itna % ke baad trailing
 input double  PL_TrailDistPct  = 40;       // SL price se TP ke itne % peeche
-input double  PL_FixAtUsd    = 1.00;       // v3.58: itna $ profit (0.01 lot) hote hi...
-input double  PL_FixUsd      = 0.75;       // ...SL itne $ profit pe pakka (0 = band)
+input double  PL_StepUsd     = 1.00;       // v3.59: har itne $ profit (0.01 lot) pe...
+input double  PL_KeepPct     = 75;         // ...uska itna % pakka: +$1 -> +$0.75, +$2 -> +$1.50 ... (0 = band)
 input double  MaxSlUsd       = 10.0;       // v3.58: SL isse zyada $ (0.01 lot) ho to yahin tak (0 = band)
 input double  MaxTpUsd       = 10.0;       // v3.58: TP isse zyada $ (0.01 lot) ho to yahin tak (0 = band)
 input bool    EnableTrading  = false;      // Master switch (false = read-only test)
@@ -246,7 +250,7 @@ void CheckRules()
       g_rulesMsg = "Rules check nahi ho paya (HTTP " + IntegerToString(res) + ", err " + IntegerToString(GetLastError()) + ")";
    }
    Print("Rules check: ", g_rulesMsg);
-   Comment("\n  FXBridge v3.58 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
+   Comment("\n  FXBridge v3.59 | REAL " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) +
            "\n  " + g_rulesMsg +
            "\n  ConfirmRealAccount: " + (ConfirmRealAccount ? "true" : "false") +
            "\n  Orders: " + (TradingOn() ? "LAGENGE ✓" : "TEST MODE"));
@@ -360,7 +364,7 @@ int OnInit()
    // VPS restart ke baad duplicate order avoid
    lastOrderID = (long)GlobalVariableGet("FXBridge_LastOrderID");
 
-   Print("=== FXBridge EA v3.58 (Firebase) Started ===");
+   Print("=== FXBridge EA v3.59 (Firebase) Started ===");
    Print("URL: ", g_base, (StringLen(FirebaseAuth) > 0 ? "  (auth ON)" : "  (auth OFF)"));
    Print("Poll: ", PollSeconds, "s | Suffix: '", SymbolSuffix, "' | Trading: ", TradingOn(), (g_isReal ? " | REAL" : " | DEMO"));
    Print("Last processed order ID: ", lastOrderID);
@@ -775,8 +779,11 @@ void ManageProfitLock()
       double want = -1;                                       // SL entry se kitni profit taraf
       if(gain >= PL_BePct / 100.0 * T * 0.9999) want = 0;
       if(gain >= lockAtD * 0.9999) want = MathMax(want, lockD);
-      if(PL_FixUsd > 0 && PL_FixAtUsd > PL_FixUsd && gain >= PL_FixAtUsd * U * 0.9999)   // v3.58: +$1 pe +$0.75 pakka
-         want = MathMax(want, PL_FixUsd * U);
+      if(PL_KeepPct > 0 && PL_KeepPct < 100 && PL_StepUsd > 0 && gain > 0)   // v3.59: har pura $1 ka 75% pakka
+      {
+         double steps = MathFloor(gain / U / PL_StepUsd + 1e-6);
+         if(steps >= 1) want = MathMax(want, PL_KeepPct / 100.0 * steps * PL_StepUsd * U);
+      }
       int stage = (want == 0) ? 1 : (want > 0 ? 2 : 0);
       if(gain >= trSt && gain - trD > want) { want = gain - trD; stage = 3; }
       if(want < 0) continue;
