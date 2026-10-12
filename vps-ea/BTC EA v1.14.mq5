@@ -1,8 +1,13 @@
 //+------------------------------------------------------------------+
-//|                                               BTC EA v1.13.mq5   |
+//|                                               BTC EA v1.14.mq5   |
 //|                          Ankush New Vision - BTC Smart Algo EA   |
 //+------------------------------------------------------------------+
 //| CHANGELOG                                                        |
+//| v1.14 (12-Oct-2026)                                              |
+//|  - Buster jaisa: ek pending bharne par baaki pending wahi rehte   |
+//|    hain (delete / park nahi hote)                                 |
+//|  - Max khule trades default 0 (off); ON karne par sirf NAYE       |
+//|    pending rukte hain, purane nahi hat-te                         |
 //| v1.13 (12-Oct-2026) - Buster ke real account jaisa timing        |
 //|  - Har NAYE swing pe sirf 1 pending (candle khulte hi), ek saath  |
 //|    3 nahi. Purane pending 72 ghante tak rehte hain (Buster jaisa) |
@@ -31,13 +36,13 @@
 //+------------------------------------------------------------------+
 #property copyright   "Ankush New Vision"
 #property link        "https://github.com/ankushchhajed7-cmd"
-#property version     "1.13"
-#property description "BTC EA v1.13 - ZigZag swing breakout/range EA with neon dashboard"
+#property version     "1.14"
+#property description "BTC EA v1.14 - ZigZag swing breakout/range EA with neon dashboard"
 
 #include <Trade\Trade.mqh>
 
 #define EA_NAME  "BTC EA"
-#define EA_VER   "v1.13"
+#define EA_VER   "v1.14"
 #define PFX      "BTCEA111_"
 
 //--- neon colours
@@ -96,7 +101,7 @@ input double InpADXThreshold   = 20.0;   // ADX >= isse = TREND, kam = RANGE
 input double InpATRThreshold   = 0.001;  // ATR/Price isse kam = market dead, no trade
 
 input group "=== Position Management ==="
-input int    InpMaxOpenTrades  = 1;      // Ek saath max KHULE trades (baaki pending park)
+input int    InpMaxOpenTrades  = 0;      // Ek saath max KHULE trades (0 = off, sirf naye pending rokta hai)
 input int    InpMinGapMinutes  = 0;      // Pichhle trade ke baad kitne minute ruko (0 = off)
 input int    InpMaxPositions   = 10;     // Max trades (khule + pending)
 input int    InpMaxPendingSide = 3;      // Max pending har side (buy / sell)
@@ -614,7 +619,7 @@ void UpdateState()
    if(InpMaxOpenTrades > 0 && openNow >= InpMaxOpenTrades)
    {
       gEntryBlock = true;
-      if(gState == 0) gReason = "Trade khula hai - agla trade iske band hone ke baad";
+      if(gState == 0) gReason = "Max khule trades poore - naye pending nahi, purane chalu";
    }
    else if(gapLeft > 0)
    {
@@ -1008,12 +1013,6 @@ void ManageEntries()
       if(InpDeletePendingOnNews) ParkPending();
       return;
    }
-   if(gEntryBlock)                 // trade khula hai (max) ya gap
-   {
-      ParkPending();
-      return;
-   }
-
    // jo mode aapne OFF kiya uske pending hatao
    if(!(TG[TG_TREND] && TG[TG_STP])) DeleteOrders(true, false, true, true);
    if(!(TG[TG_RANGE] && TG[TG_LIM])) DeleteOrders(false, true, true, true);
@@ -1027,6 +1026,7 @@ void ManageEntries()
 
    double tol = MathMax(InpMinDistSameDir, gATR * 0.25);
    RestoreParked(tol);
+   if(gEntryBlock) return;         // max khule trades / gap: sirf naye pending ruke
 
    bool trendOK = (TG[TG_TREND] && gIsTrend && !gDead);
    bool rangeOK = (TG[TG_RANGE] && !gIsTrend && !gDead);
@@ -1454,7 +1454,7 @@ void UpdatePanel()
    SetT("iv2", st, stc);
    PaintTradeBtn();
 
-   SetT("sv0", StringFormat("%d / %d max   (B %d / S %d)", gBuys + gSells, InpMaxOpenTrades, gBuys, gSells), TXT_W);
+   SetT("sv0", StringFormat("%d   (B %d / S %d)", gBuys + gSells, gBuys, gSells), TXT_W);
    SetT("sv1", StringFormat("%d  (Stop %d / Lim %d / Park %d)", gPendStop + gPendLimit, gPendStop, gPendLimit, ParkCount()), TXT_W);
    SetT("sv2", pl + " $", plc);
    SetT("sv3", StringFormat("%d / %d", gWins, gLosses), TXT_W);
@@ -1685,13 +1685,6 @@ void OnTick()
    if(gDayLossHit && InpCloseAllOnDayLoss && (gBuys + gSells) > 0)
    {
       CloseAll();
-      UpdateState();
-   }
-
-   // ek pending bhara to baaki turant hatao (2-3 trade ek saath na khule)
-   if(InpMaxOpenTrades > 0 && (gBuys + gSells) >= InpMaxOpenTrades && (gPendStop + gPendLimit) > 0)
-   {
-      ParkPending();
       UpdateState();
    }
 
