@@ -1,8 +1,16 @@
 //+------------------------------------------------------------------+
-//|                                               BTC EA v1.12.mq5   |
+//|                                               BTC EA v1.13.mq5   |
 //|                          Ankush New Vision - BTC Smart Algo EA   |
 //+------------------------------------------------------------------+
 //| CHANGELOG                                                        |
+//| v1.13 (12-Oct-2026) - Buster ke real account jaisa timing        |
+//|  - Har NAYE swing pe sirf 1 pending (candle khulte hi), ek saath  |
+//|    3 nahi. Purane pending 72 ghante tak rehte hain (Buster jaisa) |
+//|  - Max khule trades poore hone par baaki pending 'park' hote hain |
+//|    aur trade band hone par wapas lag jaate hain                   |
+//|  - ADX / EMA badalne par purane pending nahi hat-te              |
+//|  - Gap default 0 (off) - naye swing khud ghanton ka gap dete hain |
+//|  - LOT / SL / TP badalne par pending nayi value se dobara lagte   |
 //| v1.12 (12-Oct-2026)                                              |
 //|  - Ek saath sirf 1 khula trade (Max khule trades input)          |
 //|  - Trade khulte hi baaki pending turant hat jaate hain           |
@@ -23,13 +31,13 @@
 //+------------------------------------------------------------------+
 #property copyright   "Ankush New Vision"
 #property link        "https://github.com/ankushchhajed7-cmd"
-#property version     "1.12"
-#property description "BTC EA v1.12 - ZigZag swing breakout/range EA with neon dashboard"
+#property version     "1.13"
+#property description "BTC EA v1.13 - ZigZag swing breakout/range EA with neon dashboard"
 
 #include <Trade\Trade.mqh>
 
 #define EA_NAME  "BTC EA"
-#define EA_VER   "v1.12"
+#define EA_VER   "v1.13"
 #define PFX      "BTCEA111_"
 
 //--- neon colours
@@ -88,13 +96,13 @@ input double InpADXThreshold   = 20.0;   // ADX >= isse = TREND, kam = RANGE
 input double InpATRThreshold   = 0.001;  // ATR/Price isse kam = market dead, no trade
 
 input group "=== Position Management ==="
-input int    InpMaxOpenTrades  = 1;      // Ek saath max KHULE trades
-input int    InpMinGapMinutes  = 120;    // Pichhle trade ke baad kitne minute ruko (0 = off)
+input int    InpMaxOpenTrades  = 1;      // Ek saath max KHULE trades (baaki pending park)
+input int    InpMinGapMinutes  = 0;      // Pichhle trade ke baad kitne minute ruko (0 = off)
 input int    InpMaxPositions   = 10;     // Max trades (khule + pending)
 input int    InpMaxPendingSide = 3;      // Max pending har side (buy / sell)
 input int    InpMinCandleGap   = 1;      // Market entries ke beech min candles
 input double InpMinDistSameDir = 100;    // Same disha entries ke beech min price doori
-input int    InpPendingExpiryBars = 48;  // Pending kitni candles baad hate
+input int    InpPendingExpiryHours = 72; // Pending kitne ghante baad hate (Buster = 72)
 input bool   InpForceMinVolume = true;   // Lot kam ho to broker ka min lot lo
 input double InpMinBalance     = 1.0;    // Is balance se kam = trade band
 input int    InpSlippage       = 1000;   // Slippage (points)
@@ -167,6 +175,11 @@ datetime gMsgTime = 0;
 uint     gLastHist = 0;
 datetime gLastEntry = 0;      // aakhri trade kab khula
 bool     gEntryBlock = false; // abhi naya trade nahi (trade khula / gap)
+datetime gLastPivH = 0, gLastPivL = 0;   // kaunsa swing ho chuka
+int      gParkType[];
+double   gParkPrice[];
+datetime gParkExp[];
+string   gParkTag[];
 
 datetime gNewsT[];
 string   gNewsN[];
@@ -612,6 +625,10 @@ void UpdateState()
                                 TimeToString(ServerToIst((datetime)((long)gLastEntry + (long)InpMinGapMinutes * 60)), TIME_MINUTES));
    }
 
+   if(gState == 0 && !gEntryBlock && openNow == 0 && gPendStop + gPendLimit == 0)
+      gReason = (ParkCount() > 0 ? IntegerToString(ParkCount()) + " pending park - " : "") +
+                "naye swing ka intezaar (har nayi candle pe check)";
+
    if(prev != gState || prevBlock != gEntryBlock) gForceCheck = true;
 }
 
@@ -693,17 +710,80 @@ void DeleteOrders(bool stops, bool limits, bool buys, bool sells)
 
 void DeleteAllPending() { DeleteOrders(true, true, true, true); }
 
+// comment "BTCEA T|1760342400" se expiry nikalo
+datetime ExpiryOf(string cmt, datetime setup)
+{
+   int p = StringFind(cmt, "|");
+   if(p > 0)
+   {
+      long e = StringToInteger(StringSubstr(cmt, p + 1));
+      if(e > 0) return (datetime)e;
+   }
+   return (datetime)((long)setup + (long)InpPendingExpiryHours * 3600);
+}
+
+string TagOf(string cmt)
+{
+   string t = cmt;
+   int p = StringFind(t, "|");
+   if(p > 0) t = StringSubstr(t, 0, p);
+   StringReplace(t, "BTCEA ", "");
+   return t;
+}
+
 void DeleteExpired()
 {
-   if(InpPendingExpiryBars <= 0) return;
-   long life = (long)InpPendingExpiryBars * PeriodSeconds(InpTF);
+   if(InpPendingExpiryHours <= 0) return;
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
       ulong t = OrderGetTicket(i);
       if(t == 0 || !MyOrd()) continue;
       datetime setup = (datetime)OrderGetInteger(ORDER_TIME_SETUP);
-      if((long)TimeCurrent() - (long)setup > life) trade.OrderDelete(t);
+      if(TimeCurrent() >= ExpiryOf(OrderGetString(ORDER_COMMENT), setup)) trade.OrderDelete(t);
    }
+}
+
+int  ParkCount() { return ArraySize(gParkPrice); }
+
+void ClearPark()
+{
+   ArrayResize(gParkType, 0);
+   ArrayResize(gParkPrice, 0);
+   ArrayResize(gParkExp, 0);
+   ArrayResize(gParkTag, 0);
+}
+
+// pending hata ke yaad rakho - baad me wapas lagenge
+void ParkPending()
+{
+   int n = 0;
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong t = OrderGetTicket(i);
+      if(t == 0 || !MyOrd()) continue;
+      long ot = OrderGetInteger(ORDER_TYPE);
+      if(ot != ORDER_TYPE_BUY_STOP && ot != ORDER_TYPE_SELL_STOP &&
+         ot != ORDER_TYPE_BUY_LIMIT && ot != ORDER_TYPE_SELL_LIMIT) continue;
+      double   pr  = OrderGetDouble(ORDER_PRICE_OPEN);
+      string   cmt = OrderGetString(ORDER_COMMENT);
+      datetime ex  = ExpiryOf(cmt, (datetime)OrderGetInteger(ORDER_TIME_SETUP));
+      if(!trade.OrderDelete(t)) continue;
+      bool dup = false;
+      for(int j = 0; j < ParkCount(); j++)
+         if(gParkType[j] == (int)ot && MathAbs(gParkPrice[j] - pr) < TickSize()) { dup = true; break; }
+      if(dup) continue;
+      int k = ParkCount();
+      ArrayResize(gParkType, k + 1);
+      ArrayResize(gParkPrice, k + 1);
+      ArrayResize(gParkExp, k + 1);
+      ArrayResize(gParkTag, k + 1);
+      gParkType[k]  = (int)ot;
+      gParkPrice[k] = pr;
+      gParkExp[k]   = ex;
+      gParkTag[k]   = TagOf(cmt);
+      n++;
+   }
+   if(n > 0) SetMsg(IntegerToString(n) + " pending park kiye - mauka aane par wapas lagenge");
 }
 
 void CloseAll()
@@ -715,6 +795,7 @@ void CloseAll()
       trade.PositionClose(t);
    }
    DeleteAllPending();
+   ClearPark();
    SetMsg("Day loss seema poori - sab trades band kiye");
 }
 
@@ -730,10 +811,12 @@ bool MarginOK(bool isBuy, double lot, double price)
    return true;
 }
 
-bool PlacePending(ENUM_ORDER_TYPE type, double price, string tag)
+bool PlacePending(ENUM_ORDER_TYPE type, double price, string tag, datetime expiry)
 {
    double lot = NormLot(S[ST_LOT]);
    if(lot <= 0) return false;
+   if(expiry == 0) expiry = (datetime)((long)TimeCurrent() + (long)MathMax(1, InpPendingExpiryHours) * 3600);
+   if((long)expiry - (long)TimeCurrent() < 300) return false;
    price = NormP(price);
    bool isBuy = (type == ORDER_TYPE_BUY_STOP || type == ORDER_TYPE_BUY_LIMIT);
    double sld = MoneyToDist(S[ST_SLMAX], lot);
@@ -743,20 +826,25 @@ bool PlacePending(ENUM_ORDER_TYPE type, double price, string tag)
    double tp = (tpd > 0 ? NormP(isBuy ? price + tpd : price - tpd) : 0);
    if(!MarginOK(isBuy, lot, price)) return false;
 
-   string cmt = "BTCEA " + tag;
+   string cmt = "BTCEA " + tag + "|" + IntegerToString((long)expiry);
+   int    em  = (int)SymbolInfoInteger(_Symbol, SYMBOL_EXPIRATION_MODE);
    ENUM_ORDER_TYPE_TIME tt = OrderTimeType();
+   datetime ex = 0;
+   if((em & SYMBOL_EXPIRATION_SPECIFIED) != 0) { tt = ORDER_TIME_SPECIFIED; ex = expiry; }
+
    bool ok = false;
-   if(type == ORDER_TYPE_BUY_STOP)   ok = trade.BuyStop(lot, price, _Symbol, sl, tp, tt, 0, cmt);
-   if(type == ORDER_TYPE_SELL_STOP)  ok = trade.SellStop(lot, price, _Symbol, sl, tp, tt, 0, cmt);
-   if(type == ORDER_TYPE_BUY_LIMIT)  ok = trade.BuyLimit(lot, price, _Symbol, sl, tp, tt, 0, cmt);
-   if(type == ORDER_TYPE_SELL_LIMIT) ok = trade.SellLimit(lot, price, _Symbol, sl, tp, tt, 0, cmt);
+   if(type == ORDER_TYPE_BUY_STOP)   ok = trade.BuyStop(lot, price, _Symbol, sl, tp, tt, ex, cmt);
+   if(type == ORDER_TYPE_SELL_STOP)  ok = trade.SellStop(lot, price, _Symbol, sl, tp, tt, ex, cmt);
+   if(type == ORDER_TYPE_BUY_LIMIT)  ok = trade.BuyLimit(lot, price, _Symbol, sl, tp, tt, ex, cmt);
+   if(type == ORDER_TYPE_SELL_LIMIT) ok = trade.SellLimit(lot, price, _Symbol, sl, tp, tt, ex, cmt);
    if(!ok || (trade.ResultRetcode() != TRADE_RETCODE_DONE && trade.ResultRetcode() != TRADE_RETCODE_PLACED))
    {
       Print(EA_NAME, " pending fail ", EnumToString(type), " @", DoubleToString(price, _Digits),
             " code ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
       return false;
    }
-   SetMsg(EnumToString(type) + " @ " + DoubleToString(price, _Digits) + " lagaya");
+   SetMsg(EnumToString(type) + " @ " + DoubleToString(price, _Digits) + " lagaya (expiry " +
+          TimeToString(ServerToIst(expiry), TIME_DATE | TIME_MINUTES) + " IST)");
    return true;
 }
 
@@ -845,20 +933,90 @@ int FindSwings(bool highs, int start, int maxN, double ref, double tol, double &
 //+------------------------------------------------------------------+
 //| Entries                                                          |
 //+------------------------------------------------------------------+
+// abhi-abhi pakka hua swing (shift D+1, dono taraf D band candles)
+bool NewPivot(bool highs, double &level, datetime &ptime)
+{
+   int D = MathMax(1, InpSwingDepth);
+   int i = D + 1;
+   MqlRates r[];
+   ArraySetAsSeries(r, true);
+   if(CopyRates(_Symbol, InpTF, 0, i + D + 1, r) < i + D + 1) return false;
+   for(int k = 1; k <= D; k++)
+   {
+      if(highs) { if(!(r[i].high > r[i - k].high && r[i].high >= r[i + k].high)) return false; }
+      else      { if(!(r[i].low  < r[i - k].low  && r[i].low  <= r[i + k].low))  return false; }
+   }
+   level = highs ? r[i].high : r[i].low;
+   ptime = r[i].time;
+   return true;
+}
+
+// park kiye pending wapas lagao (agar level abhi bhi sahi hai)
+void RestoreParked(double tol)
+{
+   int n = ParkCount();
+   if(n == 0) return;
+   double ask  = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid  = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double sDst = StopsDist();
+   int keep = 0;
+   for(int i = 0; i < n; i++)
+   {
+      int    ty = gParkType[i];
+      double p  = gParkPrice[i];
+      bool isStop = (ty == ORDER_TYPE_BUY_STOP || ty == ORDER_TYPE_SELL_STOP);
+      bool isBuy  = (ty == ORDER_TYPE_BUY_STOP || ty == ORDER_TYPE_BUY_LIMIT);
+      bool drop = false;
+      if((long)gParkExp[i] - (long)TimeCurrent() < 300) drop = true;
+      // price level paar kar gaya = woh mauka nikal gaya
+      else if(ty == ORDER_TYPE_BUY_STOP   && p <= ask + sDst) drop = true;
+      else if(ty == ORDER_TYPE_SELL_STOP  && p >= bid - sDst) drop = true;
+      else if(ty == ORDER_TYPE_BUY_LIMIT  && p >= ask - sDst) drop = true;
+      else if(ty == ORDER_TYPE_SELL_LIMIT && p <= bid + sDst) drop = true;
+      else if(isStop  && !(TG[TG_TREND] && TG[TG_STP])) drop = true;
+      else if(!isStop && !(TG[TG_RANGE] && TG[TG_LIM])) drop = true;
+      else if(NearExisting(isBuy, p, tol)) drop = true;
+      else if(Slot(isBuy, true) && PlacePending((ENUM_ORDER_TYPE)ty, p, gParkTag[i], gParkExp[i])) drop = true;
+
+      if(!drop)
+      {
+         gParkType[keep]  = gParkType[i];
+         gParkPrice[keep] = gParkPrice[i];
+         gParkExp[keep]   = gParkExp[i];
+         gParkTag[keep]   = gParkTag[i];
+         keep++;
+      }
+   }
+   ArrayResize(gParkType, keep);
+   ArrayResize(gParkPrice, keep);
+   ArrayResize(gParkExp, keep);
+   ArrayResize(gParkTag, keep);
+}
+
 void ManageEntries()
 {
    DeleteExpired();
 
-   if(gState != 0)
-   {
-      if(gState == 1 || InpDeletePendingOnNews) DeleteAllPending();
-      return;
-   }
-   if(gEntryBlock)
+   if(gState == 1)                 // trading off / day loss / balance / weekend
    {
       DeleteAllPending();
+      ClearPark();
       return;
    }
+   if(gState == 2)                 // news
+   {
+      if(InpDeletePendingOnNews) ParkPending();
+      return;
+   }
+   if(gEntryBlock)                 // trade khula hai (max) ya gap
+   {
+      ParkPending();
+      return;
+   }
+
+   // jo mode aapne OFF kiya uske pending hatao
+   if(!(TG[TG_TREND] && TG[TG_STP])) DeleteOrders(true, false, true, true);
+   if(!(TG[TG_RANGE] && TG[TG_LIM])) DeleteOrders(false, true, true, true);
 
    CalcRegime();
    double c1 = iClose(_Symbol, InpTF, 1);
@@ -867,60 +1025,63 @@ void ManageEntries()
    double l1 = iLow(_Symbol, InpTF, 1);
    if(c1 <= 0 || gATR <= 0 || gADX <= 0) return;
 
+   double tol = MathMax(InpMinDistSameDir, gATR * 0.25);
+   RestoreParked(tol);
+
    bool trendOK = (TG[TG_TREND] && gIsTrend && !gDead);
    bool rangeOK = (TG[TG_RANGE] && !gIsTrend && !gDead);
-
-   // galat mode ke pending hatao
-   if(!(trendOK && TG[TG_STP])) DeleteOrders(true, false, true, true);
-   if(!(rangeOK && TG[TG_LIM])) DeleteOrders(false, true, true, true);
-   if(!trendOK && !rangeOK) return;
-
    if(NormLot(S[ST_LOT]) <= 0) return;
+
    double ask  = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double bid  = SymbolInfoDouble(_Symbol, SYMBOL_BID);
    double sDst = StopsDist();
    double buf  = InpEntryBufferPts * _Point;
-   double tol  = MathMax(InpMinDistSameDir, gATR * 0.25);
+   bool allowBuy = true, allowSell = true;
+   if(InpUseEMADir && gEMA > 0) { allowBuy = (c1 > gEMA); allowSell = (c1 < gEMA); }
 
-   double hs[], ls[];
-   FindSwings(true,  0, InpMaxPendingSide, ask, tol, hs);
-   FindSwings(false, 0, InpMaxPendingSide, bid, tol, ls);
-
-   //--- TREND: breakout
-   if(trendOK)
+   //--- naya swing high: TREND = buy stop, RANGE = sell limit
+   double lv = 0;
+   datetime pt = 0;
+   if(NewPivot(true, lv, pt) && pt != gLastPivH)
    {
-      bool allowBuy = true, allowSell = true;
-      if(InpUseEMADir && gEMA > 0)
+      gLastPivH = pt;
+      if(trendOK && TG[TG_STP] && allowBuy)
       {
-         allowBuy  = (c1 > gEMA);
-         allowSell = (c1 < gEMA);
-         if(!allowBuy)  DeleteOrders(true, false, true, false);
-         if(!allowSell) DeleteOrders(true, false, false, true);
+         double p = lv + buf;
+         if(p > ask + sDst && Slot(true, true) && !NearExisting(true, p, tol))
+            PlacePending(ORDER_TYPE_BUY_STOP, p, "T", 0);
       }
-      if(TG[TG_STP])
+      if(rangeOK && TG[TG_LIM])
       {
-         if(allowBuy)
-            for(int i = 0; i < ArraySize(hs); i++)
-            {
-               double p = hs[i] + buf;
-               if(p <= ask + sDst) continue;
-               if(!Slot(true, true)) break;
-               if(NearExisting(true, p, tol)) continue;
-               PlacePending(ORDER_TYPE_BUY_STOP, p, "T");
-            }
-         if(allowSell)
-            for(int i = 0; i < ArraySize(ls); i++)
-            {
-               double p = ls[i] - buf;
-               if(p >= bid - sDst) continue;
-               if(!Slot(false, true)) break;
-               if(NearExisting(false, p, tol)) continue;
-               PlacePending(ORDER_TYPE_SELL_STOP, p, "T");
-            }
+         double p = lv - buf;
+         if(p > bid + sDst && Slot(false, true) && !NearExisting(false, p, tol))
+            PlacePending(ORDER_TYPE_SELL_LIMIT, p, "R", 0);
       }
-      if(TG[TG_MKT] && GapOK())
+   }
+   //--- naya swing low: TREND = sell stop, RANGE = buy limit
+   if(NewPivot(false, lv, pt) && pt != gLastPivL)
+   {
+      gLastPivL = pt;
+      if(trendOK && TG[TG_STP] && allowSell)
       {
-         double h2[], l2[];
+         double p = lv - buf;
+         if(p < bid - sDst && Slot(false, true) && !NearExisting(false, p, tol))
+            PlacePending(ORDER_TYPE_SELL_STOP, p, "T", 0);
+      }
+      if(rangeOK && TG[TG_LIM])
+      {
+         double p = lv + buf;
+         if(p < ask - sDst && Slot(true, true) && !NearExisting(true, p, tol))
+            PlacePending(ORDER_TYPE_BUY_LIMIT, p, "R", 0);
+      }
+   }
+
+   //--- MARKET entries (breakout / rejection)
+   if(TG[TG_MKT] && GapOK())
+   {
+      double h2[], l2[];
+      if(trendOK)
+      {
          if(allowBuy && FindSwings(true, 2, 1, 0, tol, h2) > 0 &&
             c1 > h2[0] && c2 <= h2[0] && Slot(true, false) && !NearExisting(true, ask, tol))
             OpenMarket(true, "TM");
@@ -928,33 +1089,8 @@ void ManageEntries()
             c1 < l2[0] && c2 >= l2[0] && Slot(false, false) && !NearExisting(false, bid, tol))
             OpenMarket(false, "TM");
       }
-   }
-
-   //--- RANGE: swing high pe sell, swing low pe buy
-   if(rangeOK)
-   {
-      if(TG[TG_LIM])
+      else if(rangeOK)
       {
-         for(int i = 0; i < ArraySize(hs); i++)
-         {
-            double p = hs[i] - buf;
-            if(p <= bid + sDst) continue;
-            if(!Slot(false, true)) break;
-            if(NearExisting(false, p, tol)) continue;
-            PlacePending(ORDER_TYPE_SELL_LIMIT, p, "R");
-         }
-         for(int i = 0; i < ArraySize(ls); i++)
-         {
-            double p = ls[i] + buf;
-            if(p >= ask - sDst) continue;
-            if(!Slot(true, true)) break;
-            if(NearExisting(true, p, tol)) continue;
-            PlacePending(ORDER_TYPE_BUY_LIMIT, p, "R");
-         }
-      }
-      if(TG[TG_MKT] && GapOK())
-      {
-         double h2[], l2[];
          if(FindSwings(true, 2, 1, 0, tol, h2) > 0 &&
             h1 > h2[0] && c1 < h2[0] && Slot(false, false) && !NearExisting(false, bid, tol))
             OpenMarket(false, "RM");
@@ -1319,7 +1455,7 @@ void UpdatePanel()
    PaintTradeBtn();
 
    SetT("sv0", StringFormat("%d / %d max   (B %d / S %d)", gBuys + gSells, InpMaxOpenTrades, gBuys, gSells), TXT_W);
-   SetT("sv1", StringFormat("%d   (Stop %d / Limit %d)", gPendStop + gPendLimit, gPendStop, gPendLimit), TXT_W);
+   SetT("sv1", StringFormat("%d  (Stop %d / Lim %d / Park %d)", gPendStop + gPendLimit, gPendStop, gPendLimit, ParkCount()), TXT_W);
    SetT("sv2", pl + " $", plc);
    SetT("sv3", StringFormat("%d / %d", gWins, gLosses), TXT_W);
    SetT("sv4", SignMoney(gLocked) + " $", gLocked > 0 ? NEON_GR : TXT_W);
@@ -1391,7 +1527,7 @@ void OnEditDone(int i, string objName)
    ObjectSetString(0, objName, OBJPROP_TEXT, Fmt(i));
    if(i == ST_LOT || i == ST_SLMAX || i == ST_TPMAX)
    {
-      DeleteAllPending();
+      ParkPending();
       SetMsg(ST_NAME[i] + " = " + nv + " saved - pending orders nayi value se dobara lagenge");
    }
    else SetMsg(ST_NAME[i] + " = " + nv + " saved");
@@ -1457,7 +1593,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
          {
             LoadDefaults();
             SaveCfg();
-            DeleteAllPending();
+            ParkPending();
             gForceCheck = true;
             SetMsg("DEFAULTS laga diye (EA inputs wali values)");
             BuildPanel();
@@ -1555,8 +1691,7 @@ void OnTick()
    // ek pending bhara to baaki turant hatao (2-3 trade ek saath na khule)
    if(InpMaxOpenTrades > 0 && (gBuys + gSells) >= InpMaxOpenTrades && (gPendStop + gPendLimit) > 0)
    {
-      DeleteAllPending();
-      SetMsg("Trade khula - baaki pending hata diye");
+      ParkPending();
       UpdateState();
    }
 
