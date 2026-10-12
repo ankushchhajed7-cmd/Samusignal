@@ -1,8 +1,10 @@
 //+------------------------------------------------------------------+
-//|                                               BTC EA v1.14.mq5   |
+//|                                               BTC EA v1.15.mq5   |
 //|                          Ankush New Vision - BTC Smart Algo EA   |
 //+------------------------------------------------------------------+
 //| CHANGELOG                                                        |
+//| v1.15 (12-Oct-2026) - chhote account ($50-100) ke liye defaults   |
+//|  - DAY LOSS $3, Max trades 4, Max pending har side 2, Panel 1.4   |
 //| v1.14 (12-Oct-2026)                                              |
 //|  - Buster jaisa: ek pending bharne par baaki pending wahi rehte   |
 //|    hain (delete / park nahi hote)                                 |
@@ -36,13 +38,13 @@
 //+------------------------------------------------------------------+
 #property copyright   "Ankush New Vision"
 #property link        "https://github.com/ankushchhajed7-cmd"
-#property version     "1.14"
-#property description "BTC EA v1.14 - ZigZag swing breakout/range EA with neon dashboard"
+#property version     "1.15"
+#property description "BTC EA v1.15 - ZigZag swing breakout/range EA with neon dashboard"
 
 #include <Trade\Trade.mqh>
 
 #define EA_NAME  "BTC EA"
-#define EA_VER   "v1.14"
+#define EA_VER   "v1.15"
 #define PFX      "BTCEA111_"
 
 //--- neon colours
@@ -74,7 +76,7 @@ input double InpSLMax          = 1.50;   // SL MAX $ (har trade ka max loss)
 input double InpLockStep       = 0.50;   // LOCK STEP $ (har itne $ par lock upar)
 input double InpKeepPct        = 60;     // KEEP % (profit ka kitna % pakka)
 input int    InpNewsMin        = 30;     // NEWS MIN (news ke pehle / baad minute)
-input double InpDayLoss        = 6.00;   // DAY LOSS $ (0 = off)
+input double InpDayLoss        = 3.00;   // DAY LOSS $ (0 = off)
 input bool   InpBreakeven      = true;   // Breakeven ON/OFF
 input bool   InpProfitLock     = true;   // Profit lock ON/OFF
 input bool   InpTrailing       = false;  // Trailing ON/OFF
@@ -103,8 +105,8 @@ input double InpATRThreshold   = 0.001;  // ATR/Price isse kam = market dead, no
 input group "=== Position Management ==="
 input int    InpMaxOpenTrades  = 0;      // Ek saath max KHULE trades (0 = off, sirf naye pending rokta hai)
 input int    InpMinGapMinutes  = 0;      // Pichhle trade ke baad kitne minute ruko (0 = off)
-input int    InpMaxPositions   = 10;     // Max trades (khule + pending)
-input int    InpMaxPendingSide = 3;      // Max pending har side (buy / sell)
+input int    InpMaxPositions   = 4;      // Max trades (khule + pending)
+input int    InpMaxPendingSide = 2;      // Max pending har side (buy / sell)
 input int    InpMinCandleGap   = 1;      // Market entries ke beech min candles
 input double InpMinDistSameDir = 100;    // Same disha entries ke beech min price doori
 input int    InpPendingExpiryHours = 72; // Pending kitne ghante baad hate (Buster = 72)
@@ -119,7 +121,7 @@ input string InpNewsCurrencies      = "USD";  // News currencies (comma se)
 input bool   InpDisableWeekend      = false;  // Weekend trade band
 
 input group "=== Panel ==="
-input double InpPanelScale     = 1.20;   // Panel size (phone ke liye 1.3 - 1.6)
+input double InpPanelScale     = 1.40;   // Panel size (phone ke liye 1.3 - 1.6)
 input int    InpPanelX         = 10;     // Panel X
 input int    InpPanelY         = 25;     // Panel Y
 input bool   InpResetSaved     = false;  // true = saved panel settings bhool jao
