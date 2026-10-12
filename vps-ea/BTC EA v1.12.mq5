@@ -1,8 +1,14 @@
 //+------------------------------------------------------------------+
-//|                                               BTC EA v1.11.mq5   |
+//|                                               BTC EA v1.12.mq5   |
 //|                          Ankush New Vision - BTC Smart Algo EA   |
 //+------------------------------------------------------------------+
 //| CHANGELOG                                                        |
+//| v1.12 (12-Oct-2026)                                              |
+//|  - Ek saath sirf 1 khula trade (Max khule trades input)          |
+//|  - Trade khulte hi baaki pending turant hat jaate hain           |
+//|  - Pichhle trade ke baad 120 min gap, phir hi naya trade         |
+//|  - Panel footer me 'agla trade kab' dikhta hai                   |
+//|  - Settings file ka naam version se alag (aage upgrade pe yaad)  |
 //| v1.11 (12-Oct-2026) - pehla build                                |
 //|  - Buster BTC jaisi ZigZag swing strategy, apna source code      |
 //|  - Loss fix: SL max $ | Profit control: Breakeven, Profit Lock   |
@@ -17,13 +23,13 @@
 //+------------------------------------------------------------------+
 #property copyright   "Ankush New Vision"
 #property link        "https://github.com/ankushchhajed7-cmd"
-#property version     "1.11"
-#property description "BTC EA v1.11 - ZigZag swing breakout/range EA with neon dashboard"
+#property version     "1.12"
+#property description "BTC EA v1.12 - ZigZag swing breakout/range EA with neon dashboard"
 
 #include <Trade\Trade.mqh>
 
 #define EA_NAME  "BTC EA"
-#define EA_VER   "v1.11"
+#define EA_VER   "v1.12"
 #define PFX      "BTCEA111_"
 
 //--- neon colours
@@ -82,6 +88,8 @@ input double InpADXThreshold   = 20.0;   // ADX >= isse = TREND, kam = RANGE
 input double InpATRThreshold   = 0.001;  // ATR/Price isse kam = market dead, no trade
 
 input group "=== Position Management ==="
+input int    InpMaxOpenTrades  = 1;      // Ek saath max KHULE trades
+input int    InpMinGapMinutes  = 120;    // Pichhle trade ke baad kitne minute ruko (0 = off)
 input int    InpMaxPositions   = 10;     // Max trades (khule + pending)
 input int    InpMaxPendingSide = 3;      // Max pending har side (buy / sell)
 input int    InpMinCandleGap   = 1;      // Market entries ke beech min candles
@@ -157,6 +165,8 @@ string   gRegime = "-";
 string   gMsg = "";
 datetime gMsgTime = 0;
 uint     gLastHist = 0;
+datetime gLastEntry = 0;      // aakhri trade kab khula
+bool     gEntryBlock = false; // abhi naya trade nahi (trade khula / gap)
 
 datetime gNewsT[];
 string   gNewsN[];
@@ -473,25 +483,33 @@ void CalcToday()
    gTodayClosed = 0;
    gWins = 0;
    gLosses = 0;
-   if(!HistorySelect(ServerIstMidnight(), TimeCurrent() + 3600)) return;
-   int n = HistoryDealsTotal();
-   for(int i = 0; i < n; i++)
+   datetime mid = ServerIstMidnight();
+   datetime lastIn = 0;
+   if(HistorySelect(mid - 3 * 86400, TimeCurrent() + 3600))
    {
-      ulong d = HistoryDealGetTicket(i);
-      if(d == 0) continue;
-      if(HistoryDealGetString(d, DEAL_SYMBOL) != _Symbol) continue;
-      if(HistoryDealGetInteger(d, DEAL_MAGIC) != InpMagic) continue;
-      long entry = HistoryDealGetInteger(d, DEAL_ENTRY);
-      double p = HistoryDealGetDouble(d, DEAL_PROFIT) +
-                 HistoryDealGetDouble(d, DEAL_SWAP) +
-                 HistoryDealGetDouble(d, DEAL_COMMISSION);
-      gTodayClosed += p;
-      if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_INOUT || entry == DEAL_ENTRY_OUT_BY)
+      int n = HistoryDealsTotal();
+      for(int i = 0; i < n; i++)
       {
-         if(p > 0) gWins++;
-         else if(p < 0) gLosses++;
+         ulong d = HistoryDealGetTicket(i);
+         if(d == 0) continue;
+         if(HistoryDealGetString(d, DEAL_SYMBOL) != _Symbol) continue;
+         if(HistoryDealGetInteger(d, DEAL_MAGIC) != InpMagic) continue;
+         long     entry = HistoryDealGetInteger(d, DEAL_ENTRY);
+         datetime dtm   = (datetime)HistoryDealGetInteger(d, DEAL_TIME);
+         if(entry == DEAL_ENTRY_IN && dtm > lastIn) lastIn = dtm;
+         if(dtm < mid) continue;
+         double p = HistoryDealGetDouble(d, DEAL_PROFIT) +
+                    HistoryDealGetDouble(d, DEAL_SWAP) +
+                    HistoryDealGetDouble(d, DEAL_COMMISSION);
+         gTodayClosed += p;
+         if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_INOUT || entry == DEAL_ENTRY_OUT_BY)
+         {
+            if(p > 0) gWins++;
+            else if(p < 0) gLosses++;
+         }
       }
    }
+   if(lastIn > gLastEntry) gLastEntry = lastIn;
 }
 
 void CalcRegime()
@@ -520,6 +538,8 @@ void UpdateState()
       double sl  = PositionGetDouble(POSITION_SL);
       double vol = PositionGetDouble(POSITION_VOLUME);
       gFloating += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+      datetime pt = (datetime)PositionGetInteger(POSITION_TIME);
+      if(pt > gLastEntry) gLastEntry = pt;
       if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
       {
          gBuys++;
@@ -571,7 +591,28 @@ void UpdateState()
    else if(gNewsNow != "")
       { gState = 2; gReason = "News: " + gNewsNow; }
 
-   if(prev != gState) gForceCheck = true;
+   // ek saath 1 trade + trades ke beech gap
+   bool prevBlock = gEntryBlock;
+   gEntryBlock = false;
+   int openNow = gBuys + gSells;
+   long gapLeft = 0;
+   if(InpMinGapMinutes > 0 && gLastEntry > 0)
+      gapLeft = (long)gLastEntry + (long)InpMinGapMinutes * 60 - (long)TimeCurrent();
+   if(InpMaxOpenTrades > 0 && openNow >= InpMaxOpenTrades)
+   {
+      gEntryBlock = true;
+      if(gState == 0) gReason = "Trade khula hai - agla trade iske band hone ke baad";
+   }
+   else if(gapLeft > 0)
+   {
+      gEntryBlock = true;
+      if(gState == 0)
+         gReason = StringFormat("Gap chal raha hai - agla trade %dh %02dm baad (%s IST se)",
+                                (int)(gapLeft / 3600), (int)((gapLeft % 3600) / 60),
+                                TimeToString(ServerToIst((datetime)((long)gLastEntry + (long)InpMinGapMinutes * 60)), TIME_MINUTES));
+   }
+
+   if(prev != gState || prevBlock != gEntryBlock) gForceCheck = true;
 }
 
 //+------------------------------------------------------------------+
@@ -811,6 +852,11 @@ void ManageEntries()
    if(gState != 0)
    {
       if(gState == 1 || InpDeletePendingOnNews) DeleteAllPending();
+      return;
+   }
+   if(gEntryBlock)
+   {
+      DeleteAllPending();
       return;
    }
 
@@ -1272,7 +1318,7 @@ void UpdatePanel()
    SetT("iv2", st, stc);
    PaintTradeBtn();
 
-   SetT("sv0", StringFormat("%d   (B %d / S %d)", gBuys + gSells, gBuys, gSells), TXT_W);
+   SetT("sv0", StringFormat("%d / %d max   (B %d / S %d)", gBuys + gSells, InpMaxOpenTrades, gBuys, gSells), TXT_W);
    SetT("sv1", StringFormat("%d   (Stop %d / Limit %d)", gPendStop + gPendLimit, gPendStop, gPendLimit), TXT_W);
    SetT("sv2", pl + " $", plc);
    SetT("sv3", StringFormat("%d / %d", gWins, gLosses), TXT_W);
@@ -1459,7 +1505,7 @@ int OnInit()
    string sym = _Symbol;
    StringReplace(sym, "#", "_");
    StringReplace(sym, "/", "_");
-   gCfgFile = "BTC_EA_v1.11_" + IntegerToString(InpMagic) + "_" + sym + ".cfg";
+   gCfgFile = "BTC_EA_" + IntegerToString(InpMagic) + "_" + sym + ".cfg";
 
    LoadDefaults();
    LoadCfg();
@@ -1503,6 +1549,14 @@ void OnTick()
    if(gDayLossHit && InpCloseAllOnDayLoss && (gBuys + gSells) > 0)
    {
       CloseAll();
+      UpdateState();
+   }
+
+   // ek pending bhara to baaki turant hatao (2-3 trade ek saath na khule)
+   if(InpMaxOpenTrades > 0 && (gBuys + gSells) >= InpMaxOpenTrades && (gPendStop + gPendLimit) > 0)
+   {
+      DeleteAllPending();
+      SetMsg("Trade khula - baaki pending hata diye");
       UpdateState();
    }
 
