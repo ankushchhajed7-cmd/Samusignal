@@ -1,62 +1,34 @@
 //+------------------------------------------------------------------+
-//|                                               BTC EA v1.16.mq5   |
-//|                          Ankush New Vision - BTC Smart Algo EA   |
+//|                                          BTCGOLD EA v1.01.mq5    |
+//|                     Ankush New Vision - Gold Smart Algo EA       |
 //+------------------------------------------------------------------+
 //| CHANGELOG                                                        |
-//| v1.16 (13-Oct-2026) - FIX: v1.13-v1.15 trade nahi le rahe the     |
-//|  - Swing ko sirf 1 candle ka mauka milta tha; us waqt ADX / EMA /  |
-//|    news ruka to swing hamesha ke liye chhoot jaata tha            |
-//|  - Ab Buster jaisa SCAN: har candle pe pichhle 72 ghante ke        |
-//|    un-toote swings dekhta hai; jis swing pe order nahi laga uspe  |
-//|    1 pending (ek candle me max 1)                                 |
-//|  - EMA disha filter default OFF (Buster me nahi hai)              |
-//|  - Panel footer + Experts log me har candle ka scan result        |
-//|  - Expiry date broker na le to GTC se dobara try                  |
-//|  - Purane version ke pending start pe hat-te hain (scan dobara    |
-//|    sahi swing pe lagata hai)                                      |
-//| v1.15 (12-Oct-2026) - chhote account ($50-100) ke liye defaults   |
-//|  - DAY LOSS $3, Max trades 4, Max pending har side 2, Panel 1.4   |
-//| v1.14 (12-Oct-2026)                                              |
-//|  - Buster jaisa: ek pending bharne par baaki pending wahi rehte   |
-//|    hain (delete / park nahi hote)                                 |
-//|  - Max khule trades default 0 (off); ON karne par sirf NAYE       |
-//|    pending rukte hain, purane nahi hat-te                         |
-//| v1.13 (12-Oct-2026) - Buster ke real account jaisa timing        |
-//|  - Har NAYE swing pe sirf 1 pending (candle khulte hi), ek saath  |
-//|    3 nahi. Purane pending 72 ghante tak rehte hain (Buster jaisa) |
-//|  - Max khule trades poore hone par baaki pending 'park' hote hain |
-//|    aur trade band hone par wapas lag jaate hain                   |
-//|  - ADX / EMA badalne par purane pending nahi hat-te              |
-//|  - Gap default 0 (off) - naye swing khud ghanton ka gap dete hain |
-//|  - LOT / SL / TP badalne par pending nayi value se dobara lagte   |
-//| v1.12 (12-Oct-2026)                                              |
-//|  - Ek saath sirf 1 khula trade (Max khule trades input)          |
-//|  - Trade khulte hi baaki pending turant hat jaate hain           |
-//|  - Pichhle trade ke baad 120 min gap, phir hi naya trade         |
-//|  - Panel footer me 'agla trade kab' dikhta hai                   |
-//|  - Settings file ka naam version se alag (aage upgrade pe yaad)  |
-//| v1.11 (12-Oct-2026) - pehla build                                |
-//|  - Buster BTC jaisi ZigZag swing strategy, apna source code      |
-//|  - Loss fix: SL max $ | Profit control: Breakeven, Profit Lock   |
-//|    (step $ / keep %), Trailing $, TP max $                       |
-//|  - TREND mode (Stop / Market breakout), RANGE mode (Limit /      |
-//|    Market fade) - ADX se tay hota hai abhi kaunsa market hai     |
-//|  - News filter (MT5 calendar, high impact), Day loss $ seema     |
-//|  - Dark neon dashboard (Comment ki jagah): IST ghadi, SET,       |
-//|    minimize patti, settings edit + ENTER, ON/OFF toggles,        |
-//|    summary, tiles; settings file me save = restart ke baad yaad  |
-//|  - REAL account pe har badlav se pehle Confirm popup             |
+//| v1.01 (13-Oct-2026) - pending gayab hone ki jaanch / fix         |
+//|  - Expiry 72 ghante hi hai; ab broker ki expiry date pehle padhi  |
+//|    jaati hai, comment se aayi galat / kati date ignore            |
+//|  - Restart pe sirf v1.11/v1.12 wale (bina '|') pending hat-te hain |
+//|  - Har hataye gaye pending ka KAARAN Experts log me likha jaata   |
+//|    hai (expiry / news park / day loss / mode OFF / restart)       |
+//| v1.00 (13-Oct-2026) - GOLD (XAUUSD) ke liye, BTC EA v1.16 se bana |
+//|  - Wahi swing scan strategy + neon dashboard                      |
+//|  - Gold defaults (0.01 lot): SL $7, TP MIN $3, TP MAX $25,        |
+//|    LOCK STEP $2, DAY LOSS $15, Breakeven $2.50 (+$0.30),          |
+//|    Trailing doori $4                                              |
+//|  - Entry buffer ab $ me (0.50) - XM / Exness dono pe same         |
+//|  - Min same-disha doori 2, ATR threshold 0.0005, Magic 111334     |
+//|  - Alag settings file, alag panel objects (BTC EA ke saath chale) |
+//| Purani history: BTC EA v1.11 - v1.16                             |
 //+------------------------------------------------------------------+
 #property copyright   "Ankush New Vision"
 #property link        "https://github.com/ankushchhajed7-cmd"
-#property version     "1.16"
-#property description "BTC EA v1.16 - ZigZag swing breakout/range EA with neon dashboard"
+#property version     "1.01"
+#property description "BTCGOLD EA v1.01 - XAUUSD ZigZag swing EA with neon dashboard"
 
 #include <Trade\Trade.mqh>
 
-#define EA_NAME  "BTC EA"
-#define EA_VER   "v1.16"
-#define PFX      "BTCEA111_"
+#define EA_NAME  "BTCGOLD EA"
+#define EA_VER   "v1.01"
+#define PFX      "BTCGOLD100_"
 
 //--- neon colours
 #define CLR_BG     C'6,10,20'
@@ -70,24 +42,24 @@
 #define NEON_GR    C'57,255,136'
 #define NEON_RD    C'255,77,109'
 #define NEON_OR    C'255,170,0'
-#define BTC_OR     C'247,147,26'
+#define BTC_OR     C'255,196,46'
 #define TXT_W      C'232,238,255'
 #define TXT_DIM    C'125,140,175'
 
 //=== INPUTS ========================================================
 input group "=== EA Identification ==="
-input long            InpMagic          = 111333;          // Magic Number
+input long            InpMagic          = 111334;          // Magic Number
 input ENUM_TIMEFRAMES InpTF             = PERIOD_CURRENT;  // Signal timeframe (M30 chart pe lagao)
 
 input group "=== Panel defaults (panel se bhi badal sakte ho) ==="
 input double InpLot            = 0.01;   // LOT
-input double InpTPMin          = 0.75;   // TP MIN $ (yahan se lock / trailing shuru)
-input double InpTPMax          = 6.00;   // TP MAX $ (hard take profit)
-input double InpSLMax          = 1.50;   // SL MAX $ (har trade ka max loss)
-input double InpLockStep       = 0.50;   // LOCK STEP $ (har itne $ par lock upar)
+input double InpTPMin          = 3.00;   // TP MIN $ (yahan se lock / trailing shuru)
+input double InpTPMax          = 25.00;   // TP MAX $ (hard take profit)
+input double InpSLMax          = 7.00;   // SL MAX $ (har trade ka max loss)
+input double InpLockStep       = 2.00;   // LOCK STEP $ (har itne $ par lock upar)
 input double InpKeepPct        = 60;     // KEEP % (profit ka kitna % pakka)
 input int    InpNewsMin        = 30;     // NEWS MIN (news ke pehle / baad minute)
-input double InpDayLoss        = 3.00;   // DAY LOSS $ (0 = off)
+input double InpDayLoss        = 15.00;   // DAY LOSS $ (0 = off)
 input bool   InpBreakeven      = true;   // Breakeven ON/OFF
 input bool   InpProfitLock     = true;   // Profit lock ON/OFF
 input bool   InpTrailing       = false;  // Trailing ON/OFF
@@ -99,20 +71,20 @@ input bool   InpUseLimit       = true;   // LIMIT entry ON/OFF (RANGE mode)
 input bool   InpUseStop        = true;   // STOP entry ON/OFF (TREND mode)
 
 input group "=== Breakeven / Trailing detail ==="
-input double InpBETrigger      = 0.50;   // Breakeven kab: profit $ itna ho
-input double InpBEPlus         = 0.05;   // Breakeven par entry se upar $ (cost cover)
-input double InpTrailDist      = 1.00;   // Trailing doori $ (price se)
+input double InpBETrigger      = 2.50;   // Breakeven kab: profit $ itna ho
+input double InpBEPlus         = 0.30;   // Breakeven par entry se upar $ (cost cover)
+input double InpTrailDist      = 4.00;   // Trailing doori $ (price se)
 
 input group "=== Strategy (ZigZag swing) ==="
 input int    InpSwingDepth     = 5;      // Swing depth (bars har taraf)
 input int    InpSwingLookback  = 300;    // Kitne bars me swing dhoondhe
 input int    InpMaxSwingAgeHours = 72;   // Kitne ghante purane swing tak order (Buster = 72)
-input double InpEntryBufferPts = 500;    // Swing level se entry buffer (points)
+input double InpEntryBuffer    = 0.50;   // Swing level se entry buffer ($ price doori)
 input bool   InpUseEMADir      = false;  // TREND: EMA ki disha me hi trade
 input int    InpEMAPeriod      = 50;     // EMA period
 input int    InpADXPeriod      = 14;     // ADX period
 input double InpADXThreshold   = 20.0;   // ADX >= isse = TREND, kam = RANGE
-input double InpATRThreshold   = 0.001;  // ATR/Price isse kam = market dead, no trade
+input double InpATRThreshold   = 0.0005;  // ATR/Price isse kam = market dead, no trade
 
 input group "=== Position Management ==="
 input int    InpMaxOpenTrades  = 0;      // Ek saath max KHULE trades (0 = off, sirf naye pending rokta hai)
@@ -120,7 +92,7 @@ input int    InpMinGapMinutes  = 0;      // Pichhle trade ke baad kitne minute r
 input int    InpMaxPositions   = 4;      // Max trades (khule + pending)
 input int    InpMaxPendingSide = 2;      // Max pending har side (buy / sell)
 input int    InpMinCandleGap   = 1;      // Market entries ke beech min candles
-input double InpMinDistSameDir = 100;    // Same disha entries ke beech min price doori
+input double InpMinDistSameDir = 2.0;    // Same disha entries ke beech min price doori
 input int    InpPendingExpiryHours = 72; // Pending kitne ghante baad hate (Buster = 72)
 input bool   InpForceMinVolume = true;   // Lot kam ho to broker ka min lot lo
 input double InpMinBalance     = 1.0;    // Is balance se kam = trade band
@@ -713,7 +685,18 @@ bool NearExisting(bool isBuy, double price, double tol)
    return false;
 }
 
-void DeleteOrders(bool stops, bool limits, bool buys, bool sells)
+// pending hatao + Experts log me kaaran likho
+bool DelOrder(ulong t, string why)
+{
+   string ty = EnumToString((ENUM_ORDER_TYPE)OrderGetInteger(ORDER_TYPE));
+   double pr = OrderGetDouble(ORDER_PRICE_OPEN);
+   bool ok = trade.OrderDelete(t);
+   Print(EA_NAME, " ", EA_VER, " | pending hataya #", t, " ", ty, " @", DoubleToString(pr, _Digits),
+         " - kaaran: ", why, (ok ? "" : "  (FAIL code " + IntegerToString((int)trade.ResultRetcode()) + ")"));
+   return ok;
+}
+
+void DeleteOrders(bool stops, bool limits, bool buys, bool sells, string why)
 {
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
@@ -725,22 +708,26 @@ void DeleteOrders(bool stops, bool limits, bool buys, bool sells)
       bool isB    = (ot == ORDER_TYPE_BUY_STOP || ot == ORDER_TYPE_BUY_LIMIT);
       if(!((isStop && stops) || (isLim && limits))) continue;
       if(!((isB && buys) || (!isB && sells))) continue;
-      trade.OrderDelete(t);
+      DelOrder(t, why);
    }
 }
 
-void DeleteAllPending() { DeleteOrders(true, true, true, true); }
+void DeleteAllPending(string why) { DeleteOrders(true, true, true, true, why); }
 
-// comment "BTCEA T|1760342400" se expiry nikalo
-datetime ExpiryOf(string cmt, datetime setup)
+// pending kab expire ho: 1) broker ki expiry date  2) comment "BTCEA T|1760342400"
+// 3) setup + InpPendingExpiryHours. Galat / kati hui date (1 ghante se kam ya
+//    30 din se zyada) ignore hoti hai.
+datetime ExpiryOf(string cmt, datetime setup, datetime brokerExp)
 {
+   long lo = (long)setup + 3600, hi = (long)setup + 30 * 86400;
+   if((long)brokerExp >= lo && (long)brokerExp <= hi) return brokerExp;
    int p = StringFind(cmt, "|");
    if(p > 0)
    {
       long e = StringToInteger(StringSubstr(cmt, p + 1));
-      if(e > 0) return (datetime)e;
+      if(e >= lo && e <= hi) return (datetime)e;
    }
-   return (datetime)((long)setup + (long)InpPendingExpiryHours * 3600);
+   return (datetime)((long)setup + (long)MathMax(1, InpPendingExpiryHours) * 3600);
 }
 
 string TagOf(string cmt)
@@ -809,18 +796,19 @@ void RebuildUsed()
    }
 }
 
-// v1.11-v1.15 ke pending (swing ki pehchaan nahi) hatao - scan sahi jagah dobara lagayega
+// sirf bahut purane (v1.11 / v1.12, comment me '|' nahi) pending hatao.
+// Baaki sab (broker ne comment kaata ho tab bhi) apni 72 ghante expiry tak rehte hain.
 void DeleteOldFormat()
 {
-   int n = 0;
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
       ulong t = OrderGetTicket(i);
       if(t == 0 || !MyOrd()) continue;
-      if(PivOf(OrderGetString(ORDER_COMMENT)) != "") continue;
-      if(trade.OrderDelete(t)) n++;
+      string cmt = OrderGetString(ORDER_COMMENT);
+      if(StringFind(cmt, "BTCEA") != 0) continue;
+      if(StringFind(cmt, "|") >= 0) continue;
+      DelOrder(t, "restart - bahut purane version ka pending");
    }
-   if(n > 0) Print(EA_NAME, " ", EA_VER, " | purane version ke ", n, " pending hataye");
 }
 
 void DeleteExpired()
@@ -831,7 +819,9 @@ void DeleteExpired()
       ulong t = OrderGetTicket(i);
       if(t == 0 || !MyOrd()) continue;
       datetime setup = (datetime)OrderGetInteger(ORDER_TIME_SETUP);
-      if(TimeCurrent() >= ExpiryOf(OrderGetString(ORDER_COMMENT), setup)) trade.OrderDelete(t);
+      datetime ex    = ExpiryOf(OrderGetString(ORDER_COMMENT), setup, (datetime)OrderGetInteger(ORDER_TIME_EXPIRATION));
+      if(TimeCurrent() >= ex)
+         DelOrder(t, "expiry (" + IntegerToString((int)(((long)ex - (long)setup) / 3600)) + " ghante poore)");
    }
 }
 
@@ -847,7 +837,7 @@ void ClearPark()
 }
 
 // pending hata ke yaad rakho - baad me wapas lagenge
-void ParkPending()
+void ParkPending(string why = "park")
 {
    int n = 0;
    for(int i = OrdersTotal() - 1; i >= 0; i--)
@@ -859,8 +849,8 @@ void ParkPending()
          ot != ORDER_TYPE_BUY_LIMIT && ot != ORDER_TYPE_SELL_LIMIT) continue;
       double   pr  = OrderGetDouble(ORDER_PRICE_OPEN);
       string   cmt = OrderGetString(ORDER_COMMENT);
-      datetime ex  = ExpiryOf(cmt, (datetime)OrderGetInteger(ORDER_TIME_SETUP));
-      if(!trade.OrderDelete(t)) continue;
+      datetime ex  = ExpiryOf(cmt, (datetime)OrderGetInteger(ORDER_TIME_SETUP), (datetime)OrderGetInteger(ORDER_TIME_EXPIRATION));
+      if(!DelOrder(t, why + " (baad me wapas lagega)")) continue;
       bool dup = false;
       for(int j = 0; j < ParkCount(); j++)
          if(gParkType[j] == (int)ot && MathAbs(gParkPrice[j] - pr) < TickSize()) { dup = true; break; }
@@ -889,7 +879,7 @@ void CloseAll()
       if(t == 0 || !MyPos()) continue;
       trade.PositionClose(t);
    }
-   DeleteAllPending();
+   DeleteAllPending("day loss seema poori");
    ClearPark();
    SetMsg("Day loss seema poori - sab trades band kiye");
 }
@@ -1105,18 +1095,18 @@ void ManageEntries()
 
    if(gState == 1)                 // trading off / day loss / balance / weekend
    {
-      DeleteAllPending();
+      DeleteAllPending(gReason);
       ClearPark();
       return;
    }
    if(gState == 2)                 // news
    {
-      if(InpDeletePendingOnNews) ParkPending();
+      if(InpDeletePendingOnNews) ParkPending("news: " + gNewsNow);
       return;
    }
    // jo mode aapne OFF kiya uske pending hatao
-   if(!(TG[TG_TREND] && TG[TG_STP])) DeleteOrders(true, false, true, true);
-   if(!(TG[TG_RANGE] && TG[TG_LIM])) DeleteOrders(false, true, true, true);
+   if(!(TG[TG_TREND] && TG[TG_STP])) DeleteOrders(true, false, true, true, "TREND / STOP OFF");
+   if(!(TG[TG_RANGE] && TG[TG_LIM])) DeleteOrders(false, true, true, true, "RANGE / LIMIT OFF");
 
    CalcRegime();
    double c1 = iClose(_Symbol, InpTF, 1);
@@ -1136,7 +1126,7 @@ void ManageEntries()
    double ask  = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double bid  = SymbolInfoDouble(_Symbol, SYMBOL_BID);
    double sDst = StopsDist();
-   double buf  = InpEntryBufferPts * _Point;
+   double buf  = InpEntryBuffer;
    bool allowBuy = true, allowSell = true;
    if(InpUseEMADir && gEMA > 0) { allowBuy = (c1 > gEMA); allowSell = (c1 < gEMA); }
 
@@ -1438,9 +1428,9 @@ void BuildMini()
    double W = 440, H = 36;
    UiRect("bg", 0, 0, W, H, CLR_BG, NEON_CY, 2);
    UiRect("logo", 6, 5, 26, 26, BTC_OR, BTC_OR, 1);
-   UiText("logoB", 19, 18, "B", C'12,12,12', 12, "Arial Black", ANCHOR_CENTER);
+   UiText("logoB", 19, 18, "G", C'12,12,12', 12, "Arial Black", ANCHOR_CENTER);
    UiText("mt", 40, 18, EA_NAME + " " + EA_VER, TXT_W, 10, "Arial Black", ANCHOR_LEFT);
-   UiText("mst", 175, 18, "-", NEON_GR, 10, "Bahnschrift", ANCHOR_LEFT);
+   UiText("mst", 215, 18, "-", NEON_GR, 10, "Bahnschrift", ANCHOR_LEFT);
    UiText("mpl", W - 62, 18, "-", TXT_W, 10, "Consolas", ANCHOR_RIGHT);
    UiBtn("btnMax", W - 52, 6, 44, 24, "[ ]", NEON_CY, CLR_BOX, NEON_CY, 9);
 }
@@ -1470,10 +1460,10 @@ void BuildPanel()
    double y = 9;
    UiRect("hdr", 8, y, W - 16, 46, CLR_BOX, CLR_LINE, 1);
    UiRect("logo", 16, y + 6, 34, 34, BTC_OR, BTC_OR, 1);
-   UiText("logoB", 33, y + 23, "B", C'12,12,12', 15, "Arial Black", ANCHOR_CENTER);
+   UiText("logoB", 33, y + 23, "G", C'12,12,12', 15, "Arial Black", ANCHOR_CENTER);
    UiText("title", 60, y + 18, EA_NAME + " " + EA_VER, TXT_W, 15, "Arial Black", ANCHOR_LEFT);
-   UiText("deco", 252, y + 18, "//////", NEON_CY, 12, "Arial Black", ANCHOR_LEFT);
-   UiText("sub", 60, y + 37, "ANKUSH NEW VISION  |  BTC SMART ALGO", TXT_DIM, 7, "Bahnschrift", ANCHOR_LEFT);
+   UiText("deco", 312, y + 18, "//////", NEON_CY, 12, "Arial Black", ANCHOR_LEFT);
+   UiText("sub", 60, y + 37, "ANKUSH NEW VISION  |  GOLD SMART ALGO", TXT_DIM, 7, "Bahnschrift", ANCHOR_LEFT);
    UiText("clock", W - 142, y + 17, "--:--:--", NEON_CY, 13, "Consolas", ANCHOR_RIGHT);
    UiText("date", W - 142, y + 36, "-", NEON_MG, 8, "Bahnschrift", ANCHOR_RIGHT);
    UiBtn("btnSet", W - 132, y + 10, 58, 26, "SET",
@@ -1665,7 +1655,7 @@ void OnEditDone(int i, string objName)
    ObjectSetString(0, objName, OBJPROP_TEXT, Fmt(i));
    if(i == ST_LOT || i == ST_SLMAX || i == ST_TPMAX)
    {
-      ParkPending();
+      ParkPending(ST_NAME[i] + " badla");
       SetMsg(ST_NAME[i] + " = " + nv + " saved - pending orders nayi value se dobara lagenge");
    }
    else SetMsg(ST_NAME[i] + " = " + nv + " saved");
@@ -1731,7 +1721,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
          {
             LoadDefaults();
             SaveCfg();
-            ParkPending();
+            ParkPending("DEFAULTS dabaya");
             gForceCheck = true;
             SetMsg("DEFAULTS laga diye (EA inputs wali values)");
             BuildPanel();
@@ -1779,7 +1769,7 @@ int OnInit()
    string sym = _Symbol;
    StringReplace(sym, "#", "_");
    StringReplace(sym, "/", "_");
-   gCfgFile = "BTC_EA_" + IntegerToString(InpMagic) + "_" + sym + ".cfg";
+   gCfgFile = "BTCGOLD_EA_" + IntegerToString(InpMagic) + "_" + sym + ".cfg";
 
    LoadDefaults();
    LoadCfg();
