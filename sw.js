@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.1.0 — Live Chart ke bagal me 📸 AUTO ANALYZE: live candles se chart image + OHLC → AI → PERSONAL FX card (screenshot ki zaroorat nahi)
    v10.0.1 — Settings: Firebase auth secret 👁 Dikhao / 📋 Copy button
    v10.0.0 — Chart Analysis naye sire se: screenshot → AI ek direction → TwelveData live price → Market/Limit/Stop → sirf PERSONAL FX (Firebase /personalfx/orders), status wapas
    v9.9.54 — Chart Analysis order: SL $10 / TP $10 bhara aata hai; lock: har pura $1 profit ka 75% pakka (+$1→+$0.75, +$2→+$1.50 …)
@@ -61,7 +62,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.0.1';
+const VERSION = '10.1.0';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

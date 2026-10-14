@@ -1423,10 +1423,10 @@ body.ds-gold .brand .brandWord{height:24px}
       <span class="sp mono" id="cpSym" style="margin-left:auto"></span>
     </div>
     <button class="pick" id="cpPair" style="margin-top:10px" onclick="openPick('main')"></button>
-    <p class="hint" style="margin:8px 0 0">Chart dekho → screenshot lo → yahan daalo. AI us waqt ki sabse sahi <b>ek</b> direction batayega, live price se order type tay hoga, aur order sirf <b style="color:var(--gold)">PERSONAL FX</b> EA ko jayega.</p>
+    <p class="hint" style="margin:8px 0 0"><b style="color:var(--gold)">📸 AUTO ANALYZE</b> dabao (screenshot ki zaroorat nahi) — ya khud ka screenshot daalo. AI us waqt ki sabse sahi <b>ek</b> direction batayega, live price se order type tay hoga, aur order sirf <b style="color:var(--gold)">PERSONAL FX</b> EA ko jayega.</p>
   </div>
   <div class="card">
-    <p class="ttl">Live Chart <span class="sp" id="chartSym">—</span></p>
+    <p class="ttl">Live Chart <button id="autoBtn" onclick="autoAnalyze()" style="margin-left:8px;padding:5px 9px;border:1px solid var(--gold);border-radius:8px;color:var(--gold);font-size:10.5px;font-weight:800;letter-spacing:.8px;background:rgba(214,180,106,.08);white-space:nowrap">📸 AUTO ANALYZE</button> <span class="sp" id="chartSym">—</span></p>
     <div class="chips" id="chartTf" style="margin-bottom:10px"></div>
     <div class="tvbox" id="tvBox"><iframe id="tvFrame" loading="lazy" allowtransparency="true" scrolling="no"></iframe></div>
     <button class="btn ghost sm" style="margin-top:10px" onclick="chartBig()">⛶ Full Screen</button>
@@ -2117,7 +2117,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.0.1';
+const VERSION = '10.1.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -8943,6 +8943,124 @@ async function shotAnalyze(f){
       <b style="color:var(--dn);font-size:11.5px;letter-spacing:1.2px">ANALYSIS FAIL</b>
       <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${escH(err.message)}</p></div>`;
     pfxRender();
+  }
+}
+
+/* ================= v10.1.0 — 📸 AUTO ANALYZE =================
+   Phone ka screenshot lene ki zaroorat nahi: button dabao → app usi pair +
+   timeframe ki live candles TwelveData se laati hai (1 credit) → khud chart
+   ki image banati hai (candles + EMA 21/50 + price scale) → image ke saath
+   asli OHLC numbers bhi AI ko jaate hain → result seedha PERSONAL FX card me.
+   Aakhri candle ka close hi live price maana jaata hai (alag credit nahi). */
+let autoBusy = false;
+
+function autoDraw(sym, tfL, all){
+  const W = 1000, H = 620, pL = 12, pR = 118, pT = 58, pB = 34;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#0b0b0d'; x.fillRect(0, 0, W, H);
+  const closes = all.map(b => b.c);
+  const e21all = ema(closes, 21), e50all = ema(closes, 50);
+  const N = Math.min(100, all.length), off = all.length - N;
+  const B = all.slice(off), e21 = e21all.slice(off), e50 = e50all.slice(off);
+  let hi = -Infinity, lo = Infinity;
+  B.forEach((b, i) => { hi = Math.max(hi, b.h, e21[i], e50[i]); lo = Math.min(lo, b.l, e21[i], e50[i]) });
+  const pad = (hi - lo) * 0.04 || hi * 0.001; hi += pad; lo -= pad;
+  const ch = H - pT - pB, cwid = (W - pL - pR) / N;
+  const Y = p => pT + (hi - p) / (hi - lo) * ch;
+  const X = i => pL + i * cwid + cwid / 2;
+  /* grid + price scale */
+  x.font = '15px monospace'; x.textBaseline = 'middle';
+  for(let k = 0; k <= 8; k++){
+    const p = lo + (hi - lo) * k / 8, y = Y(p);
+    x.strokeStyle = '#1f1f24'; x.lineWidth = 1; x.beginPath(); x.moveTo(pL, y); x.lineTo(W - pR, y); x.stroke();
+    x.fillStyle = '#9a9aa5'; x.fillText(fmt(sym, p), W - pR + 8, y);
+  }
+  /* candles */
+  B.forEach((b, i) => {
+    const up = b.c >= b.o, col = up ? '#26a69a' : '#ef5350', cx = X(i);
+    x.strokeStyle = col; x.lineWidth = 1.2;
+    x.beginPath(); x.moveTo(cx, Y(b.h)); x.lineTo(cx, Y(b.l)); x.stroke();
+    const top = Y(Math.max(b.o, b.c)), bot = Y(Math.min(b.o, b.c));
+    x.fillStyle = col; x.fillRect(cx - cwid * 0.35, top, cwid * 0.7, Math.max(1, bot - top));
+  });
+  /* EMA lines */
+  const line = (arr, col) => { x.strokeStyle = col; x.lineWidth = 2; x.beginPath();
+    arr.forEach((v, i) => { const y = Y(v); i ? x.lineTo(X(i), y) : x.moveTo(X(i), y) }); x.stroke() };
+  line(e50, '#42a5f5'); line(e21, '#f5c542');
+  /* live price line + label */
+  const last = B[B.length - 1].c, ly = Y(last);
+  x.setLineDash([6, 5]); x.strokeStyle = '#d6b46a'; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(pL, ly); x.lineTo(W - pR, ly); x.stroke(); x.setLineDash([]);
+  x.fillStyle = '#d6b46a'; x.fillRect(W - pR + 2, ly - 13, pR - 4, 26);
+  x.fillStyle = '#000'; x.font = 'bold 15px monospace'; x.fillText(fmt(sym, last), W - pR + 8, ly);
+  /* title + legend */
+  x.fillStyle = '#ffffff'; x.font = 'bold 22px sans-serif'; x.textBaseline = 'alphabetic';
+  x.fillText(`${SPECS[sym].n} · ${tfL} · live ${t12(Date.now())} IST`, pL + 4, 30);
+  x.font = '15px sans-serif';
+  x.fillStyle = '#f5c542'; x.fillText('— EMA 21', pL + 4, 50);
+  x.fillStyle = '#42a5f5'; x.fillText('— EMA 50', pL + 100, 50);
+  return cv.toDataURL('image/jpeg', 0.86);
+}
+
+async function autoAnalyze(){
+  if(autoBusy) return;
+  const sym = S.pair, sp = SPECS[sym];
+  if(!sp){ toast('Pehle pair chuno'); return }
+  if(!S.gKey){ toast('Settings me Gemini API key daalo'); openSheet('setSheet'); return }
+  if(!S.key){ toast('Settings me TwelveData key daalo'); openSheet('setSheet'); return }
+  const tf = TFS.find(t => t.tv === S.chartTf) || TFS.find(t => t.id === '15min');
+  const btn = $('autoBtn'), box = $('shotBox');
+  autoBusy = true;
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ CHAL RAHA…' }
+  $('shotState').textContent = 'candles la raha hoon…';
+  S.shot = null; save(); pfxRender();
+  box.innerHTML = '<p class="hint"><span class="spin"></span> ' + sp.n + ' · ' + tf.l + ' ki live candles aa rahi hain (1 credit)…</p>';
+  try{ box.closest('.card').scrollIntoView({behavior:'smooth', block:'start'}) }catch(e){}
+  try{
+    const bars = await getSeries(sym, tf.id, 150);
+    if(!bars || bars.length < 30) throw new Error('Kaafi candles nahi mili');
+    const url = autoDraw(sym, tf.l, bars);
+    if(shotPrev && /^blob:/.test(shotPrev.url)) URL.revokeObjectURL(shotPrev.url);
+    shotPrev = {url, at: Date.now()};
+    const pv = () => `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">`;
+    $('shotState').textContent = 'chart padh raha hoon…';
+    box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai…</p>';
+    const live = bars[bars.length - 1].c;
+    const tail = bars.slice(-40).map(b => `${b.t} ${fmt(sym, b.o)} ${fmt(sym, b.h)} ${fmt(sym, b.l)} ${fmt(sym, b.c)}`).join('\n');
+    const prompt = shotPrompt() + `
+
+IMPORTANT: this chart image was drawn by the app from LIVE market data.
+Instrument: ${sp.n} — use exactly "${sp.n}" as "symbol". Timeframe: ${tf.l} — use it as "timeframe".
+Yellow line = EMA 21, blue line = EMA 50.
+Current price right now: ${fmt(sym, live)} — use it as "current_price".
+Exact OHLC of the last 40 candles (oldest first; time IST, open high low close):
+${tail}
+Use these exact numbers for every level — do not estimate prices from the picture.`;
+    const d = await gVision(prompt, url.split(',')[1], (m, wait) => {
+      box.innerHTML = pv() + `<p class="hint"><span class="spin"></span> ` +
+        (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se padh raha hoon…`) + `</p>`;
+    });
+    d.v = 10; d.at = Date.now(); d.src = 'auto';
+    d.sym = sym; d.symbol = sp.n; d.timeframe = d.timeframe || tf.l;
+    d.dir = (d.signal === 'BUY' || d.signal === 'SELL') ? d.signal : null;
+    d.entry = +d.entry;
+    d.current_price = +d.current_price || live;
+    d.live = live; d.liveAt = Date.now(); d.liveSrc = 'live'; d.liveErr = ''; d.userEntry = null;
+    S.shot = d; save();
+    renderShot(); pfxRender();
+    $('shotState').textContent = 'ho gaya · auto';
+    toast(d.dir ? `${sp.n} · ${d.dir} · ${d.confidence}%` : `${sp.n} · abhi WAIT`);
+    setTimeout(() => { const c = $('pfxCard'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}) }, 200);
+  }catch(err){
+    $('shotState').textContent = 'fail';
+    box.innerHTML = `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:12px">
+      <b style="color:var(--dn);font-size:11.5px;letter-spacing:1.2px">AUTO ANALYZE FAIL</b>
+      <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${escH(err.message || 'pata nahi')}</p></div>`;
+    pfxRender();
+  }finally{
+    autoBusy = false;
+    if(btn){ btn.disabled = false; btn.textContent = '📸 AUTO ANALYZE' }
   }
 }
 
