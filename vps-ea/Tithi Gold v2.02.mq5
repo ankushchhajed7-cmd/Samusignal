@@ -7,6 +7,9 @@
 //|  par bhi turant lagta hai (pehle sirf naye cycle se). Trend wala |
 //|  ek-side cycle chal raha ho to doosri side ke stop bhi lag jaate |
 //|  hain. Algo Trading OFF ho to panel par "ALGO TRADING OFF" dikhe  |
+//|  - DEFAULT ab us original account jaise jo hum dekh rahe hain:    |
+//|    dono side hamesha, 30 level, lot 0.01 / 0.03 / 0.09 (10/10/10),|
+//|    cycle target 3, din ka profit cap 250, loss cap 300            |
 //| v2.01 (14-Oct-2026) - FIX: deposit / withdrawal ko din ka profit  |
 //|  samajh liya tha (balance badhaya -> "DAY PROFIT CAP +280").      |
 //|  Ab din ka P/L = equity - din ki shuruaat equity - (deposit /     |
@@ -80,14 +83,14 @@ input long   InpMagic               = 26011001; // Magic number
 input int    InpLogLevel            = 0;        // 0 = errors + cycle banks only, 1 = state events bhi
 
 input group "2. Grid and Lots"
-input int    InpLevels              = 20;       // Levels per side
+input int    InpLevels              = 30;       // Levels per side
 input double InpGridStepUSD         = 1.0;      // Reference spacing (gold PRICE) at InpPriceScaleReference
 input bool   InpScaleByPrice        = true;     // Scale spacing by current price
 input double InpPriceScaleReference = 3000.0;   // Price where InpGridStepUSD applies
 input bool   InpKeepStopsOnChart    = true;     // Keep buy/sell stops on chart (false = virtual levels)
 input double InpNearLot             = 0.01;     // Near-tier lots
-input double InpMidLot              = 0.05;     // Mid-tier lots
-input double InpFarLot              = 0.20;     // Far-tier lots
+input double InpMidLot              = 0.03;     // Mid-tier lots
+input double InpFarLot              = 0.09;     // Far-tier lots
 
 input group "2b. Lot Mode"
 input ENUM_LOT_MODE InpLotMode      = LOT_MODE_FIXED; // Exactly one mode: fixed tier lots or auto
@@ -97,7 +100,7 @@ input double InpAutoMidLot          = 0.05;     // At base balance: mid-tier lot
 input double InpAutoFarLot          = 0.15;     // At base balance: far-tier lots
 
 input group "3. Profit Targets"
-input double InpCycleTarget         = 50.0;     // Fixed-mode cycle net bank target (account currency)
+input double InpCycleTarget         = 3.0;      // Fixed-mode cycle net bank target (account currency)
 input double InpWholeBookGreen      = 0.0;      // Whole-book green bank (khuli trades ka P/L itna = sab band, 0 = off)
 
 input group "3b. Daily Limits"
@@ -105,7 +108,7 @@ input bool   InpHardDailyStop       = true;     // Hard daily stop (false = loss
 input bool   InpIndependentFloatStop= false;    // Independent EA floating-P/L stop (false = account equity se)
 input bool   InpLimitsInPercent     = false;    // true = % of day-start equity, false = USD
 input double InpDayProfitCapUSD     = 250.0;    // Day equity profit cap (account currency)
-input double InpDayLossCapUSD       = 3000.0;   // HARD day equity loss cap (account currency)
+input double InpDayLossCapUSD       = 300.0;    // HARD day equity loss cap (account currency)
 input double InpAutoCycleTargetPct  = 0.1;      // Auto-mode cycle target as % of balance
 input double InpDayProfitCapPct     = 2.0;      // Daily profit cap as % of day-start equity
 input double InpDayLossCapPct       = 20.0;     // HARD daily loss cap as % of day-start equity
@@ -113,7 +116,7 @@ input bool   InpAfterLossDouble     = true;     // After loss: next trading day 
 input int    InpPauseDaysAfterLoss  = 1;        // Do not trade for this many days after day loss cap
 
 input group "4. Trend (detection + optional one-side)"
-input bool   InpBothSidesAlways     = false;    // Both sides always (false = trend me sirf ek side)
+input bool   InpBothSidesAlways     = true;     // Both sides always (false = trend me sirf ek side)
 input bool   InpAllowNewCycleFlat   = false;    // Allow new cycle when flat (target se pehle)
 input int    InpTrendBars           = 6;        // Bars for trend move (chart timeframe)
 input double InpTrendMoveUSD        = 30.0;     // Gold PRICE move to call it a trend
