@@ -2117,7 +2117,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.1.0';
+const VERSION = '10.1.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -8835,8 +8835,35 @@ function pfxNear(sym){
   const n = sym === 'XAU/USD' ? 10 : sym === 'BTC/USD' ? 50 : sym === 'ETH/USD' ? 10 : sym === 'US30' ? 20 : 3;
   return n * sp.pip;
 }
-function pfxType(dir, entry, live, sym){
-  if(Math.abs(entry - live) <= pfxNear(sym)) return 'MARKET';
+/* v10.1.1: MARKET sirf "perfect" haalat me — AI ne NOW kaha ho, confidence 80%+ ho,
+   aur pichhli candles me bada jhatka (chase) na ho. Warna pending hi banega.
+   Entry khud haath se badli ho to aapki marzi (market bhi chalega). */
+const PFX_MKT_CONF = 80;
+function pfxMarketOk(d){
+  if(!d) return true;
+  if(d.userEntry > 0) return true;
+  return d.entry_kind === 'NOW' && (+d.confidence || 0) >= PFX_MKT_CONF && !d.chase;
+}
+/* AI ki entry live ke bilkul paas ho par market ki shart poori na ho ->
+   entry thoda door: PULLBACK/NOW = limit wali taraf, BREAKOUT = stop wali taraf */
+function pfxShape(d){
+  if(!d || d.shaped || !d.dir || !d.sym || !(d.live > 0) || !(d.entry > 0)) return;
+  d.shaped = true;
+  if(pfxMarketOk(d)) return;
+  const near = pfxNear(d.sym), buy = d.dir === 'BUY';
+  if(Math.abs(d.entry - d.live) > near) return;
+  const brk = d.entry_kind === 'BREAKOUT';
+  const step = 1.5 * near * ((buy !== brk) ? -1 : 1);     /* buy pullback = neeche, buy breakout = upar */
+  d.entry = +(d.live + step).toFixed(SPECS[d.sym].d);
+  d.adjNote = d.chase
+    ? 'Pichhli candles me bada jhatka tha — peeche nahi bhaagte, entry thoda door rakhi (' + (brk ? 'Stop' : 'Limit') + ').'
+    : 'Market ki shart poori nahi (AI NOW + 80% chahiye) — entry thoda door rakhi (' + (brk ? 'Stop' : 'Limit') + ').';
+}
+function pfxType(dir, entry, live, sym, mOk){
+  if(Math.abs(entry - live) <= pfxNear(sym)){
+    if(mOk !== false) return 'MARKET';
+    return dir === 'BUY' ? (entry <= live ? 'LIMIT' : 'STOP') : (entry >= live ? 'LIMIT' : 'STOP');
+  }
   if(dir === 'BUY') return entry < live ? 'LIMIT' : 'STOP';
   return entry > live ? 'LIMIT' : 'STOP';
 }
@@ -8864,10 +8891,19 @@ Read the image carefully: the instrument, the timeframe, the current (last) pric
 the price axis, the trend, the structure, and the real price levels from the vertical axis.
 Base every number on what is genuinely visible in the image — never invent levels.
 
-Entry price rules:
-- If the trade should be taken immediately, entry = the current price.
-- If it is better to wait for a pullback to a nearby support/resistance, entry = that level.
-- If it needs a breakout confirmation, entry = just beyond the breakout level.
+Entry rules — VERY IMPORTANT (this trader has been losing money by chasing moves):
+- DEFAULT = a pending order, NOT a market order.
+- Prefer "PULLBACK" (limit order): entry at the nearest strong level in the trend
+  direction — EMA 21, a broken support/resistance, or the last swing. For BUY the
+  entry must be BELOW the current price, for SELL it must be ABOVE the current price.
+- Use "BREAKOUT" (stop order) only when price is squeezing right under resistance (BUY)
+  or right above support (SELL); entry just beyond that level.
+- Use "NOW" (market order) ONLY when ALL of these are true: the trend is clear and
+  aligned with the EMAs; price is AT a strong level right now and a rejection candle
+  has just closed there; the last few candles are NOT a big impulsive move in the
+  trade direction; and your confidence is 80 or more. If any of these is missing,
+  do NOT use "NOW" — give a PULLBACK or BREAKOUT entry instead.
+- Never chase: after a big impulsive candle, wait for the pullback.
 - Keep the entry realistic for the visible timeframe (reachable within about one hour).
 
 If the image is not a price chart, or the price axis cannot be read, set "signal" to "UNREADABLE".
@@ -9047,6 +9083,12 @@ Use these exact numbers for every level — do not estimate prices from the pict
     d.entry = +d.entry;
     d.current_price = +d.current_price || live;
     d.live = live; d.liveAt = Date.now(); d.liveSrc = 'live'; d.liveErr = ''; d.userEntry = null;
+    /* chase check: pichhli 3 candles ka move 1.5 ATR se zyada usi taraf? */
+    try{
+      const a = atr(bars, 14), A = a[a.length - 1], mv = live - bars[bars.length - 4].c;
+      d.chase = A > 0 && !!d.dir && (d.dir === 'BUY' ? mv > 1.5 * A : -mv > 1.5 * A);
+    }catch(e){ d.chase = false }
+    pfxShape(d);
     S.shot = d; save();
     renderShot(); pfxRender();
     $('shotState').textContent = 'ho gaya · auto';
@@ -9093,6 +9135,7 @@ async function pfxLive(){
     if(!(d.live > 0) && d.current_price > 0){ d.live = d.current_price; d.liveAt = d.at; d.liveSrc = 'shot' }
   }
   pfxBusy = false;
+  pfxShape(d);
   if(S.shot === d){ save(); pfxRender() }
   return d.liveSrc === 'live';
 }
@@ -9179,11 +9222,13 @@ function pfxRender(){
     <input class="mono" id="pfxEntry" type="number" inputmode="decimal" step="${sp.pip}" value="${fmt(sym, e0)}" oninput="pfxRecalc()" style="padding:9px;font-size:14px">
     <p class="hint" id="pfxDist" style="margin:6px 0 0">—</p>
     <div id="pfxWarn"></div>
+    ${d.adjNote ? `<p class="hint" style="color:var(--gold);margin:6px 0 0">ℹ ${escH(d.adjNote)}</p>` : ''}
     ${why}
     <div style="border:1px dashed var(--line);border-radius:8px;padding:9px 11px;margin:10px 0;font-size:11.5px;line-height:1.8">
       📦 Lot: <b>PERSONAL FX ka input</b><br>
       🎯 TP / SL: <b>PERSONAL FX grid rules</b> (app SL/TP nahi bhejti)<br>
-      ⏱ Pending ${PFX_EXP_MIN} min me na bhare to EA khud hata dega</div>
+      ⏱ Pending ${PFX_EXP_MIN} min me na bhare to EA khud hata dega<br>
+      🛡 Market order sirf perfect haalat me (AI "NOW" + ${PFX_MKT_CONF}%+ + koi chase nahi)</div>
     <div class="grid2">
       <button class="btn gold" onclick="pfxSend()">🚀 PERSONAL FX ko bhejo</button>
       <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
@@ -9199,7 +9244,7 @@ function pfxRecalc(){
   if(!head) return;
   if(!(e > 0)){ head.textContent = '—'; dist.textContent = 'Entry price daalo'; warn.innerHTML = ''; return }
   if(Math.abs(e - d.entry) > sp.pip / 2) d.userEntry = e; else d.userEntry = null;
-  const type = pfxType(d.dir, e, d.live, sym);
+  const type = pfxType(d.dir, e, d.live, sym, pfxMarketOk(d));
   head.textContent = `${d.dir} ${type}`;
   head.style.color = d.dir === 'BUY' ? 'var(--up)' : 'var(--dn)';
   const pips = (e - d.live) / sp.pip;
@@ -9231,7 +9276,7 @@ async function pfxSend(){
   const sym = d.sym, sp = SPECS[sym], live = d.live;
   const e = d.userEntry > 0 ? d.userEntry : d.entry;
   if(!(live > 0)){ alert('Live price nahi hai — order nahi bheja'); return }
-  const type = pfxType(d.dir, e, live, sym);
+  const type = pfxType(d.dir, e, live, sym, pfxMarketOk(d));
   const pair = sp.n, full = d.dir + type;
   const dup = pfxLastList.find(o => o.pair === pair && (o.status === 'NEW' || o.status === 'PLACED') && Date.now() - o.at < PFX_EXP_MIN * 60000);
   const msg = `${pair} · ${d.dir} ${type}\n` +
