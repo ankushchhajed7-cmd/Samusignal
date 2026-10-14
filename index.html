@@ -1908,7 +1908,12 @@ body.ds-gold .brand .brandWord{height:24px}
   <div style="margin-bottom:10px"><label>Firebase URL</label>
     <input id="setFb" placeholder="https://xxx-default-rtdb.firebaseio.com"></div>
   <div style="margin-bottom:10px"><label>Auth secret (optional)</label>
-    <input id="setFbAuth" type="password" placeholder="rules open hain to khaali chhodo"></div>
+    <input id="setFbAuth" type="password" placeholder="rules open hain to khaali chhodo">
+    <div class="grid2" style="margin-top:6px">
+      <button class="btn ghost sm" type="button" onclick="fbAuthShow(this)">👁 Dikhao</button>
+      <button class="btn ghost sm" type="button" onclick="fbAuthCopy()">📋 Copy</button>
+    </div>
+    <p class="hint" style="margin:4px 0 0">PERSONAL FX / FXBridge EA ke <b>FirebaseAuth</b> input me yahi daalna hai.</p></div>
   <div class="grid2" style="margin-bottom:10px">
     <div style="grid-column:1/-1"><label>Order type</label><select id="setMtype">
       <option value="MARKET">Market (turant)</option>
@@ -2112,7 +2117,29 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.0.0';
+const VERSION = '10.0.1';
+/* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
+function fbAuthShow(b){
+  const el = $('setFbAuth'); if(!el) return;
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  if(b) b.textContent = show ? '🙈 Chhupao' : '👁 Dikhao';
+}
+async function fbAuthCopy(){
+  const el = $('setFbAuth'); if(!el) return;
+  const v = (el.value || '').trim();
+  if(!v){ toast('Auth secret khaali hai'); return }
+  try{ await navigator.clipboard.writeText(v); toast('Secret copy ho gaya — ' + v.length + ' akshar'); return }catch(e){}
+  try{
+    const t = document.createElement('textarea');
+    t.value = v; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select(); t.setSelectionRange(0, v.length);
+    const ok = document.execCommand('copy'); t.remove();
+    if(ok){ toast('Secret copy ho gaya — ' + v.length + ' akshar'); return }
+  }catch(e){}
+  el.type = 'text'; el.focus(); el.select();
+  toast('Copy nahi hua — ab text dikh raha hai, lamba dabakar copy karo');
+}
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
