@@ -1414,7 +1414,7 @@ body.ds-gold .brand .brandWord{height:24px}
 </section>
 
 
-<!-- ============ CHART ANALYSIS (v9.9.39) — chart se juda sab ek jagah ============ -->
+<!-- ============ CHART ANALYSIS (v10.0.0) — screenshot se seedha PERSONAL FX ============ -->
 <section id="pgChart" class="hide">
   <div class="card">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1422,10 +1422,8 @@ body.ds-gold .brand .brandWord{height:24px}
       <b style="letter-spacing:1.5px;font-size:14px">📈 CHART ANALYSIS</b>
       <span class="sp mono" id="cpSym" style="margin-left:auto"></span>
     </div>
-    <div class="grid2" style="margin-top:10px">
-      <button class="pick" id="cpPair" onclick="openPick('main')"></button>
-      <button class="btn gold sm" id="cpAnBtn" onclick="cpAnalyze()">⟳ Analyze</button>
-    </div>
+    <button class="pick" id="cpPair" style="margin-top:10px" onclick="openPick('main')"></button>
+    <p class="hint" style="margin:8px 0 0">Chart dekho → screenshot lo → yahan daalo. AI us waqt ki sabse sahi <b>ek</b> direction batayega, live price se order type tay hoga, aur order sirf <b style="color:var(--gold)">PERSONAL FX</b> EA ko jayega.</p>
   </div>
   <div class="card">
     <p class="ttl">Live Chart <span class="sp" id="chartSym">—</span></p>
@@ -1436,15 +1434,22 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 
   <div class="card">
-    <p class="ttl">Screenshot <span class="sp" id="shotState">—</span></p>
-    <button class="btn gold" onclick="shotIn.click()">📸 SCREENSHOT</button>
+    <p class="ttl">1 · Screenshot <span class="sp" id="shotState">—</span></p>
+    <button class="btn gold" onclick="shotIn.click()">📸 SCREENSHOT DAALO</button>
     <input type="file" id="shotIn" accept="image/*" class="hide">
     <div id="shotBox" style="margin-top:12px"></div>
   </div>
 
-  <div class="card" id="finCard">
-    <p class="ttl">Result <span class="sp" id="finT">—</span></p>
-    <div id="finBox"><p class="hint">Analyze dabao.</p></div>
+  <div class="card" id="pfxCard">
+    <p class="ttl">2 · PERSONAL FX Order <span class="sp" id="pfxT">—</span></p>
+    <div id="pfxBox"><p class="hint">Screenshot daalo — yahan order aayega.</p></div>
+  </div>
+
+  <div class="card">
+    <p class="ttl">3 · Bheje gaye orders <span class="sp"><button style="color:var(--gold);font-size:11px;font-weight:700" onclick="pfxList(true)">⟳ REFRESH</button></span></p>
+    <div id="pfxListBox"><p class="hint">—</p></div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="pfxCleanup()">🗑 Ho chuke orders list se hatao</button>
+    <p class="hint" style="margin-top:8px">Status PERSONAL FX EA khud likhta hai: <b style="color:var(--gold)">EA ka intezaar</b> → <b style="color:var(--up)">MT5 pe laga</b>. EA me yahi Firebase URL daalna hai aur MT5 me WebRequest allow karna hai.</p>
   </div>
 
   <!-- v9.9.49: purane hisse (levels, range details, EMA, style) chhupe — hisaab inhi se chalta hai (EMA plan ko canvas ka size chahiye, isliye display:none nahi) -->
@@ -2107,7 +2112,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '9.9.54';
+const VERSION = '10.0.0';
 const SIG_DUP_MS = 4 * 3600000;   /* same pair+dir 4 ghante me dobara record nahi */
 /* v9.9.7: AI jawab ki bhasha — English button ke hisaab se */
 function aiLangWord(){ try{ return localStorage.getItem('samu_lang') === 'en' ? 'English' : 'Hinglish' }catch(e){ return 'Hinglish' } }
@@ -4603,12 +4608,13 @@ function renderRangeScan(){
       <b class="mono" style="font-size:12px">${SPECS[r.sym].n}</b>
       ${tag(r.lim || 'band', '#38BDF8')}${tag(r.stp || 'band', 'var(--gold)')}
       <span class="mono" style="font-size:10.5px;color:${r.range ? 'var(--up)' : 'var(--mut)'}">${r.wPips !== undefined ? `${r.wPips}p · ADX ${r.adx} · ${r.pos}%` : escH(r.why || '—')}</span></div>`).join('') +
-    `<p class="hint" style="margin:8px 0 0">LIMIT = range joda, STOP = breakout joda. "joda" = dono order (OCO), "sirf BUY/SELL" = ek order. Tap karo — Chart page pe us pair ka Analyze (~5 credit) hoke poora setup aayega.</p>`;
+    `<p class="hint" style="margin:8px 0 0">LIMIT = range joda, STOP = breakout joda. "joda" = dono order (OCO), "sirf BUY/SELL" = ek order. Tap karo — Chart page pe us pair ka live chart khulega (screenshot lekar PERSONAL FX ko bhejo).</p>`;
 }
-async function rsScanOpen(sym){
+function rsScanOpen(sym){
+  /* v10.0.0: Chart page ab sirf screenshot → PERSONAL FX — yahan se bas us pair ka live chart khulta hai */
   S.pair = sym; save(); pickLabel($('selPair'), sym); setChart(sym); lastSignal = null; renderSignal();
-  go('Chart'); await cpAnalyze();
-  setTimeout(() => { const c = $('finCard'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}) }, 150);
+  go('Chart');
+  toast(SPECS[sym].n + ' ka chart khula — screenshot lekar daalo');
 }
 
 function renderScan(){
@@ -7016,228 +7022,21 @@ function renderLevels(){
       ${RS_FIB.slice().reverse().map(([k, t]) => line(t + '%', R.lo + k * R.w, '#38BDF8')).join('')}` : ''}`;
 }
 
-/* ================= CHART PAGE RESULT (v9.9.49) =================
-   Analyze ke baad sirf EK result, aur card me sirf wahi order(s):
-     1. app ka A+ plan (MARKET / LIMIT / STOP, ek taraf) — screenshot AI ulta bole to WAIT
-     2. warna range market me Range joda (LIMIT) — dono ya jo ek taraf niyam pe poora
-     3. warna Breakout joda (STOP) — dono ya ek
-     4. kuch nahi to WAIT
-   SL/TP niyam se bhare aate hain, badal sakte ho. Breakeven + lock + trailing hamesha ON. */
-let cpRes = null;
-const CAP_USD = 10;                 /* SL / TP: card pe yahi bhara aata hai (v9.9.54) aur isse zyada nahi (0.01 lot) */
-/* v9.9.54: har order ka SL / TP entry se $10 (0.01 lot, lot ke saath badhta) — $ box se badal sakte ho */
-function cpFix10(sym, lots, L){
-  const dd = dollarsToDist(sym, L.e, lots, CAP_USD * lots / 0.01), buy = L.dir === 'BUY', r = v => +(+v).toFixed(SPECS[sym].d);
-  return Object.assign({}, L, {sl:r(buy ? L.e - dd : L.e + dd), tp:r(buy ? L.e + dd : L.e - dd)});
-}
-function cpDecide(){
-  const s = lastSignal;
-  if(!s || s.sym !== S.pair) return null;
-  const sym = s.sym, lots = +$('inLots').value || S.dLot, r = v => +(+v).toFixed(SPECS[sym].d);
-  const base = {sym, lots, s, at:s.at};
-  const fc = finalCall(s), P = autoGate(autoPlan(s, fc, lots), sym);
-  if(P.t !== 'WAIT'){
-    const shot = S.shot && S.shot.sym === sym && Date.now() - S.shot.at < 3 * 3600000 ? S.shot : null;
-    const ai = shot ? shot.signal : null;
-    if((ai === 'BUY' || ai === 'SELL') && ai !== P.dir) return Object.assign(base, {kind:'WAIT', legs:[]});
-    const buy = P.dir === 'BUY', e = s.live + (P.t === 'LIMIT' ? (buy ? -P.off : P.off) : P.t === 'STOP' ? (buy ? P.off : -P.off) : 0);
-    return Object.assign(base, {kind:P.t, src:'A+', legs:[{dir:P.dir, type:P.t, e:r(e), sl:r(buy ? e - P.sl : e + P.sl), tp:r(buy ? e + P.tp : e - P.tp)}]});
-  }
-  const R = rangeInfo(s);
-  if(R.hi){
-    const ok = type => [rsLeg(R, 'BUY', type, lots), rsLeg(R, 'SELL', type, lots)].filter(L => L.ok)
-      .map(L => ({dir:L.dir, type:L.type, e:L.e, sl:L.sl, tp:L.tp}));
-    if(R.ok){ const L = ok('LIMIT'); if(L.length) return Object.assign(base, {kind:'LIMIT', src:'RANGE', legs:L}) }
-    if(!R.news){ const L = ok('STOP'); if(L.length) return Object.assign(base, {kind:'STOP', src:'BREAKOUT', legs:L}) }
-  }
-  return Object.assign(base, {kind:'WAIT', legs:[]});
-}
-
-/* v9.9.51: signal strength meter — quality + agents + technical + faisle ke check, sabka ausat (0-100) */
-function cpStrength(s){
-  const dir = s.dir === 'BUY' || s.dir === 'SELL' ? s.dir : null;
-  if(!dir) return {p:0, dir:null};
-  const parts = [s.q];
-  const v = lastVotes && lastVotes.sym === s.sym ? lastVotes : null;
-  if(v) parts.push(Math.round((dir === 'BUY' ? v.buy : v.sell) / AGENT_N * 100));
-  if(lastAn && isFinite(lastAn.pct)) parts.push(lastAn.pct);
-  const fc = finalCall(s);
-  if(fc.total) parts.push(Math.round(fc.pass / fc.total * 100));
-  return {p:Math.max(0, Math.min(100, Math.round(parts.reduce((a, b) => a + b, 0) / parts.length))), dir};
-}
-function strengthHTML(s){
-  const {p, dir} = cpStrength(s);
-  const col = p >= 70 ? 'var(--up)' : p >= 50 ? 'var(--gold)' : 'var(--dn)', n = Math.round(p / 5);
-  return `<div class="meter" style="margin:0 0 12px">
-      <div class="lbl"><span>Signal strength${dir ? ` · <b style="color:${dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}">${dir}</b>` : ''}</span>
-        <b class="mono" style="color:${col}">${dir ? `${p >= 70 ? 'STRONG' : p >= 50 ? 'MEDIUM' : 'WEAK'} ${p}%` : '—'}</b></div>
-      <div class="segs">${Array.from({length:20}, (_, i) => `<i class="${i < n ? 'f' : ''}" style="${i < n ? 'background:' + col : ''}"></i>`).join('')}</div>
-    </div>`;
-}
-
-function renderFinal(){
-  const box = $('finBox'); if(!box) return;
-  const d = cpRes = cpDecide();
-  if(d && d.legs.length) d.legs = d.legs.map(L => cpFix10(d.sym, d.lots, L));   /* v9.9.54: SL / TP $10 */
-  if(!d){ $('finT').textContent = '—'; box.innerHTML = '<p class="hint">Analyze dabao.</p>'; return }
-  $('finT').textContent = t12(d.at);
-  if(d.kind === 'WAIT'){
-    box.innerHTML = strengthHTML(d.s) + `<div style="border:1px solid var(--gold);border-radius:11px;padding:14px;text-align:center">
-      <b class="shine gd" style="font-size:17px;letter-spacing:1px">⏸ WAIT</b></div>`;
-    return;
-  }
-  const sym = d.sym, two = d.legs.length > 1;
-  const head = d.kind === 'MARKET' ? `${d.legs[0].dir} · MARKET ORDER` : two ? `${d.kind} JODA · BUY + SELL` : `${d.legs[0].dir} ${d.kind}`;
-  const hcol = two ? '#38BDF8' : d.legs[0].dir === 'BUY' ? 'var(--up)' : 'var(--dn)';
-  const inp = (id, v) => `<input class="mono" id="${id}" type="number" inputmode="decimal" step="${SPECS[sym].pip}" value="${fmt(sym, v)}" oninput="cpEdit()" style="padding:8px;font-size:13px">`;
-  /* v9.9.52: $ box — $ likho to price khud badle (aur price badlo to $) */
-  const usd = (id, i, k) => `<div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-      <b class="mono" style="font-size:13px;white-space:nowrap;flex:none;color:${k === 'sl' ? 'var(--dn)' : 'var(--up)'}">${k === 'sl' ? '−$' : '+$'}</b>
-      <input class="mono" id="${id}" type="number" inputmode="decimal" step="0.05" min="0" oninput="cpUsd(${i},'${k}')" style="padding:8px;font-size:13px;flex:1;min-width:0"></div>`;
-  const leg = (L, i) => `<div style="border:1px solid ${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};border-radius:10px;padding:10px 11px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <b style="color:${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};letter-spacing:1px">${L.dir} ${L.type}</b>
-        <span class="mono" style="margin-left:auto;font-size:12px">Entry <b>${L.type === 'MARKET' ? 'market ' : ''}${fmt(sym, L.e)}</b></span></div>
-      <div class="grid2">
-        <div><label style="color:var(--dn)">SL</label>${inp('cpSl' + i, L.sl)}${usd('cpSlU' + i, i, 'sl')}</div>
-        <div><label style="color:var(--up)">TP</label>${inp('cpTp' + i, L.tp)}${usd('cpTpU' + i, i, 'tp')}</div>
-      </div></div>`;
-  box.innerHTML = strengthHTML(d.s) + `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <b style="color:${hcol};font-size:15px;letter-spacing:.5px">${head}</b>
-      <span class="gr" style="margin-left:auto">${SPECS[sym].n} · ${d.lots} lot</span></div>
-    ${d.legs.map(leg).join('')}
-    <p class="hint" style="margin:0 0 10px">🛡 Breakeven + profit lock + trailing: ON${two ? ' · jo pehle bhare, doosra cancel' : ''}</p>
-    <div class="grid2">
-      <button class="btn gold" onclick="cpSendMT5()">🚀 MT5 pe bhejo</button>
-      <button class="btn ${two ? 'g' : d.legs[0].dir === 'BUY' ? 'g' : 'r'}" onclick="cpTake()">✓ Maine trade liya</button>
-    </div>`;
-  cpEdit();
-}
-/* card ke SL/TP box padho — $ bhi nikalo */
-function cpLegs(){
-  const d = cpRes; if(!d || d.kind === 'WAIT') return [];
-  return d.legs.map((L, i) => {
-    const sl = parseFloat(($('cpSl' + i) || {}).value), tp = parseFloat(($('cpTp' + i) || {}).value);
-    const slD = isFinite(sl) ? +distToDollars(d.sym, L.e, d.lots, Math.abs(L.e - sl)).toFixed(2) : 0;
-    const tpD = isFinite(tp) ? +distToDollars(d.sym, L.e, d.lots, Math.abs(tp - L.e)).toFixed(2) : 0;
-    return Object.assign({}, L, {sl, tp, slD, tpD});
-  });
-}
-/* price badla -> $ box bharo (jis $ box me abhi likh rahe ho use nahi chhedte) */
-function cpEdit(){
-  cpLegs().forEach((L, i) => {
-    const a = $('cpSlU' + i), b = $('cpTpU' + i);
-    if(a && document.activeElement !== a) a.value = isFinite(L.sl) ? L.slD.toFixed(2) : '';
-    if(b && document.activeElement !== b) b.value = isFinite(L.tp) ? L.tpD.toFixed(2) : '';
-  });
-}
-/* $ badla -> SL/TP price khud adjust (entry se utni doori, sahi taraf) */
-function cpUsd(i, k){
-  const d = cpRes; if(!d || !d.legs[i]) return;
-  const L = d.legs[i], u = parseFloat(($(k === 'sl' ? 'cpSlU' + i : 'cpTpU' + i) || {}).value);
-  if(!(u > 0)) return;
-  const dist = dollarsToDist(d.sym, L.e, d.lots, u), buy = L.dir === 'BUY';
-  const px = k === 'sl' ? (buy ? L.e - dist : L.e + dist) : (buy ? L.e + dist : L.e - dist);
-  const el = $(k === 'sl' ? 'cpSl' + i : 'cpTp' + i);
-  if(el && px > 0) el.value = fmt(d.sym, px);
-}
-/* SL/TP sahi taraf + broker ki kam se kam doori — galat ho to roko */
-function cpCheck(){
-  const d = cpRes;
-  if(!d || d.kind === 'WAIT'){ toast('Abhi koi order nahi'); return null }
-  if(!lastSignal || lastSignal.at !== d.at){ toast('Result purana ho gaya — Analyze dobara dabao'); return null }
-  const legs = cpLegs();
-  for(const L of legs){
-    const bad = !isFinite(L.sl) || !isFinite(L.tp) ? ['SL / TP khaali hai'] : checkStops(d.sym, L.dir, L.e, L.sl, L.tp);
-    const cap = CAP_USD * d.lots / 0.01;                              /* v9.9.53: SL/TP $10 tak (FXBridge v3.58 bhi yahi) */
-    if(L.slD > cap + 0.01 || L.tpD > cap + 0.01){ alert(`${L.dir} ${L.type} —\n\nSL / TP $${cap.toFixed(2)} se zyada nahi ho sakta (abhi SL $${L.slD.toFixed(2)}, TP $${L.tpD.toFixed(2)}).`); return null }
-    if(bad.length){ alert(`${L.dir} ${L.type} —\n\n${bad.join('\n')}`); return null }
-  }
-  return legs;
-}
-function cpTake(){
-  const legs = cpCheck(); if(!legs) return;
-  const d = cpRes, s = d.s;
-  if(S.open.some(t => t.sym === d.sym)){ alert(`${d.sym} pe pehle se trade / pending khula hai — pehle use band karo.`); return }
-  const oco = legs.length > 1 ? 'O' + Date.now() : null;
-  legs.forEach((L, i) => addTrade(Object.assign(
-    {sym:d.sym, dir:L.dir, lots:d.lots, entry:L.e, sl:L.sl, tp:L.tp, slD:L.slD, tpD:L.tpD, q:s.q, grade:s.grade},
-    L.type !== 'MARKET' ? {pend:L.type} : {},
-    d.src === 'RANGE' || d.src === 'BREAKOUT' ? {setup:d.src} : {},
-    oco ? {oco, ocoN:i} : {})));
-}
-async function cpSendMT5(){
-  const legs = cpCheck(); if(!legs) return;
-  const d = cpRes, sym = d.sym;
-  const txt = legs.map(L => `${L.dir} ${L.type}  ${L.type === 'MARKET' ? 'market' : fmt(sym, L.e)}\nSL ${fmt(sym, L.sl)} (−$${L.slD.toFixed(2)})  ·  TP ${fmt(sym, L.tp)} (+$${L.tpD.toFixed(2)})`).join('\n\n');
-  if(!confirm(`${SPECS[sym].n} · ${d.lots} lot\n\n${txt}${legs.length > 1 ? '\n\nJo pehle bhare, doosra MT5 pe apne aap cancel.' : ''}\n\nMT5 pe bhejein?`)) return;
-  if(legs.length === 1){
-    const L = legs[0];
-    await sendMT5(sym, L.dir, d.lots, L.e, L.sl, L.tp, L.type, false, L.type !== 'MARKET');
-  } else await sendMT5Oco(sym, d.lots, legs);
-}
-/* v9.9.49: joda (OCO) — dono order EK hi Firebase likhai me (EA ek hi order.json padhta hai).
-   FXBridgeEA v3.57+: pehla bhara to doosra pending khud hat jata hai. */
-async function sendMT5Oco(sym, lots, legs){
-  if(S.metaOn){ alert('Joda (OCO) sirf FXBridgeEA (Firebase) se jaata hai — MetaApi pe ek-ek order bhejo.'); return false }
-  if(!fbEndpoint()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return false }
-  const prev = mt5Has(sym);
-  if(prev){ alert(`${SPECS[sym].n} pe pehle se ek order MT5 pe bheja hua hai —\n\n${prev.dir} ${prev.lots} lot · ${dt12(prev.at)}\n\nWo MT5 pe band ho chuka hai to Trades page se uska lock hata do, phir dobara bhejo.`); return false }
-  const [A, B] = legs, dg = SPECS[sym].d;
-  const body = Object.assign(mt5Payload(sym, A.dir, lots, A.e, A.sl, A.tp, A.type),
-    {oco:1, type2:B.dir + B.type, entry2:+(+B.e).toFixed(dg), sl2:+(+B.sl).toFixed(dg), tp2:+(+B.tp).toFixed(dg)});
-  try{
-    const r = await fetch(fbEndpoint(), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    if(!r.ok) throw new Error('Firebase HTTP ' + r.status);
-    LS.set('lastOrder', {t:Date.now(), body, ok:true});
-    mt5Mark(sym, 'BUY+SELL', body.lots);
-    logAdd(`MT5 joda bhej diya: ${body.type} @ ${body.entry} + ${body.type2} @ ${body.entry2} ${body.pair} (id ${body.id})`);
-    toast(`Joda gaya — ${body.type} + ${body.type2}`);
-    if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → MT5 (joda)</b>\n\n<b>${body.pair}</b> ${body.lots} lot\n${body.type} <code>${body.entry}</code> SL <code>${body.sl}</code> TP <code>${body.tp}</code>\n${body.type2} <code>${body.entry2}</code> SL <code>${body.sl2}</code> TP <code>${body.tp2}</code>\nJo pehle bhare, doosra cancel.\n⏰ ${t12(Date.now())}`, true);
-    return true;
-  }catch(e){
-    LS.set('lastOrder', {t:Date.now(), body, ok:false, err:e.message});
-    logAdd('MT5 joda fail: ' + e.message); toast('MT5 bridge fail — ' + e.message);
-    return false;
-  }
-}
-
-/* screenshot aaya: uske pair ka live hisaab chalao (pair alag ho to badlo) */
-async function cpAfterShot(){
-  const d = S.shot;
-  if(!d || !d.sym || $('pgChart').classList.contains('hide')) return;
-  if(d.sym !== S.pair){
-    S.pair = d.sym; save(); pickLabel($('selPair'), d.sym); setChart(d.sym); lastSignal = null;
-    toast(`Screenshot ${SPECS[d.sym].n} ka hai — usi ka live hisaab chala raha hoon`);
-  }
-  if(!lastSignal || lastSignal.sym !== S.pair || Date.now() - lastSignal.at > 10 * 60000) await cpAnalyze();
-  else chartPageShow();
-}
+/* v10.0.0: purana CHART PAGE RESULT (A+ plan / Range joda / Breakout joda,
+   $10 SL/TP card, FXBridge "MT5 pe bhejo", "Maine trade liya") hata diya.
+   Ab Chart page sirf screenshot → PERSONAL FX (code: "CHART ANALYSIS → PERSONAL FX"). */
 
 /* ---- Chart Analysis page ---- */
 function openChartPage(){ go('Chart'); }
 function chartPageShow(){
   const sym = S.pair, sp = SPECS[sym];
-  const fresh = lastSignal && lastSignal.sym === sym ? lastSignal.at : 0;
-  $('cpSym').textContent = (sp ? sp.n + ' · ' + S.tf : '—') + (fresh ? ' · Analyze ' + t12(fresh) : ' · Analyze nahi hua');
-  $('cpPair').textContent = sp ? sp.n : 'Pair chuno';
+  $('cpSym').textContent = '→ PERSONAL FX';
+  $('cpPair').textContent = sp ? sp.n + ' · live chart' : 'Pair chuno';
   requestAnimationFrame(() => {
-    try{ loadEma(false) }catch(e){}
     try{ renderShot() }catch(e){}
-    try{ rsRefresh() }catch(e){} try{ renderLevels() }catch(e){}   /* chhupe hisse — result card inse na ruke */
-    renderFinal();
+    try{ pfxRender() }catch(e){}
+    pfxList(false);
   });
-}
-/* v9.9.45: Chart page pe bhi dikhe ki Analyze chal raha hai, aur kab hua */
-async function cpAnalyze(){
-  const b = $('cpAnBtn');
-  if(busy){ toast('Analyze pehle se chal raha hai…'); return }
-  if(b){ b.disabled = true; b.innerHTML = '<span class="spin"></span> Analyze ho raha hai…' }
-  const before = lastSignal && lastSignal.at;
-  try{ await runAnalyze() }finally{ if(b){ b.disabled = false; b.textContent = '⟳ Analyze' } }
-  if(lastSignal && lastSignal.at !== before) toast(`${SPECS[lastSignal.sym].n} — naye candles se levels update ho gaye`);
-  if(!$('pgChart').classList.contains('hide')) chartPageShow();
 }
 function rsRefresh(){
   const s = lastSignal;
@@ -7251,6 +7050,7 @@ function rsRefresh(){
 }
 
 function rsBtnHTML(s){
+  return '';   /* v10.0.0: Chart page pe ab range setup nahi (sirf PERSONAL FX) — button hataya */
   if(!s || s.dir === undefined) return '';
   const R = rangeInfo(s);
   return `<button class="btn ghost" style="width:100%;margin-top:8px;${R.ok ? 'border-color:#38BDF8;color:#38BDF8' : 'opacity:.6'}" onclick="openRangeSetup()">
@@ -8988,52 +8788,84 @@ async function gVision(prompt, b64, onNote){
     : lm);
 }
 
+/* ================= v10.0.0 — CHART ANALYSIS → PERSONAL FX =================
+   Screenshot → Gemini sirf EK sabse sahi direction + entry batata hai (dono
+   taraf nahi) → TwelveData se live price (1 credit) → order type khud tay:
+     BUY : entry live se neeche = BUY LIMIT, upar = BUY STOP, bahut paas = MARKET
+     SELL: entry live se upar  = SELL LIMIT, neeche = SELL STOP, bahut paas = MARKET
+   Order Firebase  /personalfx/orders  me jaata hai (queue — har order alag key,
+   6 pair ek saath bhejo to bhi koi overwrite nahi). PERSONAL FX EA (v5.4+) use
+   padhkar MT5 pe lagata hai aur status wapas likhta hai.
+   Lot = EA ka input · SL/TP = EA ka grid · pending 60 min me na bhare to EA hata deta hai.
+   Purana A+ plan / Range joda / FXBridge result is page se hata diya. */
+const PFX_EXP_MIN = 60;                 /* pending expiry (EA bhi yahi maanta hai) */
+const PFX_LIVE_MAX_MS = 3 * 60000;      /* bhejte waqt live price isse purana ho to dobara lo */
+let pfxBusy = false, pfxPoll = null, pfxPollUntil = 0, pfxLastList = [];
+
+/* itna paas ho to pending ki jagah MARKET */
+function pfxNear(sym){
+  const sp = SPECS[sym]; if(!sp) return 0;
+  const n = sym === 'XAU/USD' ? 10 : sym === 'BTC/USD' ? 50 : sym === 'ETH/USD' ? 10 : sym === 'US30' ? 20 : 3;
+  return n * sp.pip;
+}
+function pfxType(dir, entry, live, sym){
+  if(Math.abs(entry - live) <= pfxNear(sym)) return 'MARKET';
+  if(dir === 'BUY') return entry < live ? 'LIMIT' : 'STOP';
+  return entry > live ? 'LIMIT' : 'STOP';
+}
+function pfxBase(){
+  let u = (S.fbUrl || '').trim().replace(/\/+$/, '');
+  if(!u) return '';
+  if(!/^https?:\/\//.test(u)) u = 'https://' + u;
+  return u;
+}
+function pfxUrl(path){
+  const b = pfxBase(); if(!b) return '';
+  return b + '/personalfx/' + path + '.json' + (S.fbAuth ? '?auth=' + encodeURIComponent(S.fbAuth) : '');
+}
+
 function shotPrompt(){
-  const st = STYLES[S.style] || STYLES.DAY;
   const names = PAIRS.map(p => SPECS[p].n).join(', ');
-  return `You are a professional technical analyst reading a trading chart screenshot.
+  const lang = aiLangWord() === 'English' ? 'simple plain English'
+    : 'simple Hinglish (Hindi written in Roman/English letters, the way Indian traders talk)';
+  return `You are a professional price-action trader reading a trading chart screenshot.
 
-STYLE: ${st.brief}
+Your job: give the ONE best trade for RIGHT NOW — the single direction with the clearest
+edge at this moment. Do NOT give both sides. If there is no clear edge, return "NO TRADE".
 
-Read the image carefully. Identify the instrument, the timeframe, the visible price
-structure, and the actual price levels from the vertical axis. Base every number on
-what is genuinely visible in the image \u2014 never invent levels.
+Read the image carefully: the instrument, the timeframe, the current (last) price shown on
+the price axis, the trend, the structure, and the real price levels from the vertical axis.
+Base every number on what is genuinely visible in the image — never invent levels.
 
-If the image is not a price chart, or is too blurry or cropped to read the price axis,
-set "signal" to "UNREADABLE" and explain what is missing in "reasoning".
+Entry price rules:
+- If the trade should be taken immediately, entry = the current price.
+- If it is better to wait for a pullback to a nearby support/resistance, entry = that level.
+- If it needs a breakout confirmation, entry = just beyond the breakout level.
+- Keep the entry realistic for the visible timeframe (reachable within about one hour).
+
+If the image is not a price chart, or the price axis cannot be read, set "signal" to "UNREADABLE".
 
 If the instrument is one of these, use this exact spelling: ${names}
 If it is NOT in that list, report the ticker exactly as printed on the chart.
-Never substitute a different instrument \u2014 reporting an unknown ticker is
-correct, guessing a similar one is not.
+Never substitute a different instrument.
 
-Write every text field in ${aiLangWord() === 'English' ? 'simple plain English' : `simple Hinglish (Hindi written in Roman/English letters,
-the way Indian traders talk)`}. Keep all keys, symbols and numbers in English.
+Write the "reason" field in ${lang}. Keep all keys, symbols and numbers in English.
 
 Reply with JSON ONLY, no other text, in exactly this shape:
 {
- "symbol": "closest match from the list above, or the raw ticker if none fits",
- "timeframe": "what the chart shows, e.g. 15m, 1H, 4H, Daily",
+ "symbol": "closest match from the list above, or the raw ticker",
+ "timeframe": "what the chart shows, e.g. 5m, 15m, 1H",
  "signal": "BUY" or "SELL" or "NO TRADE" or "UNREADABLE",
  "confidence": 0-100 integer,
+ "current_price": number,
  "entry": number,
- "stop_loss": number,
- "take_profit_1": number,
- "take_profit_2": number,
- "trend": "1-2 ${aiLangWord()} sentences on the dominant trend and current structure",
- "support": [up to 3 numeric support levels, nearest first],
- "resistance": [up to 3 numeric resistance levels, nearest first],
- "reasoning": "2-3 ${aiLangWord()} sentences on why this direction, citing what you see",
- "invalidation": "the single price level or condition that kills this setup, in ${aiLangWord()}",
- "counter_trade": "2-3 ${aiLangWord()} sentences on the opposite case \u2014 what would have to happen for the other direction to work, with rough entry and stop"
+ "entry_kind": "NOW" or "PULLBACK" or "BREAKOUT",
+ "reason": "one short sentence — why this direction right now"
 }
 
 Rules:
 - Every price must be a plain number, no currency symbols or thousands separators.
-- Stop loss and take profits must sit on the correct side of the entry for the direction given.
-- Size the stop and targets to fit the ${st.label} style stated above.
-- Confidence must reflect genuine chart quality. If structure is unclear, score it low.
-- Be honest. If the setup is poor, return "NO TRADE" with your reasoning.`;
+- Confidence must reflect genuine chart clarity. If the structure is unclear, return "NO TRADE".`;
 }
 
 const shotIn = $('shotIn');
@@ -9046,36 +8878,44 @@ if(shotIn) shotIn.addEventListener('change', e => {
 async function shotAnalyze(f){
   if(!f) return;
   if(!S.gKey){ toast('Settings me Gemini API key daalo'); openSheet('setSheet'); return }
-  if(f.size > 12 * 1024 * 1024){ toast('Image bahut badi hai \u2014 12 MB se chhoti chuno'); return }
+  if(f.size > 12 * 1024 * 1024){ toast('Image bahut badi hai — 12 MB se chhoti chuno'); return }
 
   const box = $('shotBox');
   if(shotPrev) URL.revokeObjectURL(shotPrev.url);
   shotPrev = {url: URL.createObjectURL(f), at: Date.now()};
   const pv = () => `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">`;
-  $('shotState').textContent = 'chart padh raha hoon\u2026';
-  box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Image taiyaar ho rahi hai\u2026</p>';
+  $('shotState').textContent = 'chart padh raha hoon…';
+  box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Image taiyaar ho rahi hai…</p>';
+  S.shot = null; save(); pfxRender();
 
   try{
     const img = await shrinkImage(f, 1280);
-    box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai\u2026</p>';
+    box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai…</p>';
     const d = await gVision(shotPrompt(), img.b64, (m, wait) => {
       box.innerHTML = pv() + `<p class="hint"><span class="spin"></span> ` +
-        (wait ? `Rate limit \u2014 ${wait}s ruk raha hoon (${m})` : `${m} se padh raha hoon\u2026`) + `</p>`;
+        (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se padh raha hoon…`) + `</p>`;
     });
 
+    d.v = 10;
     d.at = Date.now();
-    d.style = S.style;
     d.sym = matchSymbol(d.symbol);
+    d.dir = (d.signal === 'BUY' || d.signal === 'SELL') ? d.signal : null;
+    d.entry = +d.entry;
+    d.current_price = +d.current_price;
+    d.live = 0; d.liveAt = 0; d.liveSrc = ''; d.liveErr = ''; d.userEntry = null;
     S.shot = d; save();
     renderShot();
-    cpAfterShot();
     $('shotState').textContent = 'ho gaya';
-    if(d.signal === 'BUY' || d.signal === 'SELL') toast(`${d.signal} \u00b7 ${d.confidence}% confidence`);
+    if(d.dir && d.sym){
+      toast(`${d.dir} · ${d.confidence}% — live price le raha hoon`);
+      await pfxLive();
+    } else pfxRender();
   }catch(err){
     $('shotState').textContent = 'fail';
     box.innerHTML = pv() + `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:12px">
       <b style="color:var(--dn);font-size:11.5px;letter-spacing:1.2px">ANALYSIS FAIL</b>
-      <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${err.message}</p></div>`;
+      <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${escH(err.message)}</p></div>`;
+    pfxRender();
   }
 }
 
@@ -9092,79 +8932,271 @@ function matchSymbol(raw){
   return null;
 }
 
-function rrLine(d){
-  const e = +d.entry, sl = +d.stop_loss, tp = +d.take_profit_1;
-  if(!isFinite(e) || !isFinite(sl) || !isFinite(tp)) return '';
-  const risk = Math.abs(e - sl), rew = Math.abs(tp - e);
-  if(!risk) return '';
-  const rr = rew / risk;
-  const be = 100 / (1 + rr);
-  const c = rr >= 2 ? 'var(--up)' : rr >= 1 ? 'var(--gold)' : 'var(--dn)';
-  return `<span style="color:${c}">R:R 1:${rr.toFixed(2)}</span> \u00b7 breakeven ke liye ${be.toFixed(0)}% win rate chahiye`;
+/* TwelveData se taza price — 1 credit. Na mile to screenshot ka price (chetawani ke saath) */
+async function pfxLive(){
+  const d = S.shot; if(!d || !d.sym || !d.dir) return false;
+  if(pfxBusy) return false;
+  pfxBusy = true; pfxRender();
+  try{
+    if(!S.key) throw new Error('TwelveData API key nahi hai (Settings)');
+    const j = await td(`/price?symbol=${encodeURIComponent(apiSym(d.sym))}`, 1, d.sym);
+    const p = +j.price;
+    if(!(isFinite(p) && p > 0)) throw new Error('API ne price nahi bheja');
+    d.live = p; d.liveAt = Date.now(); d.liveSrc = 'live'; d.liveErr = '';
+  }catch(e){
+    d.liveErr = (e && e.message) || 'live price nahi mila';
+    if(!(d.live > 0) && d.current_price > 0){ d.live = d.current_price; d.liveAt = d.at; d.liveSrc = 'shot' }
+  }
+  pfxBusy = false;
+  if(S.shot === d){ save(); pfxRender() }
+  return d.liveSrc === 'live';
 }
 
+function pfxEntryVal(){
+  const d = S.shot; if(!d) return NaN;
+  const el = $('pfxEntry');
+  const v = el ? parseFloat(el.value) : (d.userEntry > 0 ? d.userEntry : d.entry);
+  return v;
+}
+
+/* screenshot card — sirf photo + ek line */
 function renderShot(){
   const box = $('shotBox'); if(!box) return;
   const d = S.shot;
-  if(!d){ box.innerHTML = ''; return }
+  if(!d || d.v !== 10){ box.innerHTML = ''; return }
   const pvImg = shotPrev && d.at >= shotPrev.at ? `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">` : '';
-
-  const sym = d.sym;
-  const P = v => (sym && isFinite(v)) ? fmt(sym, v) : (isFinite(v) ? (+v).toString() : '\u2014');
-  const dir = d.signal;
-  const isTrade = dir === 'BUY' || dir === 'SELL';
-  const col = dir === 'BUY' ? 'var(--up)' : dir === 'SELL' ? 'var(--dn)' : 'var(--gold)';
+  const col = d.signal === 'BUY' ? 'var(--up)' : d.signal === 'SELL' ? 'var(--dn)' : 'var(--gold)';
   const conf = Math.max(0, Math.min(100, +d.confidence || 0));
-  const ccol = conf >= 70 ? 'var(--up)' : conf >= 45 ? 'var(--gold)' : 'var(--dn)';
-  const lvls = a => (Array.isArray(a) ? a : []).filter(x => isFinite(x)).slice(0,3).map(P).join(' \u00b7 ') || '\u2014';
-
-  if(dir === 'UNREADABLE'){
-    box.innerHTML = pvImg + `<div style="border:1px solid var(--gold);background:rgba(255,184,0,.07);border-radius:6px;padding:12px">
-      <b style="color:var(--gold);font-size:11.5px;letter-spacing:1.2px">\u26a0 CHART PADHA NAHI GAYA</b>
-      <button class="btn ghost sm" style="width:auto;margin-top:8px;padding:0 12px" onclick="clearShot()">\u2715</button></div>`;
-    return;
-  }
-
-  /* v9.9.49: sirf photo + AI ka ek shabd — wajah/levels nahi (faisla neeche Result me) */
   box.innerHTML = pvImg + `<div style="display:flex;align-items:center;gap:10px;border:1px solid ${col};border-radius:10px;padding:9px 12px">
-      <b style="color:${col};letter-spacing:.5px">📷 ${escH(dir)}</b>
-      <span class="mono" style="font-size:12px">${sym ? SPECS[sym].n : escH(d.symbol || '\u2014')} · ${conf}%</span>
-      <button class="btn ghost sm" style="width:auto;margin-left:auto;padding:0 12px" onclick="clearShot()">\u2715</button></div>`;
+      <b style="color:${col};letter-spacing:.5px">📷 ${escH(d.signal)}</b>
+      <span class="mono" style="font-size:12px">${d.sym ? SPECS[d.sym].n : escH(d.symbol || '—')} · ${escH(d.timeframe || '')} · ${conf}%</span>
+      <button class="btn ghost sm" style="width:auto;margin-left:auto;padding:0 12px" onclick="clearShot()">✕</button></div>`;
 }
 
 function clearShot(){
-  S.shot = null; save(); renderShot();
-  $('shotState').textContent = '\u2014';
+  S.shot = null; save(); renderShot(); pfxRender();
+  $('shotState').textContent = '—';
 }
 
-function shotText(){
-  const d = S.shot; if(!d) return '';
-  const sym = d.sym;
-  const P = v => (sym && isFinite(v)) ? fmt(sym, v) : v;
-  const L = [];
-  L.push(`\ud83d\udcca CHART ANALYSIS \u2014 ${sym ? SPECS[sym].n : d.symbol}`);
-  L.push(`${d.signal} \u00b7 ${d.confidence}% confidence \u00b7 ${STYLES[d.style] ? STYLES[d.style].label : ''}`);
-  L.push('');
-  if(d.signal === 'BUY' || d.signal === 'SELL'){
-    L.push(`Entry  ${P(d.entry)}`);
-    L.push(`SL     ${P(d.stop_loss)}`);
-    L.push(`TP1    ${P(d.take_profit_1)}`);
-    if(isFinite(d.take_profit_2)) L.push(`TP2    ${P(d.take_profit_2)}`);
-    L.push('');
+/* ---- PERSONAL FX order card ---- */
+function pfxRender(){
+  const box = $('pfxBox'); if(!box) return;
+  const T = $('pfxT'), d = S.shot;
+  if(!d || d.v !== 10){
+    if(T) T.textContent = '—';
+    box.innerHTML = '<p class="hint">Screenshot daalo — AI us waqt ki sabse sahi ek direction aur entry batayega, phir live price se order type (Market / Limit / Stop) khud tay hoga.</p>';
+    return;
   }
-  if(d.trend){ L.push('\ud83d\udcc8 ' + d.trend); L.push('') }
-  if(d.reasoning){ L.push(d.reasoning); L.push('') }
-  if(d.invalidation){ L.push('\ud83c\udfaf Khatam agar: ' + d.invalidation); L.push('') }
-  if(d.counter_trade){ L.push('\ud83d\udd04 ' + d.counter_trade); L.push('') }
-  L.push('Levels screenshot se padhe gaye \u2014 live price se verify karo.');
-  L.push('\u2014 SamuSignal');
-  return L.join('\n');
+  if(T) T.innerHTML = `<span data-ago="${d.at}">${ago(d.at)}</span>`;
+  const why = d.reason ? `<p class="hint" style="margin:8px 0 0">${escH(d.reason)}</p>` : '';
+
+  if(d.signal === 'UNREADABLE'){
+    box.innerHTML = `<div style="border:1px solid var(--gold);border-radius:10px;padding:13px;text-align:center">
+      <b style="color:var(--gold);letter-spacing:1px">⚠ CHART PADHA NAHI GAYA</b>${why}
+      <p class="hint" style="margin:6px 0 0">Saaf screenshot lo — price wali line (right side) dikhni chahiye.</p></div>`;
+    return;
+  }
+  if(!d.dir){
+    box.innerHTML = `<div style="border:1px solid var(--gold);border-radius:10px;padding:13px;text-align:center">
+      <b class="shine gd" style="font-size:17px;letter-spacing:1px">⏸ WAIT</b>
+      <p class="hint" style="margin:6px 0 0">Abhi koi saaf direction nahi — PERSONAL FX ko kuch nahi jayega.</p>${why}</div>`;
+    return;
+  }
+  if(!d.sym){
+    box.innerHTML = `<div style="border:1px solid var(--dn);border-radius:10px;padding:13px">
+      <b style="color:var(--dn)">Pair "${escH(d.symbol || '?')}" app ki list me nahi</b>
+      <p class="hint" style="margin:6px 0 0">Iska live price nahi mil sakta, isliye PERSONAL FX ko nahi bhej sakte.</p>${why}</div>`;
+    return;
+  }
+  const sym = d.sym, sp = SPECS[sym];
+  if(!(d.live > 0)){
+    box.innerHTML = pfxBusy
+      ? '<p class="hint"><span class="spin"></span> Live price la raha hoon (TwelveData · 1 credit)…</p>'
+      : `<div style="border:1px solid var(--dn);border-radius:10px;padding:13px">
+          <b style="color:var(--dn)">Live price nahi mila</b>
+          <p class="hint" style="margin:6px 0 10px">${escH(d.liveErr || '')}</p>
+          <button class="btn gold sm" onclick="pfxLive()">⟳ Live price dobara · 1 credit</button></div>`;
+    return;
+  }
+  const e0 = d.userEntry > 0 ? d.userEntry : d.entry;
+  const liveLine = d.liveSrc === 'live'
+    ? `Live price <b class="mono">${fmt(sym, d.live)}</b> · TwelveData · ${t12(d.liveAt)}`
+    : `<span style="color:var(--dn)">⚠ Live price nahi mila (${escH(d.liveErr || '')}) — screenshot ka price <b class="mono">${fmt(sym, d.live)}</b> use ho raha hai</span>`;
+  const conf = Math.max(0, Math.min(100, +d.confidence || 0));
+  const kind = {NOW:'abhi ki entry', PULLBACK:'pullback entry', BREAKOUT:'breakout entry'}[d.entry_kind] || '';
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <b id="pfxHead" style="font-size:18px;letter-spacing:.5px">—</b>
+      <span class="gr" style="margin-left:auto">${sp.n} · ${conf}%</span></div>
+    <p class="hint" style="margin:0 0 10px">${escH(d.timeframe || '')}${kind ? ' · AI: ' + kind : ''} · ${liveLine}
+      ${pfxBusy ? ' <span class="spin"></span>' : ''}</p>
+    <label>Entry price</label>
+    <input class="mono" id="pfxEntry" type="number" inputmode="decimal" step="${sp.pip}" value="${fmt(sym, e0)}" oninput="pfxRecalc()" style="padding:9px;font-size:14px">
+    <p class="hint" id="pfxDist" style="margin:6px 0 0">—</p>
+    <div id="pfxWarn"></div>
+    ${why}
+    <div style="border:1px dashed var(--line);border-radius:8px;padding:9px 11px;margin:10px 0;font-size:11.5px;line-height:1.8">
+      📦 Lot: <b>PERSONAL FX ka input</b><br>
+      🎯 TP / SL: <b>PERSONAL FX grid rules</b> (app SL/TP nahi bhejti)<br>
+      ⏱ Pending ${PFX_EXP_MIN} min me na bhare to EA khud hata dega</div>
+    <div class="grid2">
+      <button class="btn gold" onclick="pfxSend()">🚀 PERSONAL FX ko bhejo</button>
+      <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
+    </div>`;
+  pfxRecalc();
 }
-function shareShot(){
-  if(!S.shot){ toast('Pehle koi chart analyze karo'); return }
-  if(S.tgTok && S.tgId) tgSend(shotText().replace(/</g,'&lt;'));
-  window.open('https://wa.me/?text=' + encodeURIComponent(shotText()), '_blank');
+
+/* entry badla -> type, doori, chetawani turant (input chhede bina) */
+function pfxRecalc(){
+  const d = S.shot; if(!d || !d.sym || !(d.live > 0)) return;
+  const sym = d.sym, sp = SPECS[sym], e = pfxEntryVal();
+  const head = $('pfxHead'), dist = $('pfxDist'), warn = $('pfxWarn');
+  if(!head) return;
+  if(!(e > 0)){ head.textContent = '—'; dist.textContent = 'Entry price daalo'; warn.innerHTML = ''; return }
+  if(Math.abs(e - d.entry) > sp.pip / 2) d.userEntry = e; else d.userEntry = null;
+  const type = pfxType(d.dir, e, d.live, sym);
+  head.textContent = `${d.dir} ${type}`;
+  head.style.color = d.dir === 'BUY' ? 'var(--up)' : 'var(--dn)';
+  const pips = (e - d.live) / sp.pip;
+  dist.innerHTML = type === 'MARKET'
+    ? `Entry live ke bilkul paas (${Math.abs(pips).toFixed(1)} pips) → <b>abhi ke price pe MARKET order</b>`
+    : `Entry live se <b class="mono">${Math.abs(pips).toFixed(1)} pips ${pips < 0 ? 'neeche' : 'upar'}</b> → <b>${d.dir} ${type}</b> lagega`;
+  const w = [];
+  const far = 40 * pfxNear(sym);
+  if(Math.abs(e - d.live) > far) w.push('Entry live price se bahut door hai — 60 min me bharne ki ummeed kam. Check karo.');
+  if(d.liveSrc === 'live' && d.current_price > 0 && Math.abs(d.current_price - d.live) > far)
+    w.push(`Screenshot ka price (${fmt(sym, d.current_price)}) aur live price me bada farak — AI ne chart galat padha ho sakta hai.`);
+  if(d.liveSrc === 'live' && Date.now() - d.liveAt > PFX_LIVE_MAX_MS)
+    w.push('Live price thoda purana hai — bhejte waqt app khud taza price le legi.');
+  warn.innerHTML = w.map(x => `<p class="hint" style="color:var(--dn);margin:6px 0 0">⚠ ${x}</p>`).join('');
 }
+
+async function pfxSend(){
+  const d = S.shot;
+  if(!d || d.v !== 10 || !d.dir || !d.sym){ toast('Pehle screenshot analyze karo'); return }
+  if(!pfxBase()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
+  const e0 = pfxEntryVal();
+  if(!(e0 > 0)){ alert('Entry price sahi nahi hai'); return }
+  d.userEntry = Math.abs(e0 - d.entry) > SPECS[d.sym].pip / 2 ? e0 : null;
+  if(Date.now() - d.at > 60 * 60000 && !confirm('Ye screenshot analysis 1 ghante se purana hai. Phir bhi bhejein?')) return;
+  if(d.liveSrc !== 'live' || Date.now() - d.liveAt > PFX_LIVE_MAX_MS){
+    toast('Taza live price le raha hoon…');
+    await pfxLive();
+  }
+  const sym = d.sym, sp = SPECS[sym], live = d.live;
+  const e = d.userEntry > 0 ? d.userEntry : d.entry;
+  if(!(live > 0)){ alert('Live price nahi hai — order nahi bheja'); return }
+  const type = pfxType(d.dir, e, live, sym);
+  const pair = sp.n, full = d.dir + type;
+  const dup = pfxLastList.find(o => o.pair === pair && (o.status === 'NEW' || o.status === 'PLACED') && Date.now() - o.at < PFX_EXP_MIN * 60000);
+  const msg = `${pair} · ${d.dir} ${type}\n` +
+    (type === 'MARKET' ? `Abhi ke price pe (live ${fmt(sym, live)})` : `Entry ${fmt(sym, e)}  (live ${fmt(sym, live)})`) +
+    `\n\nLot: PERSONAL FX ka input\nTP / SL: PERSONAL FX grid rules` +
+    (type === 'MARKET' ? '' : `\nPending ${PFX_EXP_MIN} min me na bhare to hat jayega`) +
+    (d.liveSrc !== 'live' ? '\n\n⚠ Live price nahi mila — type screenshot ke price se tay hua' : '') +
+    (dup ? `\n\n⚠ ${pair} ka ek order pehle se "${(PFX_ST[dup.status] || [dup.status])[0]}" hai (${t12(dup.at)})` : '') +
+    `\n\nPERSONAL FX ko bhejein?`;
+  if(!confirm(msg)) return;
+  const now = Date.now();
+  const body = {id: now, pair, type: full, entry: type === 'MARKET' ? 0 : +(+e).toFixed(sp.d),
+    live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW', src: 'SamuSignal ' + VERSION};
+  try{
+    const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    if(!r.ok){
+      let why = 'HTTP ' + r.status;
+      if(r.status === 401 || r.status === 403) why = 'Firebase rules ne mana kiya — write permission do';
+      throw new Error(why);
+    }
+    d.sentAt = now; save();
+    logAdd(`PERSONAL FX ko bheja: ${pair} ${d.dir} ${type}${type === 'MARKET' ? '' : ' @ ' + body.entry}`);
+    toast(`Gaya — ${pair} ${d.dir} ${type}`);
+    if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → PERSONAL FX</b>\n\n<b>${pair}</b> ${d.dir} ${type}` +
+      (type === 'MARKET' ? '' : ` <code>${body.entry}</code>`) + `\nLive <code>${body.live}</code> · lot EA input\n⏰ ${t12(now)}`, true);
+    pfxList(false); pfxStartPoll();
+  }catch(err){
+    logAdd('PERSONAL FX bhejna fail: ' + err.message);
+    alert('Order nahi gaya — ' + err.message);
+  }
+}
+
+/* ---- bheje gaye orders (EA status likhta hai) ---- */
+const PFX_ST = {
+  NEW:     ['EA ka intezaar', 'var(--gold)'],
+  PLACED:  ['MT5 pe laga', 'var(--up)'],
+  EXPIRED: [PFX_EXP_MIN + ' min — hata diya', 'var(--mut)'],
+  FAILED:  ['Fail', 'var(--dn)'],
+  SKIP:    ['Nahi lagaya', 'var(--dn)'],
+  STALE:   ['Purana — nahi lagaya', 'var(--dn)'],
+  REPLACED:['Naye order se badla', 'var(--mut)']
+};
+async function pfxList(manual){
+  const box = $('pfxListBox'); if(!box) return;
+  if(!pfxBase()){ box.innerHTML = '<p class="hint">Settings me Firebase URL daalo — wahi URL PERSONAL FX EA me bhi daalna hai.</p>'; return }
+  try{
+    const r = await fetch(pfxUrl('orders'), {cache:'no-store'});
+    if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya' : 'HTTP ' + r.status);
+    const j = (await r.json()) || {};
+    pfxLastList = Object.keys(j).map(k => Object.assign({key:k}, j[k]))
+      .filter(o => o && o.at).sort((a, b) => b.at - a.at);
+    pfxDrawList();
+    if(!pfxLastList.some(o => o.status === 'NEW')) pfxStopPoll();
+    if(manual) toast('List update ho gayi');
+  }catch(e){
+    box.innerHTML = `<p class="hint" style="color:var(--dn)">List nahi aayi — ${escH(e.message)}</p>`;
+  }
+}
+function pfxDrawList(){
+  const box = $('pfxListBox'); if(!box) return;
+  const L = pfxLastList.slice(0, 15);
+  if(!L.length){ box.innerHTML = '<p class="hint">Abhi koi order nahi bheja.</p>'; return }
+  box.innerHTML = L.map(o => {
+    const st = PFX_ST[o.status] || [o.status || '—', 'var(--mut)'];
+    const buy = /^BUY/.test(o.type || '');
+    const ty = String(o.type || '').replace(/^(BUY|SELL)/, '$1 ');
+    return `<div style="border-bottom:1px dashed var(--line);padding:8px 0;font-size:12px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <b class="mono">${escH(o.pair)}</b>
+        <b style="color:${buy ? 'var(--up)' : 'var(--dn)'}">${escH(ty)}</b>
+        <span class="mono">${o.entry ? escH(o.entry) : 'market'}</span>
+        <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(o.at)}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <b style="color:${st[1]};font-size:11px;white-space:nowrap">● ${escH(st[0])}</b>
+        <span style="color:var(--mut);font-size:11px">${escH(o.msg || '')}</span>
+        ${o.status === 'NEW' ? `<button class="btn ghost sm" style="width:auto;margin-left:auto;padding:0 10px" onclick="pfxCancel('${escH(o.key)}')">✕ Rok do</button>` : ''}
+      </div></div>`;
+  }).join('');
+}
+async function pfxCancel(key){
+  if(!confirm('Ye order EA ke padhne se pehle hata dein?\n\n(EA ne pehle hi laga diya ho to MT5 se khud hatana hoga)')) return;
+  try{
+    const r = await fetch(pfxUrl('orders/' + key), {method:'DELETE'});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    toast('Order hata diya');
+  }catch(e){ toast('Nahi hata — ' + e.message) }
+  pfxList(false);
+}
+async function pfxCleanup(){
+  const done = pfxLastList.filter(o => o.status && o.status !== 'NEW');
+  if(!done.length){ toast('Hatane layak koi order nahi'); return }
+  if(!confirm(`${done.length} ho chuke order list se hata dein?\n\n(MT5 ke trades pe koi asar nahi)`)) return;
+  let ok = 0;
+  for(const o of done){
+    try{ const r = await fetch(pfxUrl('orders/' + o.key), {method:'DELETE'}); if(r.ok) ok++ }catch(e){}
+  }
+  toast(`${ok} order list se hataye`);
+  pfxList(false);
+}
+/* bhejne ke baad 2 min tak har 4 sec status dekho (sirf jab Chart page khula ho) */
+function pfxStartPoll(){
+  pfxPollUntil = Date.now() + 120000;
+  if(pfxPoll) return;
+  pfxPoll = setInterval(() => {
+    if(Date.now() > pfxPollUntil || $('pgChart').classList.contains('hide')){ pfxStopPoll(); return }
+    pfxList(false);
+  }, 4000);
+}
+function pfxStopPoll(){ if(pfxPoll){ clearInterval(pfxPoll); pfxPoll = null } }
 
 /* ================= LIVE TRACKING (ek pair, uploaded chart wala) =================
    Har check pe 1 API credit lagta hai aur ye sirf app khuli hone par chalta hai.
