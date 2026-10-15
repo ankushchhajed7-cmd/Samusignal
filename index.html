@@ -206,7 +206,10 @@ input:focus,select:focus{border-color:var(--gold)}
 }
 #cpPair{border:2px solid rgba(22,226,126,.95) !important;animation:cpGlow 2.4s ease-in-out infinite}
 #cpPair.cpBusy{animation:cpBusy .55s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){#cpPair,#cpPair.cpBusy{animation:none}}
+/* v10.4.5: AUTO ANALYZE button bhi wahi hara chamak / chalte waqt tez blink */
+#autoBtn{border:2px solid rgba(22,226,126,.95) !important;color:#16E27E !important;background:rgba(22,226,126,.08) !important;animation:cpGlow 2.4s ease-in-out infinite}
+#autoBtn.cpBusy{animation:cpBusy .55s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){#cpPair,#cpPair.cpBusy,#autoBtn,#autoBtn.cpBusy{animation:none}}
 .saGood{display:inline-block;background:rgba(22,226,126,.18);color:#16E27E !important;font-weight:800;
   border:1px solid rgba(22,226,126,.6);border-radius:5px;padding:1px 7px;margin-top:3px}
 .sig-l{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:3px}
@@ -2157,7 +2160,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.4.4';
+const VERSION = '10.4.5';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9661,7 +9664,7 @@ async function autoAnalyze(){
   if(!S.gKey){ toast('Settings me Gemini API key daalo'); openSheet('setSheet'); return }
   if(!S.key){ toast('Settings me TwelveData key daalo'); openSheet('setSheet'); return }
   const btn = $('autoBtn'), box = $('shotBox');
-  mtfBusy = true; cpPairBusy(true);
+  mtfBusy = true; cpPairBusy(true); if($('autoBtn')) $('autoBtn').classList.add('cpBusy');
   if(btn){ btn.disabled = true; btn.textContent = '⏳ CHAL RAHA…' }
   S.shot = null; save(); pfxRender();
   try{ box.closest('.card').scrollIntoView({behavior:'smooth', block:'start'}) }catch(e){}
@@ -9751,7 +9754,7 @@ async function autoAnalyze(){
       <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${escH(err.message || 'pata nahi')}</p></div>`;
     pfxRender();
   }finally{
-    mtfBusy = false; cpPairBusy(false);
+    mtfBusy = false; cpPairBusy(false); if($('autoBtn')) $('autoBtn').classList.remove('cpBusy');
     if(btn){ btn.disabled = false; btn.textContent = '📸 AUTO ANALYZE' }
   }
 }

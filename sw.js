@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.4.5 — AUTO ANALYZE button bhi hara chamak, chalte waqt tez blink
    v10.4.4 — Chart Analysis pair box ka chamak / blink ab hara (green)
    v10.4.3 — Chart Analysis pair box hamesha halka gold chamakta hai, AUTO ANALYZE / screenshot analysis ke waqt tez blink
    v10.4.2 — Journal lock: +$1 pe SL +$0.50, phir har 10 cent aage (profit se $0.50 peeche) — FXBridge v3.60 / EA v1.11 / PERSONAL FX v6.0 jaisa; Gold ke alag number (abhi same)
@@ -70,7 +71,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.4.4';
+const VERSION = '10.4.5';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
