@@ -26,6 +26,8 @@
 //|  v1.04: Profit lock - profit $2 pahunche to SL +$1 par (kam se kam |
 //|     $1 book). Trailing $ me: $3 ke baad SL price se $2 peeche.     |
 //|     (+$1 -> +$2 -> ... -> TP $5). Breakeven ab $1.5 pe.            |
+//|  v1.11: Lock - +$1 profit (0.01 lot) pe SL +$0.50, phir har 10    |
+//|     cent aage (profit se $0.50 peeche). Gold ke alag input.       |
 //|  v1.10: Lock seedhi - har pura $1 profit (0.01 lot) ka 75% pakka:  |
 //|     +$1 -> +$0.75, +$2 -> +$1.50 ... (InpStepUsd / InpKeepPct).   |
 //|     SL/TP niyam wahi (A+, SL $2.5 tak).                          |
@@ -56,7 +58,7 @@
 //|  khud dekhta hai. MT5 me "Algo Trading" ON hona chahiye.           |
 //+------------------------------------------------------------------+
 #property copyright "SamuSignal"
-#property version   "1.10"
+#property version   "1.11"
 #property description "SamuSignal app ka signal logic - 28 pairs, 5 group, auto trade (demo test)"
 
 #include <Trade\Trade.mqh>
@@ -130,8 +132,12 @@ input bool   InpProfitLock    = true;    // Profit lock ON/OFF (kam se kam $ boo
 input double InpLockAtPct     = 65;      // TP ka itna % chale to...
 input double InpLockPct       = 25;      // ...SL TP ke itne % profit par
 input double InpMinLockUsd    = 0.75;    // Lock kam se kam itne $ ka (jahan TP itna bada ho)
-input double InpStepUsd       = 1.00;    // v1.10: har itne $ profit (0.01 lot) pe...
-input double InpKeepPct       = 75;      // ...uska itna % pakka: +$1 -> +$0.75, +$2 -> +$1.50 ... (0 = band)
+input double InpTrailStartUsd = 1.00;    // v1.11: itna $ profit (0.01 lot) pe lock shuru...
+input double InpTrailGapUsd   = 0.50;    // ...SL profit se itne $ peeche: +$1 -> +$0.50, +$1.10 -> +$0.60 ... (0 = band)
+input double InpTrailStepUsd  = 0.10;    // ...har itne $ pe SL aage
+input double InpGoldStartUsd  = 1.00;    // Gold (XAU) ke liye alag - shuru
+input double InpGoldGapUsd    = 0.50;    // Gold - peeche $
+input double InpGoldStepUsd   = 0.10;    // Gold - step $
 input bool   InpTrailing      = true;    // Trailing ON/OFF
 input double InpTrailStartPct = 75;      // TP ka itna % ke baad trailing shuru
 input double InpTrailDistPct  = 40;      // SL price se TP ke itne % peeche chale
@@ -1733,7 +1739,9 @@ void ManagePositions()
       double lockD = MathMax(InpLockPct / 100.0 * T, MathMin(InpMinLockUsd * U, 0.5 * T));
       double lockAtD = MathMax(InpLockAtPct / 100.0 * T, lockD + 0.2 * T);
       double trStD = InpTrailStartPct / 100.0 * T, trDD = InpTrailDistPct / 100.0 * T;
-      bool   fixOn = InpProfitLock && InpKeepPct > 0 && InpKeepPct < 100 && InpStepUsd > 0;   // v1.10: har pura $1 ka 75% pakka
+      bool   au = (StringFind(sym, "XAU") == 0 || StringFind(sym, "GOLD") >= 0);   // v1.11: +$1 pe +$0.50, har 10 cent aage
+      double tS = au ? InpGoldStartUsd : InpTrailStartUsd, tG = au ? InpGoldGapUsd : InpTrailGapUsd, tP = au ? InpGoldStepUsd : InpTrailStepUsd;
+      bool   fixOn = InpProfitLock && tG > 0 && tP > 0;
       int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       double point = SymbolInfoDouble(sym, SYMBOL_POINT);
       double lvl = (double)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
@@ -1749,10 +1757,10 @@ void ManagePositions()
             double lk = open + lockD;
             if(newSl == 0 || lk > newSl) newSl = lk;
          }
-         double stB = fixOn && gain > 0 ? MathFloor(gain / U / InpStepUsd + 1e-6) : 0;
-         if(stB >= 1)
+         double lkB = (fixOn && gain / U >= tS - 1e-6) ? MathFloor(gain / U / tP + 1e-6) * tP - tG : 0;
+         if(lkB > 0)
          {
-            double fk = open + InpKeepPct / 100.0 * stB * InpStepUsd * U;
+            double fk = open + lkB * U;
             if(newSl == 0 || fk > newSl) newSl = fk;
          }
          if(InpTrailing && gain >= trStD)
@@ -1777,10 +1785,10 @@ void ManagePositions()
             double lk = open - lockD;
             if(newSl == 0 || lk < newSl) newSl = lk;
          }
-         double stS = fixOn && gain > 0 ? MathFloor(gain / U / InpStepUsd + 1e-6) : 0;
-         if(stS >= 1)
+         double lkS = (fixOn && gain / U >= tS - 1e-6) ? MathFloor(gain / U / tP + 1e-6) * tP - tG : 0;
+         if(lkS > 0)
          {
-            double fk = open - InpKeepPct / 100.0 * stS * InpStepUsd * U;
+            double fk = open - lkS * U;
             if(newSl == 0 || fk < newSl) newSl = fk;
          }
          if(InpTrailing && gain >= trStD)
@@ -1859,7 +1867,7 @@ void DrawPanel()
       if(t != 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic) pend++;
    }
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   string s = StringFormat("SamuSignal EA v1.10 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
+   string s = StringFormat("SamuSignal EA v1.11 | %s | trading %s | %02d-%02d IST %s | IST %s\n",
                            demo ? "DEMO" : "REAL", InpEnableTrading ? "ON" : "OFF",
                            InpStartHourIST, InpEndHourIST, InTradeTime() ? "(chalu)" : "(band)", IstHM());
    s += StringFormat("Mkt %s Lim %s Stp %s | confirm %s | spread %s | news %s | BE %s lock %s trail %s | khule %d pending %d\n",
@@ -1924,7 +1932,7 @@ int OnInit()
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(20);
    bool demo = AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO;
-   Print("=== SamuSignal EA v1.10 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
+   Print("=== SamuSignal EA v1.11 chalu - ", m, " pairs, 5 group | ", demo ? "DEMO" : "REAL",
          " | trading ", InpEnableTrading ? "ON" : "OFF", " | confirm ", InpMicroConfirm ? "ON" : "OFF", " ===");
    if(!demo && !InpAllowReal) Print("[SSEA] REAL account hai - InpAllowReal=false, isliye sirf hisaab/log, trade nahi");
    EventSetTimer(1);
