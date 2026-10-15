@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.4.3 — Chart Analysis pair box hamesha halka gold chamakta hai, AUTO ANALYZE / screenshot analysis ke waqt tez blink
    v10.4.2 — Journal lock: +$1 pe SL +$0.50, phir har 10 cent aage (profit se $0.50 peeche) — FXBridge v3.60 / EA v1.11 / PERSONAL FX v6.0 jaisa; Gold ke alag number (abhi same)
    v10.4.1 — AUTO ANALYZE kam sakht: AI confidence ab "setup quality" (85+ textbook, 70-84 achha, 55-69 average) — pehle "+TP pehle aane ka chance" tha jo $3/$5 me khud hi ~62% hota hai, isliye 70% ki seema kabhi paar nahi hoti thi. Min 65 (naya default), ek order ke liye 10 kam chalega
    v10.4.0 — AUTO ANALYZE ab 4 timeframe (1H · 15m · 5m · 1m): pehle app ka pakka filter (UPTREND / DOWNTREND / RANGE / NO TRADE), phir AI 2 order level (trend: Limit + Stop usi taraf, range: Buy Limit + Sell Limit), app ki jaanch (side, 60 min, TP ke raaste me deewar, chase, confidence), dono ek batch me PERSONAL FX ko (v5.9 jo pehle bhare baaki cancel) · AI Report Card (1m candles se +TP pehle ya averaging)
@@ -68,7 +69,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.4.2';
+const VERSION = '10.4.3';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
