@@ -96,7 +96,15 @@ const PIECES = [
   ['P_UP',          /const P_UP = [^\n]+/],
   ['P_DN',          /const P_DN = [^\n]+/],
   ['P_HI',          /const P_HI = [^\n]+/],
-  ['paint',         /function paint\(t\)\{[\s\S]*?\n\}/]
+  ['paint',         /function paint\(t\)\{[\s\S]*?\n\}/],
+  ['MTF_ADX_RANGE', /const MTF_ADX_RANGE = [^\n]+/],
+  ['MTF_ADX_TREND', /const MTF_ADX_TREND = [^\n]+/],
+  ['mtfRead',       /function mtfRead\([\s\S]*?\n\}/],
+  ['mtfGate',       /function mtfGate\([\s\S]*?\n\}/],
+  ['mtfLegs',       /function mtfLegs\([\s\S]*?\n\}/],
+  ['mtfLegCheck',   /function mtfLegCheck\([\s\S]*?\n\}/],
+  ['mtfTime',       /function mtfTime\([\s\S]*?\n\}/],
+  ['mtfSim',        /function mtfSim\([\s\S]*?\n\}/]
 ];
 
 let html;
@@ -154,7 +162,8 @@ const EXPORTS = [
   'AGENTS','runAgents','analyse','finalCall','structCorr','pearson',
   'jsonRescue','P_UP','P_DN','P_HI','paint','hasOwnDef','getPrice','entryZone',
   'AGENT_N','RC_KEEP','RC_MIN','rcStat','rcTier','rcApply','rcScore','rcMirror','rcMirrorCheck',
-  'btDefCost','btCost','btIstMin','btRollover','btDayKey','btTrade','btPl','btMetrics'
+  'btDefCost','btCost','btIstMin','btRollover','btDayKey','btTrade','btPl','btMetrics',
+  'MTF_ADX_RANGE','MTF_ADX_TREND','mtfRead','mtfGate','mtfLegs','mtfLegCheck','mtfTime','mtfSim'
 ];
 try {
   const glue = EXPORTS.map(n =>
@@ -745,6 +754,53 @@ globalThis.td = async () => { throw new Error('network down') };
   eq('metrics: max DD % (110 peak se)', mm.maxDDp, 15/110*100, 1e-6);
   eq('metrics: TIME exits gine', mm.tm, 1);
   eq('metrics: koi trade nahi -> sab 0', btMetrics([], 500).n, 0);
+
+  /* ============ T. 4-TF Auto Analyze (v10.4.0) ============ */
+  G('T. 4-TF Auto Analyze (v10.4.0)');
+  const upB = gen(120, 0.0006, 0.002, 11, 4100), dnB = gen(120, -0.0006, 0.002, 12, 4100);
+  eq('mtfRead: chadhta market = UP', mtfRead(upB).t, 'UP');
+  eq('mtfRead: girta market = DOWN', mtfRead(dnB).t, 'DOWN');
+  const chop = gen(120, 0, 0.002, 13, 4100);
+  ok('mtfRead: bina disha ka market = trend nahi (ADX kam)', mtfRead(chop).t === 'FLAT' || mtfRead(chop).adx >= MTF_ADX_TREND, JSON.stringify({t: mtfRead(chop).t, adx: mtfRead(chop).adx}));
+  const rd = (t, a) => ({t, adx: a === undefined ? 30 : a, hi: 4110, lo: 4100});
+  eq('gate: 15m UP + 1H UP = UP', mtfGate({'1h':rd('UP'), '15min':rd('UP')}, 3).mode, 'UP');
+  eq('gate: 15m UP + 1H FLAT = UP', mtfGate({'1h':rd('FLAT'), '15min':rd('UP')}, 3).mode, 'UP');
+  eq('gate: 15m UP + 1H DOWN = NONE (ulte)', mtfGate({'1h':rd('DOWN'), '15min':rd('UP')}, 3).mode, 'NONE');
+  eq('gate: 15m FLAT + 1H DOWN = DOWN', mtfGate({'1h':rd('DOWN'), '15min':rd('FLAT')}, 3).mode, 'DOWN');
+  eq('gate: dono FLAT + ADX kam + chaudi range = RANGE', mtfGate({'1h':rd('FLAT'), '15min':rd('FLAT', 15)}, 3).mode, 'RANGE');
+  eq('gate: dono FLAT + range patli = NONE', mtfGate({'1h':rd('FLAT'), '15min':rd('FLAT', 15)}, 6).mode, 'NONE');
+  eq('gate: dono FLAT + ADX zyada = NONE', mtfGate({'1h':rd('FLAT'), '15min':rd('FLAT', 30)}, 3).mode, 'NONE');
+  ok('legs: UP = BUY LIMIT neeche + BUY STOP upar', JSON.stringify(mtfLegs('UP').map(L => L.dir + L.kind + L.side)) === '["BUYLIMIT-1","BUYSTOP1"]');
+  ok('legs: RANGE = BUY LIMIT neeche + SELL LIMIT upar', JSON.stringify(mtfLegs('RANGE').map(L => L.dir + L.kind + L.side)) === '["BUYLIMIT-1","SELLLIMIT1"]');
+  eq('legs: NONE = koi order nahi', mtfLegs('NONE').length, 0);
+  const cx = {live: 4100, minD: 0.5, maxD: 10, tp: 3, hi: 4106, lo: 4092, chase: false, minConf: 70};
+  const LG = (o) => Object.assign({dir:'BUY', kind:'LIMIT', side:-1, conf:80}, o);
+  ok('check: sahi Buy Limit paas', mtfLegCheck(LG({entry: 4097}), cx).ok);
+  ok('check: Buy Limit live ke upar = fail', !mtfLegCheck(LG({entry: 4101}), cx).ok);
+  ok('check: bahut paas = fail', !mtfLegCheck(LG({entry: 4099.8}), cx).ok);
+  ok('check: bahut door = fail', !mtfLegCheck(LG({entry: 4085}), cx).ok);
+  ok('check: kam confidence = fail', !mtfLegCheck(LG({entry: 4097, conf: 60}), cx).ok);
+  ok('check: TP ke raaste me resistance = fail', !mtfLegCheck(LG({entry: 4104, side: 1, kind:'STOP'}), Object.assign({}, cx, {live: 4103})).ok);
+  ok('check: Buy Stop resistance ke upar = paas', mtfLegCheck(LG({entry: 4107, side: 1, kind:'STOP'}), Object.assign({}, cx, {live: 4103})).ok);
+  ok('check: trend me (hi=0) paas ka high deewar nahi', mtfLegCheck(LG({entry: 4104, side: 1, kind:'STOP'}), Object.assign({}, cx, {live: 4103, hi: 0})).ok);
+  ok('check: chase me Stop = fail', !mtfLegCheck(LG({entry: 4107, side: 1, kind:'STOP'}), Object.assign({}, cx, {live: 4103, chase: true})).ok);
+  ok('check: AI ne 0 diya = fail', !mtfLegCheck(LG({entry: 0}), cx).ok);
+  eq('time: IST string -> ms', mtfTime('2026-10-15 20:41:00'), Date.UTC(2026, 9, 15, 15, 11, 0));
+  const t0 = Date.UTC(2026, 9, 15, 15, 0, 0);
+  const ist = ms => { const d = new Date(ms + 5.5 * 3600000); return d.toISOString().slice(0, 19).replace('T', ' ') };
+  const mk = rows => rows.map((r, i) => ({t: ist(t0 + i * 60000), o: r[0], h: r[1], l: r[2], c: r[3]}));
+  const rec = {at: t0, tp: 3, gap: 5, legs: [{dir:'BUY', kind:'LIMIT', entry: 4097}, {dir:'BUY', kind:'STOP', entry: 4104}]};
+  const win = mtfSim(rec, mk([[4100,4100.5,4099,4099.5],[4099.5,4099.6,4096.8,4097.2],[4097.2,4099,4097,4098.9],[4099,4100.3,4098.5,4100.2]]));
+  ok('sim: Buy Limit bhara, phir +3 = WIN', win.r === 'WIN' && win.leg === 0, JSON.stringify(win));
+  const avg = mtfSim(rec, mk([[4100,4100.5,4099,4099.5],[4099.5,4099.6,4096.8,4097.2],[4097.2,4097.5,4091.5,4092]]));
+  ok('sim: Buy Limit bhara, phir -5 = AVG', avg.r === 'AVG' && avg.leg === 0, JSON.stringify(avg));
+  const stp = mtfSim(rec, mk([[4100,4104.5,4099.8,4104.2],[4104.2,4107.2,4104,4107]]));
+  ok('sim: Buy Stop pehle bhara (leg 2) = WIN', stp.r === 'WIN' && stp.leg === 1, JSON.stringify(stp));
+  const bth = mtfSim(rec, mk([[4100,4100.5,4099,4099.5],[4099.5,4099.6,4096.8,4097.2],[4097.2,4100.5,4091.9,4098]]));
+  ok('sim: ek candle me +TP aur -gap dono = AVG (imaandaar)', bth.r === 'AVG', JSON.stringify(bth));
+  const nf = mtfSim(rec, mk(Array.from({length: 62}, () => [4100,4100.4,4099.6,4100])));
+  eq('sim: 60 min me na bhara = NOFILL', nf.r, 'NOFILL');
+  eq('sim: abhi data kam = OPEN', mtfSim(rec, mk([[4100,4100.4,4099.6,4100]])).r, 'OPEN');
 
   report();
 })();

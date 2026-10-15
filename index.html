@@ -1429,7 +1429,7 @@ body.ds-gold .brand .brandWord{height:24px}
       <span class="sp mono" id="cpSym" style="margin-left:auto"></span>
     </div>
     <button class="pick" id="cpPair" style="margin-top:10px" onclick="openPick('main')"></button>
-    <p class="hint" style="margin:8px 0 0"><b style="color:var(--gold)">📸 AUTO ANALYZE</b> dabao (screenshot ki zaroorat nahi) — ya khud ka screenshot daalo. AI us waqt ki sabse sahi <b>ek</b> direction batayega, live price se order type tay hoga, aur order sirf <b style="color:var(--gold)">PERSONAL FX</b> EA ko jayega.</p>
+    <p class="hint" style="margin:8px 0 0"><b style="color:var(--gold)">📸 AUTO ANALYZE</b> dabao — app <b>1H · 15m · 5m · 1m</b> chaaron dekhti hai (4 credits). Trend saaf ho to trend ki taraf <b>Limit + Stop</b>, range ho to <b>Buy Limit + Sell Limit</b>, warna <b>NO TRADE</b>. Jo order pehle bhare, <b style="color:var(--gold)">PERSONAL FX</b> baaki cancel karta hai. Screenshot wala tareeka pehle jaisa (ek direction).</p>
   </div>
   <div class="card">
     <p class="ttl">Live Chart <button id="autoBtn" onclick="autoAnalyze()" style="margin-left:8px;padding:5px 9px;border:1px solid var(--gold);border-radius:8px;color:var(--gold);font-size:10.5px;font-weight:800;letter-spacing:.8px;background:rgba(214,180,106,.08);white-space:nowrap">📸 AUTO ANALYZE</button> <span class="sp" id="chartSym">—</span></p>
@@ -1456,6 +1456,11 @@ body.ds-gold .brand .brandWord{height:24px}
     <div id="pfxListBox"><p class="hint">—</p></div>
     <button class="btn ghost sm" style="margin-top:10px" onclick="pfxCleanup()">🗑 Ho chuke orders list se hatao</button>
     <p class="hint" style="margin-top:8px">Status PERSONAL FX EA khud likhta hai: <b style="color:var(--gold)">EA ka intezaar</b> → <b style="color:var(--up)">MT5 pe laga</b>. EA me yahi Firebase URL daalna hai aur MT5 me WebRequest allow karna hai.</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">4 · AI Report Card <span class="sp">4-TF faislon ka nateeja</span></p>
+    <div id="mtfRcBox"><p class="hint">—</p></div>
   </div>
 
   <!-- v9.9.49: purane hisse (levels, range details, EMA, style) chhupe — hisaab inhi se chalta hai (EMA plan ko canvas ka size chahiye, isliye display:none nahi) -->
@@ -1893,6 +1898,14 @@ body.ds-gold .brand .brandWord{height:24px}
   <p class="hint" style="margin-bottom:16px">Free key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>
     <span id="gModelNote"></span></p>
 
+  <p class="ttl">Auto Analyze · 4 timeframe</p>
+  <div class="grid2" style="margin-bottom:8px">
+    <div><label>Min confidence %</label><input id="setMtfConf" type="number" inputmode="numeric" min="50" max="95"></div>
+    <div><label>PERSONAL FX TP $</label><input id="setPfxTp" type="number" inputmode="decimal" step="0.5"></div>
+  </div>
+  <div style="margin-bottom:6px"><label>PERSONAL FX grid gap $</label><input id="setPfxGap" type="number" inputmode="decimal" step="0.5"></div>
+  <p class="hint" style="margin-bottom:16px">TP aur gap = PERSONAL FX ke <b>Grid_TP_Dollar</b> aur <b>Grid_Gap_Usd</b> jaise hi (per 0.01 lot, default 3 aur 5). AI inhi ke hisaab se level chunta hai.</p>
+
   <p class="ttl">MT5 Bridge</p>
   <div class="sw" id="swMetaOn" onclick="toggleMetaOn(this)">
     <div class="tg"></div>
@@ -2132,7 +2145,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.3.0';
+const VERSION = '10.4.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -2376,6 +2389,10 @@ let S = {
   px:    LS.get('px',{}),
   style: LS.get('style','DAY'),        /* SCALP | DAY | SWING */
   shot:  LS.get('shot',null),          /* last chart analysis */
+  mtfLog: LS.get('mtfLog',[]),        /* v10.4.0 AI Report Card — 4-TF faisle + nateeja */
+  mtfConf: LS.get('mtfConf',70),      /* v10.4.0 isse kam AI confidence = NO TRADE */
+  pfxTp:  LS.get('pfxTp',3),          /* v10.4.0 PERSONAL FX Grid_TP_Dollar ($ / 0.01 lot) */
+  pfxGap: LS.get('pfxGap',5),         /* v10.4.0 PERSONAL FX Grid_Gap_Usd ($ / 0.01 lot) */
   track: LS.get('track',null),         /* jo setup track ho raha hai */
   trackMin: LS.get('trackMin',5),      /* kitne minute pe price check */
   trackAuto: LS.get('trackAuto',false), /* entry zone pe khud MT5 order */
@@ -2383,7 +2400,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','agRC','btSp','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog','pfLoss','pfCool','pfMax','mt5Day'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','agRC','btSp','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','mtfLog','mtfConf','pfxTp','pfxGap','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog','pfLoss','pfCool','pfMax','mt5Day'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.9.24: purani cached news list ka text bhi ek baar escape karo */
@@ -7388,6 +7405,7 @@ function chartPageShow(){
   requestAnimationFrame(() => {
     try{ renderShot() }catch(e){}
     try{ pfxRender() }catch(e){}
+    try{ mtfRcRender() }catch(e){}
     pfxList(false);
   });
 }
@@ -8881,6 +8899,9 @@ function saveSettings(){
   S.atrSL = Math.max(0.1, +$('setAtrSL').value || 1.5);
   S.atrRR = Math.max(0.1, +$('setAtrRR').value || 2);
   S.riskUsd = Math.max(0.1, +$('setRisk').value || 1.75);
+  S.mtfConf = Math.max(50, Math.min(95, Math.round(+$('setMtfConf').value || 70)));
+  S.pfxTp  = Math.max(0.1, +$('setPfxTp').value || 3);
+  S.pfxGap = Math.max(0.1, +$('setPfxGap').value || 5);
   const oldG = S.gKey;
   S.gKey = $('setGKey').value.trim();
   if(S.gKey !== oldG){ S.gModel = ''; }
@@ -9244,6 +9265,7 @@ function pfxMarketOk(d){
 /* AI ki entry live ke bilkul paas ho par market ki shart poori na ho ->
    entry thoda door: PULLBACK/NOW = limit wali taraf, BREAKOUT = stop wali taraf */
 function pfxShape(d){
+  if(d && d.mtf) return;                    /* v10.4.0: 4-TF ke levels app khud jaanch chuki */
   if(!d || d.shaped || !d.dir || !d.sym || !(d.live > 0) || !(d.entry > 0)) return;
   d.shaped = true;
   if(pfxMarketOk(d)) return;
@@ -9379,118 +9401,324 @@ async function shotAnalyze(f){
   }
 }
 
-/* ================= v10.1.0 — 📸 AUTO ANALYZE =================
-   Phone ka screenshot lene ki zaroorat nahi: button dabao → app usi pair +
-   timeframe ki live candles TwelveData se laati hai (1 credit) → khud chart
-   ki image banati hai (candles + EMA 21/50 + price scale) → image ke saath
-   asli OHLC numbers bhi AI ko jaate hain → result seedha PERSONAL FX card me.
-   Aakhri candle ka close hi live price maana jaata hai (alag credit nahi). */
-let autoBusy = false;
+/* ================= v10.4.0 — 🧭 4-TIMEFRAME AUTO ANALYZE =================
+   Button dabao → 1H + 15m + 5m + 1m ki live candles (4 credits) →
+   PEHLE app ka apna pakka hisaab (AI nahi): mode tay hota hai
+     UPTREND   : BUY LIMIT (neeche pullback) + BUY STOP (upar breakout)
+     DOWNTREND : SELL LIMIT (upar pullback)  + SELL STOP (neeche breakdown)
+     RANGE     : BUY LIMIT (support)          + SELL LIMIT (resistance)
+     ulta / gadbad = NO TRADE (Gemini ko call hi nahi — quota bachta hai)
+   Phir Gemini sirf us mode ke 2 level chunta hai, aur app un dono ko dobara
+   jaanchti hai (sahi side, 60 min me pahunch, TP ke raaste me deewar, chase,
+   confidence). Dono order ek "batch" me jaate hain — jo pehle bhare, PERSONAL
+   FX v5.9 baaki ko cancel kar deta hai. Lot / SL / TP / averaging = PERSONAL FX
+   ke apne niyam — app sirf direction + entry bhejti hai. */
+const MTF_TFS = [
+  {id:'1h',    l:'1H',  n:120, show:60, role:'trend filter'},
+  {id:'15min', l:'15m', n:120, show:60, role:'trend'},
+  {id:'5min',  l:'5m',  n:120, show:72, role:'entry level'},
+  {id:'1min',  l:'1m',  n:120, show:72, role:'timing'}
+];
+const MTF_ADX_RANGE = 22;      /* 15m ADX isse kam + 1H flat = range */
+const MTF_ADX_TREND = 18;      /* isse kam ADX = trend kamzor, FLAT maano (chop me trend ka dhokha) */
+const MTF_CONF_DEF = 70;       /* isse kam confidence = NO TRADE */
+let mtfBusy = false;
 
-function autoDraw(sym, tfL, all){
-  const W = 1000, H = 620, pL = 12, pR = 118, pT = 58, pB = 34;
+/* ek timeframe ka pakka hisaab: trend UP / DOWN / FLAT
+   UP = price > EMA21 > EMA50, EMA21 upar ja rahi, aur ADX >= 18 (DOWN ulta) */
+function mtfRead(bars){
+  const c = bars.map(b => b.c), n = c.length;
+  const e21 = ema(c, 21), e50 = ema(c, 50), A = atr(bars, 14);
+  const p = c[n - 1], a = A[n - 1] || 0;
+  const slope = n > 6 ? e21[n - 1] - e21[n - 6] : 0;
+  const ax = n > 30 ? (adx(bars, 14).adx || 0) : 0;
+  const strong = n <= 30 || ax >= MTF_ADX_TREND;
+  let t = 'FLAT';
+  if(strong && p > e21[n - 1] && e21[n - 1] > e50[n - 1] && slope > 0) t = 'UP';
+  else if(strong && p < e21[n - 1] && e21[n - 1] < e50[n - 1] && slope < 0) t = 'DOWN';
+  return {t, p, e21: e21[n - 1], e50: e50[n - 1], atr: a, adx: ax,
+    hi: hh(bars, 32), lo: ll(bars, 32), hi24: hh(bars, 24), lo24: ll(bars, 24)};
+}
+
+/* mode: 15m trend chahiye, 1H khilaaf na ho. Dono flat + 15m ADX kam = RANGE */
+function mtfGate(R, tpDist){
+  const h = R['1h'].t, m = R['15min'].t, r15 = R['15min'];
+  const ar = x => x === 'UP' ? '↑' : x === 'DOWN' ? '↓' : '→';
+  if(m !== 'FLAT' && h !== 'FLAT' && m !== h)
+    return {mode:'NONE', why:`15m ${ar(m)} aur 1H ${ar(h)} ulte chal rahe hain — aise me trade nahi`};
+  if(m === 'UP' || (m === 'FLAT' && h === 'UP'))
+    return {mode:'UP', why: m === 'UP' ? `15m uptrend, 1H ${h === 'UP' ? 'bhi upar' : 'khilaaf nahi'}` : '1H uptrend, 15m ruka hua (rest) — upar ki taraf'};
+  if(m === 'DOWN' || (m === 'FLAT' && h === 'DOWN'))
+    return {mode:'DOWN', why: m === 'DOWN' ? `15m downtrend, 1H ${h === 'DOWN' ? 'bhi neeche' : 'khilaaf nahi'}` : '1H downtrend, 15m ruka hua (rest) — neeche ki taraf'};
+  const width = r15.hi - r15.lo;
+  if(r15.adx < MTF_ADX_RANGE && width >= 2 * tpDist)
+    return {mode:'RANGE', why:`1H aur 15m dono flat, 15m ADX ${r15.adx.toFixed(0)} — range chal rahi hai`};
+  return {mode:'NONE', why: r15.adx >= MTF_ADX_RANGE
+    ? `Trend saaf nahi aur range bhi nahi (15m ADX ${r15.adx.toFixed(0)}) — gadbad market`
+    : 'Range bahut patli hai — TP tak jagah nahi'};
+}
+
+/* har mode ke 2 order. side -1 = entry live se neeche, +1 = upar */
+function mtfLegs(mode){
+  if(mode === 'UP')    return [{dir:'BUY',  kind:'LIMIT', side:-1}, {dir:'BUY',  kind:'STOP', side:1}];
+  if(mode === 'DOWN')  return [{dir:'SELL', kind:'LIMIT', side:1},  {dir:'SELL', kind:'STOP', side:-1}];
+  if(mode === 'RANGE') return [{dir:'BUY',  kind:'LIMIT', side:-1}, {dir:'SELL', kind:'LIMIT', side:1}];
+  return [];
+}
+
+/* ek order (leg) ki jaanch — pakka ganit, AI nahi.
+   c = {live, minD, maxD, tp, hi, lo, chase, minConf}
+   hi/lo = range ki chhat/farsh (sirf RANGE me; trend me 0 — wahan naya high banna hi trend hai) */
+function mtfLegCheck(leg, c){
+  const e = +leg.entry, buy = leg.dir === 'BUY';
+  if(!(e > 0)) return {ok:false, why:'AI ko achha level nahi mila'};
+  const d = (e - c.live) * leg.side;
+  if(d <= 0) return {ok:false, why: leg.side < 0 ? 'Entry live price se neeche honi chahiye thi' : 'Entry live price se upar honi chahiye thi'};
+  if(d < c.minD) return {ok:false, why:'Entry live price ke bahut paas — turant bhar jayega, pending ka matlab nahi'};
+  if(d > c.maxD) return {ok:false, why:'Entry bahut door — 60 min me pahunchne ki ummeed kam'};
+  if(leg.kind === 'STOP' && c.chase) return {ok:false, why:'Pichhli candles me bada jhatka — breakout ke peeche nahi bhaagte'};
+  if((+leg.conf || 0) < c.minConf) return {ok:false, why:`AI confidence ${+leg.conf || 0}% — ${c.minConf}% se kam`};
+  /* TP ke raaste me deewar: BUY ke upar resistance, SELL ke neeche support */
+  if(buy && c.hi > 0 && e < c.hi && c.hi - e < c.tp) return {ok:false, why:'TP ke raaste me paas hi resistance hai — jagah kam'};
+  if(!buy && c.lo > 0 && e > c.lo && e - c.lo < c.tp) return {ok:false, why:'TP ke raaste me paas hi support hai — jagah kam'};
+  return {ok:true, why:''};
+}
+
+/* TwelveData ka time (IST) -> ms */
+function mtfTime(t){
+  return Date.parse(String(t).replace(' ', 'T') + (String(t).length <= 10 ? 'T00:00:00' : '') + '+05:30');
+}
+
+/* Report Card: 1m candles se dekho — kaun sa order bhara, phir +TP pehle aaya ya −gap.
+   Ek hi candle me dono = AVG maana (imaandaar, apne fayde ka andaaza nahi). */
+function mtfSim(rec, bars){
+  const W = 60 * 60000;
+  const B = bars.map(b => Object.assign({ms: mtfTime(b.t)}, b)).filter(b => b.ms >= rec.at);
+  if(!B.length) return {r:'OPEN'};
+  const hit = (L, b) => L.dir === 'BUY'
+    ? (L.kind === 'LIMIT' ? b.l <= L.entry : b.h >= L.entry)
+    : (L.kind === 'LIMIT' ? b.h >= L.entry : b.l <= L.entry);
+  let fi = -1, leg = -1;
+  for(let i = 0; i < B.length && B[i].ms < rec.at + W; i++){
+    const got = rec.legs.map((L, k) => hit(L, B[i]) ? k : -1).filter(k => k >= 0);
+    if(got.length){
+      fi = i;
+      leg = got.length === 1 ? got[0]
+        : got.sort((x, y) => Math.abs(rec.legs[x].entry - B[i].o) - Math.abs(rec.legs[y].entry - B[i].o))[0];
+      break;
+    }
+  }
+  if(fi < 0) return {r: last(B).ms >= rec.at + W - 60000 ? 'NOFILL' : 'OPEN'};
+  const L = rec.legs[leg], e = L.entry, buy = L.dir === 'BUY';
+  for(let i = fi; i < B.length; i++){
+    const b = B[i];
+    const bad = buy ? b.l <= e - rec.gap : b.h >= e + rec.gap;
+    const good = i > fi && (buy ? b.h >= e + rec.tp : b.l <= e - rec.tp);
+    if(bad) return {r:'AVG', leg, fillAt: B[fi].ms, endAt: b.ms};
+    if(good) return {r:'WIN', leg, fillAt: B[fi].ms, endAt: b.ms};
+  }
+  return {r:'OPEN', leg, fillAt: B[fi].ms};
+}
+
+/* 4 chhote charts ek image me (2x2) — candles + EMA 21/50 + live line */
+function mtfDraw(sym, sets){
+  const W = 1400, H = 1000, PW = 700, PH = 500;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const x = cv.getContext('2d');
   x.fillStyle = '#0b0b0d'; x.fillRect(0, 0, W, H);
-  const closes = all.map(b => b.c);
-  const e21all = ema(closes, 21), e50all = ema(closes, 50);
-  const N = Math.min(100, all.length), off = all.length - N;
-  const B = all.slice(off), e21 = e21all.slice(off), e50 = e50all.slice(off);
-  let hi = -Infinity, lo = Infinity;
-  B.forEach((b, i) => { hi = Math.max(hi, b.h, e21[i], e50[i]); lo = Math.min(lo, b.l, e21[i], e50[i]) });
-  const pad = (hi - lo) * 0.04 || hi * 0.001; hi += pad; lo -= pad;
-  const ch = H - pT - pB, cwid = (W - pL - pR) / N;
-  const Y = p => pT + (hi - p) / (hi - lo) * ch;
-  const X = i => pL + i * cwid + cwid / 2;
-  /* grid + price scale */
-  x.font = '15px monospace'; x.textBaseline = 'middle';
-  for(let k = 0; k <= 8; k++){
-    const p = lo + (hi - lo) * k / 8, y = Y(p);
-    x.strokeStyle = '#1f1f24'; x.lineWidth = 1; x.beginPath(); x.moveTo(pL, y); x.lineTo(W - pR, y); x.stroke();
-    x.fillStyle = '#9a9aa5'; x.fillText(fmt(sym, p), W - pR + 8, y);
-  }
-  /* candles */
-  B.forEach((b, i) => {
-    const up = b.c >= b.o, col = up ? '#26a69a' : '#ef5350', cx = X(i);
-    x.strokeStyle = col; x.lineWidth = 1.2;
-    x.beginPath(); x.moveTo(cx, Y(b.h)); x.lineTo(cx, Y(b.l)); x.stroke();
-    const top = Y(Math.max(b.o, b.c)), bot = Y(Math.min(b.o, b.c));
-    x.fillStyle = col; x.fillRect(cx - cwid * 0.35, top, cwid * 0.7, Math.max(1, bot - top));
+  sets.forEach((s, k) => {
+    const ox = (k % 2) * PW, oy = Math.floor(k / 2) * PH;
+    const pL = 8, pR = 92, pT = 50, pB = 14;
+    const closes = s.bars.map(b => b.c);
+    const e21a = ema(closes, 21), e50a = ema(closes, 50);
+    const N = Math.min(s.tf.show, s.bars.length), off = s.bars.length - N;
+    const B = s.bars.slice(off), e21 = e21a.slice(off), e50 = e50a.slice(off);
+    let hi = -Infinity, lo = Infinity;
+    B.forEach((b, i) => { hi = Math.max(hi, b.h, e21[i], e50[i]); lo = Math.min(lo, b.l, e21[i], e50[i]) });
+    const pad = (hi - lo) * 0.05 || hi * 0.001; hi += pad; lo -= pad;
+    const ch = PH - pT - pB, cw = (PW - pL - pR) / N;
+    const Y = p => oy + pT + (hi - p) / (hi - lo) * ch;
+    const X = i => ox + pL + i * cw + cw / 2;
+    x.strokeStyle = '#2a2a30'; x.lineWidth = 2; x.strokeRect(ox + 1, oy + 1, PW - 2, PH - 2);
+    x.font = '13px monospace'; x.textBaseline = 'middle';
+    for(let g = 0; g <= 6; g++){
+      const p = lo + (hi - lo) * g / 6, y = Y(p);
+      x.strokeStyle = '#1b1b20'; x.lineWidth = 1; x.beginPath(); x.moveTo(ox + pL, y); x.lineTo(ox + PW - pR, y); x.stroke();
+      x.fillStyle = '#8a8a95'; x.fillText(fmt(sym, p), ox + PW - pR + 6, y);
+    }
+    B.forEach((b, i) => {
+      const up = b.c >= b.o, col = up ? '#26a69a' : '#ef5350', cx = X(i);
+      x.strokeStyle = col; x.lineWidth = 1;
+      x.beginPath(); x.moveTo(cx, Y(b.h)); x.lineTo(cx, Y(b.l)); x.stroke();
+      const top = Y(Math.max(b.o, b.c)), bot = Y(Math.min(b.o, b.c));
+      x.fillStyle = col; x.fillRect(cx - cw * 0.35, top, cw * 0.7, Math.max(1, bot - top));
+    });
+    const line = (arr, col) => { x.strokeStyle = col; x.lineWidth = 2; x.beginPath();
+      arr.forEach((v, i) => { const y = Y(v); i ? x.lineTo(X(i), y) : x.moveTo(X(i), y) }); x.stroke() };
+    line(e50, '#42a5f5'); line(e21, '#f5c542');
+    const lastC = B[B.length - 1].c, ly = Y(lastC);
+    x.setLineDash([5, 4]); x.strokeStyle = '#d6b46a'; x.lineWidth = 1;
+    x.beginPath(); x.moveTo(ox + pL, ly); x.lineTo(ox + PW - pR, ly); x.stroke(); x.setLineDash([]);
+    x.fillStyle = '#d6b46a'; x.fillRect(ox + PW - pR + 2, ly - 11, pR - 6, 22);
+    x.fillStyle = '#000'; x.font = 'bold 13px monospace'; x.fillText(fmt(sym, lastC), ox + PW - pR + 6, ly);
+    const ar = s.read.t === 'UP' ? '↑ UP' : s.read.t === 'DOWN' ? '↓ DOWN' : '→ FLAT';
+    x.textBaseline = 'alphabetic'; x.font = 'bold 20px sans-serif'; x.fillStyle = '#ffffff';
+    x.fillText(`${s.tf.l} · ${s.tf.role}`, ox + 12, oy + 28);
+    x.fillStyle = s.read.t === 'UP' ? '#26a69a' : s.read.t === 'DOWN' ? '#ef5350' : '#d6b46a';
+    x.fillText(ar, ox + 300, oy + 28);
+    x.font = '13px sans-serif'; x.fillStyle = '#f5c542'; x.fillText('— EMA 21', ox + 12, oy + 45);
+    x.fillStyle = '#42a5f5'; x.fillText('— EMA 50', ox + 92, oy + 45);
   });
-  /* EMA lines */
-  const line = (arr, col) => { x.strokeStyle = col; x.lineWidth = 2; x.beginPath();
-    arr.forEach((v, i) => { const y = Y(v); i ? x.lineTo(X(i), y) : x.moveTo(X(i), y) }); x.stroke() };
-  line(e50, '#42a5f5'); line(e21, '#f5c542');
-  /* live price line + label */
-  const last = B[B.length - 1].c, ly = Y(last);
-  x.setLineDash([6, 5]); x.strokeStyle = '#d6b46a'; x.lineWidth = 1;
-  x.beginPath(); x.moveTo(pL, ly); x.lineTo(W - pR, ly); x.stroke(); x.setLineDash([]);
-  x.fillStyle = '#d6b46a'; x.fillRect(W - pR + 2, ly - 13, pR - 4, 26);
-  x.fillStyle = '#000'; x.font = 'bold 15px monospace'; x.fillText(fmt(sym, last), W - pR + 8, ly);
-  /* title + legend */
-  x.fillStyle = '#ffffff'; x.font = 'bold 22px sans-serif'; x.textBaseline = 'alphabetic';
-  x.fillText(`${SPECS[sym].n} · ${tfL} · live ${t12(Date.now())} IST`, pL + 4, 30);
-  x.font = '15px sans-serif';
-  x.fillStyle = '#f5c542'; x.fillText('— EMA 21', pL + 4, 50);
-  x.fillStyle = '#42a5f5'; x.fillText('— EMA 50', pL + 100, 50);
-  return cv.toDataURL('image/jpeg', 0.86);
+  x.fillStyle = '#ffffff'; x.font = 'bold 15px sans-serif'; x.textBaseline = 'alphabetic';
+  x.fillText(`${SPECS[sym].n} · live ${t12(Date.now())} IST`, W - 300, H - 8);
+  return cv.toDataURL('image/jpeg', 0.85);
+}
+
+function mtfPrompt(sym, live, R, g, specs, c, tails){
+  const sp = SPECS[sym], P = v => fmt(sym, v);
+  const lang = aiLangWord() === 'English' ? 'simple plain English'
+    : 'simple Hinglish (Hindi written in Roman/English letters, the way Indian traders talk)';
+  const modeTxt = {UP:'UPTREND', DOWN:'DOWNTREND', RANGE:'RANGE'}[g.mode];
+  const legTxt = specs.map((L, i) => {
+    const where = L.side < 0 ? 'BELOW' : 'ABOVE';
+    let how;
+    if(g.mode === 'RANGE') how = L.dir === 'BUY'
+      ? 'near the range SUPPORT (bottom), slightly inside the range so it can fill — never in the middle'
+      : 'near the range RESISTANCE (top), slightly inside the range so it can fill — never in the middle';
+    else if(L.kind === 'LIMIT') how = `at the best PULLBACK level in the trend direction on 5m (5m EMA 21, last 5m swing ${L.dir === 'BUY' ? 'low' : 'high'}, or a broken level that flipped); use the 1m chart to fine-tune where buyers/sellers actually reacted`;
+    else how = `just beyond the nearest real 5m ${L.dir === 'BUY' ? 'resistance / recent swing high' : 'support / recent swing low'} that price must break, with a small buffer so a real break triggers it and not a wick`;
+    return `LEG ${i + 1}: ${L.dir} ${L.kind} — entry must be ${where} the current price, ${how}.`;
+  }).join('\n');
+  const rd = MTF_TFS.map(t => { const r = R[t.id];
+    return `- ${t.l} (${t.role}): ${r.t} · EMA21 ${P(r.e21)} · EMA50 ${P(r.e50)} · ADX ${r.adx.toFixed(1)} · ATR ${P(r.atr)} · 32-bar range ${P(r.lo)}–${P(r.hi)}` }).join('\n');
+  return `You are a professional intraday price-action trader. The image has 4 charts of ${sp.n}:
+top-left 1H, top-right 15m, bottom-left 5m, bottom-right 1m. Yellow line = EMA 21, blue = EMA 50.
+
+The app has ALREADY decided the market mode with hard maths — do not change it:
+MODE: ${modeTxt} (${g.why})
+
+Your job: pick the exact price for these TWO pending orders:
+${legTxt}
+Only one of them will ever run: whichever fills first, the other is cancelled automatically.
+
+How the trade is managed after it fills (fixed — not your job):
+the EA closes it at +${P(c.tp)} price move in profit. If price instead goes ${P(c.gap)} against the entry, the EA starts averaging (a bad outcome).
+So choose levels from where price is MORE LIKELY to move +${P(c.tp)} in the trade direction BEFORE it moves ${P(c.gap)} against.
+A level with a strong opposite level (resistance for BUY, support for SELL) closer than ${P(c.tp)} is a bad level.
+
+Rules:
+- Use the exact OHLC numbers below for every level — never estimate prices from the picture.
+- Each entry must be between ${P(c.minD)} and ${P(c.maxD)} away from the current price (reachable within ~60 minutes).
+- If one leg has no good level, set its "entry" to 0. If neither is good, or the charts look messy, set "signal" to "NO TRADE".
+- "confidence" = your honest chance (0-100) that after the fill +${P(c.tp)} comes before -${P(c.gap)}. Do not inflate it.
+
+Current price right now: ${P(live)}
+Timeframe readings (computed by the app):
+${rd}
+
+Exact OHLC (oldest first; time IST, open high low close):
+${tails}
+
+Write "why" and "reason" in ${lang}. Keep keys, symbols and numbers in English.
+Reply with JSON ONLY, exactly this shape:
+{
+ "signal": "TRADE" or "NO TRADE",
+ "confidence": 0-100 integer,
+ "leg1": {"entry": number, "confidence": 0-100 integer, "why": "one short line"},
+ "leg2": {"entry": number, "confidence": 0-100 integer, "why": "one short line"},
+ "reason": "one short sentence — the overall picture"
+}`;
 }
 
 async function autoAnalyze(){
-  if(autoBusy) return;
+  if(mtfBusy) return;
   const sym = S.pair, sp = SPECS[sym];
   if(!sp){ toast('Pehle pair chuno'); return }
   if(!S.gKey){ toast('Settings me Gemini API key daalo'); openSheet('setSheet'); return }
   if(!S.key){ toast('Settings me TwelveData key daalo'); openSheet('setSheet'); return }
-  const tf = TFS.find(t => t.tv === S.chartTf) || TFS.find(t => t.id === '15min');
   const btn = $('autoBtn'), box = $('shotBox');
-  autoBusy = true;
+  mtfBusy = true;
   if(btn){ btn.disabled = true; btn.textContent = '⏳ CHAL RAHA…' }
-  $('shotState').textContent = 'candles la raha hoon…';
   S.shot = null; save(); pfxRender();
-  box.innerHTML = '<p class="hint"><span class="spin"></span> ' + sp.n + ' · ' + tf.l + ' ki live candles aa rahi hain (1 credit)…</p>';
   try{ box.closest('.card').scrollIntoView({behavior:'smooth', block:'start'}) }catch(e){}
+  const note = t => { box.innerHTML = '<p class="hint"><span class="spin"></span> ' + t + '</p>' };
   try{
-    const bars = await getSeries(sym, tf.id, 150);
-    if(!bars || bars.length < 30) throw new Error('Kaafi candles nahi mili');
-    const url = autoDraw(sym, tf.l, bars);
+    /* 1. chaaron timeframe ki candles (ek-ek karke — TwelveData 8/min) */
+    const sets = [];
+    for(const tf of MTF_TFS){
+      $('shotState').textContent = tf.l + ' la raha hoon…';
+      note(`${sp.n} · ${tf.l} candles aa rahi hain (${sets.length + 1}/4 · 1 credit)…`);
+      const bars = await getSeries(sym, tf.id, tf.n);
+      if(!bars || bars.length < 60) throw new Error(tf.l + ' ki kaafi candles nahi mili');
+      sets.push({tf, bars, read: mtfRead(bars)});
+    }
+    const R = {}; sets.forEach(s => R[s.tf.id] = s.read);
+    const m1 = sets[3].bars, live = m1[m1.length - 1].c;
+    const tp = dollarsToDist(sym, live, 0.01, +S.pfxTp || 3);
+    const gap = dollarsToDist(sym, live, 0.01, +S.pfxGap || 5);
+    const a5 = R['5min'].atr, a15 = R['15min'].atr;
+    const b5 = sets[2].bars, mv = live - b5[b5.length - 4].c;
+    const c = {live, tp, gap,
+      minD: Math.max(0.2 * a5, 3 * sp.pip),
+      maxD: Math.max(2 * a15, 1.2 * gap),
+      hi: 0, lo: 0, chase: false, minConf: +S.mtfConf || MTF_CONF_DEF};
+    const g = mtfGate(R, tp);
+    if(g.mode === 'RANGE'){ c.hi = R['15min'].hi; c.lo = R['15min'].lo }
+    const specs = mtfLegs(g.mode);
+    c.chase = g.mode !== 'RANGE' && a5 > 0 && (g.mode === 'UP' ? mv > 1.5 * a5 : -mv > 1.5 * a5);
+    const url = mtfDraw(sym, sets);
     if(shotPrev && /^blob:/.test(shotPrev.url)) URL.revokeObjectURL(shotPrev.url);
     shotPrev = {url, at: Date.now()};
-    const pv = () => `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">`;
-    $('shotState').textContent = 'chart padh raha hoon…';
-    box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai…</p>';
-    const live = bars[bars.length - 1].c;
-    const tail = bars.slice(-40).map(b => `${b.t} ${fmt(sym, b.o)} ${fmt(sym, b.h)} ${fmt(sym, b.l)} ${fmt(sym, b.c)}`).join('\n');
-    const prompt = shotPrompt() + `
+    const reads = MTF_TFS.map(t => ({l: t.l, t: R[t.id].t, adx: +R[t.id].adx.toFixed(1)}));
+    const d = {v:10, src:'mtf', at: Date.now(), sym, symbol: sp.n, timeframe:'1H · 15m · 5m · 1m',
+      live, liveAt: Date.now(), liveSrc:'live', liveErr:'', current_price: live, userEntry: null,
+      signal:'NO TRADE', confidence: 0, reason: '', dir: null, entry: 0,
+      mtf: {mode: g.mode, why: g.why, reads, tp, gap, legs: [], conf: 0, chase: c.chase}};
 
-IMPORTANT: this chart image was drawn by the app from LIVE market data.
-Instrument: ${sp.n} — use exactly "${sp.n}" as "symbol". Timeframe: ${tf.l} — use it as "timeframe".
-Yellow line = EMA 21, blue line = EMA 50.
-Current price right now: ${fmt(sym, live)} — use it as "current_price".
-Exact OHLC of the last 40 candles (oldest first; time IST, open high low close):
-${tail}
-Use these exact numbers for every level — do not estimate prices from the picture.`;
-    const d = await gVision(prompt, url.split(',')[1], (m, wait) => {
-      box.innerHTML = pv() + `<p class="hint"><span class="spin"></span> ` +
-        (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se padh raha hoon…`) + `</p>`;
+    /* 2. NO TRADE = Gemini ko call hi nahi */
+    if(g.mode === 'NONE'){
+      d.reason = g.why;
+      S.shot = d; save(); renderShot(); pfxRender();
+      $('shotState').textContent = 'ho gaya · NO TRADE';
+      toast(`${sp.n} · NO TRADE — ${g.why}`);
+      return;
+    }
+
+    /* 3. Gemini: sirf 2 level chunna */
+    $('shotState').textContent = 'AI level chun raha hai…';
+    box.innerHTML = `<img src="${url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px"><p class="hint"><span class="spin"></span> AI 2 order level chun raha hai…</p>`;
+    const tails = sets.map(s => {
+      const k = {'1h':24, '15min':32, '5min':36, '1min':30}[s.tf.id];
+      return `${s.tf.l}:\n` + s.bars.slice(-k).map(b => `${b.t} ${fmt(sym, b.o)} ${fmt(sym, b.h)} ${fmt(sym, b.l)} ${fmt(sym, b.c)}`).join('\n');
+    }).join('\n\n');
+    const ai = await gVision(mtfPrompt(sym, live, R, g, specs, c, tails), url.split(',')[1], (m, wait) => {
+      box.innerHTML = `<img src="${url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px"><p class="hint"><span class="spin"></span> ` +
+        (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se pooch raha hoon…`) + `</p>`;
     });
-    d.v = 10; d.at = Date.now(); d.src = 'auto';
-    d.sym = sym; d.symbol = sp.n; d.timeframe = d.timeframe || tf.l;
-    d.dir = (d.signal === 'BUY' || d.signal === 'SELL') ? d.signal : null;
-    d.entry = +d.entry;
-    d.current_price = +d.current_price || live;
-    d.live = live; d.liveAt = Date.now(); d.liveSrc = 'live'; d.liveErr = ''; d.userEntry = null;
-    /* chase check: pichhli 3 candles ka move 1.5 ATR se zyada usi taraf? */
-    try{
-      const a = atr(bars, 14), A = a[a.length - 1], mv = live - bars[bars.length - 4].c;
-      d.chase = A > 0 && !!d.dir && (d.dir === 'BUY' ? mv > 1.5 * A : -mv > 1.5 * A);
-    }catch(e){ d.chase = false }
-    pfxShape(d);
+
+    /* 4. app ki jaanch */
+    const conf = Math.max(0, Math.min(100, Math.round(+ai.confidence || 0)));
+    d.confidence = conf; d.mtf.conf = conf;
+    d.reason = String(ai.reason || '').slice(0, 300);
+    d.mtf.legs = specs.map((L, i) => {
+      const a = ai['leg' + (i + 1)] || {};
+      const leg = Object.assign({}, L, {entry: +(+a.entry || 0).toFixed(sp.d), conf: Math.round(+a.confidence || 0), why: String(a.why || '').slice(0, 200)});
+      const chk = String(ai.signal).toUpperCase() !== 'TRADE' ? {ok:false, why:'AI ne NO TRADE kaha'}
+        : conf < c.minConf ? {ok:false, why:`Kul confidence ${conf}% — ${c.minConf}% se kam`}
+        : mtfLegCheck(leg, c);
+      leg.ok = chk.ok; leg.bad = chk.why;
+      return leg;
+    });
+    const good = d.mtf.legs.filter(L => L.ok);
+    if(good.length){
+      d.signal = 'TRADE'; d.dir = good[0].dir; d.entry = good[0].entry;
+      mtfLogAdd(d);
+    }
     S.shot = d; save();
     renderShot(); pfxRender();
-    $('shotState').textContent = 'ho gaya · auto';
-    toast(d.dir ? `${sp.n} · ${d.dir} · ${d.confidence}%` : `${sp.n} · abhi WAIT`);
-    setTimeout(() => { const c = $('pfxCard'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}) }, 200);
+    $('shotState').textContent = good.length ? `ho gaya · ${good.length} order` : 'ho gaya · NO TRADE';
+    toast(good.length ? `${sp.n} · ${good.map(L => L.dir + ' ' + L.kind).join(' + ')}` : `${sp.n} · NO TRADE`);
+    setTimeout(() => { const el = $('pfxCard'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}) }, 200);
   }catch(err){
     $('shotState').textContent = 'fail';
     box.innerHTML = `<div style="border:1px solid var(--dn);background:rgba(255,68,68,.08);border-radius:6px;padding:12px">
@@ -9498,9 +9726,181 @@ Use these exact numbers for every level — do not estimate prices from the pict
       <p class="hint" style="color:#ffb3b3;font-weight:600;margin:5px 0 0">${escH(err.message || 'pata nahi')}</p></div>`;
     pfxRender();
   }finally{
-    autoBusy = false;
+    mtfBusy = false;
     if(btn){ btn.disabled = false; btn.textContent = '📸 AUTO ANALYZE' }
   }
+}
+
+/* ---- 4-TF result card (PERSONAL FX order) ---- */
+function mtfRender(box, d){
+  const sym = d.sym, sp = SPECS[sym], M = d.mtf;
+  const arrow = t => t === 'UP' ? '<b style="color:var(--up)">↑</b>' : t === 'DOWN' ? '<b style="color:var(--dn)">↓</b>' : '<b style="color:var(--gold)">→</b>';
+  const chips = M.reads.map(r => `<span class="mono" style="border:1px solid var(--line);border-radius:7px;padding:3px 7px;font-size:11.5px;white-space:nowrap">${r.l} ${arrow(r.t)} <small style="color:var(--mut)">ADX ${r.adx}</small></span>`).join(' ');
+  const modeTxt = {UP:'↑ UPTREND', DOWN:'↓ DOWNTREND', RANGE:'⇅ RANGE', NONE:'⏸ NO TRADE'}[M.mode];
+  const modeCol = M.mode === 'UP' ? 'var(--up)' : M.mode === 'DOWN' ? 'var(--dn)' : 'var(--gold)';
+  const head = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <b style="font-size:17px;letter-spacing:.5px;color:${modeCol}">${modeTxt}</b>
+      <span class="gr" style="margin-left:auto">${sp.n}${M.conf ? ' · ' + M.conf + '%' : ''}</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${chips}</div>
+    <p class="hint" style="margin:0 0 6px">🧮 ${escH(M.why)}</p>
+    ${d.reason && d.reason !== M.why ? `<p class="hint" style="margin:0 0 8px">🤖 ${escH(d.reason)}</p>` : ''}`;
+  const good = M.legs.filter(L => L.ok);
+  if(!good.length){
+    box.innerHTML = head + `<div style="border:1px solid var(--gold);border-radius:10px;padding:12px;text-align:center;margin-top:6px">
+      <b class="shine gd" style="font-size:16px;letter-spacing:1px">⏸ NO TRADE</b>
+      <p class="hint" style="margin:6px 0 0">Abhi koi pakka setup nahi — PERSONAL FX ko kuch nahi jayega. Thodi der baad dobara AUTO ANALYZE karo.</p></div>` +
+      M.legs.map(L => `<p class="hint" style="margin:6px 0 0;color:var(--mut)">✗ ${L.dir} ${L.kind}${L.entry > 0 ? ' @ ' + fmt(sym, L.entry) : ''} — ${escH(L.bad)}</p>`).join('');
+    return;
+  }
+  const liveLine = `Live <b class="mono">${fmt(sym, d.live)}</b> · ${t12(d.liveAt)}${pfxBusy ? ' <span class="spin"></span>' : ''}`;
+  const legHTML = M.legs.map((L, i) => {
+    const col = L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)';
+    if(!L.ok) return `<div style="border:1px dashed var(--line);border-radius:9px;padding:9px 11px;margin-top:8px;opacity:.6">
+        <b style="color:var(--mut);text-decoration:line-through">${L.dir} ${L.kind}</b>${L.entry > 0 ? ` <span class="mono" style="color:var(--mut)">${fmt(sym, L.entry)}</span>` : ''}
+        <p class="hint" style="margin:4px 0 0">✗ ${escH(L.bad)}</p></div>`;
+    const e = L.user > 0 ? L.user : L.entry;
+    return `<div style="border:1px solid ${col};border-radius:9px;padding:9px 11px;margin-top:8px">
+        <div style="display:flex;align-items:center;gap:8px"><b style="color:${col};letter-spacing:.5px">${L.dir} ${L.kind}</b>
+          <span class="gr" style="margin-left:auto">${L.conf}%</span></div>
+        <input class="mono" id="mtfE${i}" type="number" inputmode="decimal" step="${sp.pip}" value="${fmt(sym, e)}" oninput="mtfEdit(${i})" style="padding:8px;font-size:14px;margin-top:6px">
+        <p class="hint" id="mtfD${i}" style="margin:5px 0 0">—</p>
+        ${L.why ? `<p class="hint" style="margin:4px 0 0">${escH(L.why)}</p>` : ''}</div>`;
+  }).join('');
+  box.innerHTML = head + `<p class="hint" style="margin:0">${liveLine}</p>` + legHTML + `
+    <div style="border:1px dashed var(--line);border-radius:8px;padding:9px 11px;margin:10px 0;font-size:11.5px;line-height:1.8">
+      🔗 ${good.length === 2 ? '<b>Dono order ek saath</b> — jo pehle bhare, PERSONAL FX baaki ko cancel karega (v5.9+)' : 'Sirf ek order pakka nikla'}<br>
+      📦 Lot, 🎯 TP / SL, averaging: <b>PERSONAL FX ke apne niyam</b><br>
+      ⏱ ${PFX_EXP_MIN} min me na bhare to EA khud hata dega</div>
+    <div class="grid2">
+      <button class="btn gold" onclick="mtfSend()">🚀 PERSONAL FX ko bhejo</button>
+      <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
+    </div>`;
+  M.legs.forEach((L, i) => { if(L.ok) mtfDist(i) });
+}
+
+function mtfEdit(i){
+  const d = S.shot; if(!d || !d.mtf) return;
+  const L = d.mtf.legs[i], el = $('mtfE' + i); if(!L || !el) return;
+  const v = parseFloat(el.value);
+  L.user = (v > 0 && Math.abs(v - L.entry) > SPECS[d.sym].pip / 2) ? v : null;
+  mtfDist(i);
+}
+function mtfDist(i){
+  const d = S.shot, L = d.mtf.legs[i], el = $('mtfD' + i); if(!el) return;
+  const sym = d.sym, sp = SPECS[sym], e = L.user > 0 ? L.user : L.entry;
+  const diff = e - d.live, pips = Math.abs(diff) / sp.pip;
+  const side = diff * L.side > 0;
+  el.innerHTML = side
+    ? `Live se <b class="mono">${pips.toFixed(1)} pips ${diff < 0 ? 'neeche' : 'upar'}</b> (${money(distToDollars(sym, d.live, 0.01, diff))} / 0.01 lot)`
+    : `<span style="color:var(--dn)">⚠ Price is level ke paar chala gaya — ye order nahi jayega. Dobara AUTO ANALYZE karo.</span>`;
+}
+
+async function mtfSend(){
+  const d = S.shot;
+  if(!d || !d.mtf || !d.sym){ toast('Pehle AUTO ANALYZE karo'); return }
+  if(!pfxBase()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
+  if(Date.now() - d.at > 30 * 60000 && !confirm('Ye analysis 30 min se purana hai — market badal chuka hoga. Phir bhi bhejein?')) return;
+  if(Date.now() - d.liveAt > PFX_LIVE_MAX_MS){ toast('Taza live price le raha hoon…'); await pfxLive() }
+  const sym = d.sym, sp = SPECS[sym], live = d.live;
+  if(!(live > 0)){ alert('Live price nahi hai — order nahi bheja'); return }
+  const legs = d.mtf.legs.map((L, i) => Object.assign({i}, L, {e: L.user > 0 ? L.user : L.entry}))
+    .filter(L => L.ok && (L.e - live) * L.side > 0);
+  if(!legs.length){ alert('Price dono levels ke paar ja chuka hai — dobara AUTO ANALYZE karo.'); pfxRender(); return }
+  const pair = sp.n;
+  const dup = pfxLastList.find(o => o.pair === pair && (o.status === 'NEW' || o.status === 'PLACED') && Date.now() - o.at < PFX_EXP_MIN * 60000);
+  const pfl = preflight(sym, legs[0].dir, legs[0].e, 0, 0);
+  const msg = `${pair} · ${legs.length} order (live ${fmt(sym, live)})\n\n` +
+    legs.map(L => `${L.dir} ${L.kind} @ ${fmt(sym, L.e)}`).join('\n') +
+    (legs.length > 1 ? '\n\nJo pehle bhare, dusra PERSONAL FX khud cancel karega (v5.9+ chahiye)' : '') +
+    `\n\nLot, TP/SL, averaging: PERSONAL FX ke niyam\nPending ${PFX_EXP_MIN} min me na bhare to hat jayega` +
+    (dup ? `\n\n⚠ ${pair} ka ek order pehle se "${(PFX_ST[dup.status] || [dup.status])[0]}" hai (${t12(dup.at)}) — naya batch usko hata dega` : '') +
+    (pfl.length ? '\n\n🛫 PRE-FLIGHT\n' + pfl.map(x => (x.ok ? '✓ ' : '⚠ ') + x.txt).join('\n') : '') +
+    `\n\nPERSONAL FX ko bhejein?`;
+  if(!confirm(msg)) return;
+  const now = Date.now(), batch = 'B' + now.toString(36);
+  const sent = [];
+  try{
+    for(let k = 0; k < legs.length; k++){
+      const L = legs[k];
+      const body = {id: now + k, pair, type: L.dir + L.kind, entry: +(+L.e).toFixed(sp.d),
+        live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW',
+        src: 'SamuSignal ' + VERSION, batch, leg: k + 1, legs: legs.length};
+      const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+      if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + r.status);
+      sent.push(`${L.dir} ${L.kind} @ ${body.entry}`);
+    }
+  }catch(err){
+    logAdd('PERSONAL FX bhejna fail: ' + err.message);
+    alert(sent.length ? `Sirf ${sent.length} order gaya (${sent.join(', ')}) — baaki fail: ${err.message}` : 'Order nahi gaya — ' + err.message);
+    if(!sent.length) return;
+  }
+  d.sentAt = now; save(); pfCount();
+  mtfLogSent(d, legs);
+  logAdd(`PERSONAL FX ko bheja: ${pair} ${sent.join(' + ')}`);
+  toast(`Gaya — ${pair} · ${sent.length} order`);
+  if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → PERSONAL FX</b>\n\n<b>${pair}</b>\n` + sent.map(x => '• ' + x).join('\n') +
+    `\nLive <code>${fmt(sym, live)}</code> · lot EA input\n⏰ ${t12(now)}`, true);
+  pfxList(false); pfxStartPoll();
+}
+
+/* ================= AI REPORT CARD (v10.4.0) =================
+   Har 4-TF faisla (jisme order nikla) yahan likha jaata hai. "RESULT CHECK"
+   baad me 1m candles laakar dekhta hai: bhara ya nahi, bhara to pehle +TP aaya
+   ya −gap (averaging). Spread nahi gina — asli se thoda behtar dikhega. */
+function mtfLogAdd(d){
+  const rec = {at: d.at, sym: d.sym, mode: d.mtf.mode, conf: d.mtf.conf, tp: d.mtf.tp, gap: d.mtf.gap,
+    legs: d.mtf.legs.filter(L => L.ok).map(L => ({dir: L.dir, kind: L.kind, entry: L.entry})), sent: false, res: null};
+  S.mtfLog = [rec].concat((S.mtfLog || []).filter(x => x.at !== rec.at)).slice(0, 80);
+  save(); mtfRcRender();
+}
+function mtfLogSent(d, legs){
+  const r = (S.mtfLog || []).find(x => x.at === d.at); if(!r) return;
+  r.sent = true; r.legs = legs.map(L => ({dir: L.dir, kind: L.kind, entry: +L.e}));
+  save(); mtfRcRender();
+}
+let mtfRcBusy = false;
+async function mtfRcCheck(){
+  if(mtfRcBusy) return;
+  if(!S.key){ toast('Settings me TwelveData key daalo'); return }
+  const now = Date.now();
+  const todo = (S.mtfLog || []).filter(r => (!r.res || r.res.r === 'OPEN') && now - r.at > 10 * 60000 && now - r.at < 3 * 86400000).slice(0, 4);
+  if(!todo.length){ toast('Abhi check karne layak koi record nahi (10 min se purana chahiye)'); return }
+  mtfRcBusy = true; mtfRcRender();
+  let done = 0;
+  for(const r of todo){
+    try{
+      const n = Math.min(4800, Math.ceil((now - r.at) / 60000) + 5);
+      const bars = await getSeries(r.sym, '1min', n);
+      r.res = mtfSim(r, bars); r.res.chk = Date.now(); done++;
+    }catch(e){ logAdd('Report Card check fail: ' + (e.message || e)); }
+  }
+  mtfRcBusy = false; save(); mtfRcRender();
+  toast(`${done} record check hue`);
+}
+function mtfRcRender(){
+  const box = $('mtfRcBox'); if(!box) return;
+  const L = S.mtfLog || [];
+  if(!L.length){ box.innerHTML = '<p class="hint">Abhi koi faisla nahi. AUTO ANALYZE me jab bhi order nikalta hai, yahan likha jaata hai.</p>'; return }
+  const cnt = k => L.filter(r => r.res && r.res.r === k).length;
+  const W = cnt('WIN'), A = cnt('AVG'), NF = cnt('NOFILL'), O = L.filter(r => !r.res || r.res.r === 'OPEN').length;
+  const pct = W + A ? Math.round(W / (W + A) * 100) : null;
+  const sentOnly = L.filter(r => r.sent && r.res && (r.res.r === 'WIN' || r.res.r === 'AVG'));
+  const sW = sentOnly.filter(r => r.res.r === 'WIN').length;
+  const tag = {WIN:['✓ +TP pehle','var(--up)'], AVG:['✗ averaging','var(--dn)'], NOFILL:['— bhara nahi','var(--mut)'], OPEN:['… baaki','var(--gold)']};
+  box.innerHTML = `<div class="grid2" style="gap:6px;margin-bottom:8px;font-size:12px">
+      <div style="border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center"><b style="font-size:20px;color:${pct === null ? 'var(--mut)' : pct >= 60 ? 'var(--up)' : 'var(--dn)'}">${pct === null ? '—' : pct + '%'}</b><br><small>+TP pehle (${W}/${W + A})</small></div>
+      <div style="border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;line-height:1.7"><small>✓ ${W} · ✗ ${A} · bhara nahi ${NF} · baaki ${O}</small><br><small>Bheje gaye: ${sentOnly.length ? sW + '/' + sentOnly.length : '—'}</small></div>
+    </div>
+    <button class="btn ghost sm" onclick="mtfRcCheck()" ${mtfRcBusy ? 'disabled' : ''}>${mtfRcBusy ? '<span class="spin"></span> check ho raha hai…' : '🔎 RESULT CHECK · 1 credit / record (max 4)'}</button>` +
+    L.slice(0, 12).map(r => {
+      const t = r.res ? tag[r.res.r] : tag.OPEN;
+      const lg = r.legs.map((x, i) => `<span style="color:${x.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}${r.res && r.res.leg === i ? ';font-weight:800' : ''}">${x.dir[0]}${x.kind === 'LIMIT' ? 'L' : 'S'} ${fmt(r.sym, x.entry)}</span>`).join(' · ');
+      return `<div style="border-bottom:1px dashed var(--line);padding:7px 0;font-size:11.5px">
+        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.mode} · ${r.conf}%${r.sent ? ' · 🚀' : ''}</span>
+          <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(r.at)}</span></div>
+        <div style="display:flex;gap:8px;margin-top:3px"><span class="mono">${lg}</span><b style="margin-left:auto;color:${t[1]};white-space:nowrap">${t[0]}</b></div></div>`;
+    }).join('') +
+    `<p class="hint" style="margin-top:8px">Hisaab: jo order pehle bhara, uske baad price pehle +$${S.pfxTp || 3} (TP) gaya ya −$${S.pfxGap || 5} (averaging) — per 0.01 lot. Ek hi candle me dono = averaging maana. Spread nahi gina.</p>`;
 }
 
 /* model ne jo naam bola use apne symbol pe map karo */
@@ -9550,6 +9950,15 @@ function renderShot(){
   const d = S.shot;
   if(!d || d.v !== 10){ box.innerHTML = ''; return }
   const pvImg = shotPrev && d.at >= shotPrev.at ? `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">` : '';
+  if(d.mtf){                                  /* v10.4.0: 4-TF */
+    const M = d.mtf, n = M.legs.filter(L => L.ok).length;
+    const col = n ? (M.mode === 'UP' ? 'var(--up)' : M.mode === 'DOWN' ? 'var(--dn)' : 'var(--gold)') : 'var(--gold)';
+    box.innerHTML = pvImg + `<div style="display:flex;align-items:center;gap:10px;border:1px solid ${col};border-radius:10px;padding:9px 12px">
+      <b style="color:${col};letter-spacing:.5px">🧭 ${n ? n + ' ORDER' : 'NO TRADE'}</b>
+      <span class="mono" style="font-size:12px">${SPECS[d.sym] ? SPECS[d.sym].n : '—'} · ${{UP:'UPTREND', DOWN:'DOWNTREND', RANGE:'RANGE', NONE:'—'}[M.mode]}${M.conf ? ' · ' + M.conf + '%' : ''}</span>
+      <button class="btn ghost sm" style="width:auto;margin-left:auto;padding:0 12px" onclick="clearShot()">✕</button></div>`;
+    return;
+  }
   const col = d.signal === 'BUY' ? 'var(--up)' : d.signal === 'SELL' ? 'var(--dn)' : 'var(--gold)';
   const conf = Math.max(0, Math.min(100, +d.confidence || 0));
   box.innerHTML = pvImg + `<div style="display:flex;align-items:center;gap:10px;border:1px solid ${col};border-radius:10px;padding:9px 12px">
@@ -9573,6 +9982,7 @@ function pfxRender(){
     return;
   }
   if(T) T.innerHTML = `<span data-ago="${d.at}">${ago(d.at)}</span>`;
+  if(d.mtf && d.sym && SPECS[d.sym]){ mtfRender(box, d); return }   /* v10.4.0 */
   const why = d.reason ? `<p class="hint" style="margin:8px 0 0">${escH(d.reason)}</p>` : '';
 
   if(d.signal === 'UNREADABLE'){
@@ -9660,6 +10070,7 @@ function pfxRecalc(){
 
 async function pfxSend(){
   const d = S.shot;
+  if(d && d.mtf) return mtfSend();          /* v10.4.0 */
   if(!d || d.v !== 10 || !d.dir || !d.sym){ toast('Pehle screenshot analyze karo'); return }
   if(!pfxBase()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
   const e0 = pfxEntryVal();
@@ -9715,7 +10126,8 @@ const PFX_ST = {
   FAILED:  ['Fail', 'var(--dn)'],
   SKIP:    ['Nahi lagaya', 'var(--dn)'],
   STALE:   ['Purana — nahi lagaya', 'var(--dn)'],
-  REPLACED:['Naye order se badla', 'var(--mut)']
+  REPLACED:['Naye order se badla', 'var(--mut)'],
+  CANCELLED:['Dusra bhara — cancel', 'var(--mut)']     /* v10.4.0 batch OCO (PERSONAL FX v5.9) */
 };
 async function pfxList(manual){
   const box = $('pfxListBox'); if(!box) return;
@@ -9746,6 +10158,7 @@ function pfxDrawList(){
         <b class="mono">${escH(o.pair)}</b>
         <b style="color:${buy ? 'var(--up)' : 'var(--dn)'}">${escH(ty)}</b>
         <span class="mono">${o.entry ? escH(o.entry) : 'market'}</span>
+        ${o.batch ? `<span title="ek batch" style="color:var(--gold);font-size:11px">🔗${escH(o.leg || '')}/${escH(o.legs || '')}</span>` : ''}
         <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(o.at)}</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
@@ -10463,6 +10876,7 @@ function boot(){
   $('setPfLoss').value = S.pfLoss; $('setPfCool').value = S.pfCool; $('setPfMax').value = S.pfMax;
   loadPairDef(pickVal.minstop || 'XAU/USD');
   $('setGKey').value = S.gKey;
+  $('setMtfConf').value = S.mtfConf; $('setPfxTp').value = S.pfxTp; $('setPfxGap').value = S.pfxGap;
   $('swGAuto').classList.toggle('on', S.gAuto);
   $('gModelNote').innerHTML = S.gModel ? `<br>Model: <b class="mono">${S.gModel}</b>` : '';
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;

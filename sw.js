@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.4.0 — AUTO ANALYZE ab 4 timeframe (1H · 15m · 5m · 1m): pehle app ka pakka filter (UPTREND / DOWNTREND / RANGE / NO TRADE), phir AI 2 order level (trend: Limit + Stop usi taraf, range: Buy Limit + Sell Limit), app ki jaanch (side, 60 min, TP ke raaste me deewar, chase, confidence), dono ek batch me PERSONAL FX ko (v5.9 jo pehle bhare baaki cancel) · AI Report Card (1m candles se +TP pehle ya averaging)
    v10.3.0 — Agent Report Card (har signal ka BUY+SELL virtual check, aakhri 50 vote, achhe agent ka vote bhaari, kharab ka vote band par tracking chalu) · Imaandaar Backtest (spread/slippage/swap/commission, agli candle pe entry, bina cost vs cost ke saath)
    v10.2.0 — Pre-flight check (MT5 / PERSONAL FX order se pehle: news, aaj ka loss, SL cooldown, din ke orders, currency takraav, R:R) · journal me faisla ki wajah + AI raay · Smart Vote (agents ka live record se weighted, sirf jaankari)
    v10.1.1 — AI zyada-tar Limit/Stop; Market sirf perfect haalat me (NOW + 80%+ + chase nahi), warna entry thoda door
@@ -65,7 +66,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.3.0';
+const VERSION = '10.4.0';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
