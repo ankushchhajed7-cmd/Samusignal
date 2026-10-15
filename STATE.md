@@ -6,9 +6,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 
 | Cheez | Version | File |
 |---|---|---|
-| SamuSignal app (PWA) | **10.4.0** | `index.html`, `sw.js` |
+| SamuSignal app (PWA) | **10.4.1** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
 | Kavach test | 230 test (14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## v10.4.1 — AUTO ANALYZE kam sakht (15 Oct 2026)
+
+- Shikayat: 10-12 pair pe sab NO TRADE.
+- Wajah: AI se "confidence" = "+$3 pehle aane ka chance" maanga tha. $3 TP / $5 gap me ye bina kisi edge ke bhi ~62% hota hai, isliye 70% ki seema lagbhag kabhi paar nahi hoti thi. App ka apna filter (simulation me ~94% pass) rukawat nahi tha.
+- Badlav: confidence ab **setup quality** (85+ textbook, 70-84 achha, 55-69 average, 55 se kam kamzor). Min confidence default **65** (naya storage key `mtfConf2`, purana 70 apne aap hata). Ek order (leg) ke liye 10 kam chalega (55).
 
 ## v10.4.0 — 4-timeframe AUTO ANALYZE (15 Oct 2026)
 
@@ -25,7 +31,7 @@ Chart Analysis page ka **📸 AUTO ANALYZE** button ab ye karta hai:
    - DOWNTREND: SELL LIMIT (upar pullback) + SELL STOP (neeche breakdown)
    - RANGE: BUY LIMIT (support) + SELL LIMIT (resistance)
    - Prompt me PERSONAL FX ka niyam: +TP pehle aaye, −gap (averaging) se pehle.
-4. **App ki jaanch har order pe**: sahi side, live se kam se kam 0.2×ATR(5m), zyada se zyada max(2×ATR(15m), 1.2×gap), Stop order pe chase check, AI confidence ≥ Min confidence, RANGE me TP ke raaste me chhat/farsh.
+4. **App ki jaanch har order pe**: sahi side, live se kam se kam 0.2×ATR(5m), zyada se zyada max(2×ATR(15m), 1.2×gap), Stop order pe chase check, AI confidence (kul ≥ Min confidence, har order ≥ Min − 10), RANGE me TP ke raaste me chhat/farsh.
 5. **Bhejna**: dono order ek `batch` me Firebase `/personalfx/orders` (fields: `batch`, `leg`, `legs`). Lot / SL / TP / averaging = PERSONAL FX ke niyam.
 6. **AI Report Card** (card 4): har faisla save; RESULT CHECK 1m candles laakar dekhta hai — kaun sa order pehle bhara, phir +TP pehle (WIN) ya −gap pehle (AVG), 60 min me na bhara (NOFILL). Ek candle me dono = AVG. Spread nahi gina.
 
@@ -41,7 +47,7 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 
 | Setting | Default | Matlab |
 |---|---|---|
-| Min confidence % | 70 | Isse kam AI confidence = order nahi |
+| Min confidence % | 65 | AI ka setup-quality score; isse kam = NO TRADE (ek order ke liye 10 kam chalega) |
 | PERSONAL FX TP $ | 3 | EA ka `Grid_TP_Dollar` (per 0.01 lot) |
 | PERSONAL FX grid gap $ | 5 | EA ka `Grid_Gap_Usd` (per 0.01 lot) |
 
@@ -55,6 +61,7 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 ## Baaki kaam / dhyaan
 
 - [ ] PERSONAL FX v5.9 MetaEditor me compile karke VPS pe lagana (yahan compile nahi ho sakta).
+- [ ] Agar ab bhi zyada NO TRADE aaye: NO TRADE card ka screenshot dekh ke wajah (filter / AI confidence / leg jaanch) pakdo.
 - [ ] 2–3 hafte Report Card bharne do, phir dekho WIN% (kis mode / pair / samay me achha).
 - [ ] Kavach ke 14 purane FAIL (C, F, H, I, Q group) v10.3.0 se pehle ke hain — test purane niyam maante hain, app ke naye niyam alag. Alag se dekhna hai.
 - [ ] EA restart ke beech batch ka dusra order aaye to wo pehle ko replace kar sakta hai (rare) — zarurat padi to order comment me batch id daalna.

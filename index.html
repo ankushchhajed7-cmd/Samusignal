@@ -1904,7 +1904,7 @@ body.ds-gold .brand .brandWord{height:24px}
     <div><label>PERSONAL FX TP $</label><input id="setPfxTp" type="number" inputmode="decimal" step="0.5"></div>
   </div>
   <div style="margin-bottom:6px"><label>PERSONAL FX grid gap $</label><input id="setPfxGap" type="number" inputmode="decimal" step="0.5"></div>
-  <p class="hint" style="margin-bottom:16px">TP aur gap = PERSONAL FX ke <b>Grid_TP_Dollar</b> aur <b>Grid_Gap_Usd</b> jaise hi (per 0.01 lot, default 3 aur 5). AI inhi ke hisaab se level chunta hai.</p>
+  <p class="hint" style="margin-bottom:16px">Min confidence = AI ka setup-quality score (65 = achha setup, 75+ = sirf bahut saaf setup; ek order ke liye 10 kam chalega). TP aur gap = PERSONAL FX ke <b>Grid_TP_Dollar</b> aur <b>Grid_Gap_Usd</b> jaise hi (per 0.01 lot, default 3 aur 5). AI inhi ke hisaab se level chunta hai.</p>
 
   <p class="ttl">MT5 Bridge</p>
   <div class="sw" id="swMetaOn" onclick="toggleMetaOn(this)">
@@ -2145,7 +2145,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.4.0';
+const VERSION = '10.4.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -2390,7 +2390,7 @@ let S = {
   style: LS.get('style','DAY'),        /* SCALP | DAY | SWING */
   shot:  LS.get('shot',null),          /* last chart analysis */
   mtfLog: LS.get('mtfLog',[]),        /* v10.4.0 AI Report Card — 4-TF faisle + nateeja */
-  mtfConf: LS.get('mtfConf',70),      /* v10.4.0 isse kam AI confidence = NO TRADE */
+  mtfConf: LS.get('mtfConf2',65),     /* v10.4.1 isse kam AI setup-quality = NO TRADE (naya key — purana 70 khud hata) */
   pfxTp:  LS.get('pfxTp',3),          /* v10.4.0 PERSONAL FX Grid_TP_Dollar ($ / 0.01 lot) */
   pfxGap: LS.get('pfxGap',5),         /* v10.4.0 PERSONAL FX Grid_Gap_Usd ($ / 0.01 lot) */
   track: LS.get('track',null),         /* jo setup track ho raha hai */
@@ -2400,7 +2400,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','agRC','btSp','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','mtfLog','mtfConf','pfxTp','pfxGap','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog','pfLoss','pfCool','pfMax','mt5Day'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); LS.set('mtfConf2', S.mtfConf); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','agRC','btSp','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','mtfLog','pfxTp','pfxGap','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog','pfLoss','pfCool','pfMax','mt5Day'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.9.24: purani cached news list ka text bhi ek baar escape karo */
@@ -8899,7 +8899,7 @@ function saveSettings(){
   S.atrSL = Math.max(0.1, +$('setAtrSL').value || 1.5);
   S.atrRR = Math.max(0.1, +$('setAtrRR').value || 2);
   S.riskUsd = Math.max(0.1, +$('setRisk').value || 1.75);
-  S.mtfConf = Math.max(50, Math.min(95, Math.round(+$('setMtfConf').value || 70)));
+  S.mtfConf = Math.max(50, Math.min(95, Math.round(+$('setMtfConf').value || 65)));
   S.pfxTp  = Math.max(0.1, +$('setPfxTp').value || 3);
   S.pfxGap = Math.max(0.1, +$('setPfxGap').value || 5);
   const oldG = S.gKey;
@@ -9421,7 +9421,7 @@ const MTF_TFS = [
 ];
 const MTF_ADX_RANGE = 22;      /* 15m ADX isse kam + 1H flat = range */
 const MTF_ADX_TREND = 18;      /* isse kam ADX = trend kamzor, FLAT maano (chop me trend ka dhokha) */
-const MTF_CONF_DEF = 70;       /* isse kam confidence = NO TRADE */
+const MTF_CONF_DEF = 65;       /* v10.4.1: isse kam setup-quality = NO TRADE (ek leg ke liye 10 kam chalega) */
 let mtfBusy = false;
 
 /* ek timeframe ka pakka hisaab: trend UP / DOWN / FLAT
@@ -9477,7 +9477,8 @@ function mtfLegCheck(leg, c){
   if(d < c.minD) return {ok:false, why:'Entry live price ke bahut paas — turant bhar jayega, pending ka matlab nahi'};
   if(d > c.maxD) return {ok:false, why:'Entry bahut door — 60 min me pahunchne ki ummeed kam'};
   if(leg.kind === 'STOP' && c.chase) return {ok:false, why:'Pichhli candles me bada jhatka — breakout ke peeche nahi bhaagte'};
-  if((+leg.conf || 0) < c.minConf) return {ok:false, why:`AI confidence ${+leg.conf || 0}% — ${c.minConf}% se kam`};
+  const lm = c.legMin === undefined ? c.minConf : c.legMin;
+  if((+leg.conf || 0) < lm) return {ok:false, why:`AI confidence ${+leg.conf || 0}% — ${lm}% se kam`};
   /* TP ke raaste me deewar: BUY ke upar resistance, SELL ke neeche support */
   if(buy && c.hi > 0 && e < c.hi && c.hi - e < c.tp) return {ok:false, why:'TP ke raaste me paas hi resistance hai — jagah kam'};
   if(!buy && c.lo > 0 && e > c.lo && e - c.lo < c.tp) return {ok:false, why:'TP ke raaste me paas hi support hai — jagah kam'};
@@ -9610,7 +9611,12 @@ Rules:
 - Use the exact OHLC numbers below for every level — never estimate prices from the picture.
 - Each entry must be between ${P(c.minD)} and ${P(c.maxD)} away from the current price (reachable within ~60 minutes).
 - If one leg has no good level, set its "entry" to 0. If neither is good, or the charts look messy, set "signal" to "NO TRADE".
-- "confidence" = your honest chance (0-100) that after the fill +${P(c.tp)} comes before -${P(c.gap)}. Do not inflate it.
+- "confidence" = SETUP QUALITY score 0-100. Use this scale honestly (not a probability):
+    85-100 = textbook: all 4 timeframes agree, clean level, strong reaction there, plenty of room to +${P(c.tp)}
+    70-84  = good: mode is clear, the level is real, one small doubt
+    55-69  = average: tradable but nothing special
+    below 55 = weak or messy
+  Each leg's "confidence" uses the same scale for that one level.
 
 Current price right now: ${P(live)}
 Timeframe readings (computed by the app):
@@ -9662,6 +9668,7 @@ async function autoAnalyze(){
       minD: Math.max(0.2 * a5, 3 * sp.pip),
       maxD: Math.max(2 * a15, 1.2 * gap),
       hi: 0, lo: 0, chase: false, minConf: +S.mtfConf || MTF_CONF_DEF};
+    c.legMin = Math.max(50, c.minConf - 10);
     const g = mtfGate(R, tp);
     if(g.mode === 'RANGE'){ c.hi = R['15min'].hi; c.lo = R['15min'].lo }
     const specs = mtfLegs(g.mode);
