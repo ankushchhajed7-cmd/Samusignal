@@ -2023,6 +2023,14 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
   <p class="hint" style="margin-bottom:16px">ATR mode me SL market ki chaal ke hisaab se lagti hai — gold pe chaudi, EURUSD pe patli. Dollar value trade lete waqt dikh jayegi.</p>
 
+  <p class="ttl">Pre-flight Check <span class="sp">order bhejne se pehle</span></p>
+  <div class="grid3" style="margin-bottom:6px">
+    <div><label>Aaj max loss $</label><input class="mono" id="setPfLoss" type="number" step="1" min="0"></div>
+    <div><label>SL cooldown min</label><input class="mono" id="setPfCool" type="number" step="5" min="0"></div>
+    <div><label>Max order/din</label><input class="mono" id="setPfMax" type="number" step="1" min="0"></div>
+  </div>
+  <p class="hint" style="margin-bottom:16px">MT5 ya PERSONAL FX ko order jaane se theek pehle app news, aaj ka loss (Trades journal se), same pair pe haal ka SL, din ke orders, ek-currency-do-trade aur R:R dekhti hai. Kuch gadbad ho to poori list dikhakar poochti hai — sab theek ho to kuch nahi poochti. 0 = wo check band.</p>
+
   <p class="ttl">Default Trade Size <span class="sp">yahi lot har jagah chalega</span></p>
   <div class="grid3" style="margin-bottom:6px">
     <div><label>TP ($)</label><input class="mono" id="setTp" type="number" step="0.5" value="4" oninput="lotScaleNote()"></div>
@@ -2117,7 +2125,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.1.1';
+const VERSION = '10.2.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -2324,6 +2332,11 @@ let S = {
   autoMaxDay: LS.get('autoMaxDay',3),   /* ek din me max auto order */
   autoCool:   LS.get('autoCool',60),    /* ek hi pair pe dobara kitni der baad */
   autoLog:    LS.get('autoLog',{d:'', n:0, last:{}, why:'', at:0}),
+  /* v10.2.0 pre-flight */
+  pfLoss: LS.get('pfLoss',10),      /* aaj ka max loss $ (0 = band) */
+  pfCool: LS.get('pfCool',60),      /* SL ke baad same pair pe kitne min ruko */
+  pfMax:  LS.get('pfMax',6),        /* din me max MT5/PERSONAL FX order */
+  mt5Day: LS.get('mt5Day',{d:'',n:0}),
   dLot:  LS.get('dLot',0.01),
   chartTf: LS.get('chartTf','15'),
   cap:   LS.get('cap',700),
@@ -2361,7 +2374,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog','pfLoss','pfCool','pfMax','mt5Day'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.9.24: purani cached news list ka text bhi ek baar escape karo */
@@ -2855,6 +2868,9 @@ async function runAI(){
         (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se pooch raha hoon...`) + `</p>`;
     });
     lastAI = d; lastAI.sym = lastSignal.sym; lastAI.at = Date.now();
+    /* v10.2.0: AI ki raay bhi signal journal me */
+    { const g = S.sigs.find(x => x.at === lastSignal.at && x.sym === lastSignal.sym && x.dir === lastSignal.dir);
+      if(g){ g.ai = String(d.verdict || '').slice(0, 12); g.aiC = +d.confidence || 0; save() } }
     renderAI();
     if(S.tts) speak(`AI says ${d.verdict}. ${d.reasoning}`);
   }catch(e){
@@ -4014,6 +4030,28 @@ function sumGo(id){
   }
   (e.closest('.card') || e).scrollIntoView({behavior:'smooth', block:'start'});
 }
+/* ===== SMART VOTE (v10.2.0) — sirf jaankari, FAISLA nahi badalta =====
+   NOFX ka "model leaderboard" jaisa: jis agent ka live record (Votes → Live Agent
+   Record) achha hai uska vote bhaari, kharab ka halka. Kam se kam 20 scored vote
+   wale agent hi weight paate hain; baaki ka weight 1. Weight 0.3 se 2 ke beech. */
+const SV_MIN = 20;
+function smartVote(v){
+  if(!v || !Array.isArray(v.list)) return null;
+  const be = 100 / (1 + S.dTp / S.dSl);
+  let b = 0, se = 0, tot = 0, used = 0;
+  v.list.forEach((x, i) => {
+    if(x.off) return;
+    const d = S.agLive[i];
+    let w = 1;
+    if(d && d.n >= SV_MIN){ w = Math.max(0.3, Math.min(2, (d.w / d.n * 100) / be)); used++ }
+    tot += w;
+    if(x.v === 'BUY') b += w; else if(x.v === 'SELL') se += w;
+  });
+  if(!tot) return null;
+  const verdict = b > se ? 'BUY' : se > b ? 'SELL' : 'HOLD';
+  return {buy: +b.toFixed(1), sell: +se.toFixed(1), verdict, conf: Math.round(Math.max(b, se) / tot * 100), used};
+}
+
 function renderSum(){
   const box = $('sumCard'); if(!box) return;
   const s = lastSignal;
@@ -4031,6 +4069,12 @@ function renderSum(){
     const v = lastVotes, ok = v.verdict === s.dir, t = tierOf(ok ? v.conf : 100 - v.conf, 'vote');
     R.push(row('VOTE', `${v.conf}% ${ok ? t.t : 'ULTA'}`, ok ? t.c : 'var(--dn)', '', 'cardSignal'));
   } else R.push(row('VOTE', '—', 'var(--mut)', '', 'cardSignal'));
+  if(lastVotes && lastVotes.sym === s.sym){
+    const sv = smartVote(lastVotes);
+    if(sv && sv.used) R.push(row('SMART VOTE', `${sv.verdict} ${sv.conf}%`,
+      sv.verdict === s.dir ? 'var(--up)' : sv.verdict === 'HOLD' ? 'var(--gold)' : 'var(--dn)',
+      `${sv.used} agents ka live record gina · <i>sirf jaankari</i>`, 'agLiveOut'));
+  }
   if(lastAn){ const t = tierOf(lastAn.pct, 'tech'); R.push(row('TECH', `${lastAn.pct}% ${t.t}`, t.c, '', 'anBox')); }
   else R.push(row('TECH', '—', 'var(--mut)', '', 'anBox'));
   const a = s.age;
@@ -4367,7 +4411,9 @@ function fdRecord(s, f){
   const g = S.sigs.find(x => x.at === s.at && x.sym === s.sym && x.dir === s.dir);
   if(!g || g.out !== 'OPEN') return;
   const fd = !f.go ? 'W' : f.ord && f.ord.type === 'LIMIT' ? 'L' : f.ord && f.ord.type === 'STOP' ? 'S' : 'T';
-  if(g.fd !== fd){ g.fd = fd; save() }
+  /* v10.2.0: faisla ke saath uski wajah bhi journal me (baad me padhne ke liye) */
+  const why = String(f.why || '').replace(/<[^>]+>/g, '').slice(0, 180);
+  if(g.fd !== fd || g.why !== why){ g.fd = fd; g.why = why; save() }
 }
 
 /* ===== SHADOW TRACKING (v9.9.29) =====
@@ -4997,7 +5043,8 @@ function renderSigHist(){
         <div class="in">
           <b class="mono">${SPECS[g.sym]?SPECS[g.sym].n:g.sym} <span class="${g.dir==='BUY'?'up':'dn'}" style="font-size:10px">${g.dir}</span>
             <span class="mu" style="font-size:10px">${g.grade} ${g.q}%</span></b>
-          <small>${dt12(g.at)} · ${g.tf}${g.vote?` · agents ${g.vote.verdict} ${g.vote.conf}%`:''}${g.an?` · ${g.an.pct}%`:''}${(f => f ? ` · SF ${f.pass ? '✅' : '⏸'}` : '')(smartFilter(g.dir, g.vstr))}</small>
+          <small>${dt12(g.at)} · ${g.tf}${g.vote?` · agents ${g.vote.verdict} ${g.vote.conf}%`:''}${g.an?` · ${g.an.pct}%`:''}${(f => f ? ` · SF ${f.pass ? '✅' : '⏸'}` : '')(smartFilter(g.dir, g.vstr))}${g.ai ? ` · AI ${escH(g.ai)}${g.aiC ? ' ' + g.aiC + '%' : ''}` : ''}</small>
+          ${g.why ? `<small style="display:block;color:var(--dim);line-height:1.45;margin-top:2px">${({T:'✅',L:'⏳ LIMIT',S:'⏳ STOP',W:'⏸'})[g.fd] || ''} ${escH(g.why)}</small>` : ''}
         </div>
         ${g.out==='OPEN' ? '<span class="mu" style="font-size:10px" data-ago="'+g.at+'">'+ago(g.at)+'</span>'
           : `<div class="amt mono ${g.pl>=0?'up':'dn'}">${money(g.pl)}</div>`}
@@ -5470,6 +5517,11 @@ function renderVotes(){
     </div>
     ${lastSignal && lastSignal.sym===v.sym && lastSignal.dir!==v.verdict && v.verdict!=='HOLD'
       ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Signal card <b>${lastSignal.dir}</b> keh raha hai, par agents <b>${v.verdict}</b> bol rahe hain. Aisa ho to ruk jaana behtar.</p>` : ''}
+    ${(sv => sv ? `<div style="border:1px dashed var(--line);border-radius:6px;padding:9px 11px;margin-top:10px">
+      <b style="font-size:10.5px;letter-spacing:1.3px;color:var(--gold)">SMART VOTE</b>
+      <span class="mono" style="margin-left:8px;color:${sv.verdict==='BUY'?'var(--up)':sv.verdict==='SELL'?'var(--dn)':'var(--mut)'}">${sv.verdict} ${sv.conf}%</span>
+      <span class="mono mu" style="font-size:11px;margin-left:6px">${sv.buy}B / ${sv.sell}S</span>
+      <p class="hint" style="margin:5px 0 0">${sv.used ? `${sv.used} agents ka live record gina — achhe agent ka vote bhaari, kharab ka halka. Sirf jaankari, faisla nahi badalta.` : `Abhi kisi agent ke ${SV_MIN}+ scored vote nahi — sab ka weight barabar. Signals TP/SL pe band hote jayenge to ye apne aap tez hoga.`}</p></div>` : '')(smartVote(v))}
     ${v.conf < 50 ? '<p class="hint" style="color:var(--gold);margin-top:8px">Agents ka mat bata hua hai — market shayad range me hai. Wait karna theek rahega.</p>' : ''}
     <div class="grid2" style="margin-top:12px">
       <button class="btn ghost sm" onclick="shareWa()">WhatsApp</button>
@@ -7943,6 +7995,8 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent, exact){
     if(!silent) alert(`MT5 pe nahi bheja —\n\n${msg}\n\nSettings me is pair ka TP/SL bada karo.`);
     return false;
   }
+  /* v10.2.0: Pre-flight check — news, aaj ka loss, SL ke baad cooldown, din ke orders, R:R */
+  if(!silent && !pfConfirm(sym, dir, entry, sl, tp)){ logAdd('MT5 roka (pre-flight): ' + SPECS[sym].n); return false }
   /* LIMIT: entry ko live price se thoda door karo, warna MT5 reject karega.
      SL/TP bhi utna hi shift hote hain, isliye $ risk bilkul same rehta hai. */
   if((mode === 'LIMIT' || mode === 'STOP') && !exact){   /* exact = EMA plan ka apna price, shift nahi */
@@ -7966,6 +8020,7 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent, exact){
     }
     LS.set('lastOrder', {t:Date.now(), body, ok:true});
     mt5Mark(sym, dir, body.lots);
+    pfCount();
     logAdd(`MT5 bhej diya (${useMeta?'MetaApi':'Firebase'}): ${body.type} ${body.pair} ${body.lots} @ ${body.entry} (id ${body.id})`);
     if(!silent) toast(body.type.includes('MARKET')
       ? `${body.pair} ${dir} MT5 pe laga diya`
@@ -7978,6 +8033,70 @@ async function sendMT5(sym, dir, lots, entry, sl, tp, kind, silent, exact){
     if(!silent) toast('MT5 bridge fail — ' + e.message);
     return false;
   }
+}
+
+/* ================= PRE-FLIGHT CHECK (v10.2.0) =================
+   NOFX jaisa niyam: "AI propose karega, code dispose karega". MT5 / PERSONAL FX
+   ko order jaane se theek pehle app ye sab dekhti hai. Koi chetawani ho to poori
+   list dikhakar poochti hai — sab theek ho to beech me kuch nahi aata.
+   Journal (Trades page) ke band trades se aaj ka loss aur SL cooldown ginte hain. */
+const PF_DEF = {loss:10, cool:60, max:6};
+function pfDay(){ return new Date().toDateString() }
+function pfOrdersToday(){ return (S.mt5Day && S.mt5Day.d === pfDay()) ? (+S.mt5Day.n || 0) : 0 }
+function pfCount(){
+  const n = pfOrdersToday() + 1;
+  S.mt5Day = {d: pfDay(), n}; save();
+}
+function pfLossToday(){
+  const s0 = new Date(); s0.setHours(0,0,0,0);
+  return S.hist.filter(t => (t.closedAt || 0) >= s0.getTime()).reduce((a,t) => a + (+t.pl || 0), 0);
+}
+function preflight(sym, dir, entry, sl, tp){
+  const L = [], add = (ok, txt) => L.push({ok, txt});
+  const sp = SPECS[sym], N = sp ? sp.n : sym;
+  /* 1. news */
+  const nr = newsRisk(sym);
+  add(!nr, nr ? `News: ${nr.c} · ${nr.t} — ${t12(nr.d)} (spread/slippage ka khatra)` : 'Paas me koi high-impact news nahi');
+  /* 2. aaj ka loss */
+  const lim = +S.pfLoss || 0, today = pfLossToday();
+  if(lim > 0) add(today > -lim, today > -lim
+    ? `Aaj ka journal P/L ${money(today)} (seema −$${lim})`
+    : `Aaj ka loss ${money(today)} — din ki seema −$${lim} paar. Aaj ruk jaana behtar.`);
+  /* 3. SL ke baad cooldown (same pair) */
+  const cool = +S.pfCool || 0;
+  const lastSl = S.hist.find(t => t.sym === sym && t.reason === 'SL');
+  const minsAgo = lastSl ? (Date.now() - (lastSl.closedAt || 0)) / 60000 : Infinity;
+  if(cool > 0) add(minsAgo >= cool, minsAgo >= cool
+    ? `${N} pe pichhle ${cool} min me koi SL nahi`
+    : `${N} pe ${Math.round(minsAgo)} min pehle SL laga — ${cool} min ka cooldown (revenge trade ka khatra)`);
+  /* 4. din ke orders */
+  const mx = +S.pfMax || 0, done = pfOrdersToday();
+  if(mx > 0) add(done < mx, done < mx
+    ? `Aaj ${done}/${mx} order bheje`
+    : `Aaj pehle hi ${done} order bhej chuke — din ki seema ${mx}`);
+  /* 5. ek currency ek trade (journal ke khule trades) */
+  if(sp){
+    const cc = x => (SPECS[x] ? SPECS[x].ccy : []);
+    const mine = cc(sym).filter(c => c !== 'USD');          /* USD lagbhag har pair me hai — use nahi ginte */
+    const hit = S.open.find(t => !t.pend && t.sym !== sym && cc(t.sym).some(c => mine.includes(c)));
+    add(!hit, hit ? `${hit.sym} pehle se khula hai — same currency pe dugna risk` : 'Kisi aur khule trade se currency nahi takrati');
+  }
+  /* 6. R:R (SL/TP diye hon tabhi) */
+  if(sl > 0 && tp > 0 && entry > 0){
+    const r = Math.abs(entry - sl), w = Math.abs(tp - entry), rr = r ? w / r : 0;
+    add(rr >= 1.5, rr >= 1.5 ? `R:R 1:${rr.toFixed(2)}` : `R:R sirf 1:${rr.toFixed(2)} — kam se kam 1:1.5 rakho`);
+  }
+  return L;
+}
+/* true = bhejo. Sab theek ho to seedha true; warna checklist dikhakar poochho */
+function pfConfirm(sym, dir, entry, sl, tp){
+  const L = preflight(sym, dir, entry, sl, tp);
+  const bad = L.filter(x => !x.ok);
+  if(!bad.length) return true;
+  const txt = `🛫 PRE-FLIGHT — ${SPECS[sym] ? SPECS[sym].n : sym} ${dir}\n\n` +
+    L.map(x => (x.ok ? '✓ ' : '⚠ ') + x.txt).join('\n') +
+    `\n\n${bad.length} chetawani. Phir bhi bhejna hai?`;
+  return confirm(txt);
 }
 
 /* signal card ka button */
@@ -8501,6 +8620,9 @@ function saveSettings(){
   S.limPips = Math.max(1, +$('setLim').value || 5);
   showMode(); if($('verMode')) $('verMode').textContent = S.mt5Type;
   S.autoM = +$('setAuto').value;
+  S.pfLoss = Math.max(0, +$('setPfLoss').value || 0);
+  S.pfCool = Math.max(0, +$('setPfCool').value || 0);
+  S.pfMax  = Math.max(0, Math.round(+$('setPfMax').value || 0));
   S.trackMin = Math.max(2, +$('setTrackMin').value || 5);
   $('inLots').value = S.dLot; S.lots = S.dLot;
   save(); closeSheet('setSheet');
@@ -9285,6 +9407,7 @@ async function pfxSend(){
     (type === 'MARKET' ? '' : `\nPending ${PFX_EXP_MIN} min me na bhare to hat jayega`) +
     (d.liveSrc !== 'live' ? '\n\n⚠ Live price nahi mila — type screenshot ke price se tay hua' : '') +
     (dup ? `\n\n⚠ ${pair} ka ek order pehle se "${(PFX_ST[dup.status] || [dup.status])[0]}" hai (${t12(dup.at)})` : '') +
+    (pfl => pfl.length ? '\n\n🛫 PRE-FLIGHT\n' + pfl.map(x => (x.ok ? '✓ ' : '⚠ ') + x.txt).join('\n') : '')(preflight(sym, d.dir, e, 0, 0)) +
     `\n\nPERSONAL FX ko bhejein?`;
   if(!confirm(msg)) return;
   const now = Date.now();
@@ -9297,7 +9420,7 @@ async function pfxSend(){
       if(r.status === 401 || r.status === 403) why = 'Firebase rules ne mana kiya — write permission do';
       throw new Error(why);
     }
-    d.sentAt = now; save();
+    d.sentAt = now; save(); pfCount();
     logAdd(`PERSONAL FX ko bheja: ${pair} ${d.dir} ${type}${type === 'MARKET' ? '' : ' @ ' + body.entry}`);
     toast(`Gaya — ${pair} ${d.dir} ${type}`);
     if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → PERSONAL FX</b>\n\n<b>${pair}</b> ${d.dir} ${type}` +
@@ -10059,6 +10182,7 @@ function boot(){
   $('swAutoLot').classList.toggle('on', S.autoLot);
   $('swFresh').classList.toggle('on', S.freshPx);
   $('swBe').classList.toggle('on', S.beOn);
+  $('setPfLoss').value = S.pfLoss; $('setPfCool').value = S.pfCool; $('setPfMax').value = S.pfMax;
   loadPairDef(pickVal.minstop || 'XAU/USD');
   $('setGKey').value = S.gKey;
   $('swGAuto').classList.toggle('on', S.gAuto);
@@ -10892,6 +11016,9 @@ nav button{min-width:0}
     '↺ Reset to Default':'↺ Reset to Default','🔓 Locked Pairs Reset Karo':'🔓 Reset Locked Pairs','Sab Data Delete Karo':'Delete All Data',
     'Maine Ye Trade Liya':'I Took This Trade','Ye trade history se hatao':'Remove this trade from history','Saaf karo':'Clear','Pair Chuno':'Pick Pair','Trade Save Karo':'Save Trade',
     '⚠ Offline — purana cached data dikh raha hai':'⚠ Offline — showing old cached data',
+    'Pre-flight Check':'Pre-flight Check','order bhejne se pehle':'before sending orders','Aaj max loss $':'Max loss today $','SL cooldown min':'SL cooldown min','Max order/din':'Max orders/day',
+    'MT5 ya PERSONAL FX ko order jaane se theek pehle app news, aaj ka loss (Trades journal se), same pair pe haal ka SL, din ke orders, ek-currency-do-trade aur R:R dekhti hai. Kuch gadbad ho to poori list dikhakar poochti hai — sab theek ho to kuch nahi poochti. 0 = wo check band.':'Right before an order goes to MT5 or PERSONAL FX, the app checks news, today\'s loss (from the Trades journal), a recent SL on the same pair, orders sent today, two trades on one currency, and R:R. If anything is off it shows the full list and asks — if all is fine it asks nothing. 0 = that check is off.',
+    'SMART VOTE':'SMART VOTE',
     'LE LO':'TAKE IT','TRADE LO':'TAKE TRADE','LIMIT LAGAO':'PLACE LIMIT','STOP LAGAO':'PLACE STOP','CHHOD DO':'SKIP IT','BACKTEST CHALAO':'RUN BACKTEST','Pehle Analyze karo — usi data se EMA bantee hain, koi extra credit nahi lagta.':'Analyze first — EMAs use the same data, no extra credit.',
     'Candles aa rahi hain…':'Loading candles…','Aakhri 3 Crossover':'Last 3 Crossovers','Dikhne wali history me koi cross nahi.':'No crosses in the visible history.',
     'Chart pe number wahi hain jo yahan — 1 sabse naya. Hari circle = tez EMA upar nikli, laal = neeche. Time candle ke shuru hone ka hai (IST).':'Chart numbers match these — 1 is the newest. Green circle = fast EMA crossed up, red = down. Time is candle open (IST).',
