@@ -71,6 +71,22 @@ const PIECES = [
   ['psarUp',        /function psarUp\([\s\S]*?\n\}/],
   ['tfBias',        /function tfBias\([\s\S]*?\n\}/],
   ['AGENTS',        /const AGENTS = \[[\s\S]*?\n\];/],
+  ['AGENT_N',       /const AGENT_N = [^\n]+/],
+  ['RC_KEEP',       /const RC_KEEP = [^\n]+/],
+  ['rcStat',        /function rcStat\([\s\S]*?\n\}/],
+  ['rcTier',        /function rcTier\([\s\S]*?\n\}/],
+  ['rcApply',       /function rcApply\([\s\S]*?\n\}/],
+  ['rcScore',       /function rcScore\([\s\S]*?\n\}/],
+  ['rcMirror',      /function rcMirror\([\s\S]*?\n\}/],
+  ['rcMirrorCheck', /function rcMirrorCheck\([\s\S]*?\n\}/],
+  ['btDefCost',     /function btDefCost\([\s\S]*?\n\}/],
+  ['btCost',        /function btCost\([\s\S]*?\n\}/],
+  ['btIstMin',      /function btIstMin\([\s\S]*?\n\}/],
+  ['btRollover',    /function btRollover\([^\n]+/],
+  ['btDayKey',      /function btDayKey\([\s\S]*?\n\}/],
+  ['btTrade',       /function btTrade\([\s\S]*?\n\}/],
+  ['btPl',          /function btPl\([\s\S]*?\n\}/],
+  ['btMetrics',     /function btMetrics\([\s\S]*?\n\}/],
   ['runAgents',     /function runAgents\([\s\S]*?\n\}/],
   ['analyse',       /function analyse\(sym, bars, v, s\)\{[\s\S]*?\n\}\n/],
   ['finalCall',     /function finalCall\(s\)\{[\s\S]*?\n\}\n/],
@@ -104,7 +120,7 @@ globalThis.apiSym = sym => sym;
 globalThis.newsRisk = () => null;
 globalThis.nextNews = () => null;
 globalThis.t12 = d => new Date(d).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true});
-globalThis.lastVotes = null; globalThis.lastAn = null; globalThis.lastSignal = null;
+globalThis.lastVotes = null; globalThis.lastAn = null; globalThis.lastSignal = null; globalThis.lastAI = null; globalThis.window = globalThis; globalThis.smartFilter = () => null;
 
 function resetState(){
   globalThis.prices = {};
@@ -115,7 +131,8 @@ function resetState(){
     dTp:1, dSl:2.5, dLot:0.01,
     slMode:'DOLLAR', atrSL:1.5, atrRR:2, autoLot:false, riskUsd:1.75,
     minPips:{}, symDef:{}, mt5Type:'MARKET', limPips:5,
-    newsOn:true, newsMin:30, htf:true, tf:'1h', px:{}, bad:[]
+    newsOn:true, newsMin:30, htf:true, tf:'1h', px:{}, bad:[],
+    agRC:{}, btSp:{}, vbal:500
   };
 }
 resetState();
@@ -135,7 +152,9 @@ const EXPORTS = [
   'minStop','checkStops','mt5Payload','ema','rsi','atr','supertrend','macdH',
   'last','sma','hh','ll','stdev','stoch','cci','adx','psarUp','tfBias',
   'AGENTS','runAgents','analyse','finalCall','structCorr','pearson',
-  'jsonRescue','P_UP','P_DN','P_HI','paint','hasOwnDef','getPrice','entryZone'
+  'jsonRescue','P_UP','P_DN','P_HI','paint','hasOwnDef','getPrice','entryZone',
+  'AGENT_N','RC_KEEP','RC_MIN','rcStat','rcTier','rcApply','rcScore','rcMirror','rcMirrorCheck',
+  'btDefCost','btCost','btIstMin','btRollover','btDayKey','btTrade','btPl','btMetrics'
 ];
 try {
   const glue = EXPORTS.map(n =>
@@ -359,7 +378,7 @@ for (const [name, dr, vol, expect] of CASES) {
   const bars = gen(200, dr, vol, 42);
   const bias = dr > 0 ? 'BUY' : dr < 0 ? 'SELL' : 'HOLD';
   const v = runAgents(bars, {'1h':bias,'4h':bias,'1day':bias}, bars[bars.length-1].c);
-  ok(`${name}: kul vote 50`, v.buy + v.hold + v.sell === 50,
+  ok(`${name}: kul vote ${AGENT_N} (band agent nahi gina)`, v.buy + v.hold + v.sell === AGENT_N,
      `${v.buy}+${v.hold}+${v.sell}`);
   ok(`${name}: har agent ka vote B/S/H me se`,
      v.list.every(x => [B,SE,H].includes(x.v)));
@@ -384,7 +403,7 @@ for (const [name, bars] of weird) {
   let crashed = false, v;
   try { v = runAgents(bars, {}, bars[bars.length-1].c) } catch(e){ crashed = true }
   ok(`${name}: crash nahi hua`, !crashed);
-  if (!crashed) ok(`${name}: 50 vote phir bhi`, v.buy+v.hold+v.sell === 50);
+  if (!crashed) ok(`${name}: ${AGENT_N} vote phir bhi`, v.buy+v.hold+v.sell === AGENT_N);
 }
 
 /* ============ H. analyst ============ */
@@ -441,7 +460,8 @@ ok('kharab R:R se pura score gira',
 G('I. LE LO / WAIT / CHHOD DO');
 resetState();
 function callWith(sig, votes, an){
-  globalThis.lastVotes = votes; globalThis.lastAn = an; globalThis.lastSignal = sig;
+  globalThis.lastVotes = votes && !votes.list ? Object.assign({list: []}, votes) : votes;
+  globalThis.lastAn = an; globalThis.lastSignal = sig;
   return finalCall(sig);
 }
 const goodAn = { pct:85, bad:[], O:[
@@ -626,6 +646,105 @@ globalThis.td = async () => { throw new Error('network down') };
      entryZone('EUR/USD', 1.10, 1.10) > 0);
   ok('gold pe zone bada hai (pip bada hai)',
      entryZone('XAU/USD', 3300, 3292) > entryZone('EUR/USD', 1.10, 1.0975));
+
+  /* ============ R. Agent Report Card (v10.3.0) ============ */
+  G('R. Agent Report Card');
+  resetState();
+  const AI = AGENTS.findIndex(a => !a.off);
+  const fill = (i, wins, n, be) => { S.agRC[i] = {r: Array.from({length:n}, (_, k) => k < wins ? 1 : 0), b: Array(n).fill(be), n, w: wins} };
+  eq('20 se kam nateeje = NAYA, weight 1', (fill(AI, 2, 10, 50), rcTier(rcStat(AI)).w), 1);
+  ok('20 se kam nateeje pe kabhi BAND nahi', !rcTier(rcStat(AI)).bench);
+  fill(AI, 7, 20, 50);  ok('R:R 1:1 · 35% = vote BAND', rcTier(rcStat(AI)).bench);
+  fill(AI, 8, 20, 50);  eq('R:R 1:1 · 40% = 1x', rcTier(rcStat(AI)).w, 1);
+  fill(AI, 11, 20, 50); eq('R:R 1:1 · 55% = 1.5x', rcTier(rcStat(AI)).w, 1.5);
+  fill(AI, 13, 20, 50); eq('R:R 1:1 · 65% = 2x', rcTier(rcStat(AI)).w, 2);
+  fill(AI, 8, 20, 33.3); eq('R:R 1:2 (breakeven 33%) · 40% agent BAND nahi, 1.5x', rcTier(rcStat(AI)).w, 1.5);
+  /* aakhri 50 hi ginte hain */
+  resetState();
+  const g0 = {rcv:1, dir:'BUY', entry:100, tp:102, sl:98, vstr: AGENTS.map(a => a.off ? 'H' : 'B').join('')};
+  for (let k = 0; k < 60; k++) rcScore(Object.assign({}, g0), 'BUY', k >= 30);
+  eq('60 nateeje ke baad bhi sirf aakhri 50 rakhe', S.agRC[AI].r.length, 50);
+  eq('aakhri 50 me 30 jeet (purani 10 haar hat gayi)', rcStat(AI).w, 30);
+  eq('kul ginti fir bhi 60', S.agRC[AI].n, 60);
+  /* ek side ek hi baar */
+  resetState();
+  const g1 = Object.assign({}, g0);
+  rcScore(g1, 'BUY', true); rcScore(g1, 'BUY', true);
+  eq('ek signal ki ek side do baar nahi gini jaati', S.agRC[AI].r.length, 1);
+  ok('rcv ke bina (purane signal) score nahi hota', rcScore(Object.assign({}, g0, {rcv:0}), 'BUY', true) === false);
+  /* BUY side ka nateeja sirf BUY bolne walon ko */
+  resetState();
+  const mixed = AGENTS.map((a, i) => a.off ? 'H' : (i % 2 ? 'S' : 'B')).join('');
+  rcScore({rcv:1, dir:'BUY', entry:100, tp:102, sl:98, vstr:mixed}, 'BUY', true);
+  ok('BUY nateeja SELL bolne wale agent ko nahi laga', AGENTS.every((a, i) => mixed[i] !== 'S' || !S.agRC[i]));
+  ok('BUY nateeja BUY bolne walon ko laga', AGENTS.every((a, i) => mixed[i] !== 'B' || (S.agRC[i] && S.agRC[i].r[0] === 1)));
+  /* mirror: ulti side */
+  const m = rcMirror({dir:'BUY', entry:100, tp:102, sl:99});
+  ok('mirror: BUY ka ulta SELL, TP 98, SL 101', m.dir === 'SELL' && m.tp === 98 && m.sl === 101, JSON.stringify(m));
+  resetState();
+  const gm = {rcv:1, at:Date.now(), dir:'BUY', entry:100, tp:102, sl:99, vstr:mixed};
+  rcMirrorCheck(gm, 100.5, 97.5, Date.now());
+  ok('mirror SELL ka TP laga -> SELL walon ko sahi', gm.mo === 'TP' && AGENTS.some((a, i) => mixed[i] === 'S' && S.agRC[i] && S.agRC[i].r[0] === 1));
+  resetState();
+  const gb = {rcv:1, at:Date.now(), dir:'BUY', entry:100, tp:102, sl:99, vstr:mixed};
+  rcMirrorCheck(gb, 101.5, 97.5, Date.now());
+  eq('mirror: TP aur SL ek saath lage -> SL (safe)', gb.mo, 'SL');
+  /* rcApply */
+  resetState();
+  const bars = gen(200, 0.004, 0.006, 42);
+  const raw = runAgents(bars, {'1h':'BUY','4h':'BUY','1day':'BUY'}, bars[bars.length-1].c);
+  const same = rcApply(raw);
+  ok('koi data nahi -> weight wala vote = kachcha vote', same.verdict === raw.verdict && same.conf === raw.conf, `${same.verdict} ${same.conf} vs ${raw.verdict} ${raw.conf}`);
+  const buyers = raw.list.map((x, i) => x.v === 'BUY' && !x.off ? i : -1).filter(i => i >= 0);
+  buyers.forEach(i => fill(i, 2, 20, 50));
+  const ben = rcApply(raw);
+  eq('sab BUY agents BAND -> unka vote nahi gina', ben.buy, 0);
+  ok('BAND agent list me rehta hai (tracking ke liye) aur bench flag hai', buyers.every(i => ben.list[i].bench && ben.list[i].v === 'BUY'));
+  ok('vstr (tracking) me BAND agent ka asli vote', ben.list.map(x => x.v[0]).join('') === raw.list.map(x => x.v[0]).join(''));
+  ok('raw vote bhi saath me rakha', ben.raw && ben.raw.verdict === raw.verdict);
+  ok('vote ginti = sakriya agents', ben.buy + ben.sell + ben.hold === ben.n && ben.n === AGENT_N - buyers.length);
+
+  /* ============ S. Imaandaar Backtest (v10.3.0) ============ */
+  G('S. Imaandaar Backtest');
+  resetState();
+  const flat = [{t:'2026-01-05 10:00:00', o:100, h:100.3, l:99.7, c:100}];
+  for (let k = 0; k < 5; k++) flat.push({t:'2026-01-05 11:00:00', o:100, h:100.3, l:99.7, c:100});
+  const r0 = btTrade(flat, 0, 'BUY', 1, 2, 5, {sp:0, sl:0});
+  eq('bina cost: BUY entry = candle open', r0.entry, 100, 1e-9);
+  const r1 = btTrade(flat, 0, 'BUY', 1, 2, 5, {sp:0.4, sl:0.1});
+  eq('cost ke saath: BUY entry = open + aadha spread + slippage', r1.entry, 100.3, 1e-9);
+  const r2 = btTrade(flat, 0, 'SELL', 1, 2, 5, {sp:0.4, sl:0.1});
+  eq('SELL entry = open - aadha spread - slippage', r2.entry, 99.7, 1e-9);
+  eq('kuch na lage -> TIME pe band', r0.out, 'TIME');
+  eq('TIME exit BUY = close - aadha spread', r1.exit, 99.8, 1e-9);
+  const up = [{t:'2026-01-05 10:00:00', o:100, h:101.1, l:99.9, c:101}];
+  eq('bina cost +1 move pe TP 1 lagta hai', btTrade(up, 0, 'BUY', 1, 1, 1, {sp:0, sl:0}).out, 'TP');
+  eq('spread ke saath wahi move kam padta hai (TP nahi)', btTrade(up, 0, 'BUY', 1, 1, 1, {sp:0.4, sl:0.1}).out, 'TIME');
+  const both = [{t:'2026-01-05 10:00:00', o:100, h:102, l:98, c:100}];
+  eq('ek candle me TP aur SL dono -> SL (safe)', btTrade(both, 0, 'BUY', 1, 1, 1, {sp:0, sl:0}).out, 'SL');
+  const sl1 = btTrade(both, 0, 'BUY', 1, 1, 1, {sp:0, sl:0.2});
+  eq('SL pe slippage phir katta hai', sl1.exit, 100.2 - 1 - 0.2, 1e-9);
+  ok('rollover: IST 3:00 = haan', btRollover('2026-01-05 03:00:00'));
+  ok('rollover: IST 10:00 = nahi', !btRollover('2026-01-05 10:00:00'));
+  eq('raat: IST shaam se agle din subah tak = 1 raat', btDayKey('2026-01-06 10:00:00') - btDayKey('2026-01-05 20:00:00'), 1);
+  eq('raat: ek hi din ke andar = 0', btDayKey('2026-01-05 20:00:00') - btDayKey('2026-01-05 10:00:00'), 0);
+  eq('gold default spread 2.6 pip (Exness ~260 points)', btCost('XAU/USD').sp, 2.6);
+  S.btSp = {'XAU/USD': {sp: 3.5}};
+  eq('user ka spread default pe bhari', btCost('XAU/USD').sp, 3.5);
+  eq('baaki default wahi', btCost('XAU/USD').sl, 0.2);
+  /* $ hisaab: gold 0.01 lot, +$1 price = $1 */
+  const gb2 = [{t:'2026-01-05 10:00:00', o:3300, h:3302, l:3299.5, c:3301}];
+  const gr = btTrade(gb2, 0, 'BUY', 5, 1, 1, {sp:0, sl:0});
+  eq('gold 0.01 lot · TP $1 move = $1 profit', btPl('XAU/USD', gb2, 0, 'BUY', gr, 0.01, null), 1, 1e-9);
+  eq('commission $7/lot · 0.01 lot = $0.07 kata', btPl('XAU/USD', gb2, 0, 'BUY', gr, 0.01, {cm:7, sw:0}), 0.93, 1e-9);
+  const mm = btMetrics([{pl:10},{pl:-5},{pl:-5},{pl:-5},{pl:20,out:'TIME'}], 100);
+  eq('metrics: net', mm.net, 15, 1e-9);
+  eq('metrics: profit factor 30/15', mm.pf, 2, 1e-9);
+  eq('metrics: lambi haar 3', mm.maxRun, 3);
+  eq('metrics: max DD $15', mm.maxDD, 15, 1e-9);
+  eq('metrics: max DD % (110 peak se)', mm.maxDDp, 15/110*100, 1e-6);
+  eq('metrics: TIME exits gine', mm.tm, 1);
+  eq('metrics: koi trade nahi -> sab 0', btMetrics([], 500).n, 0);
 
   report();
 })();

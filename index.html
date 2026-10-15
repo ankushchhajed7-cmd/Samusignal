@@ -419,6 +419,12 @@ nav button.on{color:var(--gold);text-shadow:0 0 10px rgba(255,184,0,.6)} nav but
 @keyframes sp{to{transform:rotate(360deg)}}
 
 .strrow{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+/* v10.3.0 Report Card */
+.rct{display:inline-block;min-width:38px;text-align:center;padding:2px 5px;border-radius:4px;font-size:9.5px;font-weight:700;letter-spacing:.5px;border:1px solid var(--line);color:var(--mut)}
+.rct.x2{color:var(--up);border-color:rgba(0,255,150,.45)}
+.rct.x15{color:var(--up);border-color:rgba(0,255,150,.25)}
+.rct.band{color:var(--dn);border-color:rgba(255,68,68,.45)}
+.ag.bench .nm{opacity:.5;text-decoration:line-through}
 .strrow b{width:42px;font-size:11px}
 .strrow .t{flex:1;height:7px;background:#222;border-radius:99px;overflow:hidden}
 .strrow .t i{display:block;height:100%;border-radius:99px}
@@ -1553,13 +1559,14 @@ body.ds-gold .brand .brandWord{height:24px}
       <option value="24">24 candles</option>
       <option value="48">48 candles</option>
     </select></div>
+    <div id="btCostBox"></div>
     <button class="btn gold" id="btnBt" onclick="runBacktest()">BACKTEST CHALAO</button>
     <p class="hint">Timeframe wahi chalega jo Signals page pe chuna hai (abhi <b id="btTf">—</b>). Ek pair = 1 credit.</p>
     <div id="btOut" style="margin-top:12px"></div>
   </div>
 
   <div class="card">
-    <p class="ttl">Live Agent Record <span class="sp"><button style="color:var(--dn);font-size:10px;font-weight:700" onclick="resetAgLive()">RESET</button></span></p>
+    <p class="ttl">Agent Report Card <span class="sp"><button style="color:var(--dn);font-size:10px;font-weight:700" onclick="resetAgLive()">RESET</button></span></p>
     <div id="agLiveOut"></div>
   </div>
 
@@ -2125,7 +2132,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.2.0';
+const VERSION = '10.3.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -2318,6 +2325,8 @@ let S = {
   symDef: LS.get('symDef',{}),
   mt5sent: LS.get('mt5sent',{}),
   agLive: LS.get('agLive',{}),      /* live: agent index -> {n,w,l} */
+  agRC:   LS.get('agRC',{}),        /* v10.3.0 Report Card: agent index -> {r:[1/0 x50], b:[breakeven% x50], n, w} */
+  btSp:   LS.get('btSp',{}),        /* v10.3.0 backtest cost: sym -> {sp,sl,sw,cm} (pips / $ per lot) */
   bt:     LS.get('bt',null),        /* backtest result */
   btBars: LS.get('btBars',1500),
   btFwd:  LS.get('btFwd',24),   /* per-symbol minimum SL/TP distance */
@@ -2374,7 +2383,7 @@ let S = {
   hist:  LS.get('hist',[]),
   log:   LS.get('log',[])
 };
-function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog','pfLoss','pfCool','pfMax','mt5Day'].forEach(k=>LS.set(k,S[k])); }
+function save(){ cloudTouch(); ['vbal','key','tf','pair','lots','htf','tgTok','tgId','tgAuto','dTp','dSl','dLot','slMode','atrSL','atrRR','autoLot','riskUsd','chartTf','fbUrl','fbAuth','metaOn','metaToken','metaAccount','metaHost','metaSuffix','mt5Type','limPips','minPips','symMap','symDef','mt5sent','theme','gKey','gModel','gBad','gAuto','cloud','cloudId','cloudAt','agLive','agRC','btSp','bt','btBars','btFwd','freshPx','mt5Auto','cap','autoM','day','corr','news','newsMin','newsOn','newsImp','sigs','watch','scanDeep','scanMin','scan','notif','tts','bad','px','open','hist','log','style','shot','track','trackMin','trackAuto','beOn','design','autoOn','autoQual','autoEvery','autoMaxDay','autoCool','autoLog','pfLoss','pfCool','pfMax','mt5Day'].forEach(k=>LS.set(k,S[k])); }
 
 if(!LS.get('mig29', false)){ S.mt5Type = 'MARKET'; LS.set('mt5Type','MARKET'); LS.set('mig29', true); }
 /* v9.9.24: purani cached news list ka text bhi ek baar escape karo */
@@ -3046,7 +3055,7 @@ function go(pg,btn){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b===btn));
   window.scrollTo(0,0);
   if(pg==='Scan'){ renderScan(); if(typeof wlMark === 'function') wlMark(); }
-  if(pg==='Votes'){ renderVotes(); renderSigHist(); renderBt(); renderAgLive();
+  if(pg==='Votes'){ renderVotes(); renderSigHist(); renderBt(); renderAgLive(); renderBtCost();
     $('btTf').textContent = S.tf; $('btT').innerHTML = S.bt ? `<span data-ago="${S.bt.at}">${ago(S.bt.at)}</span>` : '—' }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
   if(pg==='Alerts'){ renderLog(); renderCloud(); renderStorage(); renderTrack() }
@@ -3851,7 +3860,7 @@ async function runAnalyze(){
     const base = base0;
     const htfB = {};
     ['1h','4h','1day'].forEach(k => { if(res[k]) htfB[k] = res[k].bias === 'NEUTRAL' ? 'HOLD' : res[k].bias });
-    lastVotes = runAgents(barsBase, htfB, live);
+    lastVotes = rcApply(runAgents(barsBase, htfB, live));   /* v10.3.0: Report Card weight */
     lastVotes.sym = sym; lastVotes.at = Date.now(); lastVotes.tf = S.tf;
     const h4 = res['4h'], d1 = res['1day'], h1 = res['1h'];
 
@@ -4030,26 +4039,92 @@ function sumGo(id){
   }
   (e.closest('.card') || e).scrollIntoView({behavior:'smooth', block:'start'});
 }
-/* ===== SMART VOTE (v10.2.0) — sirf jaankari, FAISLA nahi badalta =====
-   NOFX ka "model leaderboard" jaisa: jis agent ka live record (Votes → Live Agent
-   Record) achha hai uska vote bhaari, kharab ka halka. Kam se kam 20 scored vote
-   wale agent hi weight paate hain; baaki ka weight 1. Weight 0.3 se 2 ke beech. */
-const SV_MIN = 20;
-function smartVote(v){
-  if(!v || !Array.isArray(v.list)) return null;
-  const be = 100 / (1 + S.dTp / S.dSl);
-  let b = 0, se = 0, tot = 0, used = 0;
-  v.list.forEach((x, i) => {
-    if(x.off) return;
-    const d = S.agLive[i];
-    let w = 1;
-    if(d && d.n >= SV_MIN){ w = Math.max(0.3, Math.min(2, (d.w / d.n * 100) / be)); used++ }
-    tot += w;
-    if(x.v === 'BUY') b += w; else if(x.v === 'SELL') se += w;
+/* ===== AGENT REPORT CARD (v10.3.0) — ab yahi ASLI vote hai =====
+   (v10.2.0 ka "Smart Vote" sirf jaankari tha — ye uski jagah hai aur faisla badalta hai.)
+   - Har naye signal pe BUY aur SELL DONO side ka virtual check (MT5 pe trade ho ya na ho).
+   - BUY bolne wala agent BUY side ke nateeje se jancha jata hai, SELL wala SELL side se.
+     TP pehle laga = sahi, SL pehle laga = galat, 48 ghante me kuch nahi = gina nahi.
+   - Har agent ke sirf AAKHRI 50 nateeje ginte hain (purana record dheere-dheere hat jata hai).
+   - 20 se kam nateeje = NAYA, weight 1.
+   - R:R 1:1 (breakeven 50%) pe:  40% se kam = vote BAND · 40-55% = 1x · 55-65% = 1.5x · 65%+ = 2x
+     Doosre R:R pe seema breakeven ke saath khisakti hai: breakeven-10 / +5 / +15
+     (R:R 1:2 me breakeven 33% hai, wahan 40% wala agent asal me paisa banata hai).
+   - Vote BAND agent ki tracking chalti rehti hai — sudhar gaya to apne aap wapas aata hai. */
+const RC_KEEP = 50, RC_MIN = 20;
+function rcStat(i){
+  const d = S.agRC[i];
+  if(!d || !Array.isArray(d.r) || !d.r.length) return {n:0, w:0, acc:null, be:null, tot:d ? d.n || 0 : 0, rec:null};
+  const n = d.r.length, w = d.r.reduce((a, x) => a + x, 0);
+  const bs = Array.isArray(d.b) && d.b.length ? d.b : [50];
+  const be = bs.reduce((a, x) => a + x, 0) / bs.length;
+  const r10 = d.r.slice(-10), old = d.r.slice(0, -10);
+  const rec = (n >= RC_MIN && old.length) ? r10.reduce((a, x) => a + x, 0) / r10.length * 100 - old.reduce((a, x) => a + x, 0) / old.length * 100 : null;
+  return {n, w, acc: w / n * 100, be, tot: d.n || n, rec};
+}
+function rcTier(st){
+  if(!st || st.n < RC_MIN || st.acc === null) return {w:1, t:'NAYA', bench:false};
+  const e = st.acc - st.be;
+  if(e < -10) return {w:0,   t:'BAND', bench:true};
+  if(e < 5)   return {w:1,   t:'1x',   bench:false};
+  if(e < 15)  return {w:1.5, t:'1.5x', bench:false};
+  return            {w:2,   t:'2x',   bench:false};
+}
+/* runAgents ka kachcha vote -> Report Card weight wala asli vote.
+   list me har agent ka asli (kachcha) vote rehta hai — taaki BAND agent ki tracking chalti rahe. */
+function rcApply(v){
+  if(!v || !Array.isArray(v.list)) return v;
+  let wb = 0, ws = 0, wt = 0, b = 0, se = 0, h = 0, n = 0, benched = 0, weighted = 0;
+  const list = v.list.map((x, i) => {
+    if(x.off) return x;
+    const tr = rcTier(rcStat(i));
+    if(tr.bench){ benched++; return Object.assign({}, x, {w:0, bench:true, tier:tr.t}) }
+    n++; wt += tr.w; if(tr.w !== 1) weighted++;
+    if(x.v === B){ b++; wb += tr.w } else if(x.v === SE){ se++; ws += tr.w } else h++;
+    return Object.assign({}, x, {w:tr.w, tier:tr.t});
   });
-  if(!tot) return null;
-  const verdict = b > se ? 'BUY' : se > b ? 'SELL' : 'HOLD';
-  return {buy: +b.toFixed(1), sell: +se.toFixed(1), verdict, conf: Math.round(Math.max(b, se) / tot * 100), used};
+  if(!wt) return Object.assign({}, v, {n: AGENT_N, benched:0, weighted:0});
+  const verdict = wb > ws ? B : ws > wb ? SE : H;
+  return Object.assign({}, v, {
+    list, buy:b, sell:se, hold:h, n,
+    wb:+wb.toFixed(1), ws:+ws.toFixed(1),
+    verdict, conf: Math.round(Math.max(wb, ws) / wt * 100),
+    benched, weighted,
+    raw:{buy:v.buy, sell:v.sell, hold:v.hold, verdict:v.verdict, conf:v.conf}
+  });
+}
+/* ek side (BUY ya SELL) ka nateeja aaya -> us side ko vote dene wale har agent ko sahi/galat */
+function rcScore(g, side, won){
+  const k = side === B ? 'rcB' : 'rcS';
+  if(!g || !g.rcv || g[k] || !g.vstr || g.vstr.length !== AGENTS.length) return false;
+  const ch = side[0];
+  const dTp = Math.abs(g.tp - g.entry), dSl = Math.abs(g.entry - g.sl);
+  const be = dTp + dSl > 0 ? dSl / (dTp + dSl) * 100 : 50;
+  for(let i = 0; i < AGENTS.length; i++){
+    if(AGENTS[i].off || g.vstr[i] !== ch) continue;
+    const a = S.agRC[i] || (S.agRC[i] = {r:[], b:[], n:0, w:0});
+    if(!Array.isArray(a.r)) a.r = []; if(!Array.isArray(a.b)) a.b = [];
+    a.r.push(won ? 1 : 0); a.b.push(+be.toFixed(1)); a.n = (a.n || 0) + 1; if(won) a.w = (a.w || 0) + 1;
+    if(a.r.length > RC_KEEP){ a.r.splice(0, a.r.length - RC_KEEP); a.b.splice(0, a.b.length - RC_KEEP) }
+  }
+  g[k] = won ? 'TP' : 'SL';
+  return true;
+}
+/* signal ki ULTI side (mirror) — wahi entry, wahi TP/SL doori, ulti disha */
+function rcMirror(g){
+  const dir = g.dir === B ? SE : B;
+  return {dir, tp: 2 * g.entry - g.tp, sl: 2 * g.entry - g.sl};
+}
+function rcMirrorCheck(g, hi, lo, now){
+  if(!g.rcv || g.mo) return false;
+  const m = rcMirror(g);
+  const hitTP = m.dir === B ? hi >= m.tp : lo <= m.tp;
+  const hitSL = m.dir === B ? lo <= m.sl : hi >= m.sl;
+  if(hitTP && hitSL){ g.mo = 'SL'; rcScore(g, m.dir, false) }          /* dono ek saath -> SL maano (safe) */
+  else if(hitSL){ g.mo = 'SL'; rcScore(g, m.dir, false) }
+  else if(hitTP){ g.mo = 'TP'; rcScore(g, m.dir, true) }
+  else if(now - g.at > 48*3600000){ g.mo = 'EXPIRED' }
+  else return false;
+  return true;
 }
 
 function renderSum(){
@@ -4069,11 +4144,10 @@ function renderSum(){
     const v = lastVotes, ok = v.verdict === s.dir, t = tierOf(ok ? v.conf : 100 - v.conf, 'vote');
     R.push(row('VOTE', `${v.conf}% ${ok ? t.t : 'ULTA'}`, ok ? t.c : 'var(--dn)', '', 'cardSignal'));
   } else R.push(row('VOTE', '—', 'var(--mut)', '', 'cardSignal'));
-  if(lastVotes && lastVotes.sym === s.sym){
-    const sv = smartVote(lastVotes);
-    if(sv && sv.used) R.push(row('SMART VOTE', `${sv.verdict} ${sv.conf}%`,
-      sv.verdict === s.dir ? 'var(--up)' : sv.verdict === 'HOLD' ? 'var(--gold)' : 'var(--dn)',
-      `${sv.used} agents ka live record gina · <i>sirf jaankari</i>`, 'agLiveOut'));
+  if(lastVotes && lastVotes.sym === s.sym && (lastVotes.weighted || lastVotes.benched)){
+    const v = lastVotes;
+    R.push(row('REPORT CARD', `${v.weighted || 0} bhaari/halke · ${v.benched || 0} band`, 'var(--gold)',
+      v.raw && v.raw.verdict !== v.verdict ? `bina weight ke ${v.raw.verdict} ${v.raw.conf}% hota` : 'vote isi hisaab se gina', 'agLiveOut'));
   }
   if(lastAn){ const t = tierOf(lastAn.pct, 'tech'); R.push(row('TECH', `${lastAn.pct}% ${t.t}`, t.c, '', 'anBox')); }
   else R.push(row('TECH', '—', 'var(--mut)', '', 'anBox'));
@@ -4247,7 +4321,7 @@ function finalCall(s){
       why: `Direction abhi pakki nahi — ${Cf.map(x => x.why).join(' · ')}. Breakout hone par hi trade khule.`};
   }
   return {t:'TRADE LO', go:true, ord:orderLeg(s, 'MARKET'), c:'var(--up)', bg:'rgba(0,255,150,.08)', pass, total, warns, fails,
-    why: `Sab zaroori check paas — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy, v.sell)}/${AGENT_N} agents saath` +
+    why: `Sab zaroori check paas — quality ${s.q}%, technical ${a.pct}%, ${Math.max(v.buy, v.sell)}/${v.n || AGENT_N} agents saath` +
       (warns.length ? ` · ⚠ dhyan: ${warns[0]}` : '')};
 }
 
@@ -4816,10 +4890,10 @@ async function runScan(){
       const tp = dir==='BUY' ? live+lv.tpDist : live-lv.tpDist;
       const tfArr = uniq.filter(t=>res[t]).map(t => ({l:(TFS.find(x=>x.id===t)||{l:t}).l, b:res[t].bias}));
 
-      const v = runAgents(base, (() => {
+      const v = rcApply(runAgents(base, (() => {
         const o = {}; ['1h','4h','1day'].forEach(k => { if(res[k]) o[k] = res[k].bias==='NEUTRAL'?'HOLD':res[k].bias });
         return o;
-      })(), live);
+      })(), live));
 
       const sig = {sym, dir, live, sl, tp, slPips:lv.slPips, tpPips:lv.tpPips, tfs:tfArr, q};
       const age = sigAge(base, dir, uniq[0], live, lv.tpDist, sym);
@@ -4939,6 +5013,7 @@ function logSignal(sig, v, an){
     vstr: v ? v.list.map(x => x.v[0]).join('') : '',   /* B/S/H x50 */
     an: an ? {pct:an.pct, verdict:an.verdict} : null,
     sh: shadowNew(sig),
+    rcv: 1,                                        /* v10.3.0: Report Card ka BUY+SELL virtual check */
     out:'OPEN', pl:0
   });
   S.sigs = S.sigs.slice(0,200); save();
@@ -4947,18 +5022,25 @@ function logSignal(sig, v, an){
 /* har signal ka nateeja check karo — jo pairs already refresh ho rahe hain, unhi se */
 function scoreSignals(q, bars){
   let changed = false;
+  const now = Date.now();
   S.sigs.forEach(g => {
-    if(g.out !== 'OPEN' || g.dup) return;
+    if(g.dup) return;
+    const mainOpen = g.out === 'OPEN';
+    const mirOpen = !!(g.rcv && !g.mo);            /* v10.3.0: ulti side ka virtual check abhi chal raha */
+    if(!mainOpen && !mirOpen) return;
     const d = q[g.sym]; if(!d || !d.p) return;
     const p = d.p;
     const bb = (bars && bars[g.sym]) || null;
     const hi = bb ? Math.max(...bb.map(b=>b.h), p) : p;
     const lo = bb ? Math.min(...bb.map(b=>b.l), p) : p;
-    const hitTP = g.dir==='BUY' ? hi >= g.tp : lo <= g.tp;
-    const hitSL = g.dir==='BUY' ? lo <= g.sl : hi >= g.sl;
-    if(hitTP){ g.out='TP'; g.pl=+g.tpD; g.closedAt=Date.now(); changed=true; agScore(g, true) }
-    else if(hitSL){ g.out='SL'; g.pl=-g.slD; g.closedAt=Date.now(); changed=true; agScore(g, false) }
-    else if(Date.now() - g.at > 48*3600000){ g.out='EXPIRED'; g.closedAt=Date.now(); changed=true }
+    if(mainOpen){
+      const hitTP = g.dir==='BUY' ? hi >= g.tp : lo <= g.tp;
+      const hitSL = g.dir==='BUY' ? lo <= g.sl : hi >= g.sl;
+      if(hitTP){ g.out='TP'; g.pl=+g.tpD; g.closedAt=now; changed=true; agScore(g, true); rcScore(g, g.dir, true) }
+      else if(hitSL){ g.out='SL'; g.pl=-g.slD; g.closedAt=now; changed=true; agScore(g, false); rcScore(g, g.dir, false) }
+      else if(now - g.at > 48*3600000){ g.out='EXPIRED'; g.closedAt=now; changed=true }
+    }
+    if(mirOpen && rcMirrorCheck(g, hi, lo, now)) changed = true;
   });
   if(changed){ save(); if(!$('pgVotes').classList.contains('hide')) renderSigHist() }
 }
@@ -5052,6 +5134,120 @@ function renderSigHist(){
     }).join('')}`;
 }
 
+/* ================= IMAANDAAR BACKTEST — cost model (v10.3.0) =================
+   Chart ka price = beech ka (mid) price maana hai.
+   BUY  -> Ask pe khulta (mid + aadha spread + slippage), Bid pe band (mid - aadha spread).
+   SELL -> Bid pe khulta, Ask pe band. SL lagne pe slippage phir se katta hai.
+   Entry: signal wali candle BAND hone ke baad, AGLI candle ke open pe (future data nahi).
+   NY rollover (IST 2:00-4:30, Exness ka din yahin badalta hai) pe spread 3 guna.
+   Swap: har raat (NY close paar) $/lot. Commission: $/lot (aana-jaana dono). */
+function btDefCost(sym){
+  const s = SPECS[sym] || {};
+  if(sym === 'XAU/USD') return {sp:2.6, sl:0.2, sw:0, cm:0};   /* Exness XAUUSDm ~260 points = $0.26 = 2.6 pip */
+  if(/BTC|ETH/.test(sym)) return {sp:20, sl:2, sw:0, cm:0};
+  if(/JPY/.test(sym))     return {sp:1.5, sl:0.2, sw:0, cm:0};
+  if(s.contract === 100000) return {sp:1.2, sl:0.2, sw:0, cm:0};
+  return {sp:2, sl:0.5, sw:0, cm:0};
+}
+function btCost(sym){
+  const d = btDefCost(sym), o = (S.btSp && S.btSp[sym]) || {};
+  const out = {};
+  Object.keys(d).forEach(k => { const v = +o[k]; out[k] = (o[k] !== undefined && o[k] !== '' && isFinite(v)) ? v : d[k] });
+  return out;
+}
+function btIstMin(t){
+  const m = /(\d{2}):(\d{2})/.exec(String(t || '').slice(11));
+  return m ? (+m[1]) * 60 + (+m[2]) : -1;
+}
+function btRollover(t){ const m = btIstMin(t); return m >= 120 && m < 270 }
+function btDayKey(t){
+  const d = new Date(String(t || '').slice(0, 10) + 'T00:00:00Z');
+  if(isNaN(d)) return 0;
+  let k = Math.floor(d.getTime() / 86400000);
+  if(btIstMin(t) >= 0 && btIstMin(t) < 210) k--;              /* NY close (IST ~3:30) se pehle = pichhla din */
+  return k;
+}
+/* ek trade: bars[from] ke OPEN pe entry, phir TP / SL / time limit (fwd candles).
+   c = {sp, sl} PRICE me (pip nahi). Dono ek hi candle me lage to SL maano (safe). */
+function btTrade(bars, from, dir, slD, tpD, fwd, c){
+  const b0 = bars[from]; if(!b0) return null;
+  const up = dir === 'BUY', half = (c.sp || 0) / 2, slip = c.sl || 0;
+  const entry = up ? b0.o + half + slip : b0.o - half - slip;
+  const T = up ? entry + tpD : entry - tpD;
+  const L = up ? entry - slD : entry + slD;
+  const end = Math.min(bars.length - 1, from + fwd - 1);
+  for(let k = from; k <= end; k++){
+    const x = bars[k];
+    const hiX = up ? x.h - half : x.h + half;                  /* band karne wali side ka price */
+    const loX = up ? x.l - half : x.l + half;
+    const hitT = up ? hiX >= T : loX <= T;
+    const hitL = up ? loX <= L : hiX >= L;
+    if(hitL) return {out:'SL', entry, exit: up ? L - slip : L + slip, at:k};
+    if(hitT) return {out:'TP', entry, exit:T, at:k};
+  }
+  const x = bars[end];
+  return {out:'TIME', entry, exit: up ? x.c - half : x.c + half, at:end};
+}
+/* trade ka $ nateeja */
+function btPl(sym, bars, from, dir, r, lots, cost){
+  if(!r) return 0;
+  const mv = dir === 'BUY' ? r.exit - r.entry : r.entry - r.exit;
+  const ref = bars[from] ? bars[from].o : 0;
+  let pl = mv * usdPerPoint(sym, ref, lots);
+  if(cost){
+    pl -= (cost.cm || 0) * lots;
+    const nights = Math.max(0, btDayKey(bars[r.at] && bars[r.at].t) - btDayKey(bars[from] && bars[from].t));
+    pl -= nights * (cost.sw || 0) * lots;
+  }
+  return pl;
+}
+/* trades [{pl,out}] -> poore metrics */
+function btMetrics(trades, bal){
+  let eq = bal, peak = bal, maxDD = 0, maxDDp = 0, run = 0, maxRun = 0, gp = 0, gl = 0, w = 0, l = 0, tm = 0;
+  trades.forEach(t => {
+    eq += t.pl;
+    if(eq > peak) peak = eq;
+    const dd = peak - eq;
+    if(dd > maxDD){ maxDD = dd; maxDDp = peak > 0 ? dd / peak * 100 : 0 }
+    if(t.pl > 0){ gp += t.pl; w++; run = 0 }
+    else { gl -= t.pl; if(t.pl < 0) l++; run++; if(run > maxRun) maxRun = run }
+    if(t.out === 'TIME') tm++;
+  });
+  const n = trades.length, net = eq - bal;
+  return {
+    n, w, l, tm, net, gp, gl,
+    pf: gl > 0 ? gp / gl : (gp > 0 ? 99 : 0),
+    wr: n ? w / n * 100 : 0,
+    avgW: w ? gp / w : 0, avgL: l ? gl / l : 0,
+    exp: n ? net / n : 0,
+    maxDD, maxDDp, maxRun
+  };
+}
+function renderBtCost(){
+  const box = $('btCostBox'); if(!box) return;
+  const sym = pickVal.bt || S.pair;
+  if(!SPECS[sym]){ box.innerHTML = ''; return }
+  const c = btCost(sym), pip = SPECS[sym].pip;
+  const inp = (k, lab, step) => `<div><label>${lab}</label><input class="mono" type="number" step="${step}" value="${c[k]}" onchange="btCostSet('${sym}','${k}',this.value)"></div>`;
+  box.innerHTML = `
+    <p class="ttl" style="margin:4px 0 8px">Cost — ${SPECS[sym].n} <span class="sp"><button style="font-size:10px;color:var(--gold)" onclick="btCostSet('${sym}',null)">DEFAULT</button></span></p>
+    <div class="grid2" style="margin-bottom:6px">
+      ${inp('sp', 'Spread (pip)', 0.1)}
+      ${inp('sl', 'Slippage (pip)', 0.1)}
+      ${inp('sw', 'Swap $/lot/raat', 0.5)}
+      ${inp('cm', 'Commission $/lot', 0.5)}
+    </div>
+    <p class="hint" style="margin-bottom:10px">Spread ${c.sp} pip = ${fmt(sym, c.sp * pip)} price${sym === 'XAU/USD' ? ' (Exness XAUUSDm ~260 points)' : ''} · rollover pe 3 guna · lot ${S.dLot} · balance $${S.vbal}</p>`;
+}
+function btCostSet(sym, k, v){
+  S.btSp = S.btSp || {};
+  if(k === null){ delete S.btSp[sym]; save(); renderBtCost(); toast('Default cost wapas'); return }
+  const o = S.btSp[sym] = S.btSp[sym] || {};
+  const n = +v;
+  if(v === '' || !isFinite(n)) delete o[k]; else o[k] = Math.max(k === 'sw' ? -1000 : 0, n);
+  save(); renderBtCost();
+}
+
 /* ================= BACKTEST =================
    Purane candles pe 50 agents chalao, aage dekh ke nateeja nikalo.
    Ek pair = 1 API credit, hazaron samples. */
@@ -5085,6 +5281,12 @@ async function runBacktest(){
   const conf = {};                 /* consensus bucket -> {n,w} */
   let samples = 0, holds = 0, tp = 0, sl = 0, none = 0;
   const first = WIN, lastIdx = bars.length - FWD - 1;
+  /* v10.3.0: cost (pip -> price) + ek-ek karke trade (ek band ho tabhi agla) */
+  const cost = btCost(sym), pip = SPECS[sym].pip, lots = S.dLot || 0.01, bal = +S.vbal || 500;
+  const cFor = t => ({sp: cost.sp * pip * (btRollover(t) ? 3 : 1), sl: cost.sl * pip});
+  const ZERO = {sp:0, sl:0};
+  const tCost = [], tFree = [];
+  let freeAt = 0, rolls = 0, paid = 0;
 
   /* chunk me chalao taaki app hang na ho */
   for(let i = first; i <= lastIdx; i += STEP){
@@ -5098,25 +5300,27 @@ async function runBacktest(){
     samples++;
     if(v.verdict === 'HOLD'){ holds++ }
 
-    /* aage dekho: BUY aur SELL dono ke liye nateeja */
-    const fwd = bars.slice(i+1, i+1+FWD);
-    const out = dir => {
-      const up = dir === 'BUY';
-      const T = up ? px + tpD : px - tpD;
-      const L = up ? px - slD : px + slD;
-      for(const k of fwd){
-        const hitT = up ? k.h >= T : k.l <= T;
-        const hitL = up ? k.l <= L : k.h >= L;
-        if(hitT && hitL) return 'SL';         /* dono same candle -> maan lo SL (safe) */
-        if(hitT) return 'TP';
-        if(hitL) return 'SL';
-      }
-      return 'NONE';
-    };
+    /* aage dekho: BUY aur SELL dono ke liye nateeja — AGLI candle ke open pe entry, cost ke saath */
+    const nb = bars[i+1], cc = cFor(nb && nb.t);
+    const out = dir => { const r = btTrade(bars, i+1, dir, slD, tpD, FWD, cc); return !r || r.out === 'TIME' ? 'NONE' : r.out };
     const oB = out('BUY'), oS = out('SELL');
 
+    /* consensus trade ka $ hisaab — ek trade khula ho to naya nahi */
+    if(v.verdict !== 'HOLD' && i + 1 >= freeAt){
+      const rc = btTrade(bars, i+1, v.verdict, slD, tpD, FWD, cc);
+      const rf = btTrade(bars, i+1, v.verdict, slD, tpD, FWD, ZERO);
+      if(rc && rf){
+        if(btRollover(nb.t)) rolls++;
+        const plC = btPl(sym, bars, i+1, v.verdict, rc, lots, cost), plN = btPl(sym, bars, i+1, v.verdict, rc, lots, null);
+        paid += (cc.sp + cc.sl + (rc.out === 'SL' ? cc.sl : 0)) * usdPerPoint(sym, nb.o, lots) + (plN - plC);   /* spread+slippage + commission/swap */
+        tCost.push({pl: plC, out: rc.out});
+        tFree.push({pl: btPl(sym, bars, i+1, v.verdict, rf, lots, null), out: rf.out});
+        freeAt = rc.at + 1;
+      }
+    }
+
     v.list.forEach((x, idx) => {
-      if(x.v === 'H') return;
+      if(x.v === 'HOLD' || x.v === 'H' || x.off) return;   /* v10.3.0 fix: HOLD vote pehle galti se SELL me gina jata tha */
       const r = x.v === 'BUY' ? oB : oS;
       if(r === 'NONE'){ return }
       tally[idx].n++;
@@ -5143,11 +5347,14 @@ async function runBacktest(){
   })).filter(r => r.n >= 20).sort((a,b) => b.wr - a.wr);
 
   const beWR = 100 / (1 + S.atrRR);            /* barabar rehne ki zaroorat */
+  const mFree = btMetrics(tFree, bal), mCost = btMetrics(tCost, bal);
   S.bt = {
     at: Date.now(), sym, tf: S.tf, bars: bars.length, samples,
     holdPct: samples ? Math.round(holds/samples*100) : 0,
     tp, sl, none, beWR: +beWR.toFixed(1),
     rr: S.atrRR, slMult: S.atrSL, fwd: FWD,
+    v3: 1, cost, lots, bal, rolls, mFree, mCost, paid: +paid.toFixed(2),
+    from: bars[first] && bars[first].t, to: bars[bars.length-1] && bars[bars.length-1].t,
     conf: Object.entries(conf).map(([k,z]) => ({k, n:z.n, wr: z.n?Math.round(z.w/z.n*100):0})),
     rows
   };
@@ -5156,6 +5363,41 @@ async function runBacktest(){
   btBusy = false;
   renderBt();
   toast(`${samples} samples · ${rows.length} agents ka score aa gaya`);
+}
+
+/* v10.3.0: bina cost vs cost ke saath — aamne-saamne */
+function btMoneyHtml(b){
+  if(!b || !b.v3 || !b.mCost || !b.mFree) return '';
+  const F = b.mFree, C = b.mCost;
+  const usd = x => (x < 0 ? '-$' : '$') + Math.abs(x).toFixed(2);
+  const pf = x => x >= 99 ? '∞' : x.toFixed(2);
+  const col = (x, good) => good === null ? '' : good ? 'up' : 'dn';
+  const row = (k, f, c, good) => `<tr><td>${k}</td><td class="mono" style="text-align:right">${f}</td><td class="mono ${col(0, good)}" style="text-align:right"><b>${c}</b></td></tr>`;
+  const eaten = F.net - C.net;
+  const verdict = !C.n ? 'Koi trade nahi bana — consensus zyada-tar HOLD raha.'
+    : C.net > 0 && C.pf >= 1.2 ? `Cost ke baad bhi profit hai (PF ${pf(C.pf)}). Ab 3-4 aur pair/timeframe pe chala ke pakka karo.`
+    : C.net > 0 ? `Cost ke baad halka profit (PF ${pf(C.pf)}) — ye kinaare pe hai, thoda spread badha to nuksan.`
+    : F.net > 0 ? `<b class="dn">Bina cost profit dikhta hai, par cost ke baad nuksan.</b> Yahi wo "jhoothi" kamai hai jo pehle backtest me dikhti thi.`
+    : 'Cost ke bina bhi nuksan — is pair/timeframe pe consensus kaam nahi kar raha.';
+  return `
+    <p class="ttl" style="margin:0 0 8px">Paisa — Bina Cost vs Cost Ke Saath</p>
+    <table><thead><tr><th></th><th style="text-align:right">Bina cost</th><th style="text-align:right">Cost ke saath</th></tr></thead><tbody>
+      ${row('Trades', F.n, C.n, null)}
+      ${row('Win rate', F.wr.toFixed(0) + '%', C.wr.toFixed(0) + '%', C.wr >= b.beWR)}
+      ${row('Net profit', usd(F.net), usd(C.net), C.net > 0)}
+      ${row('Profit factor', pf(F.pf), pf(C.pf), C.pf >= 1)}
+      ${row('Max DD', usd(F.maxDD) + ' · ' + F.maxDDp.toFixed(1) + '%', usd(C.maxDD) + ' · ' + C.maxDDp.toFixed(1) + '%', null)}
+      ${row('Lambi haar (lagatar)', F.maxRun, C.maxRun, null)}
+      ${row('Avg jeet / haar', usd(F.avgW) + ' / ' + usd(F.avgL), usd(C.avgW) + ' / ' + usd(C.avgL), null)}
+      ${row('Har trade ka ausat', usd(F.exp), usd(C.exp), C.exp > 0)}
+      ${row('Time se band', F.tm, C.tm, null)}
+    </tbody></table>
+    <p class="hint" style="margin-top:6px">Nateeje me fark: <b class="dn">${usd(eaten)}</b>${b.paid !== undefined ? ` · spread/slippage/swap/commission me seedha gaya ~<b class="dn">${usd(b.paid)}</b>` : ''}<br>(TP entry price se ginta hai, isliye cost ka asar zyada-tar "TP door, SL paas" ke roop me aata hai) · lot ${b.lots} · balance $${b.bal} se · ek waqt me ek trade · ${b.rolls} trade rollover pe khule (spread 3x)<br>
+      Cost: spread ${b.cost.sp} pip · slippage ${b.cost.sl} pip · swap $${b.cost.sw}/lot/raat · commission $${b.cost.cm}/lot</p>
+    <div style="border:1px solid var(--line);border-radius:6px;padding:10px 11px;margin:8px 0 14px">
+      <b style="color:var(--gold);font-size:10px;letter-spacing:1.5px">SEEDHI BAAT</b>
+      <p class="hint" style="margin-top:5px">${verdict}</p>
+    </div>`;
 }
 
 function renderBt(){
@@ -5170,7 +5412,7 @@ function renderBt(){
   const good = b.rows.filter(r => r.wr >= b.beWR + 3);
   const bad  = b.rows.filter(r => r.wr <= b.beWR - 3);
 
-  $('btOut').innerHTML = `
+  $('btOut').innerHTML = btMoneyHtml(b) + `
     <div class="perf">
       <div class="pb"><b>${b.samples}</b><span>SAMPLES</span><em>${b.bars} candles</em></div>
       <div class="pb"><b class="${wr>=b.beWR?'up':'dn'}">${wr}%</b><span>CONSENSUS WR</span><em>chahiye ${b.beWR}%</em></div>
@@ -5181,7 +5423,7 @@ function renderBt(){
       <div class="pb"><b class="dn">${b.sl}</b><span>SL FIRST</span></div>
       <div class="pb"><b style="color:var(--gold)">${b.holdPct}%</b><span>HOLD/RANGE</span></div>
     </div>
-    <p class="hint">${SPECS[b.sym].n} · ${b.tf} · SL ${b.slMult}×ATR, TP ${b.rr}×SL, ${b.fwd} candles tak dekha.
+    <p class="hint">${SPECS[b.sym].n} · ${b.tf} · SL ${b.slMult}×ATR, TP ${b.rr}×SL, ${b.fwd} candles tak dekha.${b.v3 ? ' Win% cost ke saath, agli candle ke open pe entry.' : ' <span style="color:var(--gold)">(purana backtest — bina cost. Dobara chalao.)</span>'}
       ${b.holdPct > 45 ? `<br><span style="color:var(--gold)">⚠ ${b.holdPct}% waqt agents HOLD pe the — ye pair kaafi range me rehta hai.</span>` : ''}</p>
 
     ${b.conf.length ? `<p class="ttl" style="margin:16px 0 8px">Consensus Wise</p>
@@ -5217,24 +5459,55 @@ function renderBt(){
     </div>`;
 }
 
+function rcRows(){
+  return AGENTS.map((a, i) => {
+    if(a.off) return null;
+    const st = rcStat(i), tr = rcTier(st);
+    return {i, n:a.n, g:a.g, st, tr};
+  }).filter(Boolean);
+}
+function rcChip(tr){
+  const c = tr.t === '2x' ? 'x2' : tr.t === '1.5x' ? 'x15' : tr.t === 'BAND' ? 'band' : '';
+  return `<span class="rct ${c}">${tr.t}</span>`;
+}
 function renderAgLive(){
-  const rows = agLiveRows();
   const el = $('agLiveOut'); if(!el) return;
-  if(!rows.length){
-    el.innerHTML = '<p class="hint">Abhi koi scored signal nahi. Signal TP/SL pe band hone lagenge tab har agent ka live record yahan banega.</p>';
+  const rows = rcRows();
+  const scored = rows.filter(r => r.st.n > 0);
+  if(!scored.length){
+    el.innerHTML = `<p class="hint">Abhi koi nateeja nahi. Har naye signal pe BUY aur SELL dono side ka virtual check hota hai — TP/SL lagte hi yahan har agent ka report card banne lagega.<br><br>${RC_MIN} nateeje hone tak sab agents ka weight 1 rehta hai.</p>`;
     return;
   }
-  const be = 100 / (1 + S.dTp/S.dSl);
-  el.innerHTML = `<p class="hint" style="margin:0 0 10px">Live signals se — barabar rehne ko ${be.toFixed(0)}% chahiye</p>` +
-    rows.map(r => {
-      const col = r.wr >= be+3 ? 'var(--up)' : r.wr <= be-3 ? 'var(--dn)' : 'var(--gold)';
-      return `<div class="strrow">
-        <b style="width:132px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.n}</b>
-        <div class="t"><i style="width:${Math.min(100,r.wr)}%;background:${col}"></i></div>
-        <span class="mono" style="width:52px;color:${col}">${r.wr}% <small style="opacity:.6">${r.votes}</small></span>
-      </div>`;
-    }).join('') +
-    `<p class="hint">${rows[0].votes < 30 ? '⚠ Abhi data kam hai — 200+ votes ke baad hi ye numbers bharose layak honge.' : ''}</p>`;
+  const ready = rows.filter(r => r.st.n >= RC_MIN).sort((a, b) => (b.st.acc - b.st.be) - (a.st.acc - a.st.be));
+  const fresh = rows.filter(r => r.st.n < RC_MIN);
+  const cnt = t => rows.filter(r => r.tr.t === t).length;
+  const be = ready.length ? ready.reduce((a, r) => a + r.st.be, 0) / ready.length : null;
+  const line = r => {
+    const e = r.st.acc - r.st.be;
+    const col = r.tr.bench ? 'var(--dn)' : e >= 5 ? 'var(--up)' : 'var(--gold)';
+    const tr = r.st.rec === null ? '' : r.st.rec >= 10 ? ' <b class="up">↑</b>' : r.st.rec <= -10 ? ' <b class="dn">↓</b>' : '';
+    return `<div class="strrow">
+      <b style="width:124px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.n}</b>
+      <div class="t"><i style="width:${Math.min(100, r.st.acc)}%;background:${col}"></i></div>
+      <span class="mono" style="width:58px;color:${col};font-size:11px">${Math.round(r.st.acc)}%${tr} <small style="opacity:.6">${r.st.n}</small></span>
+      ${rcChip(r.tr)}
+    </div>`;
+  };
+  const top = ready.filter(r => !r.tr.bench).slice(0, 10);
+  const band = ready.filter(r => r.tr.bench);
+  const bottom = ready.filter(r => !r.tr.bench && !top.includes(r)).slice(-10).reverse();
+  el.innerHTML = `
+    <div class="perf">
+      <div class="pb"><b class="up">${cnt('2x') + cnt('1.5x')}</b><span>BHAARI</span><em>2x ${cnt('2x')} · 1.5x ${cnt('1.5x')}</em></div>
+      <div class="pb"><b>${cnt('1x')}</b><span>1x</span><em>normal</em></div>
+      <div class="pb"><b class="dn">${cnt('BAND')}</b><span>VOTE BAND</span><em>tracking chalu</em></div>
+    </div>
+    <p class="hint" style="margin:2px 0 10px">Aakhri ${RC_KEEP} nateeje ginte hain · ${fresh.length} agent abhi NAYE hain (${RC_MIN} se kam nateeje, weight 1)${be !== null ? ` · breakeven ~${Math.round(be)}%` : ''}</p>
+    ${top.length ? `<p class="ttl" style="margin:12px 0 8px">Top 10</p>${top.map(line).join('')}` : ''}
+    ${bottom.length ? `<p class="ttl" style="margin:14px 0 8px">Bottom 10</p>${bottom.map(line).join('')}` : ''}
+    ${band.length ? `<p class="ttl" style="margin:14px 0 8px">Vote Band <span class="sp">sudhre to wapas</span></p>${band.map(line).join('')}` : ''}
+    ${fresh.length && !ready.length ? `<p class="ttl" style="margin:12px 0 8px">Naye (data jama ho raha)</p>${fresh.filter(r => r.st.n).sort((a, b) => b.st.n - a.st.n).slice(0, 10).map(r => `<div class="strrow"><b style="width:124px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.n}</b><div class="t"><i style="width:${r.st.n / RC_MIN * 100}%;background:var(--mut)"></i></div><span class="mono" style="width:58px;font-size:11px">${r.st.n}/${RC_MIN}</span>${rcChip(r.tr)}</div>`).join('')}` : ''}
+    <p class="hint" style="margin-top:10px">Tier: breakeven se 10 point neeche = vote BAND · +5 tak = 1x · +15 tak = 1.5x · usse upar = 2x. % ke aage chhota number = kitne nateeje gine. ↑↓ = aakhri 10 nateeje baaki se kaafi behtar/kharab.</p>`;
 }
 
 /* ================= LEVEL CHART (apna canvas) ================= */
@@ -5495,7 +5768,7 @@ function renderVotes(){
   $('voteListCard').classList.remove('hide');
   $('voteT').innerHTML = `${SPECS[v.sym].n} · ${v.tf} · <span data-ago="${v.at}">${ago(v.at)}</span>`;
 
-  const T = AGENT_N;
+  const T = v.n || AGENT_N;
   const bp = v.buy/T*100, sp = v.sell/T*100, hp = v.hold/T*100;
   const vc = v.verdict==='BUY' ? 'var(--up)' : v.verdict==='SELL' ? 'var(--dn)' : 'var(--mut)';
   const strength = v.conf>=70 ? 'STRONG' : v.conf>=50 ? 'MEDIUM' : 'WEAK';
@@ -5503,7 +5776,7 @@ function renderVotes(){
   $('voteBox').innerHTML = `
     <div style="text-align:center;padding:6px 0 2px">
       <b class="shine ${v.verdict==='BUY'?'up':v.verdict==='SELL'?'dn':'gd'}" style="font-size:26px;letter-spacing:3px">${strength} ${v.verdict}</b>
-      <p class="hint" style="margin-top:4px">${Math.max(v.buy,v.sell)} / ${T} agents ek taraf · ${v.conf}% consensus</p>
+      <p class="hint" style="margin-top:4px">${Math.max(v.buy,v.sell)} / ${T} agents ek taraf · ${v.conf}% consensus${v.wb !== undefined && (v.weighted || v.benched) ? ` · weight se ${v.wb}B / ${v.ws}S` : ''}</p>
     </div>
     <div class="vbar">
       ${bp?`<i style="width:${bp}%;background:var(--up)">${v.buy}</i>`:''}
@@ -5517,11 +5790,11 @@ function renderVotes(){
     </div>
     ${lastSignal && lastSignal.sym===v.sym && lastSignal.dir!==v.verdict && v.verdict!=='HOLD'
       ? `<p class="hint" style="color:var(--gold);margin-top:10px">⚠ Signal card <b>${lastSignal.dir}</b> keh raha hai, par agents <b>${v.verdict}</b> bol rahe hain. Aisa ho to ruk jaana behtar.</p>` : ''}
-    ${(sv => sv ? `<div style="border:1px dashed var(--line);border-radius:6px;padding:9px 11px;margin-top:10px">
-      <b style="font-size:10.5px;letter-spacing:1.3px;color:var(--gold)">SMART VOTE</b>
-      <span class="mono" style="margin-left:8px;color:${sv.verdict==='BUY'?'var(--up)':sv.verdict==='SELL'?'var(--dn)':'var(--mut)'}">${sv.verdict} ${sv.conf}%</span>
-      <span class="mono mu" style="font-size:11px;margin-left:6px">${sv.buy}B / ${sv.sell}S</span>
-      <p class="hint" style="margin:5px 0 0">${sv.used ? `${sv.used} agents ka live record gina — achhe agent ka vote bhaari, kharab ka halka. Sirf jaankari, faisla nahi badalta.` : `Abhi kisi agent ke ${SV_MIN}+ scored vote nahi — sab ka weight barabar. Signals TP/SL pe band hote jayenge to ye apne aap tez hoga.`}</p></div>` : '')(smartVote(v))}
+    ${v.wb !== undefined ? `<div style="border:1px dashed var(--line);border-radius:6px;padding:9px 11px;margin-top:10px">
+      <b style="font-size:10.5px;letter-spacing:1.3px;color:var(--gold)">REPORT CARD</b>
+      <p class="hint" style="margin:5px 0 0">${v.weighted || v.benched
+        ? `${v.weighted} agents ka vote bhaari/halka, ${v.benched} ka vote band (tracking chalu).${v.raw && v.raw.verdict !== v.verdict ? ` Bina weight ke ye <b>${v.raw.verdict} ${v.raw.conf}%</b> hota.` : ''}`
+        : `Abhi kisi agent ke ${RC_MIN}+ nateeje nahi — sab ka weight 1. Har signal ke BUY+SELL virtual check se data jama ho raha hai.`}</p></div>` : ''}
     ${v.conf < 50 ? '<p class="hint" style="color:var(--gold);margin-top:8px">Agents ka mat bata hua hai — market shayad range me hai. Wait karna theek rahega.</p>' : ''}
     <div class="grid2" style="margin-top:12px">
       <button class="btn ghost sm" onclick="shareWa()">WhatsApp</button>
@@ -5537,8 +5810,9 @@ function renderVotes(){
   const rank = {BUY:0, SELL:1, HOLD:2};
   rows.sort((a,b) => rank[a.v]-rank[b.v]);
   $('voteList').innerHTML = rows.map(a => `
-    <div class="ag">
+    <div class="ag${a.bench ? ' bench' : ''}">
       <div class="nm">${a.n}<span class="gp"> · ${a.g}</span></div>
+      ${a.tier ? rcChip({t:a.tier}) : ''}
       <div class="vt ${a.v==='BUY'?'b':a.v==='SELL'?'s':'h'}">${a.v}</div>
     </div>`).join('');
 }
@@ -8710,6 +8984,7 @@ function choosePick(sym){
     mtCalc();
   } else if(pickCtx === 'bt'){
     pickLabel($('btPair'), sym);
+    renderBtCost();
   } else if(pickCtx === 'minstop'){
     pickLabel($('minPairBtn'), sym);
     loadPairDef(sym);
@@ -8777,8 +9052,8 @@ function pairDefNote(){
             : (DEF_TPSL[sym] ? '<br><span style="color:var(--gold)">Is pair ka apna built-in default</span>' : ''));
 }
 function resetAgLive(){
-  if(!confirm('Live agent record delete kar dein?')) return;
-  S.agLive = {}; S.sigs.forEach(g => delete g.scored); save(); renderAgLive(); toast('Live record saaf');
+  if(!confirm('Agent Report Card saaf kar dein? Sab agents phir se NAYE (weight 1) ho jayenge.')) return;
+  S.agLive = {}; S.agRC = {}; S.sigs.forEach(g => delete g.scored); save(); renderAgLive(); toast('Report Card saaf');
 }
 function unlockAll(){
   S.bad = []; save(); fillPairs(); toast('Locked pairs reset ho gaye — dobara try karo');
@@ -9850,10 +10125,13 @@ const GUIDE = [
   ['p','Har agent ek technical rule hai — moving average cross, RSI condition, channel break waghairah. Ye AI nahi hain. Har ek BUY, SELL ya HOLD vote deta hai aur panel tally dikhata hai.'],
   ['h','Tally kyun maayne rakhti hai'],
   ['p','Jab signal card BUY bole aur agents SELL bolein, kuch to gadbad hai. Aise me ruk jaana hi aksar behtar trade hota hai.'],
-  ['h','Live record'],
-  ['p','Jaise-jaise analyze kiye signal apne TP/SL pe pahunchte hain, har agent ka asli win rate banta hai. Kuch sau votes hone tak isko mat maano — us se pehle ye sirf shor hai.'],
+  ['h','Agent Report Card'],
+  ['p','Har naye signal pe app BUY aur SELL dono side ka virtual check karti hai — MT5 pe trade lagao ya na lagao. BUY bolne wala agent BUY side se jancha jata hai, SELL wala SELL side se. TP pehle laga = sahi, SL pehle = galat.'],
+  ['p','Har agent ke aakhri 50 nateeje ginte hain. 20 nateeje hone tak weight 1. Uske baad: breakeven se 10 point neeche = vote band (tracking chalti rehti hai, sudhre to wapas), +5 tak = 1x, +15 tak = 1.5x, usse upar = 2x. R:R 1:1 pe ye 40% / 55% / 65% hai.'],
+  ['p','Signal card ka VOTE ab isi weight se ginta hai. Votes page pe dikhta hai ki bina weight ke vote kya hota.'],
   ['h','Backtest'],
   ['p','Ek pair ke purane candles pe 50 agents chalakar batata hai kaun sach me kaam kar raha tha. Ek pair ka 1 credit lagta hai aur hazaron samples milte hain.'],
+  ['p','Backtest ab imaandaar hai: entry agli candle ke open pe, BUY Ask pe khulta aur Bid pe band hota hai, spread + slippage + swap + commission kat-te hain, aur NY rollover pe spread 3 guna maana jata hai. Nateeja bina cost aur cost ke saath — dono aamne-saamne.'],
   ['w','Ek pair aur ek timeframe ka backtest bahut kam sabit karta hai. Bharosa karne se pehle teen-chaar chalao. Agent tabhi sach me kamzor hai jab har jagah kamzor ho.']
 ]},
 

@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.3.0 — Agent Report Card (har signal ka BUY+SELL virtual check, aakhri 50 vote, achhe agent ka vote bhaari, kharab ka vote band par tracking chalu) · Imaandaar Backtest (spread/slippage/swap/commission, agli candle pe entry, bina cost vs cost ke saath)
    v10.2.0 — Pre-flight check (MT5 / PERSONAL FX order se pehle: news, aaj ka loss, SL cooldown, din ke orders, currency takraav, R:R) · journal me faisla ki wajah + AI raay · Smart Vote (agents ka live record se weighted, sirf jaankari)
    v10.1.1 — AI zyada-tar Limit/Stop; Market sirf perfect haalat me (NOW + 80%+ + chase nahi), warna entry thoda door
    v10.1.0 — Live Chart ke bagal me 📸 AUTO ANALYZE: live candles se chart image + OHLC → AI → PERSONAL FX card (screenshot ki zaroorat nahi)
@@ -64,7 +65,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.2.0';
+const VERSION = '10.3.0';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
