@@ -1964,7 +1964,7 @@ body.ds-gold .brand .brandWord{height:24px}
   <button class="btn ghost sm" style="margin-bottom:10px" onclick="resetPairDef()">↺ Is pair ko default pe wapas</button>
   <div class="sw on" id="swBe">
     <div class="tg"></div>
-    <div>Breakeven + Profit lock + Trailing — hamesha ON<small>+$1 profit → SL +$0.75, +$2 → +$1.50 … (har $1 ka 75% pakka) · TP ka 50% → SL entry · 65% → SL +25% (kam se kam $0.75) · 75% ke baad trailing</small></div>
+    <div>Breakeven + Profit lock + Trailing — hamesha ON<small>+$1 profit → SL +$0.50, +$1.10 → +$0.60 … (profit se $0.50 peeche, har 10 cent) · TP ka 50% → SL entry · 65% → SL +25% (kam se kam $0.75) · 75% ke baad trailing</small></div>
   </div>
   <p class="hint" style="margin:-2px 0 12px">Journal me SL apne aap khiskegi. App se 🚀 MT5 pe bheje order me FXBridgeEA (v3.54+) bhi yahi karta hai. MT5 me haath se liya trade ho to SL wahan khud khiskana.</p>
 
@@ -2145,7 +2145,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.4.1';
+const VERSION = '10.4.2';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -7031,12 +7031,13 @@ function riskDist(t){
 /* breakeven + profit lock + trailing — SamuSignal EA jaisa, trade ke TP ke % se (v9.9.37):
      TP ka 50% chale  → SL entry par (breakeven)
      65% chale        → SL profit me: TP ka 25%, kam se kam $0.75 (0.01 lot) jahan TP itna bada ho
-     har pura $1 profit → uska 75% pakka: +$1→+$0.75, +$2→+$1.50 … (0.01 lot, v9.9.54) — TP kitna bhi ho
+     +$1 profit → SL +$0.50, phir har 10 cent aage (profit − $0.50) (0.01 lot, v10.4.2) — TP kitna bhi ho
      75% ke baad      → SL price se TP ka 40% peeche (trailing)
    TP na ho to purana tareeka: 1R pe breakeven. SL sirf aage khisakti hai.
    App se MT5 pe bheje order me FXBridgeEA (v3.56+) bhi yahi karta hai. */
 const PLR = {be:0.50, lockAt:0.65, lock:0.25, minLock:0.75, trStart:0.75, trDist:0.40,   /* v9.9.37: BE 50% (halchal me kat na jaye) */
-             step:1.00, keep:0.75};   /* v9.9.54: har pura $1 profit pe uska 75% pakka — +$1→+$0.75, +$2→+$1.50 … (0.01 lot; FXBridge v3.59 / EA v1.10 jaisa) */
+             tStart:1.00, tGap:0.50, tStep:0.10,    /* v10.4.2: +$1→SL +$0.50, +$1.10→+$0.60 … profit se $0.50 peeche, har 10 cent (0.01 lot) */
+             gStart:1.00, gGap:0.50, gStep:0.10};   /*          Gold (XAU) ke alag — abhi forex jaise (FXBridge v3.60 / EA v1.11 / PERSONAL FX v6.0 jaisa) */
 function slLadder(t, gain){
   const T = t.tp > 0 ? Math.abs(t.tp - t.entry) : 0;
   if(!T){ const r = riskDist(t); return (r && gain >= r * 0.9999) ? 0 : null }
@@ -7047,8 +7048,11 @@ function slLadder(t, gain){
   if(gain >= PLR.be * T * 0.9999) want = 0;
   if(gain >= lockAt * 0.9999) want = Math.max(want, lockD);
   const k = t.lots / 0.01, g = distToDollars(t.sym, t.entry, t.lots, Math.max(0, gain)) / k;   /* profit $ (0.01 lot pe) */
-  const steps = Math.floor(g / PLR.step + 1e-6);
-  if(steps >= 1) want = Math.max(want, dollarsToDist(t.sym, t.entry, t.lots, PLR.keep * steps * PLR.step * k));
+  const au = /^XAU/.test(t.sym), st = au ? PLR.gStart : PLR.tStart, gp = au ? PLR.gGap : PLR.tGap, sp = au ? PLR.gStep : PLR.tStep;
+  if(g >= st - 1e-6){
+    const lk = Math.floor(g / sp + 1e-6) * sp - gp;           /* +$1.00→0.50, +$1.10→0.60 … */
+    if(lk > 0) want = Math.max(want, dollarsToDist(t.sym, t.entry, t.lots, lk * k));
+  }
   if(gain >= PLR.trStart * T) want = Math.max(want, gain - PLR.trDist * T);
   return want;
 }
