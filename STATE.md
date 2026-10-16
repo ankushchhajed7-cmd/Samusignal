@@ -8,7 +8,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 |---|---|---|
 | SamuSignal app (PWA) | **10.4.1** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
+| Tithi Gold EA | **2.04** | `vps-ea/Tithi Gold v2.04.mq5` |
 | Kavach test | 230 test (14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## Tithi Gold v2.04 — din ka loss cap 3000 (16 Oct 2026)
+
+- Sirf default badla: **HARD day equity loss cap 300 → 3000** (account currency). Baaki saari settings v2.03 jaisi, Ankush ke Inputs screenshot ke hisaab se.
+- Default settings: magic 26011001, 30 level/side, gap 1.0 × price/3000, lot 0.01 / 0.03 / 0.09 (FIXED), cycle target 3, day profit cap 250, loss cap **3000**, after-loss ×2 ON, pause 1 din, dono side hamesha, trend 6 bar / 30, deep DD 800 ×2, trailing arm 2 / dist 1, trail-if-red OFF, hold losers ON, extras (news/weekend/spread/dabba) OFF, push ON, close-by ON, slippage 1000.
+- Global Variables ka prefix `TG2_` same hai, isliye purana pause/daydone state v2.04 pe bhi lagu hota hai.
+- Baaki: compile check VPS Helper me (yahan compile nahi hota).
 
 ## v10.4.1 — AUTO ANALYZE kam sakht (15 Oct 2026)
 
