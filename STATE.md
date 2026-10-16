@@ -8,8 +8,17 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 |---|---|---|
 | SamuSignal app (PWA) | **10.4.1** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
-| Tithi Gold EA | **2.04** | `vps-ea/Tithi Gold v2.04.mq5` |
+| Tithi Gold EA | **2.05** | `vps-ea/Tithi Gold v2.05.mq5` |
 | Kavach test | 230 test (14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## Tithi Gold v2.05 — real EA ki live setting jaisa (16 Oct 2026)
+
+- Real EA (investor login) ke live pending dekh ke pakka hua: 30 level/side, tier 10 / 10 / 10, lot **0.01 / 0.05 / 0.20**, gap 1.39 (gold 4166 pe). Photo wali "20 level" purani setting thi.
+- Naye default: mid lot **0.05**, far lot **0.20**, cycle target **50**, both sides always **false**. Loss cap 3000 (v2.04 se).
+- FIX: pehle side cycle shuru hote hi lock ho jaati thi (trend tha to poore cycle sirf ek side). Ab har tick dobara check: trend khatam -> dono side ke stop wapas, trend ulta -> side palat. Dono se ek side beech cycle me nahi jaata.
+- Wajah (kyun demo loss me tha): target 3 se chhota profit, loss cap 300 se loss book, aur trend me side lock.
+- Risk: ek taraf ~42 move pe 2.6 lot tak khule ho sakte hain. Real account ~$8,454 ka hai.
+- Baaki: real EA ka chart timeframe pata karna (trend 6 candle us TF pe ginta hai); 0.05 -> 0.20 ka exact level (16-20 dikha nahi) confirm karna.
 
 ## Tithi Gold v2.04 — din ka loss cap 3000 (16 Oct 2026)
 
