@@ -8,8 +8,12 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 |---|---|---|
 | SamuSignal app (PWA) | **10.4.1** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
-| Tithi Gold EA | **2.05** | `vps-ea/Tithi Gold v2.05.mq5` |
+| Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | Kavach test | 230 test (14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## Tithi Gold v2.06 — hamesha dono side (16 Oct 2026)
+
+- Ankush ka faisla: trade hamesha dono side lagni chahiye (real EA me dono side dikhti hai). Default **both sides always = true**. Baaki sab v2.05 jaisa.
 
 ## Tithi Gold v2.05 — real EA ki live setting jaisa (16 Oct 2026)
 
