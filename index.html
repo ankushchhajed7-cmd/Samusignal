@@ -2239,7 +2239,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.0';
+const VERSION = '10.5.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -11150,21 +11150,23 @@ function prMath(ca, cb, n){
   const A = ca.slice(-L).map(Math.log), B = cb.slice(-L).map(Math.log);
   if(A.some(v => !isFinite(v)) || B.some(v => !isFinite(v))) return null;
   const mA = A.reduce((p,c)=>p+c,0)/L, mB = B.reduce((p,c)=>p+c,0)/L;
-  let sab = 0, sbb = 0;
-  for(let i=0;i<L;i++){ sab += (A[i]-mA)*(B[i]-mB); sbb += (B[i]-mB)*(B[i]-mB) }
-  if(!sbb) return null;
-  const beta = sab/sbb, alpha = mA - beta*mB;
-  const s = A.map((v,i) => v - beta*B[i] - alpha);
-  const sd = Math.sqrt(s.reduce((p,c)=>p+c*c,0)/(L-1));
-  if(!sd) return null;
-  const zs = s.map(v => v/sd);
-  /* return correlation (price nahi — wo jhootha high dikhata hai) */
+  /* candle return — correlation aur hedge β dono isi se.
+     v10.5.1: pehle β price level se nikalta tha — 100 candle me dono ulte trend
+     me ho to β minus aa jaata tha (correlation plus hote hue), aur signal dono
+     ko same side bata deta = hedge nahi, double risk. Return β ka sign hamesha
+     correlation jaisa hota hai (minimum-variance hedge). */
   const ra = [], rb = [];
   for(let i=1;i<L;i++){ ra.push(A[i]-A[i-1]); rb.push(B[i]-B[i-1]) }
   const n2 = ra.length, xa = ra.reduce((p,c)=>p+c,0)/n2, xb = rb.reduce((p,c)=>p+c,0)/n2;
   let cab = 0, caa = 0, cbb = 0;
   for(let i=0;i<n2;i++){ const da=ra[i]-xa, db=rb[i]-xb; cab+=da*db; caa+=da*da; cbb+=db*db }
-  const corr = (caa && cbb) ? cab/Math.sqrt(caa*cbb) : 0;
+  if(!caa || !cbb) return null;
+  const corr = cab/Math.sqrt(caa*cbb);
+  const beta = cab/cbb, alpha = mA - beta*mB;
+  const s = A.map((v,i) => v - beta*B[i] - alpha);
+  const sd = Math.sqrt(s.reduce((p,c)=>p+c*c,0)/(L-1));
+  if(!sd) return null;
+  const zs = s.map(v => v/sd);
   /* half-life: spread kitni candle me aadha wapas aata hai (AR1) */
   let sxy = 0, sxx = 0;
   const lag = s.slice(0,-1), ml = lag.reduce((p,c)=>p+c,0)/lag.length;
@@ -11258,7 +11260,7 @@ async function prScan(){
   const need = syms.filter(s => { const c = PR.cache[s+'|'+cfg.tf]; return !(c && Date.now()-c.t < PR_TTL[cfg.tf]) });
   if(dayLeft() < need.length){ toast(`Credits kam hain — ${need.length} chahiye, ${dayLeft()} bache`); return }
   PR.busy = true; prBtn();
-  const bars = {}, bad = {};
+  const bars = {}, bad = {}, gone = [];
   let i = 0;
   for(const s of syms){
     i++;
@@ -11266,12 +11268,17 @@ async function prScan(){
     prNote(`⏳ ${tag} laa raha hoon…`);
     try{
       bars[s] = await prBars(s, cfg.tf, sec => prNote(`⏳ API limit — ${sec} sec ruko · agla ${tag}`));
-    }catch(e){ bad[s] = e.message || 'Error' }
+    }catch(e){ bad[s] = e.message || 'Error'; if(e.code === 404 || e.code === 403) gone.push(s) }
   }
   const px = {};
   Object.keys(bars).forEach(s => { const b = bars[s]; if(b && b.length) px[s] = b[b.length-1].c });
+  /* v10.5.1: jo symbol plan me nahi (jaise free plan pe XAG/USD), uski jodi apne aap OFF —
+     agli baar credit aur ERROR card nahi. Pairs list me dobara ON kar sakte ho. */
+  const offNow = list.filter(p => gone.includes(p.a) || gone.includes(p.b)).map(prKey).filter(k => !PR.off.includes(k));
+  if(offNow.length){ PR.off = PR.off.concat(offNow); prSave(); prRenderPairs();
+    toast(`${gone.map(prName).join(', ')} tumhare TwelveData plan me nahi — wo jodi OFF kar di`) }
   const rows = list.map(p => {
-    if(bad[p.a] || bad[p.b]) return {key: prKey(p), a:p.a, b:p.b, n:p.n, err: bad[p.a] || bad[p.b]};
+    if(bad[p.a] || bad[p.b]) return {key: prKey(p), a:p.a, b:p.b, n:p.n, err: (bad[p.a] || bad[p.b]) + (offNow.includes(prKey(p)) ? ' — is jodi ko OFF kar diya (Pairs me dobara ON kar sakte ho)' : '')};
     try{ return prAnalyse(p, bars[p.a], bars[p.b], cfg, px) }
     catch(e){ return {key: prKey(p), a:p.a, b:p.b, n:p.n, err: e.message} }
   });
@@ -11413,9 +11420,9 @@ function prRowHtml(r, c){
   return `<div class="card pr-card">
     <p class="ttl">${escH(r.n || (prName(r.a)+' / '+prName(r.b)))} · ${tfL} <span class="sp" style="color:${col};-webkit-text-fill-color:${col}">${lbl}</span></p>
     <div class="pr-kv">
-      <div><span>Z-SCORE</span><b class="mono" style="color:${zCol}">${r.z > 0 ? '+' : ''}${r.z}</b></div>
-      <div><span>CORREL</span><b class="mono" style="color:${Math.abs(r.corr) >= c.minCorr ? 'var(--up)' : 'var(--dn)'}">${r.corr}</b></div>
-      <div><span>HEDGE β</span><b class="mono">${r.beta}</b></div>
+      <div><span>Z-SCORE</span><b class="mono" style="color:${zCol}">${r.z > 0 ? '+' : ''}${(+r.z).toFixed(2)}</b></div>
+      <div><span>CORREL</span><b class="mono" style="color:${Math.abs(r.corr) >= c.minCorr ? 'var(--up)' : 'var(--dn)'}">${(+r.corr).toFixed(2)}</b></div>
+      <div><span>HEDGE β</span><b class="mono">${(+r.beta).toFixed(3)}</b></div>
       <div><span>HALF-LIFE</span><b class="mono">${hl}</b></div>
     </div>
     ${prSpark(r.zs, c)}
@@ -11449,7 +11456,7 @@ function prRenderTrack(){
   T.map(t => `<tr>
     <td><b>${prName(t.a)}/${prName(t.b)}</b><br><small>${t.tf === '4h' ? 'H4' : 'H1'} · <span data-ago="${t.at}">${ago(t.at)}</span></small></td>
     <td class="mono"><span style="color:${t.dA==='BUY'?'var(--up)':'var(--dn)'}">${t.dA[0]} ${t.lotA}</span> / <span style="color:${t.dB==='BUY'?'var(--up)':'var(--dn)'}">${t.dB[0]} ${t.lotB}</span></td>
-    <td class="mono">${t.z0} → ${t.z}<br><small style="color:${stCol[t.st]}">${t.st}</small></td>
+    <td class="mono">${(+t.z0).toFixed(2)} → ${(+t.z).toFixed(2)}<br><small style="color:${stCol[t.st]}">${t.st}</small></td>
     <td class="mono" style="color:${t.pl >= 0 ? 'var(--up)' : 'var(--dn)'}">${t.pl >= 0 ? '+' : ''}${t.pl.toFixed(2)}</td>
     <td><button class="chip" style="padding:4px 8px" onclick="prTrackDel(${t.id})">×</button></td>
   </tr>`).join('') + `</table>

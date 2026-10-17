@@ -6,10 +6,18 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 
 | Cheez | Version | File |
 |---|---|---|
-| SamuSignal app (PWA) | **10.5.0** | `index.html`, `sw.js` |
+| SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
-| Kavach test | 254 test (24 naye pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+| Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## v10.5.1 — Pair tab fix: hedge β ab return se (17 Oct 2026)
+
+- **Bug (Ankush ke live screenshot se):** EURAUD/EURNZD, AUDUSD/NZDUSD, AUDCAD/NZDCAD me correlation plus (0.6–0.8) par Hedge β **minus** (−0.10 se −0.45). Wajah: β price level se nikalta tha; 100 candle me dono ulte trend me ho to β minus. Aisi jodi pe TRADE LO aata to dono **same side** bata deta = hedge nahi, double risk.
+- **Fix:** β ab candle **return** se (minimum-variance hedge) — iska sign hamesha correlation jaisa. Plus correlation jodi me ek BUY + ek SELL hi aayega. Spread/Z/half-life baaki wahi tareeka.
+- Free plan pe jo symbol nahi milta (XAG/USD = 404) uski jodi scan ke baad **apne aap OFF** — agle scan me credit nahi jaata. Pairs list me dobara ON kar sakte ho.
+- Display: Z/β/correlation hamesha 2–3 decimal (pehle "-1" jaisa dikhta tha).
+- Kavach: 2 naye test (ulte trend me β ka sign = correlation; plus jodi me dono same side kabhi nahi). Purana level-β tareeka is test pe β = −0.695 deta tha.
 
 ## v10.5.0 — PAIR TRADING tab (17 Oct 2026)
 
@@ -17,7 +25,7 @@ Naya **PAIR** tab (bottom nav me 7th, ⚖️). Baaki saare tab waise hi. **Sirf 
 
 - **Pairs (sab default ON):** Gold/Silver (XAU/XAG), EURUSD/GBPUSD, AUDUSD/NZDUSD, EURUSD/USDCHF (ulti), EURJPY/GBPJPY, AUDJPY/NZDJPY, AUDCAD/NZDCAD, EURAUD/EURNZD, BTC/ETH. Apni jodi bhi add/delete ho sakti hai.
 - **Timeframe:** H1 ya H4 (chip). 220 candle laata hai, cache H1 15 min / H4 45 min.
-- **Ganit:** log price pe OLS → β (hedge), spread = logA − β·logB − α, Z = spread / std (last *lookback* candle). Correlation candle **return** se (price wala jhootha high dikhata hai). Half-life = AR(1) se.
+- **Ganit:** (v10.5.1 se β return se — upar dekho) log price pe OLS → β (hedge), spread = logA − β·logB − α, Z = spread / std (last *lookback* candle). Correlation candle **return** se (price wala jhootha high dikhata hai). Half-life = AR(1) se.
 - **Signal:** |Z| ≥ Entry → TRADE LO (Z+ = A SELL, Z− = A BUY; B ka side β ke sign se — ulti jodi me dono same side). |Z| ≤ Exit = NORMAL, Exit–Entry = RUKO, |Z| ≥ Stop = BAHUT DOOR (entry nahi), |corr| < Min = PAIR TOOTA.
 - **Lot B:** dono taraf ki USD value barabar (β ke hisaab se), min 0.01. Rounding se 25% se zyada farak ho to warning.
 - **Virtual Tracker:** signal card pe 📌 TRACK → har scan pe P&L ($) aur Z update. Z Exit ke andar ya ulti taraf = EXIT, Stop ke bahar = STOP. Spread/commission nahi gina. Max 40 record.
@@ -109,7 +117,7 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 ## Baaki kaam / dhyaan
 
 - [ ] Pair tab 2–3 hafte chalao, Virtual Tracker ka WIN% / kul $ dekho — phir tay karo MT5 button ya Telegram alert chahiye ya nahi.
-- [ ] TwelveData free plan pe XAG/USD aata hai ya nahi, phone pe confirm karo (na aaye to Gold/Silver card pe ERROR dikhega).
+- [x] TwelveData free plan pe XAG/USD **nahi** aata (Ankush ka screenshot) — v10.5.1 me wo jodi apne aap OFF hoti hai. Gold ke liye koi aur jodi chahiye to baad me socho.
 
 - [ ] PERSONAL FX v5.9 MetaEditor me compile karke VPS pe lagana (yahan compile nahi ho sakta).
 - [ ] Agar ab bhi zyada NO TRADE aaye: NO TRADE card ka screenshot dekh ke wajah (filter / AI confidence / leg jaanch) pakdo.

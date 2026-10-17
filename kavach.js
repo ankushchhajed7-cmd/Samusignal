@@ -860,6 +860,20 @@ globalThis.td = async () => { throw new Error('network down') };
     eq('P&L: gold BUY 0.01, +$10 = +$10', prLegPl('XAU/USD', 'BUY', 0.01, 4000, 4010, {}), 10, 1e-9);
     eq('P&L: silver SELL 0.02, +$0.10 = −$10', prLegPl('XAG/USD', 'SELL', 0.02, 50, 50.1, {}), -10, 1e-6);
     eq('naam: XAG/USD → XAGUSD', prName('XAG/USD'), 'XAGUSD');
+    /* v10.5.1 bug: dono saath hilte (return corr +) par ulte trend me — level β minus aata tha */
+    {
+      let s2 = 5; const r2 = () => { s2 = (s2 * 1103515245 + 12345) % 2147483648; return s2 / 2147483648 - 0.5 };
+      const Ax = [], Bx = []; let f = 0;
+      for (let i = 0; i < 120; i++) {
+        f += r2() * 0.006;
+        Ax.push(Math.exp(Math.log(0.69) + f - 0.0015 * i + r2() * 0.0015));
+        Bx.push(Math.exp(Math.log(0.56) + f + 0.0015 * i + r2() * 0.0015));
+      }
+      const mx = prMath(Ax, Bx, 100);
+      ok('ulte trend me bhi β ka sign = correlation ka sign', mx && Math.sign(mx.beta) === Math.sign(mx.corr) && mx.corr > 0, mx && `β ${mx.beta.toFixed(3)} corr ${mx.corr.toFixed(2)}`);
+      const sx = prSignal({z: 2.4, beta: mx.beta, corr: mx.corr}, C1);
+      ok('plus correlation jodi me kabhi dono same side nahi', sx.k === 'ENTRY' && sx.dA !== sx.dB, JSON.stringify(sx));
+    }
   }
 
   report();
