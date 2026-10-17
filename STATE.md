@@ -9,9 +9,17 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
-| BTC Trailing Manager (Buster ke liye) | **1.00** | `vps-ea/BTC Trailing Manager v1.00.mq5` |
-| Investor Account Watcher (INVESTOR-ID repo) | **1.03** | `vps-ea/Investor Account Watcher v1.03.mq5` |
+| BTC Trailing Manager (Buster ke liye) | **1.01** | `vps-ea/BTC Trailing Manager v1.01.mq5` |
+| Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## BTC Trailing Manager v1.01 (SHADOW test) + Investor Account Watcher v1.04 (17 Oct 2026)
+
+- Doosra VPS band, is VPS par naye demo terminal ki jagah nahi → real 3099 par hi **zero-risk SHADOW test**.
+- Manager v1.01 Mode=SHADOW (default): real SL nahi chhuta (Buster `UseTrailingStop = true` hi rahe). Har naye Buster trade (Magic 111111) ki 4 virtual copies: A 10000/8000, B 15000/12000, C 20000/15000, D 30000/20000 pts (start/doori), step 1000; virtual SL Buster ke initial SL se shuru; real band hone ke baad bhi virtual tab tak chalta hai jab tak virtual SL/TP na lage. Buster ka REAL result bhi. File: `MQL5\Files\IW_shadow_<acc>.jsonl`. Panel me har setting ka kul $.
+- Mode=LIVE: shadow ke saath real SL bhi LIVE settings se (tab Buster me UseTrailingStop=false).
+- Watcher v1.04 shadow lines trail.json me bhejta hai; app Trailing tab me "Shadow test — kaunsi setting best".
+- Agla kadam: 10+ complete trades ke baad best setting ko LIVE settings me daal kar Mode=LIVE.
 
 ## BTC Trailing Manager v1.00 + Investor Account Watcher v1.03 (17 Oct 2026)
 
