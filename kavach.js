@@ -104,7 +104,16 @@ const PIECES = [
   ['mtfLegs',       /function mtfLegs\([\s\S]*?\n\}/],
   ['mtfLegCheck',   /function mtfLegCheck\([\s\S]*?\n\}/],
   ['mtfTime',       /function mtfTime\([\s\S]*?\n\}/],
-  ['mtfSim',        /function mtfSim\([\s\S]*?\n\}/]
+  ['mtfSim',        /function mtfSim\([\s\S]*?\n\}/],
+  ['PR_EXTRA',      /const PR_EXTRA = [^\n]+/],
+  ['prSpec',        /const prSpec = [^\n]+/],
+  ['prName',        /const prName = [^\n]+/],
+  ['prAlign',       /function prAlign\([\s\S]*?\n\}/],
+  ['prMath',        /function prMath\([\s\S]*?\n\}/],
+  ['prSignal',      /function prSignal\([\s\S]*?\n\}/],
+  ['prConv',        /function prConv\([\s\S]*?\n\}/],
+  ['prLotB',        /function prLotB\([\s\S]*?\n\}/],
+  ['prLegPl',       /function prLegPl\([\s\S]*?\n\}/]
 ];
 
 let html;
@@ -163,7 +172,8 @@ const EXPORTS = [
   'jsonRescue','P_UP','P_DN','P_HI','paint','hasOwnDef','getPrice','entryZone',
   'AGENT_N','RC_KEEP','RC_MIN','rcStat','rcTier','rcApply','rcScore','rcMirror','rcMirrorCheck',
   'btDefCost','btCost','btIstMin','btRollover','btDayKey','btTrade','btPl','btMetrics',
-  'MTF_ADX_RANGE','MTF_ADX_TREND','mtfRead','mtfGate','mtfLegs','mtfLegCheck','mtfTime','mtfSim'
+  'MTF_ADX_RANGE','MTF_ADX_TREND','mtfRead','mtfGate','mtfLegs','mtfLegCheck','mtfTime','mtfSim',
+  'PR_EXTRA','prSpec','prName','prAlign','prMath','prSignal','prConv','prLotB','prLegPl'
 ];
 try {
   const glue = EXPORTS.map(n =>
@@ -801,6 +811,56 @@ globalThis.td = async () => { throw new Error('network down') };
   const nf = mtfSim(rec, mk(Array.from({length: 62}, () => [4100,4100.4,4099.6,4100])));
   eq('sim: 60 min me na bhara = NOFILL', nf.r, 'NOFILL');
   eq('sim: abhi data kam = OPEN', mtfSim(rec, mk([[4100,4100.4,4099.6,4100]])).r, 'OPEN');
+
+  /* ============ V. Pair trading (v10.5.0) ============ */
+  G('V. Pair trading ka ganit');
+  {
+    let sd = 11;
+    const rnd = () => { sd = (sd * 1103515245 + 12345) % 2147483648; return sd / 2147483648 - 0.5 };
+    /* B random walk, A = B^1.5 * k * (chhota mean-reverting noise) */
+    const Bp = [], Ap = []; let lb = Math.log(25), e = 0;
+    for (let i = 0; i < 150; i++) {
+      lb += rnd() * 0.01; e = 0.6 * e + rnd() * 0.004;
+      Bp.push(Math.exp(lb)); Ap.push(Math.exp(1.5 * lb + 2 + e));
+    }
+    const m = prMath(Ap, Bp, 120);
+    ok('β ≈ 1.5 nikla (OLS log price)', m && Math.abs(m.beta - 1.5) < 0.08, m && m.beta.toFixed(3));
+    ok('correlation ≥ 0.9 (saath chalte)', m && m.corr > 0.9, m && m.corr.toFixed(2));
+    ok('half-life chhota (mean-revert)', m && isFinite(m.hl) && m.hl < 10, m && String(m.hl));
+    ok('Z series ka std ≈ 1', m && Math.abs(Math.sqrt(m.zs.reduce((p,c)=>p+c*c,0)/(m.zs.length-1)) - 1) < 1e-9);
+    eq('window = 120 candle', m && m.n, 120);
+    ok('30 se kam candle = null', prMath(Ap.slice(0, 20), Bp.slice(0, 20), 100) === null);
+    const Ap2 = Ap.slice(); Ap2[Ap2.length - 1] *= 1.03;
+    const m2 = prMath(Ap2, Bp, 120);
+    ok('A achanak upar = Z bada positive', m2 && m2.z > 2, m2 && m2.z.toFixed(2));
+    const C1 = {entry: 2, exit: 0.5, stop: 3.5, minCorr: 0.7};
+    const sg = prSignal({z: 2.3, beta: 1.2, corr: 0.85}, C1);
+    ok('Z +2.3, β>0 → A SELL + B BUY', sg.k === 'ENTRY' && sg.dA === 'SELL' && sg.dB === 'BUY', JSON.stringify(sg));
+    const sg2 = prSignal({z: -2.3, beta: 1.2, corr: 0.85}, C1);
+    ok('Z −2.3, β>0 → A BUY + B SELL', sg2.dA === 'BUY' && sg2.dB === 'SELL', JSON.stringify(sg2));
+    const sg3 = prSignal({z: 2.3, beta: -0.9, corr: -0.88}, C1);
+    ok('ulti jodi (β<0): Z +2.3 → dono SELL', sg3.k === 'ENTRY' && sg3.dA === 'SELL' && sg3.dB === 'SELL', JSON.stringify(sg3));
+    const sg4 = prSignal({z: -2.3, beta: -0.9, corr: -0.88}, C1);
+    ok('ulti jodi (β<0): Z −2.3 → dono BUY', sg4.dA === 'BUY' && sg4.dB === 'BUY', JSON.stringify(sg4));
+    eq('correlation 0.5 → PAIR TOOTA', prSignal({z: 2.5, beta: 1, corr: 0.5}, C1).k, 'BROKEN');
+    eq('Z 3.8 → BAHUT DOOR (entry nahi)', prSignal({z: 3.8, beta: 1, corr: 0.9}, C1).k, 'TOOFAR');
+    eq('Z 1.2 → RUKO', prSignal({z: 1.2, beta: 1, corr: 0.9}, C1).k, 'WAIT');
+    eq('Z 0.3 → NORMAL', prSignal({z: 0.3, beta: 1, corr: 0.9}, C1).k, 'FLAT');
+    eq('null → DATA NAHI', prSignal(null, C1).k, 'NODATA');
+    const al = prAlign([{t:'a',c:1},{t:'b',c:2},{t:'c',c:3}], [{t:'b',c:20},{t:'c',c:30},{t:'d',c:40}]);
+    ok('align: sirf common candle', al.t.join() === 'b,c' && al.a.join() === '2,3' && al.b.join() === '20,30');
+    /* lot: EURUSD 1.10 vs GBPUSD 1.30, β 1 → B lot = 0.10 × 1.10/1.30 = 0.0846 → 0.08 */
+    const lb1 = prLotB('EUR/USD', 'GBP/USD', 1.10, 1.30, 1, 0.10, {});
+    ok('lot: EURUSD 0.10 → GBPUSD 0.08', lb1 && lb1.lot === 0.08, lb1 && JSON.stringify(lb1));
+    /* gold 4000 ×100 vs silver 50 ×5000, β 1 → 0.01 × 400000/250000 = 0.016 → 0.02 */
+    const lb2 = prLotB('XAU/USD', 'XAG/USD', 4000, 50, 1, 0.01, {});
+    ok('lot: gold 0.01 → silver 0.02 (XAG spec 5000)', lb2 && lb2.lot === 0.02, lb2 && JSON.stringify(lb2));
+    ok('lot: kabhi 0.01 se kam nahi', prLotB('EUR/USD', 'GBP/USD', 1.1, 1.3, 0.1, 0.01, {}).lot === 0.01);
+    eq('JPY conv scan price se', prConv('JPY', {'USD/JPY': 150}), 1/150, 1e-12);
+    eq('P&L: gold BUY 0.01, +$10 = +$10', prLegPl('XAU/USD', 'BUY', 0.01, 4000, 4010, {}), 10, 1e-9);
+    eq('P&L: silver SELL 0.02, +$0.10 = −$10', prLegPl('XAG/USD', 'SELL', 0.02, 50, 50.1, {}), -10, 1e-6);
+    eq('naam: XAG/USD → XAGUSD', prName('XAG/USD'), 'XAGUSD');
+  }
 
   report();
 })();

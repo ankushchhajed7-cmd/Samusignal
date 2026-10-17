@@ -6,10 +6,36 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 
 | Cheez | Version | File |
 |---|---|---|
-| SamuSignal app (PWA) | **10.4.1** | `index.html`, `sw.js` |
+| SamuSignal app (PWA) | **10.5.0** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
-| Kavach test | 230 test (14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+| Kavach test | 254 test (24 naye pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## v10.5.0 — PAIR TRADING tab (17 Oct 2026)
+
+Naya **PAIR** tab (bottom nav me 7th, ⚖️). Baaki saare tab waise hi. **Sirf app me signal** — MT5 ko kuch nahi jaata, Telegram nahi (Ankush ka faisla).
+
+- **Pairs (sab default ON):** Gold/Silver (XAU/XAG), EURUSD/GBPUSD, AUDUSD/NZDUSD, EURUSD/USDCHF (ulti), EURJPY/GBPJPY, AUDJPY/NZDJPY, AUDCAD/NZDCAD, EURAUD/EURNZD, BTC/ETH. Apni jodi bhi add/delete ho sakti hai.
+- **Timeframe:** H1 ya H4 (chip). 220 candle laata hai, cache H1 15 min / H4 45 min.
+- **Ganit:** log price pe OLS → β (hedge), spread = logA − β·logB − α, Z = spread / std (last *lookback* candle). Correlation candle **return** se (price wala jhootha high dikhata hai). Half-life = AR(1) se.
+- **Signal:** |Z| ≥ Entry → TRADE LO (Z+ = A SELL, Z− = A BUY; B ka side β ke sign se — ulti jodi me dono same side). |Z| ≤ Exit = NORMAL, Exit–Entry = RUKO, |Z| ≥ Stop = BAHUT DOOR (entry nahi), |corr| < Min = PAIR TOOTA.
+- **Lot B:** dono taraf ki USD value barabar (β ke hisaab se), min 0.01. Rounding se 25% se zyada farak ho to warning.
+- **Virtual Tracker:** signal card pe 📌 TRACK → har scan pe P&L ($) aur Z update. Z Exit ke andar ya ulti taraf = EXIT, Stop ke bahar = STOP. Spread/commission nahi gina. Max 40 record.
+- XAG/USD app ke SPECS me **nahi** daala (baaki app pe asar na ho) — sirf `PR_EXTRA` me (Exness 1 lot = 5000 oz).
+- Credits: ek scan = jitne naye symbol (sab ON = 17 credit, free plan me ~3 min, 8/min limit pehle wala hi).
+
+### Pair settings (PAIR tab → Settings)
+
+| Setting | Default |
+|---|---|
+| Entry Z | 2.0 |
+| Exit Z | 0.5 |
+| Stop Z | 3.5 |
+| Min Correlation | 0.70 |
+| Lookback candle | 100 |
+| Lot A | 0.01 |
+
+Storage keys: `prCfg`, `prOff`, `prCust`, `prLast`, `prTrack`.
 
 ## Tithi Gold v2.06 — hamesha dono side (16 Oct 2026)
 
@@ -78,8 +104,12 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 - Chaaron order (BL+SL+BS+SS) ek saath **nahi** — 2 order wala tareeka chuna (trend me usi taraf Limit+Stop, range me BL+SL).
 - PERSONAL FX me sirf app bridge ka batch badlav manzoor.
 - Order MT5 pe sirf manual tap se jaata hai (auto-send nahi).
+- Pair Trading abhi **sirf app me** — MT5 button / Telegram baad me (agar chahiye).
 
 ## Baaki kaam / dhyaan
+
+- [ ] Pair tab 2–3 hafte chalao, Virtual Tracker ka WIN% / kul $ dekho — phir tay karo MT5 button ya Telegram alert chahiye ya nahi.
+- [ ] TwelveData free plan pe XAG/USD aata hai ya nahi, phone pe confirm karo (na aaye to Gold/Silver card pe ERROR dikhega).
 
 - [ ] PERSONAL FX v5.9 MetaEditor me compile karke VPS pe lagana (yahan compile nahi ho sakta).
 - [ ] Agar ab bhi zyada NO TRADE aaye: NO TRADE card ka screenshot dekh ke wajah (filter / AI confidence / leg jaanch) pakdo.

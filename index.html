@@ -1859,6 +1859,84 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 </section>
 
+<!-- ============ PAIR TRADING (v10.5.0 — naya tab, sirf app me signal) ============ -->
+<section id="pgPair" class="hide">
+  <style>
+    .pr-kv{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px}
+    .pr-kv div{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 2px;text-align:center}
+    .pr-kv span{display:block;font-size:9px;letter-spacing:1px;color:var(--lbl);font-weight:700;margin-bottom:3px}
+    .pr-kv b{font-size:14px}
+    .pr-legs{display:flex;align-items:stretch;gap:6px;margin-top:8px}
+    .pr-legs i{font-style:normal;align-self:center;color:var(--dim);font-weight:700}
+    .pr-leg{flex:1;border:2px solid var(--line);border-radius:8px;padding:9px 4px;text-align:center}
+    .pr-leg b{display:block;font-size:16px;letter-spacing:1px}
+    .pr-leg span{display:block;font-size:13px;font-weight:700;margin-top:2px}
+    .pr-leg small{display:block;font-size:11px;color:var(--lbl);margin-top:2px}
+    .pr-leg.up{border-color:var(--up)} .pr-leg.up b{color:var(--up)}
+    .pr-leg.dn{border-color:var(--dn)} .pr-leg.dn b{color:var(--dn)}
+    .pr-pair{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+    .pr-pair:last-child{border-bottom:0}
+    .pr-pair:not(.on){opacity:.55}
+    #prTrack table td,#prTrack table th{padding:6px 3px;vertical-align:top}
+  </style>
+  <div class="pghd"><span class="pn">07</span><b>Pair Trading</b><small>Do jodi · Z-score · sirf app me signal</small></div>
+
+  <div class="card">
+    <p class="ttl">Scan <span class="sp">H1 / H4</span></p>
+    <div class="chips" style="margin-bottom:10px">
+      <button class="chip" id="prTf1h" onclick="prSetTf('1h')">H1</button>
+      <button class="chip" id="prTf4h" onclick="prSetTf('4h')">H4</button>
+    </div>
+    <button class="btn gold" id="prScanBtn" onclick="prScan()">⚖️ SAB PAIR SCAN KARO</button>
+    <p class="hint mono" id="prCost" style="margin-top:8px">—</p>
+    <p class="hint" id="prNote" style="margin-top:4px">—</p>
+  </div>
+
+  <div id="prRows"></div>
+
+  <div class="card">
+    <p class="ttl">Virtual Tracker <span class="sp" id="prTrackT">—</span></p>
+    <div id="prTrack"></div>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Pairs <span class="sp">ON = scan me</span></p>
+    <div id="prPairs"></div>
+    <p class="hint" style="margin:12px 0 6px">Apni jodi banao:</p>
+    <div class="grid2">
+      <div><label>Symbol A</label><select id="prCa"></select></div>
+      <div><label>Symbol B</label><select id="prCb"></select></div>
+    </div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="prAddCustom()">＋ JODI ADD KARO</button>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Settings</p>
+    <div class="grid2">
+      <div><label>Entry Z</label><input id="prEntry" class="mono" type="number" step="0.1" onchange="prCfgIn('entry',this)"></div>
+      <div><label>Exit Z</label><input id="prExit" class="mono" type="number" step="0.1" onchange="prCfgIn('exit',this)"></div>
+      <div><label>Stop Z</label><input id="prStop" class="mono" type="number" step="0.1" onchange="prCfgIn('stop',this)"></div>
+      <div><label>Min Correlation</label><input id="prCorr" class="mono" type="number" step="0.05" onchange="prCfgIn('minCorr',this)"></div>
+      <div><label>Lookback candle</label><input id="prLook" class="mono" type="number" step="10" onchange="prCfgIn('look',this)"></div>
+      <div><label>Lot A</label><input id="prLotA" class="mono" type="number" step="0.01" onchange="prCfgIn('lotA',this)"></div>
+    </div>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="prReset()">↺ DEFAULT</button>
+    <p class="hint" style="margin-top:10px">Default: Entry 2.0 · Exit 0.5 · Stop 3.5 · Correlation 0.70 · 100 candle · Lot A 0.01. Lot B app khud nikalti hai taaki dono taraf ki dollar value barabar rahe (β ke hisaab se).</p>
+  </div>
+
+  <div class="card">
+    <p class="ttl">Kaise padhein</p>
+    <ul class="hint" style="padding-left:18px;margin:0">
+      <li><b>Z-score</b> — dono ka farak normal se kitna door hai. +2 = A mehenga, −2 = A sasta.</li>
+      <li><b>TRADE LO</b> — dono order ek saath lagao (ek BUY, ek SELL ya ulti jodi me dono same).</li>
+      <li><b>Correlation</b> — dono kitna saath chalte hain (candle return se). 0.70 se kam = trade nahi.</li>
+      <li><b>Half-life</b> — farak aadha wapas aane me lagbhag kitni candle. Chhota = jaldi.</li>
+      <li>Chart me peeli line = Entry, laal = Stop, beech wali = 0.</li>
+      <li>Ye sirf signal hai — MT5 ko kuch nahi jaata.</li>
+    </ul>
+  </div>
+</section>
+
 </main>
 
 <nav>
@@ -1868,6 +1946,7 @@ body.ds-gold .brand .brandWord{height:24px}
   <button data-pg="Trades" onclick="go('Trades',this)"><i>💼</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7.5" width="18" height="12.5" rx="2"></rect><path d="M9 7.5V5.5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path><path d="M3 12.5h18"></path></svg><span class="nl">TRADES</span></button>
   <button data-pg="Alerts" onclick="go('Alerts',this)"><i>🔔</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span class="nl">ALERTS</span></button>
   <button data-pg="Copy" onclick="go('Copy',this)"><i>🔁</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l3.5 3.5L17 10"></path><path d="M3.5 11.5V10a3.5 3.5 0 0 1 3.5-3.5h13.5"></path><path d="M7 21l-3.5-3.5L7 14"></path><path d="M20.5 12.5V14a3.5 3.5 0 0 1-3.5 3.5H3.5"></path></svg><span class="nl">COPY</span></button>
+  <button data-pg="Pair" onclick="go('Pair',this)"><i>⚖️</i><svg class="dsi" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5v17"></path><path d="M7.5 20.5h9"></path><path d="M4.5 6.5h15"></path><path d="M6.5 6.5l-3 7a3 3 0 0 0 6 0z"></path><path d="M17.5 6.5l-3 7a3 3 0 0 0 6 0z"></path></svg><span class="nl">PAIR</span></button>
 </nav>
 
 <!-- ============ SHEETS ============ -->
@@ -2160,7 +2239,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.4.5';
+const VERSION = '10.5.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -3080,7 +3159,7 @@ document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{
   if(e.target===o){ o.classList.remove('on'); syncLock() }
 }));
 function go(pg,btn){
-  ['Signals','Chart','Scan','Votes','Trades','Alerts','Copy'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
+  ['Signals','Chart','Scan','Votes','Trades','Alerts','Copy','Pair'].forEach(p=>$('pg'+p).classList.toggle('hide',p!==pg));
   /* header sirf Signals page pe — baaki pages pe poori screen milti hai */
   const hd = document.querySelector('header');
   hd.classList.toggle('hide', pg !== 'Signals');
@@ -3094,6 +3173,8 @@ function go(pg,btn){
   if(pg==='Chart') chartPageShow();
   /* v9.9.0 Copy Trade — naya tab, sirf apna kaam */
   if(pg==='Copy'){ if(window.cpOnShow) cpOnShow() } else if(window.cpOnHide) cpOnHide();
+  /* v10.5.0 Pair Trading — naya tab */
+  if(pg==='Pair' && window.prOnShow) prOnShow();
 }
 async function toggleNotif(el){
   if(!S.notif){
@@ -11007,6 +11088,397 @@ async function purgeOldCaches(){
   }catch(e){}
   return killed;
 }
+
+
+/* ============================================================
+   v10.5.0  PAIR TRADING — naya tab, sirf app me signal
+   (MT5 ko kuch nahi jaata, Telegram nahi — Ankush ka faisla)
+   ------------------------------------------------------------
+   Do correlated symbol (A, B):
+     spread = log(A) − β·log(B) − α      (β, α = OLS, last N candles)
+     Z      = aaj ka spread / spread ka std
+   Z ≥ +entry  → A mehenga: A SELL, B hedge (β>0 to BUY)
+   Z ≤ −entry  → A sasta:   A BUY,  B hedge (β>0 to SELL)
+   |Z| ≤ exit  → dono band (profit)     |Z| ≥ stop → dono band (stop)
+   Return correlation < min → pair toot raha, trade nahi.
+   ============================================================ */
+const PR_PRESETS = [
+  {a:'XAU/USD', b:'XAG/USD', n:'Gold / Silver'},
+  {a:'EUR/USD', b:'GBP/USD', n:'EUR / GBP (USD)'},
+  {a:'AUD/USD', b:'NZD/USD', n:'Aussie / Kiwi'},
+  {a:'EUR/USD', b:'USD/CHF', n:'EURUSD / USDCHF (ulta)'},
+  {a:'EUR/JPY', b:'GBP/JPY', n:'EUR / GBP (JPY)'},
+  {a:'AUD/JPY', b:'NZD/JPY', n:'AUD / NZD (JPY)'},
+  {a:'AUD/CAD', b:'NZD/CAD', n:'AUD / NZD (CAD)'},
+  {a:'EUR/AUD', b:'EUR/NZD', n:'EURAUD / EURNZD'},
+  {a:'BTC/USD', b:'ETH/USD', n:'BTC / ETH'}
+];
+/* XAG/USD app ke SPECS me nahi hai — sirf pair tab ke liye (Exness: 1 lot = 5000 oz) */
+const PR_EXTRA = {'XAG/USD': {n:'XAGUSD', d:3, contract:5000, ccy:['XAG','USD']}};
+const PR_DEF = {tf:'1h', look:100, entry:2.0, exit:0.5, stop:3.5, minCorr:0.70, lotA:0.01};
+const PR_TTL = {'1h': 15*60000, '4h': 45*60000};
+const prSpec = sym => SPECS[sym] || PR_EXTRA[sym] || null;
+const prName = sym => (prSpec(sym) || {n: sym.replace('/','')}).n;
+const prKey  = p => p.a + '|' + p.b;
+const prPx   = (sym, v) => (+v).toFixed((prSpec(sym) || {d:5}).d);
+let PR = {
+  cfg:   Object.assign({}, PR_DEF, LS.get('prCfg', {})),
+  off:   LS.get('prOff', []),          /* preset jo scan se bahar kiye */
+  cust:  LS.get('prCust', []),         /* apni banayi jodi */
+  last:  LS.get('prLast', null),       /* aakhri scan ka result */
+  track: LS.get('prTrack', []),        /* virtual trades */
+  cache: {},                           /* sym|tf -> {t, bars} (memory) */
+  busy:  false
+};
+function prSave(){ LS.set('prCfg', PR.cfg); LS.set('prOff', PR.off); LS.set('prCust', PR.cust); }
+function prList(){ return PR_PRESETS.concat(PR.cust.map(p => Object.assign({cust:true}, p))) }
+function prActive(){ return prList().filter(p => !PR.off.includes(prKey(p))) }
+
+/* do series ko time pe milao — sirf jo candle dono me hai */
+function prAlign(ba, bb){
+  const mb = new Map();
+  bb.forEach(x => mb.set(x.t, x.c));
+  const a = [], b = [], t = [];
+  ba.forEach(x => { if(mb.has(x.t)){ a.push(x.c); b.push(mb.get(x.t)); t.push(x.t) } });
+  return {a, b, t};
+}
+
+/* pair ka ganit: β, α, Z, correlation, half-life, Z ki series */
+function prMath(ca, cb, n){
+  const L = Math.min(ca.length, cb.length, n || ca.length);
+  if(L < 30) return null;
+  const A = ca.slice(-L).map(Math.log), B = cb.slice(-L).map(Math.log);
+  if(A.some(v => !isFinite(v)) || B.some(v => !isFinite(v))) return null;
+  const mA = A.reduce((p,c)=>p+c,0)/L, mB = B.reduce((p,c)=>p+c,0)/L;
+  let sab = 0, sbb = 0;
+  for(let i=0;i<L;i++){ sab += (A[i]-mA)*(B[i]-mB); sbb += (B[i]-mB)*(B[i]-mB) }
+  if(!sbb) return null;
+  const beta = sab/sbb, alpha = mA - beta*mB;
+  const s = A.map((v,i) => v - beta*B[i] - alpha);
+  const sd = Math.sqrt(s.reduce((p,c)=>p+c*c,0)/(L-1));
+  if(!sd) return null;
+  const zs = s.map(v => v/sd);
+  /* return correlation (price nahi — wo jhootha high dikhata hai) */
+  const ra = [], rb = [];
+  for(let i=1;i<L;i++){ ra.push(A[i]-A[i-1]); rb.push(B[i]-B[i-1]) }
+  const n2 = ra.length, xa = ra.reduce((p,c)=>p+c,0)/n2, xb = rb.reduce((p,c)=>p+c,0)/n2;
+  let cab = 0, caa = 0, cbb = 0;
+  for(let i=0;i<n2;i++){ const da=ra[i]-xa, db=rb[i]-xb; cab+=da*db; caa+=da*da; cbb+=db*db }
+  const corr = (caa && cbb) ? cab/Math.sqrt(caa*cbb) : 0;
+  /* half-life: spread kitni candle me aadha wapas aata hai (AR1) */
+  let sxy = 0, sxx = 0;
+  const lag = s.slice(0,-1), ml = lag.reduce((p,c)=>p+c,0)/lag.length;
+  const ds = s.slice(1).map((v,i) => v - s[i]), md = ds.reduce((p,c)=>p+c,0)/ds.length;
+  for(let i=0;i<lag.length;i++){ sxy += (lag[i]-ml)*(ds[i]-md); sxx += (lag[i]-ml)*(lag[i]-ml) }
+  const lam = sxx ? sxy/sxx : 0;
+  const hl = lam < 0 ? Math.log(2) / -lam : Infinity;
+  return {beta, alpha, sd, z: zs[L-1], corr, hl, zs, n: L};
+}
+
+/* faisla — sirf niyam, AI nahi */
+function prSignal(m, c){
+  if(!m || !isFinite(m.z)) return {k:'NODATA'};
+  if(Math.abs(m.corr) < c.minCorr) return {k:'BROKEN'};
+  const az = Math.abs(m.z);
+  if(az >= c.stop) return {k:'TOOFAR'};
+  if(az >= c.entry){
+    const dA = m.z > 0 ? 'SELL' : 'BUY';
+    const dB = (m.beta > 0) === (dA === 'SELL') ? 'BUY' : 'SELL';
+    return {k:'ENTRY', dA, dB};
+  }
+  if(az <= c.exit) return {k:'FLAT'};
+  return {k:'WAIT'};
+}
+
+/* quote currency -> USD (pehle scan ke taaze close, phir app ke price, phir andaza) */
+function prConv(ccy, px){
+  if(ccy === 'USD') return 1;
+  const g = sym => (px && px[sym]) || (typeof prices !== 'undefined' && prices[sym] && prices[sym].p) || refPrice(sym);
+  switch(ccy){
+    case 'JPY': return 1 / g('USD/JPY');
+    case 'CHF': return 1 / g('USD/CHF');
+    case 'CAD': return 1 / g('USD/CAD');
+    case 'GBP': return g('GBP/USD');
+    case 'EUR': return g('EUR/USD');
+    case 'AUD': return g('AUD/USD');
+    case 'NZD': return g('NZD/USD');
+    default:    return 1;
+  }
+}
+
+/* B ka lot — dono taraf ki USD value barabar (β ke hisaab se) */
+function prLotB(symA, symB, pxA, pxB, beta, lotA, px){
+  const sa = prSpec(symA), sb = prSpec(symB);
+  if(!sa || !sb || !(pxA > 0) || !(pxB > 0)) return null;
+  const nA = sa.contract * pxA * prConv(sa.ccy[1], px);
+  const nB = sb.contract * pxB * prConv(sb.ccy[1], px);
+  if(!(nA > 0) || !(nB > 0)) return null;
+  const raw = lotA * Math.abs(beta) * nA / nB;
+  const lot = Math.max(0.01, Math.round(raw * 100) / 100);
+  return {lot: +lot.toFixed(2), raw, off: raw > 0 ? Math.abs(lot - raw) / raw : 1};
+}
+
+/* ek leg ka P&L $ */
+function prLegPl(sym, dir, lot, p0, p1, px){
+  const s = prSpec(sym); if(!s) return 0;
+  return (p1 - p0) * s.contract * lot * prConv(s.ccy[1], px) * (dir === 'BUY' ? 1 : -1);
+}
+
+/* ---------- data ---------- */
+async function prBars(sym, tf, note){
+  const k = sym + '|' + tf, c = PR.cache[k];
+  if(c && Date.now() - c.t < PR_TTL[tf]) return c.bars;
+  const bars = await getSeries(sym, tf, 220, note);
+  PR.cache[k] = {t: Date.now(), bars};
+  return bars;
+}
+
+function prAnalyse(p, ba, bb, cfg, px){
+  const al = prAlign(ba, bb);
+  const m = prMath(al.a, al.b, cfg.look);
+  if(!m) return {key: prKey(p), a:p.a, b:p.b, n:p.n, err:'Data kam hai (dono symbol ki common candle 30 se kam)'};
+  const sg = prSignal(m, cfg);
+  const pxA = al.a[al.a.length-1], pxB = al.b[al.b.length-1];
+  const lb = prLotB(p.a, p.b, pxA, pxB, m.beta, cfg.lotA, px);
+  return {
+    key: prKey(p), a:p.a, b:p.b, n:p.n, tf: cfg.tf, at: al.t[al.t.length-1],
+    z: +m.z.toFixed(2), beta: +m.beta.toFixed(3), corr: +m.corr.toFixed(2),
+    hl: isFinite(m.hl) ? +m.hl.toFixed(1) : null, pxA, pxB,
+    zs: m.zs.slice(-80).map(v => +v.toFixed(2)),
+    sig: sg, lotA: cfg.lotA, lotB: lb ? lb.lot : null, lotOff: lb ? lb.off : null
+  };
+}
+
+async function prScan(){
+  if(PR.busy) return;
+  if(needKey()) return;
+  const cfg = PR.cfg, list = prActive();
+  if(!list.length){ toast('Pehle koi pair ON karo'); return }
+  const syms = [...new Set(list.flatMap(p => [p.a, p.b]))];
+  const need = syms.filter(s => { const c = PR.cache[s+'|'+cfg.tf]; return !(c && Date.now()-c.t < PR_TTL[cfg.tf]) });
+  if(dayLeft() < need.length){ toast(`Credits kam hain — ${need.length} chahiye, ${dayLeft()} bache`); return }
+  PR.busy = true; prBtn();
+  const bars = {}, bad = {};
+  let i = 0;
+  for(const s of syms){
+    i++;
+    const tag = `${prName(s)} (${i}/${syms.length})`;
+    prNote(`⏳ ${tag} laa raha hoon…`);
+    try{
+      bars[s] = await prBars(s, cfg.tf, sec => prNote(`⏳ API limit — ${sec} sec ruko · agla ${tag}`));
+    }catch(e){ bad[s] = e.message || 'Error' }
+  }
+  const px = {};
+  Object.keys(bars).forEach(s => { const b = bars[s]; if(b && b.length) px[s] = b[b.length-1].c });
+  const rows = list.map(p => {
+    if(bad[p.a] || bad[p.b]) return {key: prKey(p), a:p.a, b:p.b, n:p.n, err: bad[p.a] || bad[p.b]};
+    try{ return prAnalyse(p, bars[p.a], bars[p.b], cfg, px) }
+    catch(e){ return {key: prKey(p), a:p.a, b:p.b, n:p.n, err: e.message} }
+  });
+  const rank = r => r.err ? 9 : ({ENTRY:0, WAIT:1, TOOFAR:2, FLAT:3, BROKEN:4, NODATA:5}[r.sig.k] ?? 6);
+  rows.sort((x,y) => rank(x) - rank(y) || Math.abs(y.z||0) - Math.abs(x.z||0));
+  PR.last = {at: Date.now(), tf: cfg.tf, rows, px};
+  LS.set('prLast', PR.last);
+  prTrackUpdate(bars, px, cfg.tf);
+  PR.busy = false; prBtn();
+  const n = rows.filter(r => r.sig && r.sig.k === 'ENTRY').length;
+  prNote(n ? `✅ ${n} pair me TRADE signal` : '✅ Scan pura — abhi koi entry nahi');
+  prRender();
+}
+
+/* ---------- virtual tracker (sirf app me) ---------- */
+function prTrackAdd(key){
+  const r = PR.last && PR.last.rows.find(x => x.key === key);
+  if(!r || !r.sig || r.sig.k !== 'ENTRY' || !r.lotB) return;
+  if(PR.track.some(t => t.key === key && t.tf === r.tf && t.st === 'OPEN')){ toast('Ye pair pehle se track ho raha hai'); return }
+  PR.track.unshift({
+    id: Date.now(), key, a:r.a, b:r.b, tf:r.tf, dA:r.sig.dA, dB:r.sig.dB,
+    lotA:r.lotA, lotB:r.lotB, pA:r.pxA, pB:r.pxB, z0:r.z, beta:r.beta,
+    at: Date.now(), st:'OPEN', z:r.z, pl:0, nA:r.pxA, nB:r.pxB
+  });
+  PR.track = PR.track.slice(0, 40);
+  LS.set('prTrack', PR.track);
+  toast('📌 Track shuru — har scan pe P&L update hoga');
+  prRenderTrack();
+}
+function prTrackUpdate(bars, px, tf){
+  const cfg = PR.cfg;
+  PR.track.forEach(t => {
+    if(t.st !== 'OPEN' || t.tf !== tf) return;
+    const ba = bars[t.a], bb = bars[t.b];
+    if(!ba || !bb) return;
+    const al = prAlign(ba, bb);
+    const m = prMath(al.a, al.b, cfg.look);
+    t.nA = al.a[al.a.length-1]; t.nB = al.b[al.b.length-1];
+    t.pl = +(prLegPl(t.a, t.dA, t.lotA, t.pA, t.nA, px) + prLegPl(t.b, t.dB, t.lotB, t.pB, t.nB, px)).toFixed(2);
+    if(m){
+      t.z = +m.z.toFixed(2);
+      if(Math.abs(m.z) <= cfg.exit || Math.sign(m.z) !== Math.sign(t.z0)) { t.st = 'EXIT'; t.end = Date.now() }
+      else if(Math.abs(m.z) >= cfg.stop){ t.st = 'STOP'; t.end = Date.now() }
+    }
+  });
+  LS.set('prTrack', PR.track);
+}
+function prTrackDel(id){
+  PR.track = PR.track.filter(t => t.id !== id);
+  LS.set('prTrack', PR.track); prRenderTrack();
+}
+
+/* ---------- UI ---------- */
+function prNote(m){ const el = $('prNote'); if(el) el.textContent = m }
+function prBtn(){ const b = $('prScanBtn'); if(b){ b.disabled = PR.busy; b.textContent = PR.busy ? '⏳ SCAN CHAL RAHA…' : '⚖️ SAB PAIR SCAN KARO' } }
+function prSetTf(tf){ PR.cfg.tf = tf; prSave(); prRenderCfg(); prCost() }
+function prCfgIn(k, el){
+  const v = parseFloat(el.value);
+  if(!isFinite(v)) return;
+  const lim = {look:[40,200], entry:[1,4], exit:[0,1.5], stop:[2,6], minCorr:[0,0.99], lotA:[0.01,10]}[k];
+  PR.cfg[k] = Math.min(lim[1], Math.max(lim[0], v));
+  if(k === 'look') PR.cfg.look = Math.round(PR.cfg.look);
+  if(PR.cfg.stop <= PR.cfg.entry) PR.cfg.stop = +(PR.cfg.entry + 0.5).toFixed(1);
+  if(PR.cfg.exit >= PR.cfg.entry) PR.cfg.exit = +(PR.cfg.entry / 4).toFixed(2);
+  prSave(); prRenderCfg();
+}
+function prReset(){ PR.cfg = Object.assign({}, PR_DEF); prSave(); prRenderCfg(); prCost(); toast('Default settings wapas') }
+function prToggle(key){
+  PR.off = PR.off.includes(key) ? PR.off.filter(k => k !== key) : PR.off.concat(key);
+  prSave(); prRenderPairs(); prCost();
+}
+function prAddCustom(){
+  const a = $('prCa').value, b = $('prCb').value;
+  if(!a || !b || a === b){ toast('Do alag symbol chuno'); return }
+  if(prList().some(p => (p.a===a && p.b===b) || (p.a===b && p.b===a))){ toast('Ye jodi pehle se list me hai'); return }
+  PR.cust.push({a, b, n: prName(a) + ' / ' + prName(b)});
+  prSave(); prRenderPairs(); prCost(); toast('Jodi add ho gayi');
+}
+function prDelCustom(key){
+  PR.cust = PR.cust.filter(p => prKey(p) !== key);
+  PR.off = PR.off.filter(k => k !== key);
+  prSave(); prRenderPairs(); prCost();
+}
+function prCost(){
+  const el = $('prCost'); if(!el) return;
+  const syms = [...new Set(prActive().flatMap(p => [p.a, p.b]))];
+  const need = syms.filter(s => { const c = PR.cache[s+'|'+PR.cfg.tf]; return !(c && Date.now()-c.t < PR_TTL[PR.cfg.tf]) }).length;
+  const min = Math.ceil(need / 8);
+  el.textContent = `${prActive().length} pair · ${syms.length} symbol · ` + (need ? `is scan me ~${need} credit` + (need > 8 ? ` · free plan me ~${min} min` : '') : 'data taaza hai — dobara scan free');
+}
+
+function prSpark(zs, c){
+  if(!zs || zs.length < 2) return '';
+  const W = 300, H = 64, lim = Math.max(c.stop + 0.5, ...zs.map(Math.abs));
+  const y = v => (H/2 - v / lim * (H/2 - 3)).toFixed(1);
+  const x = i => (i / (zs.length - 1) * W).toFixed(1);
+  const line = (v, col, dash) => `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="${col}" stroke-width="1" ${dash?'stroke-dasharray="3 3"':''} opacity=".7"/>`;
+  const pts = zs.map((v,i) => x(i) + ',' + y(v)).join(' ');
+  const lastV = zs[zs.length-1];
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:64px;display:block;margin:8px 0 4px">
+    ${line(0,'var(--dim)')}${line(c.entry,'var(--gold)',1)}${line(-c.entry,'var(--gold)',1)}${line(c.stop,'var(--dn)',1)}${line(-c.stop,'var(--dn)',1)}
+    <polyline points="${pts}" fill="none" stroke="var(--blue)" stroke-width="1.6"/>
+    <circle cx="${x(zs.length-1)}" cy="${y(lastV)}" r="3" fill="var(--blue)"/>
+  </svg>`;
+}
+
+const PR_LBL = {
+  ENTRY:  ['TRADE LO',     'var(--up)'],
+  WAIT:   ['RUKO',         'var(--gold)'],
+  FLAT:   ['NORMAL',       'var(--dim)'],
+  TOOFAR: ['BAHUT DOOR',   'var(--dn)'],
+  BROKEN: ['PAIR TOOTA',   'var(--dn)'],
+  NODATA: ['DATA NAHI',    'var(--dim)']
+};
+function prRowHtml(r, c){
+  const tfL = (r.tf || PR.cfg.tf) === '4h' ? 'H4' : 'H1';
+  if(r.err) return `<div class="card pr-card"><p class="ttl">${escH(r.n || r.key)} <span class="sp" style="color:var(--dn);-webkit-text-fill-color:var(--dn)">ERROR</span></p><p class="hint" style="color:var(--dn)">${escH(r.err)}</p></div>`;
+  const [lbl, col] = PR_LBL[r.sig.k] || ['—','var(--dim)'];
+  const zCol = Math.abs(r.z) >= c.entry ? 'var(--gold)' : 'var(--lbl)';
+  let body = '';
+  if(r.sig.k === 'ENTRY'){
+    const leg = (s, d, l) => `<div class="pr-leg ${d==='BUY'?'up':'dn'}"><b>${d}</b><span class="mono">${prName(s)}</span><small class="mono">${l != null ? l.toFixed(2) + ' lot' : '—'}</small></div>`;
+    body = `<div class="pr-legs">${leg(r.a, r.sig.dA, r.lotA)}<i>+</i>${leg(r.b, r.sig.dB, r.lotB)}</div>
+      <p class="hint" style="margin-top:8px">Dono order <b>ek saath</b>. Band karo jab Z <b>${c.exit}</b> ke andar aaye (profit) ya <b>${c.stop}</b> ke bahar jaaye (stop).` +
+      (r.lotOff > 0.25 ? ` <span style="color:var(--gold)">⚠️ Lot chhota hone se balance ${Math.round(r.lotOff*100)}% hil raha — Lot A badhao.</span>` : '') + `</p>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="prTrackAdd('${escH(r.key)}')">📌 TRACK KARO (virtual)</button>`;
+  } else {
+    const why = {
+      WAIT:   `Spread fail raha hai par abhi ${c.entry} tak nahi pahuncha. Nazar rakho.`,
+      FLAT:   'Dono saath chal rahe hain — koi mauka nahi.',
+      TOOFAR: `Z ${c.stop} ke bahar — rishta toot sakta hai, abhi entry mat lo.`,
+      BROKEN: `Correlation ${r.corr} hai (${c.minCorr} chahiye) — abhi dono saath nahi chal rahe, trade mat lo.`,
+      NODATA: 'Data poora nahi mila.'
+    }[r.sig.k] || '';
+    body = `<p class="hint">${why}</p>`;
+  }
+  const hl = r.hl == null ? '∞' : r.hl;
+  const hlWarn = r.hl != null && r.hl > 40 ? ' <span style="color:var(--gold)">(dheema)</span>' : (r.hl == null ? ' <span style="color:var(--dn)">(wapas nahi aata)</span>' : '');
+  return `<div class="card pr-card">
+    <p class="ttl">${escH(r.n || (prName(r.a)+' / '+prName(r.b)))} · ${tfL} <span class="sp" style="color:${col};-webkit-text-fill-color:${col}">${lbl}</span></p>
+    <div class="pr-kv">
+      <div><span>Z-SCORE</span><b class="mono" style="color:${zCol}">${r.z > 0 ? '+' : ''}${r.z}</b></div>
+      <div><span>CORREL</span><b class="mono" style="color:${Math.abs(r.corr) >= c.minCorr ? 'var(--up)' : 'var(--dn)'}">${r.corr}</b></div>
+      <div><span>HEDGE β</span><b class="mono">${r.beta}</b></div>
+      <div><span>HALF-LIFE</span><b class="mono">${hl}</b></div>
+    </div>
+    ${prSpark(r.zs, c)}
+    <p class="hint" style="margin:0 0 6px;font-size:10.5px">${prName(r.a)} ${prPx(r.a, r.pxA)} · ${prName(r.b)} ${prPx(r.b, r.pxB)} · half-life ${hl} candle${hlWarn}</p>
+    ${body}
+  </div>`;
+}
+
+function prRender(){
+  prBtn(); prCost();
+  const box = $('prRows'); if(!box) return;
+  const L = PR.last;
+  if(!L || !L.rows || !L.rows.length){ box.innerHTML = '<div class="card"><p class="hint">Abhi scan nahi hua. Upar <b>SAB PAIR SCAN KARO</b> dabao.</p></div>'; prRenderTrack(); return }
+  const c = PR.cfg;
+  const head = `<p class="hint" style="margin:0 0 8px">Aakhri scan: <span data-ago="${L.at}">${ago(L.at)}</span> · ${L.tf === '4h' ? 'H4' : 'H1'}` +
+    (L.tf !== c.tf ? ` <span style="color:var(--gold)">(timeframe badla — dobara scan karo)</span>` : '') + `</p>`;
+  box.innerHTML = head + L.rows.map(r => prRowHtml(r, c)).join('');
+  prRenderTrack();
+}
+
+function prRenderTrack(){
+  const box = $('prTrack'); if(!box) return;
+  const T = PR.track;
+  $('prTrackT').textContent = T.length ? `${T.filter(t => t.st === 'OPEN').length} open · ${T.length} kul` : '—';
+  if(!T.length){ box.innerHTML = '<p class="hint">Koi trade track nahi ho raha. Signal card pe <b>📌 TRACK</b> dabao — har scan pe P&amp;L aur Z update hoga.</p>'; return }
+  const closed = T.filter(t => t.st !== 'OPEN');
+  const wins = closed.filter(t => t.pl > 0).length, sum = closed.reduce((p,t) => p + t.pl, 0);
+  const stCol = {OPEN:'var(--blue)', EXIT:'var(--up)', STOP:'var(--dn)'};
+  box.innerHTML = (closed.length ? `<p class="hint" style="margin:0 0 8px">Band hue: ${closed.length} · jeete ${wins} · kul <b style="color:${sum >= 0 ? 'var(--up)' : 'var(--dn)'}">${sum >= 0 ? '+' : ''}$${sum.toFixed(2)}</b></p>` : '') +
+  `<table><tr><th>Pair</th><th>Legs</th><th>Z</th><th>P&amp;L</th><th></th></tr>` +
+  T.map(t => `<tr>
+    <td><b>${prName(t.a)}/${prName(t.b)}</b><br><small>${t.tf === '4h' ? 'H4' : 'H1'} · <span data-ago="${t.at}">${ago(t.at)}</span></small></td>
+    <td class="mono"><span style="color:${t.dA==='BUY'?'var(--up)':'var(--dn)'}">${t.dA[0]} ${t.lotA}</span> / <span style="color:${t.dB==='BUY'?'var(--up)':'var(--dn)'}">${t.dB[0]} ${t.lotB}</span></td>
+    <td class="mono">${t.z0} → ${t.z}<br><small style="color:${stCol[t.st]}">${t.st}</small></td>
+    <td class="mono" style="color:${t.pl >= 0 ? 'var(--up)' : 'var(--dn)'}">${t.pl >= 0 ? '+' : ''}${t.pl.toFixed(2)}</td>
+    <td><button class="chip" style="padding:4px 8px" onclick="prTrackDel(${t.id})">×</button></td>
+  </tr>`).join('') + `</table>
+  <p class="hint" style="margin-top:8px">P&amp;L candle close se — spread/commission nahi gina, isliye asli se thoda achha dikhega. Z ${PR.cfg.exit} ke andar ya ulti taraf = EXIT, ${PR.cfg.stop} ke bahar = STOP.</p>`;
+}
+
+function prRenderPairs(){
+  const box = $('prPairs'); if(!box) return;
+  box.innerHTML = prList().map(p => {
+    const k = prKey(p), on = !PR.off.includes(k);
+    return `<div class="pr-pair ${on ? 'on' : ''}">
+      <div class="sw ${on ? 'on' : ''}" onclick="prToggle('${escH(k)}')" style="padding:6px 0;flex:1"><div class="tg"></div>
+        <div>${escH(p.n || (prName(p.a)+' / '+prName(p.b)))}<small class="mono">${prName(p.a)} · ${prName(p.b)}</small></div></div>
+      ${p.cust ? `<button class="chip" style="padding:4px 9px" onclick="prDelCustom('${escH(k)}')">×</button>` : ''}
+    </div>`;
+  }).join('');
+  const opts = PAIRS.concat(Object.keys(PR_EXTRA)).map(s => `<option value="${s}">${prName(s)}</option>`).join('');
+  ['prCa','prCb'].forEach((id, i) => { const el = $(id); if(el && !el.options.length){ el.innerHTML = opts; el.value = i ? 'GBP/USD' : 'EUR/USD' } });
+}
+
+function prRenderCfg(){
+  const c = PR.cfg;
+  ['1h','4h'].forEach(tf => { const b = $('prTf' + tf); if(b) b.classList.toggle('on', c.tf === tf) });
+  [['prLook','look'],['prEntry','entry'],['prExit','exit'],['prStop','stop'],['prCorr','minCorr'],['prLotA','lotA']].forEach(([id,k]) => {
+    const el = $(id); if(el && document.activeElement !== el) el.value = c[k];
+  });
+}
+
+function prOnShow(){ prRenderCfg(); prRenderPairs(); prRender() }
 
 if('serviceWorker' in navigator){
   /* v9.9.42: "Share → SamuSignal" se aayi screenshot (sw.js cache me rakhta hai) */
