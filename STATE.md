@@ -9,7 +9,17 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
+| BTC Trailing Manager (Buster ke liye) | **1.00** | `vps-ea/BTC Trailing Manager v1.00.mq5` |
+| Investor Account Watcher (INVESTOR-ID repo) | **1.03** | `vps-ea/Investor Account Watcher v1.03.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## BTC Trailing Manager v1.00 + Investor Account Watcher v1.03 (17 Oct 2026)
+
+- **Problem (Ankush):** Buster BTC ("BTC Ea Tp Sl 1.23", sirf .ex5) me trailing ka sirf on/off hai; loss fix ~$1.50 (SL 15000 pts, 0.01 lot) par profit bahut chhota aata hai.
+- **Hal:** `BTC Trailing Manager v1.00` — alag chart par chalta hai, Buster ke trades (Magic, default 111111) ka SL aapki settings se khiskata hai: TrailStart 15000 / TrailDistance 12000 / TrailStep 1000 points, optional Break-even. Naya trade nahi kholta, TP nahi chhedta, SL kabhi peeche nahi. **Buster me UseTrailingStop = false rakhna zaroori.**
+- Defaults sirf shuruaat hain — Investor Watch app ke Trailing tab (watcher v1.03) ke data se tune karenge.
+- **Investor Account Watcher** (repo INVESTOR-ID): v1.00 positions+history → v1.01 401 fix (token file) → v1.02 pending orders + order history → v1.03 trailing tracker (1 sec scan, SL move events, peak vs close give-back, exit reason; `data/<acc>/trail.json`).
+- Apna clone `BTC EA v1.17` me trailing settings pehle se hain (InpTPMin $, InpTrailDist $, InpTrailing default OFF).
 
 ## v10.5.1 — Pair tab fix: hedge β ab return se (17 Oct 2026)
 
