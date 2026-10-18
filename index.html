@@ -2239,7 +2239,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.3';
+const VERSION = '10.5.4';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -4332,6 +4332,7 @@ function finalBox(s){
       Koi kami nahi, ya sirf ek halki chetawani → TRADE LO (market).
    AI, EMA Plan aur Smart Filter tabhi gine jaate hain jab is pair pe chale hon. */
 const PEND_MS = 3 * 3600000;               /* LIMIT/STOP itni der me na bhare to MISS */
+const pendMs = t => (t && t.pendMs) || PEND_MS;   /* v10.5.4: Chart Analysis (PERSONAL FX) wale pending 60 min */
 
 /* ATR ke hisaab se LIMIT/STOP kitni door. LIMIT: 0.35 ATR pullback (LATE pe 0.6).
    STOP: pichhli 6 candles ke high/low ke thoda paar, kam se kam 0.25 ATR, max 1.5 ATR. */
@@ -7251,7 +7252,7 @@ function touchScan(t, bars){
   if(t.pend){
     /* pehle dekho pending kab bhara; uske agle candle se SL/TP ginenge */
     const pf = Math.max(Math.ceil(t.pendAt / BAR5) * BAR5, (t.chkAt || 0) - BAR5);
-    const fb = bars.find(b => { const ms = barMs(b.t); return ms >= pf && ms < t.pendAt + PEND_MS && pendHit(t, b.h, b.l) });
+    const fb = bars.find(b => { const ms = barMs(b.t); return ms >= pf && ms < t.pendAt + pendMs(t) && pendHit(t, b.h, b.l) });
     if(!fb) return null;
     pendFill(t, barMs(fb.t) + 1);
   }
@@ -7334,7 +7335,7 @@ async function refreshOpen(force){
       t.chkAt = Date.now();
       if(touched){ hits.push([t.id, touched]); return }
       if(t.pend){
-        const late = Date.now() - t.pendAt > PEND_MS;
+        const late = Date.now() - t.pendAt > pendMs(t);
         if(!late && pendHit(t, d.p, d.p)) pendFill(t, Date.now());
         else { t.cur = d.p; t.pl = 0; if(late) expired.push(t.id); return }   /* abhi bhara nahi */
       }
@@ -7726,7 +7727,7 @@ function rsTake(type, only){
 /* ---- OCO: ek bhara to joda ka doosra pending hatao ---- */
 function pendFillMs(t, bars){
   const pf = Math.max(Math.ceil(t.pendAt / BAR5) * BAR5, (t.chkAt || 0) - BAR5);
-  const fb = (bars || []).find(b => { const ms = barMs(b.t); return ms >= pf && ms < t.pendAt + PEND_MS && pendHit(t, b.h, b.l) });
+  const fb = (bars || []).find(b => { const ms = barMs(b.t); return ms >= pf && ms < t.pendAt + pendMs(t) && pendHit(t, b.h, b.l) });
   return fb ? barMs(fb.t) : null;
 }
 function ocoCancel(t, win){
@@ -7745,7 +7746,7 @@ function ocoResolve(bars, q){
     g.forEach(t => {
       let ms = pendFillMs(t, bars && bars[t.sym]);
       const d = q && q[t.sym];
-      if(ms === null && d && d.p && Date.now() - t.pendAt <= PEND_MS && pendHit(t, d.p, d.p)) ms = Date.now();
+      if(ms === null && d && d.p && Date.now() - t.pendAt <= pendMs(t) && pendHit(t, d.p, d.p)) ms = Date.now();
       if(ms !== null && ms < wms){ wms = ms; win = t }
     });
     if(win) g.filter(t => t !== win).forEach(t => ocoCancel(t, win));
@@ -7766,14 +7767,15 @@ function pendExpire(id, note){
   if(!t || !t.pend) return;
   const kind = `${t.dir} ${t.pend}`;
   S.open = S.open.filter(x => x.id !== id); save(); renderTrades();
-  logAdd(`Pending auto-cancel: ${kind} ${t.sym} @ ${fmt(t.sym, t.entry)} — 3 ghante me nahi bhara${note ? ' (' + note + ')' : ''}`);
-  toast(`${SPECS[t.sym].n}: ${kind} 3 ghante me nahi bhara — hata diya`);
-  notify(`⌛ Pending hataya — ${SPECS[t.sym].n}`, `${kind} @ ${fmt(t.sym, t.entry)} 3 ghante me nahi bhara`, 'exp-' + t.id);
-  if(S.tgAuto) tgSend(`⌛ <b>PENDING HATAYA — ${SPECS[t.sym].n}</b>\n\n${kind} ${t.lots} lot @ <code>${fmt(t.sym, t.entry)}</code>\n3 ghante me price nahi aaya.\n⏰ ${t12(Date.now())}`, true);
+  const pw = pendMs(t) >= 3600000 && pendMs(t) % 3600000 === 0 ? (pendMs(t) / 3600000) + ' ghante' : Math.round(pendMs(t) / 60000) + ' min';
+  logAdd(`Pending auto-cancel: ${kind} ${t.sym} @ ${fmt(t.sym, t.entry)} — ${pw} me nahi bhara${note ? ' (' + note + ')' : ''}`);
+  toast(`${SPECS[t.sym].n}: ${kind} ${pw} me nahi bhara — hata diya`);
+  notify(`⌛ Pending hataya — ${SPECS[t.sym].n}`, `${kind} @ ${fmt(t.sym, t.entry)} ${pw} me nahi bhara`, 'exp-' + t.id);
+  if(S.tgAuto) tgSend(`⌛ <b>PENDING HATAYA — ${SPECS[t.sym].n}</b>\n\n${kind} ${t.lots} lot @ <code>${fmt(t.sym, t.entry)}</code>\n${pw} me price nahi aaya.\n⏰ ${t12(Date.now())}`, true);
 }
 let lastSweep = 0;
 function pendSweep(){
-  const due = S.open.filter(t => t.pend && Date.now() - t.pendAt > PEND_MS);
+  const due = S.open.filter(t => t.pend && Date.now() - t.pendAt > pendMs(t));
   if(!due.length) return;
   dayCheck();
   const canCheck = S.key && !S.day.blocked && !syncBusy && creditsLeft() >= due.length;
@@ -7783,7 +7785,7 @@ function pendSweep(){
     refreshOpen('sweep');                                /* candles dekh ke bhara/hataya tay hoga */
     return;
   }
-  due.filter(t => Date.now() - t.pendAt > PEND_MS + 30*60000)
+  due.filter(t => Date.now() - t.pendAt > pendMs(t) + 30*60000)
      .forEach(t => pendExpire(t.id, 'rate check nahi ho paya'));
 }
 setInterval(pendSweep, 60000);
@@ -7867,7 +7869,7 @@ function renderTrades(){
         ${t.pend ? `<span class="pl mono" style="color:var(--gold);font-size:12px">⏳ PENDING</span>`
                  : `<span class="pl mono glow ${pl>=0?'up':'dn'}">${money(pl)}</span>`}
       </div>
-      ${t.pend ? `<p class="hint" style="margin:6px 0 4px;color:var(--gold)">Price ${fmt(t.sym, t.entry)} ${(t.dir === 'BUY') === (t.pend === 'LIMIT') ? 'tak neeche' : 'tak upar'} aayega tab trade khulegi · abhi ${(Math.abs(cur - t.entry) / SPECS[t.sym].pip).toFixed(1)} pips door · ${Math.max(0, Math.ceil((t.pendAt + PEND_MS - Date.now()) / 60000))} min me auto-cancel${t.oco ? ` · ⇅ ${t.setup === 'BREAKOUT' ? 'Breakout' : 'Range'} joda — doosra bhara to ye cancel` : ''}</p>` : ''}
+      ${t.pend ? `<p class="hint" style="margin:6px 0 4px;color:var(--gold)">Price ${fmt(t.sym, t.entry)} ${(t.dir === 'BUY') === (t.pend === 'LIMIT') ? 'tak neeche' : 'tak upar'} aayega tab trade khulegi · abhi ${(Math.abs(cur - t.entry) / SPECS[t.sym].pip).toFixed(1)} pips door · ${Math.max(0, Math.ceil((t.pendAt + pendMs(t) - Date.now()) / 60000))} min me auto-cancel${t.oco ? ` · ⇅ ${t.setup === 'BREAKOUT' ? 'Breakout' : t.setup === 'PFX' ? 'AI' : 'Range'} joda — doosra bhara to ye cancel` : ''}</p>` : ''}
       <div class="bar"><i style="width:${prog*100}%;background:${pl>=0?'var(--up)':'var(--dn)'}"></i></div>
       ${barCache[t.sym] ? levelChartHTML('tc_'+t.id) : ''}
       <div class="tr-g mono">
@@ -8175,7 +8177,7 @@ async function refreshAll(){
       S.open.forEach(t=>{
         const d = q[t.sym]; if(!d || !d.p) return;
         if(t.pend){
-          if(Date.now() - t.pendAt <= PEND_MS && pendHit(t, d.p, d.p)) pendFill(t, Date.now());
+          if(Date.now() - t.pendAt <= pendMs(t) && pendHit(t, d.p, d.p)) pendFill(t, Date.now());
           else { t.cur = d.p; t.pl = 0; return }           /* 3 ghante baad pendSweep hatayega */
         }
         t.cur = d.p; t.pl = tradePL(t, d.p);
@@ -9883,7 +9885,8 @@ function mtfRender(box, d){
     <div class="grid2">
       <button class="btn gold" onclick="mtfSend()">🚀 PERSONAL FX ko bhejo</button>
       <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
-    </div>`;
+    </div>
+    <button class="btn g" style="width:100%;margin-top:8px" onclick="pfxJournal()">✓ Maine trade liya</button>`;
   M.legs.forEach((L, i) => { if(L.ok) mtfDist(i) });
 }
 
@@ -10165,7 +10168,8 @@ function pfxRender(){
     <div class="grid2">
       <button class="btn gold" onclick="pfxSend()">🚀 PERSONAL FX ko bhejo</button>
       <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
-    </div>`;
+    </div>
+    <button class="btn g" style="width:100%;margin-top:8px" onclick="pfxJournal()">✓ Maine trade liya</button>`;
   pfxRecalc();
 }
 
@@ -10192,6 +10196,44 @@ function pfxRecalc(){
   if(d.liveSrc === 'live' && Date.now() - d.liveAt > PFX_LIVE_MAX_MS)
     w.push('Live price thoda purana hai — bhejte waqt app khud taza price le legi.');
   warn.innerHTML = w.map(x => `<p class="hint" style="color:var(--dn);margin:6px 0 0">⚠ ${x}</p>`).join('');
+}
+
+/* v10.5.4: Chart Analysis ka order app journal me — TP $3 (PERSONAL FX jaisa, Settings ka "TP") +
+   SL $10 (0.01 lot pe, lot ke saath badhta). Pending 60 min (PERSONAL FX jaisa). 2 order = joda (OCO).
+   Journal ka lock (+$1 -> +$0.50, har 10 cent aage) isme bhi chalta hai. */
+function pfxJournal(){
+  const d = S.shot;
+  if(!d || d.v !== 10 || !d.sym || !SPECS[d.sym]){ toast('Pehle AUTO ANALYZE / screenshot karo'); return }
+  if(Date.now() - d.at > PFX_SHOW_MS){ toast('Result 5 min se purana — dobara AUTO ANALYZE karo'); pfxRender(); return }
+  const sym = d.sym, sp = SPECS[sym], live = d.live;
+  if(!(live > 0)){ alert('Live price nahi hai — pehle ⟳ Live price lo'); return }
+  let legs;
+  if(d.mtf){
+    legs = d.mtf.legs.map(L => ({dir: L.dir, kind: L.kind, e: L.user > 0 ? L.user : L.entry, ok: L.ok, side: L.side}))
+      .filter(L => L.ok && (L.e - live) * L.side > 0);
+  } else {
+    if(!d.dir){ toast('Abhi koi saaf direction nahi'); return }
+    const e = pfxEntryVal(); if(!(e > 0)){ alert('Entry price sahi nahi hai'); return }
+    legs = [{dir: d.dir, kind: pfxType(d.dir, e, live, sym, pfxMarketOk(d)), e}];
+  }
+  if(!legs.length){ alert('Price dono levels ke paar ja chuka hai — dobara AUTO ANALYZE karo.'); return }
+  if(S.open.some(t => t.sym === sym)){ alert(`${sp.n} pe journal me pehle se trade / pending khula hai — pehle use band karo.`); return }
+  const lots = +S.dLot || 0.01, k = lots / 0.01, tpD = +((+S.pfxTp || 3) * k).toFixed(2), slD = +(10 * k).toFixed(2);
+  const r = v => +(+v).toFixed(sp.d);
+  const rows = legs.map(L => {
+    const e = L.kind === 'MARKET' ? live : +L.e, buy = L.dir === 'BUY';
+    const td = dollarsToDist(sym, e, lots, tpD), sd = dollarsToDist(sym, e, lots, slD);
+    return {L, e: r(e), sl: r(buy ? e - sd : e + sd), tp: r(buy ? e + td : e - td)};
+  });
+  if(!confirm(`${sp.n} · journal me ${rows.length} order · ${lots} lot\n\n` +
+    rows.map(x => `${x.L.dir} ${x.L.kind} @ ${fmt(sym, x.e)}\nSL ${fmt(sym, x.sl)} (−$${slD.toFixed(2)}) · TP ${fmt(sym, x.tp)} (+$${tpD.toFixed(2)})`).join('\n\n') +
+    (rows.length > 1 ? '\n\nJo pehle bhare, doosra apne aap cancel.' : '') +
+    `\nPending 60 min me na bhare to hat jayega.\n\nJournal me add karein?`)) return;
+  const oco = rows.length > 1 ? 'O' + Date.now() : null;
+  rows.forEach((x, i) => addTrade(Object.assign(
+    {sym, dir: x.L.dir, lots, entry: x.e, sl: x.sl, tp: x.tp, slD, tpD, q: d.mtf ? (d.mtf.conf || 0) : (+d.confidence || 0), grade: 'AI', setup: 'PFX', pendMs: 60 * 60000},
+    x.L.kind !== 'MARKET' ? {pend: x.L.kind} : {},
+    oco ? {oco, ocoN: i} : {})));
 }
 
 async function pfxSend(){
