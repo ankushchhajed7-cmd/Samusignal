@@ -12,6 +12,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BTC Trailing Manager (Buster ke liye) | **1.01** | `vps-ea/BTC Trailing Manager v1.01.mq5` |
 | Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
+| MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — pehle demo / Strategy Tester) | **1.00** | `vps-ea/MEXA SCALP Trade EA v1.00.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
 
 ## BTC Trailing Manager v1.01 (SHADOW test) + Investor Account Watcher v1.04 (17 Oct 2026)
