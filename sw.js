@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.5.2 — PERSONAL FX ORDER result sirf 5 min dikhta hai (AUTO ANALYZE / screenshot ke baad), phir apne aap hat jaata hai
    v10.4.5 — AUTO ANALYZE button bhi hara chamak, chalte waqt tez blink
    v10.4.4 — Chart Analysis pair box ka chamak / blink ab hara (green)
    v10.4.3 — Chart Analysis pair box hamesha halka gold chamakta hai, AUTO ANALYZE / screenshot analysis ke waqt tez blink
@@ -71,7 +72,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.5.1';
+const VERSION = '10.5.2';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

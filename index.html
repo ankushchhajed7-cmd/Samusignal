@@ -2239,7 +2239,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.1';
+const VERSION = '10.5.2';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9907,6 +9907,7 @@ function mtfDist(i){
 async function mtfSend(){
   const d = S.shot;
   if(!d || !d.mtf || !d.sym){ toast('Pehle AUTO ANALYZE karo'); return }
+  if(Date.now() - d.at > PFX_SHOW_MS){ toast('Result 5 min se purana — dobara AUTO ANALYZE karo'); pfxRender(); return }   /* v10.5.2 */
   if(!pfxBase()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
   if(Date.now() - d.at > 30 * 60000 && !confirm('Ye analysis 30 min se purana hai — market badal chuka hoga. Phir bhi bhejein?')) return;
   if(Date.now() - d.liveAt > PFX_LIVE_MAX_MS){ toast('Taza live price le raha hoon…'); await pfxLive() }
@@ -10082,9 +10083,24 @@ function clearShot(){
 }
 
 /* ---- PERSONAL FX order card ---- */
+/* v10.5.2: AUTO ANALYZE / screenshot ka result sirf 5 min dikhe — uske baad purana maan ke chhupao */
+const PFX_SHOW_MS = 5 * 60000;
+let pfxOldShown = false;
+setInterval(() => {
+  const d = S.shot; if(!d || d.v !== 10 || !$('pfxBox')) return;
+  if((Date.now() - d.at > PFX_SHOW_MS) !== pfxOldShown) pfxRender();
+}, 10000);
 function pfxRender(){
   const box = $('pfxBox'); if(!box) return;
   const T = $('pfxT'), d = S.shot;
+  pfxOldShown = !!(d && d.v === 10 && Date.now() - d.at > PFX_SHOW_MS);
+  if(pfxOldShown){
+    if(T) T.innerHTML = `<span data-ago="${d.at}">${ago(d.at)}</span>`;
+    box.innerHTML = `<div style="border:1px dashed var(--line);border-radius:10px;padding:13px;text-align:center">
+      <b style="color:var(--mut);letter-spacing:1px">⏳ PURANA RESULT HATA DIYA</b>
+      <p class="hint" style="margin:6px 0 0">Result sirf 5 min tak dikhta hai — market badal chuka hoga. Naya order ke liye dobara AUTO ANALYZE / screenshot karo.</p></div>`;
+    return;
+  }
   if(!d || d.v !== 10){
     if(T) T.textContent = '—';
     box.innerHTML = '<p class="hint">Screenshot daalo — AI us waqt ki sabse sahi ek direction aur entry batayega, phir live price se order type (Market / Limit / Stop) khud tay hoga.</p>';
@@ -10179,6 +10195,7 @@ function pfxRecalc(){
 
 async function pfxSend(){
   const d = S.shot;
+  if(d && Date.now() - d.at > PFX_SHOW_MS){ toast('Result 5 min se purana — dobara AUTO ANALYZE karo'); pfxRender(); return }   /* v10.5.2 */
   if(d && d.mtf) return mtfSend();          /* v10.4.0 */
   if(!d || d.v !== 10 || !d.dir || !d.sym){ toast('Pehle screenshot analyze karo'); return }
   if(!pfxBase()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
