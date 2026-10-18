@@ -2239,7 +2239,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.2';
+const VERSION = '10.5.3';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -10059,6 +10059,7 @@ function renderShot(){
   const box = $('shotBox'); if(!box) return;
   const d = S.shot;
   if(!d || d.v !== 10){ box.innerHTML = ''; return }
+  if(Date.now() - d.at > PFX_SHOW_MS){ box.innerHTML = ''; if($('shotState')) $('shotState').textContent = '—'; return }   /* v10.5.3: 5 min baad ye patti bhi hate */
   const pvImg = shotPrev && d.at >= shotPrev.at ? `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">` : '';
   if(d.mtf){                                  /* v10.4.0: 4-TF */
     const M = d.mtf, n = M.legs.filter(L => L.ok).length;
@@ -10088,7 +10089,7 @@ const PFX_SHOW_MS = 5 * 60000;
 let pfxOldShown = false;
 setInterval(() => {
   const d = S.shot; if(!d || d.v !== 10 || !$('pfxBox')) return;
-  if((Date.now() - d.at > PFX_SHOW_MS) !== pfxOldShown) pfxRender();
+  if((Date.now() - d.at > PFX_SHOW_MS) !== pfxOldShown){ pfxRender(); renderShot() }
 }, 10000);
 function pfxRender(){
   const box = $('pfxBox'); if(!box) return;
