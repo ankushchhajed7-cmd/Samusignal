@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.5.4 — Chart Analysis order card pe '✓ Maine trade liya' — journal me TP $3 + SL $10 (0.01 lot), pending 60 min, 2 order = joda (OCO)
    v10.5.3 — Screenshot ke neeche wali '2 ORDER' patti bhi 5 min baad hat jaati hai
    v10.5.2 — PERSONAL FX ORDER result sirf 5 min dikhta hai (AUTO ANALYZE / screenshot ke baad), phir apne aap hat jaata hai
    v10.4.5 — AUTO ANALYZE button bhi hara chamak, chalte waqt tez blink
@@ -73,7 +74,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.5.3';
+const VERSION = '10.5.4';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
