@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.5.6 — Pair Tracker: '✓ BAND KARO' (khud band, result save), upar BAND/JEETE/TP·SL·KHUD/KUL $ box, × pe confirm
    v10.5.5 — Pair Virtual Tracker: apne aap update (H1 15 min / H4 45 min, scan TF kuch bhi), TP/SL Z bar, entry → abhi price, 🔄 button
    v10.5.4 — Chart Analysis order card pe '✓ Maine trade liya' — journal me TP $3 + SL $10 (0.01 lot), pending 60 min, 2 order = joda (OCO)
    v10.5.3 — Screenshot ke neeche wali '2 ORDER' patti bhi 5 min baad hat jaati hai
@@ -75,7 +76,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.5.5';
+const VERSION = '10.5.6';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

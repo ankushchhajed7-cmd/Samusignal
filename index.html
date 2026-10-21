@@ -1888,7 +1888,7 @@ body.ds-gold .brand .brandWord{height:24px}
     .pr-zb i{position:absolute;top:-4px;width:2px;height:16px;background:var(--lbl);transform:translateX(-1px)}
     .pr-zb em{position:absolute;top:-5px;width:14px;height:14px;border-radius:50%;background:var(--blue);border:2px solid var(--bg);transform:translateX(-7px)}
     .pr-zl{display:flex;justify-content:space-between;font-size:11px}
-    .pr-tk .ft{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .pr-tk .ft{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
     .pr-tk .ft .pl{font-size:18px;font-weight:800;flex:1}
   </style>
   <div class="pghd"><span class="pn">07</span><b>Pair Trading</b><small>Do jodi · Z-score · sirf app me signal</small></div>
@@ -2251,7 +2251,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.5';
+const VERSION = '10.5.6';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -11431,8 +11431,19 @@ async function prTrackRefresh(manual){
 }
 setInterval(() => { if(!document.hidden) prTrackRefresh(false).catch(() => { PR.tBusy = false; prRenderTrack() }) }, 60000);
 function prTrackDel(id){
-  PR.track = PR.track.filter(t => t.id !== id);
+  const t = PR.track.find(x => x.id === id); if(!t) return;
+  if(!confirm(t.st === 'OPEN' ? 'Ye trade list se MITA du? Result save nahi hoga.\n(Profit/loss pe band karna hai to ✓ BAND KARO dabao)' : 'Is band trade ka result list se mita du?')) return;
+  PR.track = PR.track.filter(x => x.id !== id);
   LS.set('prTrack', PR.track); prRenderTrack();
+}
+/* v10.5.6: khud band karo — aakhri update ke P&L pe, result list me save rehta hai */
+function prTrackClose(id){
+  const t = PR.track.find(x => x.id === id); if(!t || t.st !== 'OPEN') return;
+  const pl = `${t.pl >= 0 ? '+' : '−'}$${Math.abs(t.pl).toFixed(2)}`;
+  if(!confirm(`${prName(t.a)}/${prName(t.b)} ko ${pl} pe band karu?\n(Price ${t.upd ? ago(t.upd) : 'abhi tak update nahi'} wala — taaza chahiye to pehle 🔄 dabao)`)) return;
+  t.st = 'MANUAL'; t.end = Date.now();
+  LS.set('prTrack', PR.track); prRenderTrack();
+  toast(`✋ ${prName(t.a)}/${prName(t.b)} band — ${pl}`);
 }
 
 /* ---------- UI ---------- */
@@ -11554,13 +11565,14 @@ function prRenderTrack(){
   if(!T.length){ box.innerHTML = '<p class="hint">Koi trade track nahi ho raha. Signal card pe <b>📌 TRACK</b> dabao — P&amp;L aur Z apne aap update hoga.</p>'; return }
   const closed = T.filter(t => t.st !== 'OPEN');
   const wins = closed.filter(t => t.pl > 0).length, sum = closed.reduce((p,t) => p + t.pl, 0);
-  const stCol = {OPEN:'var(--blue)', EXIT:'var(--up)', STOP:'var(--dn)'};
-  const stTxt = {OPEN:'OPEN', EXIT:'TP ✓', STOP:'SL ✗'};
+  const stCol = {OPEN:'var(--blue)', EXIT:'var(--up)', STOP:'var(--dn)', MANUAL:'var(--gold)'};
+  const stTxt = {OPEN:'OPEN', EXIT:'TP ✓', STOP:'SL ✗', MANUAL:'KHUD ✋'};
+  const cntSt = k => closed.filter(t => t.st === k).length;
   const span = Math.max(0.1, c.stop - c.exit);
   /* 0% = SL (Z stop pe), 100% = TP (Z exit pe) */
   const pos = (z, s) => Math.min(100, Math.max(0, (c.stop - s * z) / span * 100)).toFixed(1);
   const leg = (sym, d, lot, p0, p1) => `<div class="lg mono"><span style="color:${d==='BUY'?'var(--up)':'var(--dn)'}">${d==='BUY'?'BUY':'SELL'} ${prName(sym)} ${lot}</span><span>${prPx(sym, p0)} → <b>${prPx(sym, p1 ?? p0)}</b></span></div>`;
-  box.innerHTML = (closed.length ? `<p class="hint" style="margin:0 0 8px">Band hue: ${closed.length} · jeete ${wins} · kul <b style="color:${sum >= 0 ? 'var(--up)' : 'var(--dn)'}">${sum >= 0 ? '+' : '−'}$${Math.abs(sum).toFixed(2)}</b></p>` : '') +
+  box.innerHTML = (closed.length ? `<div class="pr-kv" style="margin:0 0 10px"><div><span>BAND</span><b>${closed.length}</b></div><div><span>JEETE</span><b style="color:var(--up)">${wins}/${closed.length}</b></div><div><span>TP·SL·KHUD</span><b>${cntSt('EXIT')}·${cntSt('STOP')}·${cntSt('MANUAL')}</b></div><div><span>KUL $</span><b style="color:${sum >= 0 ? 'var(--up)' : 'var(--dn)'}">${sum >= 0 ? '+' : '−'}${Math.abs(sum).toFixed(2)}</b></div></div>` : '') +
   T.map(t => {
     const sg = Math.sign(t.z0) || 1, z = +t.z, z0 = +t.z0;
     const upd = t.upd ? `<span data-ago="${t.upd}">${ago(t.upd)}</span>` : '<span style="color:var(--gold)">abhi tak nahi</span>';
@@ -11573,9 +11585,10 @@ function prRenderTrack(){
     <div class="pr-zl mono"><span style="color:var(--dn)">SL: Z ${(sg * c.stop).toFixed(1)}</span><span>Z ${z0.toFixed(2)} → <b>${z.toFixed(2)}</b></span><span style="color:var(--up)">TP: Z ${(sg * c.exit).toFixed(1)}</span></div>
     <div class="ft"><span class="pl mono" style="color:${t.pl >= 0 ? 'var(--up)' : 'var(--dn)'}">${t.pl >= 0 ? '+' : '−'}$${Math.abs(t.pl).toFixed(2)}</span>
       <small class="hint" style="margin:0">${t.st === 'OPEN' ? 'update: ' + upd : 'band: <span data-ago="' + t.end + '">' + ago(t.end) + '</span>'}</small>
-      ${t.st === 'OPEN' ? `<button class="chip" style="padding:4px 9px" ${PR.tBusy ? 'disabled' : ''} onclick="prTrackRefresh(true)">${PR.tBusy ? '⏳' : '🔄'}</button>` : ''}</div>
+      ${t.st === 'OPEN' ? `<button class="chip" style="padding:4px 9px" ${PR.tBusy ? 'disabled' : ''} onclick="prTrackRefresh(true)">${PR.tBusy ? '⏳' : '🔄'}</button>
+      <button class="chip" style="padding:4px 9px;color:var(--gold);border-color:var(--gold)" onclick="prTrackClose(${t.id})">✓ BAND KARO</button>` : ''}</div>
   </div>`}).join('') +
-  `<p class="hint" style="margin-top:4px">🔵 = Z abhi, | = entry. Dot <b style="color:var(--up)">daayein (TP)</b> pahunche to profit me band, <b style="color:var(--dn)">baayein (SL)</b> to stop. Z ${c.exit} ke andar ya ulti taraf = TP, ${c.stop} ke bahar = SL. App khula ho to H1 har 15 min, H4 har 45 min apne aap update (har symbol 1 credit). P&amp;L candle close se — spread/commission nahi gina.</p>`;
+  `<p class="hint" style="margin-top:4px">🔵 = Z abhi, | = entry. <b>✓ BAND KARO</b> = khud band (result upar BAND/KUL me judta hai), <b>×</b> = list se mitao. Dot <b style="color:var(--up)">daayein (TP)</b> pahunche to profit me band, <b style="color:var(--dn)">baayein (SL)</b> to stop. Z ${c.exit} ke andar ya ulti taraf = TP, ${c.stop} ke bahar = SL. App khula ho to H1 har 15 min, H4 har 45 min apne aap update (har symbol 1 credit). P&amp;L candle close se — spread/commission nahi gina.</p>`;
 }
 
 function prRenderPairs(){
