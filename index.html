@@ -215,6 +215,10 @@ html body .hrow .ib.ib-cht{border:2px solid rgba(22,226,126,.95) !important;colo
   background:rgba(22,226,126,.07) !important;animation:cpGlow 3s ease-in-out infinite}
 html body .hrow .ib.ib-cht span{color:#16E27E !important;-webkit-text-fill-color:#16E27E !important}
 @media (prefers-reduced-motion:reduce){html body .hrow .ib.ib-cht{animation:none}}
+/* v10.5.14: Best Pair ka 'IS PAIR PE AUTO ANALYZE' — AUTO ANALYZE jaisa hara chamak */
+.btn.bpGo{border:2px solid rgba(22,226,126,.95) !important;color:#16E27E !important;background:rgba(22,226,126,.08) !important;
+  font-weight:800;letter-spacing:1px;animation:cpGlow 2.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.btn.bpGo{animation:none}}
 .saGood{display:inline-block;background:rgba(22,226,126,.18);color:#16E27E !important;font-weight:800;
   border:1px solid rgba(22,226,126,.6);border-radius:5px;padding:1px 7px;margin-top:3px}
 .sig-l{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:3px}
@@ -2278,7 +2282,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.13';
+const VERSION = '10.5.14';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9949,7 +9953,7 @@ function bpRender(){
       ${leg('SELL', best.sell, 'upar')}${leg('BUY', best.buy, 'neeche')}
       <p class="hint busyg" style="margin:10px 0 0">🧮 ${escH(best.why)} · ${escH(best.note || '')}</p>
       <p class="hint" style="margin:6px 0 0">Ye bhaav sirf <b>andaza</b> (15m ke kinare) hain — asli order AUTO ANALYZE se niklega.</p>
-      <button class="btn gold" style="margin-top:10px" onclick="bpGo('${best.sym}')">📸 IS PAIR PE AUTO ANALYZE</button>
+      <button class="btn bpGo" style="margin-top:10px" onclick="bpGo('${best.sym}')">📸 IS PAIR PE AUTO ANALYZE</button>
     </div>
     ${others ? `<p class="small" style="color:var(--mut);margin:12px 0 4px">Baaki pair kyon nahi</p>${others}` : ''}`;
 }

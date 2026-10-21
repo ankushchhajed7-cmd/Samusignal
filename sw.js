@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.5.14 — Best Pair: 'IS PAIR PE AUTO ANALYZE' button hara chamak (AUTO ANALYZE jaisa)
    v10.5.13 — Chart Analysis: '🏆 BEST PAIR DHUNDHO' — watchlist (Gold/BTC chhod ke) me se ek best pair + BUY/SELL LIMIT andaza, 'Is pair pe AUTO ANALYZE' button
    v10.5.12 — Chart Analysis: 🧮 faisle ki line (jaise 'Range bahut patli hai — TP tak jagah nahi') green highlight
    v10.5.11 — Chart Analysis: chalti line (candles aa rahi / AI analyze / live price) green highlight + header CHART ANALYSIS button halka hara dim-dim glow
@@ -83,7 +84,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.5.13';
+const VERSION = '10.5.14';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
