@@ -17,7 +17,9 @@ permissions:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    # ubuntu-latest ab 26.04 hai — Playwright 1.56.1 waha chromium install nahi kar pata
+    # ("does not support chromium on ubuntu26.04-x64"), isliye 24.04 pe pakka kiya.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
