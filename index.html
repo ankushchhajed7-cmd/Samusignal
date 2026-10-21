@@ -1878,6 +1878,18 @@ body.ds-gold .brand .brandWord{height:24px}
     .pr-pair:last-child{border-bottom:0}
     .pr-pair:not(.on){opacity:.55}
     #prTrack table td,#prTrack table th{padding:6px 3px;vertical-align:top}
+    /* v10.5.5 tracker card — TP/SL Z bar, entry -> abhi price */
+    .pr-tk{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
+    .pr-tk .hd{display:flex;align-items:center;gap:6px}
+    .pr-tk .hd b{flex:1}
+    .pr-tk .st{font-size:11px;font-weight:800;letter-spacing:1px;padding:2px 7px;border-radius:5px;border:1px solid currentColor}
+    .pr-tk .lg{display:flex;justify-content:space-between;font-size:12px;margin-top:5px}
+    .pr-zb{position:relative;height:8px;border-radius:4px;margin:16px 0 4px;background:linear-gradient(90deg,var(--dn),var(--gold) 50%,var(--up))}
+    .pr-zb i{position:absolute;top:-4px;width:2px;height:16px;background:var(--lbl);transform:translateX(-1px)}
+    .pr-zb em{position:absolute;top:-5px;width:14px;height:14px;border-radius:50%;background:var(--blue);border:2px solid var(--bg);transform:translateX(-7px)}
+    .pr-zl{display:flex;justify-content:space-between;font-size:11px}
+    .pr-tk .ft{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .pr-tk .ft .pl{font-size:18px;font-weight:800;flex:1}
   </style>
   <div class="pghd"><span class="pn">07</span><b>Pair Trading</b><small>Do jodi · Z-score · sirf app me signal</small></div>
 
@@ -2239,7 +2251,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.4';
+const VERSION = '10.5.5';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -11287,9 +11299,9 @@ function prLegPl(sym, dir, lot, p0, p1, px){
 }
 
 /* ---------- data ---------- */
-async function prBars(sym, tf, note){
+async function prBars(sym, tf, note, force){
   const k = sym + '|' + tf, c = PR.cache[k];
-  if(c && Date.now() - c.t < PR_TTL[tf]) return c.bars;
+  if(!force && c && Date.now() - c.t < PR_TTL[tf]) return c.bars;
   const bars = await getSeries(sym, tf, 220, note);
   PR.cache[k] = {t: Date.now(), bars};
   return bars;
@@ -11313,6 +11325,7 @@ function prAnalyse(p, ba, bb, cfg, px){
 
 async function prScan(){
   if(PR.busy) return;
+  if(PR.tBusy){ toast('Tracker update chal raha hai — 1 sec ruko'); return }
   if(needKey()) return;
   const cfg = PR.cfg, list = prActive();
   if(!list.length){ toast('Pehle koi pair ON karo'); return }
@@ -11376,16 +11389,47 @@ function prTrackUpdate(bars, px, tf){
     if(!ba || !bb) return;
     const al = prAlign(ba, bb);
     const m = prMath(al.a, al.b, cfg.look);
-    t.nA = al.a[al.a.length-1]; t.nB = al.b[al.b.length-1];
+    t.nA = al.a[al.a.length-1]; t.nB = al.b[al.b.length-1]; t.upd = Date.now();
     t.pl = +(prLegPl(t.a, t.dA, t.lotA, t.pA, t.nA, px) + prLegPl(t.b, t.dB, t.lotB, t.pB, t.nB, px)).toFixed(2);
     if(m){
       t.z = +m.z.toFixed(2);
       if(Math.abs(m.z) <= cfg.exit || Math.sign(m.z) !== Math.sign(t.z0)) { t.st = 'EXIT'; t.end = Date.now() }
       else if(Math.abs(m.z) >= cfg.stop){ t.st = 'STOP'; t.end = Date.now() }
+      if(t.st !== 'OPEN') toast(`📌 ${prName(t.a)}/${prName(t.b)} ${t.st === 'EXIT' ? 'TP (EXIT)' : 'SL (STOP)'} — ${t.pl >= 0 ? '+' : '−'}$${Math.abs(t.pl).toFixed(2)}`);
     }
   });
   LS.set('prTrack', PR.track);
 }
+
+/* v10.5.5: tracker apne aap update — scan ka H1/H4 kuch bhi ho, sirf open trade ke symbol laao.
+   Pair tab khulte hi + har minute check: jis trade ka data H1 me 15 min / H4 me 45 min purana, uska update. */
+async function prTrackRefresh(manual){
+  if(PR.busy || PR.tBusy) return;
+  const open = PR.track.filter(t => t.st === 'OPEN');
+  if(!open.length){ if(manual) toast('Koi open trade nahi'); return }
+  if(!S.key){ if(manual) needKey(); return }
+  const tfs = [...new Set(open.filter(t => manual || Date.now() - (t.upd || t.at) >= PR_TTL[t.tf]).map(t => t.tf))];
+  if(!tfs.length) return;
+  const jobs = [];
+  tfs.forEach(tf => [...new Set(open.filter(t => t.tf === tf).flatMap(t => [t.a, t.b]))].forEach(s => jobs.push([s, tf])));
+  const need = jobs.filter(([s, tf]) => { const c = PR.cache[s+'|'+tf]; return manual || !(c && Date.now()-c.t < PR_TTL[tf]) }).length;
+  if(dayLeft() < need){ if(manual) toast(`Credits kam hain — ${need} chahiye, ${dayLeft()} bache`); return }
+  PR.tBusy = true; prRenderTrack();
+  const bars = {}, px = {};
+  let fail = 0, told = false;
+  const limNote = sec => { if(manual && !told){ told = true; toast(`⏳ API limit — ${sec} sec ruko`) } };   /* auto me chup */
+  for(const [s, tf] of jobs){
+    try{
+      (bars[tf] = bars[tf] || {})[s] = await prBars(s, tf, limNote, manual);
+      const b = bars[tf][s]; if(b && b.length && !px[s]) px[s] = b[b.length-1].c;
+    }catch(e){ fail++ }
+  }
+  tfs.forEach(tf => prTrackUpdate(bars[tf] || {}, px, tf));
+  PR.tBusy = false;
+  if(manual) toast(fail ? `⚠️ ${fail} symbol ka data nahi aaya` : '✅ Tracker update ho gaya');
+  prRenderTrack();
+}
+setInterval(() => { if(!document.hidden) prTrackRefresh(false).catch(() => { PR.tBusy = false; prRenderTrack() }) }, 60000);
 function prTrackDel(id){
   PR.track = PR.track.filter(t => t.id !== id);
   LS.set('prTrack', PR.track); prRenderTrack();
@@ -11505,22 +11549,33 @@ function prRender(){
 
 function prRenderTrack(){
   const box = $('prTrack'); if(!box) return;
-  const T = PR.track;
+  const T = PR.track, c = PR.cfg;
   $('prTrackT').textContent = T.length ? `${T.filter(t => t.st === 'OPEN').length} open · ${T.length} kul` : '—';
-  if(!T.length){ box.innerHTML = '<p class="hint">Koi trade track nahi ho raha. Signal card pe <b>📌 TRACK</b> dabao — har scan pe P&amp;L aur Z update hoga.</p>'; return }
+  if(!T.length){ box.innerHTML = '<p class="hint">Koi trade track nahi ho raha. Signal card pe <b>📌 TRACK</b> dabao — P&amp;L aur Z apne aap update hoga.</p>'; return }
   const closed = T.filter(t => t.st !== 'OPEN');
   const wins = closed.filter(t => t.pl > 0).length, sum = closed.reduce((p,t) => p + t.pl, 0);
   const stCol = {OPEN:'var(--blue)', EXIT:'var(--up)', STOP:'var(--dn)'};
-  box.innerHTML = (closed.length ? `<p class="hint" style="margin:0 0 8px">Band hue: ${closed.length} · jeete ${wins} · kul <b style="color:${sum >= 0 ? 'var(--up)' : 'var(--dn)'}">${sum >= 0 ? '+' : ''}$${sum.toFixed(2)}</b></p>` : '') +
-  `<table><tr><th>Pair</th><th>Legs</th><th>Z</th><th>P&amp;L</th><th></th></tr>` +
-  T.map(t => `<tr>
-    <td><b>${prName(t.a)}/${prName(t.b)}</b><br><small>${t.tf === '4h' ? 'H4' : 'H1'} · <span data-ago="${t.at}">${ago(t.at)}</span></small></td>
-    <td class="mono"><span style="color:${t.dA==='BUY'?'var(--up)':'var(--dn)'}">${t.dA[0]} ${t.lotA}</span> / <span style="color:${t.dB==='BUY'?'var(--up)':'var(--dn)'}">${t.dB[0]} ${t.lotB}</span></td>
-    <td class="mono">${(+t.z0).toFixed(2)} → ${(+t.z).toFixed(2)}<br><small style="color:${stCol[t.st]}">${t.st}</small></td>
-    <td class="mono" style="color:${t.pl >= 0 ? 'var(--up)' : 'var(--dn)'}">${t.pl >= 0 ? '+' : ''}${t.pl.toFixed(2)}</td>
-    <td><button class="chip" style="padding:4px 8px" onclick="prTrackDel(${t.id})">×</button></td>
-  </tr>`).join('') + `</table>
-  <p class="hint" style="margin-top:8px">P&amp;L candle close se — spread/commission nahi gina, isliye asli se thoda achha dikhega. Z ${PR.cfg.exit} ke andar ya ulti taraf = EXIT, ${PR.cfg.stop} ke bahar = STOP.</p>`;
+  const stTxt = {OPEN:'OPEN', EXIT:'TP ✓', STOP:'SL ✗'};
+  const span = Math.max(0.1, c.stop - c.exit);
+  /* 0% = SL (Z stop pe), 100% = TP (Z exit pe) */
+  const pos = (z, s) => Math.min(100, Math.max(0, (c.stop - s * z) / span * 100)).toFixed(1);
+  const leg = (sym, d, lot, p0, p1) => `<div class="lg mono"><span style="color:${d==='BUY'?'var(--up)':'var(--dn)'}">${d==='BUY'?'BUY':'SELL'} ${prName(sym)} ${lot}</span><span>${prPx(sym, p0)} → <b>${prPx(sym, p1 ?? p0)}</b></span></div>`;
+  box.innerHTML = (closed.length ? `<p class="hint" style="margin:0 0 8px">Band hue: ${closed.length} · jeete ${wins} · kul <b style="color:${sum >= 0 ? 'var(--up)' : 'var(--dn)'}">${sum >= 0 ? '+' : '−'}$${Math.abs(sum).toFixed(2)}</b></p>` : '') +
+  T.map(t => {
+    const sg = Math.sign(t.z0) || 1, z = +t.z, z0 = +t.z0;
+    const upd = t.upd ? `<span data-ago="${t.upd}">${ago(t.upd)}</span>` : '<span style="color:var(--gold)">abhi tak nahi</span>';
+    return `<div class="pr-tk">
+    <div class="hd"><b>${prName(t.a)}/${prName(t.b)}</b><small class="sp">${t.tf === '4h' ? 'H4' : 'H1'} · <span data-ago="${t.at}">${ago(t.at)}</span></small>
+      <span class="st" style="color:${stCol[t.st]}">${stTxt[t.st] || t.st}</span>
+      <button class="chip" style="padding:4px 8px" onclick="prTrackDel(${t.id})">×</button></div>
+    ${leg(t.a, t.dA, t.lotA, t.pA, t.nA)}${leg(t.b, t.dB, t.lotB, t.pB, t.nB)}
+    <div class="pr-zb"><i style="left:${pos(z0, sg)}%" title="entry"></i><em style="left:${pos(z, sg)}%"></em></div>
+    <div class="pr-zl mono"><span style="color:var(--dn)">SL: Z ${(sg * c.stop).toFixed(1)}</span><span>Z ${z0.toFixed(2)} → <b>${z.toFixed(2)}</b></span><span style="color:var(--up)">TP: Z ${(sg * c.exit).toFixed(1)}</span></div>
+    <div class="ft"><span class="pl mono" style="color:${t.pl >= 0 ? 'var(--up)' : 'var(--dn)'}">${t.pl >= 0 ? '+' : '−'}$${Math.abs(t.pl).toFixed(2)}</span>
+      <small class="hint" style="margin:0">${t.st === 'OPEN' ? 'update: ' + upd : 'band: <span data-ago="' + t.end + '">' + ago(t.end) + '</span>'}</small>
+      ${t.st === 'OPEN' ? `<button class="chip" style="padding:4px 9px" ${PR.tBusy ? 'disabled' : ''} onclick="prTrackRefresh(true)">${PR.tBusy ? '⏳' : '🔄'}</button>` : ''}</div>
+  </div>`}).join('') +
+  `<p class="hint" style="margin-top:4px">🔵 = Z abhi, | = entry. Dot <b style="color:var(--up)">daayein (TP)</b> pahunche to profit me band, <b style="color:var(--dn)">baayein (SL)</b> to stop. Z ${c.exit} ke andar ya ulti taraf = TP, ${c.stop} ke bahar = SL. App khula ho to H1 har 15 min, H4 har 45 min apne aap update (har symbol 1 credit). P&amp;L candle close se — spread/commission nahi gina.</p>`;
 }
 
 function prRenderPairs(){
@@ -11545,7 +11600,7 @@ function prRenderCfg(){
   });
 }
 
-function prOnShow(){ prRenderCfg(); prRenderPairs(); prRender() }
+function prOnShow(){ prRenderCfg(); prRenderPairs(); prRender(); prTrackRefresh(false).catch(() => { PR.tBusy = false; prRenderTrack() }) }
 
 if('serviceWorker' in navigator){
   /* v9.9.42: "Share → SamuSignal" se aayi screenshot (sw.js cache me rakhta hai) */
