@@ -1971,6 +1971,15 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 </div></div>
 
+<div class="ov" id="acctSheet"><div class="sheet">
+  <div class="sh-h"><h3>Kis account pe?</h3><button onclick="pfxAcctDone(false)">×</button></div>
+  <div class="sh-b">
+    <p class="hint" style="margin:0 0 10px">PERSONAL FX abhi in accounts pe chal raha hai. Jis pe order bhejna hai use ✓ tick karo.</p>
+    <div id="acctList"></div>
+    <button class="btn gold" style="margin-top:12px" onclick="pfxAcctDone(true)">🚀 TICK WALE ACCOUNT PE BHEJO</button>
+  </div>
+</div></div>
+
 <div class="ov" id="guideSheet"><div class="sheet">
   <div class="sh-h"><h3>Kaise Use Kare</h3><button onclick="closeSheet('guideSheet')">×</button></div>
   <div class="sh-b">
@@ -2251,7 +2260,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.7';
+const VERSION = '10.5.8';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9361,6 +9370,63 @@ const PFX_EXP_MIN = 60;                 /* pending expiry (EA bhi yahi maanta ha
 const PFX_LIVE_MAX_MS = 3 * 60000;      /* bhejte waqt live price isse purana ho to dobara lo */
 let pfxBusy = false, pfxPoll = null, pfxPollUntil = 0, pfxLastList = [];
 
+/* ---------- v10.5.8: 2 ACCOUNT — PERSONAL FX v6.8 har minute /personalfx/accounts/<login> likhta hai.
+   Bhejte waqt: 2+ account chal rahe ho to tick wali list, 1 ho to seedha usi pe, 0 ho to purana tarika
+   (acct ke bina — v6.7 ya purana EA). Order me "acct" = login; EA sirf apne login ka order lagata hai. */
+const PFX_ACCT_LIVE = 5 * 60000;
+let pfxAcctAll = LS.get('pfxAcctAll', []), pfxAcctRes = null;
+async function pfxAccounts(){
+  try{
+    const r = await fetch(pfxUrl('accounts'), {cache:'no-store'});
+    if(!r.ok) return pfxAcctAll;
+    const j = (await r.json()) || {};
+    pfxAcctAll = Object.keys(j).map(k => Object.assign({}, j[k], {login: String(k)})).filter(a => a && a.at);
+    LS.set('pfxAcctAll', pfxAcctAll);
+  }catch(e){}
+  return pfxAcctAll;
+}
+const pfxAcctName = a => `${a.real ? 'REAL' : 'DEMO'} ${a.login}`;
+const pfxAcctLbl = login => { const a = pfxAcctAll.find(x => x.login === String(login)); return a ? pfxAcctName(a) : String(login) };
+/* null = cancel, [] = koi v6.8 nahi chal raha (bina acct), [a, ...] = in pe bhejo */
+async function pfxPickAcct(){
+  const live = (await pfxAccounts()).filter(a => Date.now() - a.at < PFX_ACCT_LIVE)
+    .sort((x, y) => (y.real ? 1 : 0) - (x.real ? 1 : 0) || x.login.localeCompare(y.login));
+  if(live.length <= 1) return live;
+  const last = LS.get('pfxAcct', []);
+  const pre = live.filter(a => last.includes(a.login));
+  const on = new Set((pre.length ? pre : [live[0]]).map(a => a.login));
+  $('acctList').innerHTML = live.map(a => `<label style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px">
+      <input type="checkbox" data-login="${escH(a.login)}" ${on.has(a.login) ? 'checked' : ''} style="width:22px;height:22px;accent-color:var(--gold)">
+      <span style="flex:1"><b style="color:${a.real ? 'var(--up)' : 'var(--blue)'}">${escH(pfxAcctName(a))}</b>
+        <small class="mono" style="display:block;color:var(--lbl)">${escH(a.server || '')} · ${escH(a.cur || '')} ${(+a.bal || 0).toFixed(2)} · lot ${(+a.lot || 0).toFixed(2)}</small>
+        <small style="display:block;color:var(--mut)">${escH(a.name || '')} · <span data-ago="${a.at}">${ago(a.at)}</span></small></span></label>`).join('');
+  openSheet('acctSheet');
+  return new Promise(res => {
+    pfxAcctRes = res;
+    const iv = setInterval(() => {          /* bahar tap karke band kiya = cancel */
+      if(pfxAcctRes !== res){ clearInterval(iv); return }
+      if(!$('acctSheet').classList.contains('on')){ clearInterval(iv); pfxAcctRes = null; res(null) }
+    }, 250);
+    pfxAcctRes.live = live;
+  });
+}
+function pfxAcctDone(ok){
+  const res = pfxAcctRes; if(!res){ closeSheet('acctSheet'); return }
+  if(!ok){ pfxAcctRes = null; closeSheet('acctSheet'); res(null); return }
+  const pick = [...$('acctList').querySelectorAll('input:checked')].map(i => i.dataset.login);
+  if(!pick.length){ toast('Kam se kam ek account tick karo'); return }
+  LS.set('pfxAcct', pick);
+  pfxAcctRes = null; closeSheet('acctSheet');
+  res(res.live.filter(a => pick.includes(a.login)));
+}
+function pfxAcctTxt(acc){
+  if(!acc.length){
+    const seen = pfxAcctAll.slice().sort((a, b) => b.at - a.at)[0];
+    return seen ? `⚠ Koi PERSONAL FX v6.8 online nahi dikh raha (aakhri ${pfxAcctName(seen)} — ${ago(seen.at)}) — purane tarike se jayega` : '';
+  }
+  return 'Account: ' + acc.map(a => `${pfxAcctName(a)} (${a.server || ''})`).join(' + ');
+}
+
 /* itna paas ho to pending ki jagah MARKET */
 function pfxNear(sym){
   const sp = SPECS[sym]; if(!sp) return 0;
@@ -9934,7 +10000,8 @@ async function mtfSend(){
   const pair = sp.n;
   const dup = pfxLastList.find(o => o.pair === pair && (o.status === 'NEW' || o.status === 'PLACED') && Date.now() - o.at < PFX_EXP_MIN * 60000);
   const pfl = preflight(sym, legs[0].dir, legs[0].e, 0, 0);
-  const msg = `${pair} · ${legs.length} order (live ${fmt(sym, live)})\n\n` +
+  const acc = await pfxPickAcct(); if(acc === null) return;          /* v10.5.8 */
+  const msg = `${pair} · ${legs.length} order (live ${fmt(sym, live)})\n` + (pfxAcctTxt(acc) ? pfxAcctTxt(acc) + '\n' : '') + '\n' +
     legs.map(L => `${L.dir} ${L.kind} @ ${fmt(sym, L.e)}`).join('\n') +
     (legs.length > 1 ? '\n\nJo pehle bhare, dusra PERSONAL FX khud cancel karega (v5.9+ chahiye)' : '') +
     `\n\nLot, TP/SL, averaging: PERSONAL FX ke niyam\nPending ${PFX_EXP_MIN} min me na bhare to hat jayega` +
@@ -9945,14 +10012,17 @@ async function mtfSend(){
   const now = Date.now(), batch = 'B' + now.toString(36);
   const sent = [];
   try{
-    for(let k = 0; k < legs.length; k++){
-      const L = legs[k];
-      const body = {id: now + k, pair, type: L.dir + L.kind, entry: +(+L.e).toFixed(sp.d),
-        live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW',
-        src: 'SamuSignal ' + VERSION, batch, leg: k + 1, legs: legs.length};
-      const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-      if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + r.status);
-      sent.push(`${L.dir} ${L.kind} @ ${body.entry}`);
+    for(const a of (acc.length ? acc : [null])){
+      for(let k = 0; k < legs.length; k++){
+        const L = legs[k];
+        const body = {id: now + k, pair, type: L.dir + L.kind, entry: +(+L.e).toFixed(sp.d),
+          live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW',
+          src: 'SamuSignal ' + VERSION, batch, leg: k + 1, legs: legs.length};
+        if(a) body.acct = a.login;
+        const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+        if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + r.status);
+        sent.push(`${L.dir} ${L.kind} @ ${body.entry}` + (acc.length > 1 ? ' (' + pfxAcctName(a) + ')' : ''));
+      }
     }
   }catch(err){
     logAdd('PERSONAL FX bhejna fail: ' + err.message);
@@ -9961,7 +10031,7 @@ async function mtfSend(){
   }
   d.sentAt = now; save(); pfCount();
   mtfLogSent(d, legs);
-  logAdd(`PERSONAL FX ko bheja: ${pair} ${sent.join(' + ')}`);
+  logAdd(`PERSONAL FX ko bheja: ${pair} ${sent.join(' + ')}${acc.length === 1 ? ' → ' + pfxAcctName(acc[0]) : ''}`);
   toast(`Gaya — ${pair} · ${sent.length} order`);
   if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → PERSONAL FX</b>\n\n<b>${pair}</b>\n` + sent.map(x => '• ' + x).join('\n') +
     `\nLive <code>${fmt(sym, live)}</code> · lot EA input\n⏰ ${t12(now)}`, true);
@@ -10268,7 +10338,8 @@ async function pfxSend(){
   const type = pfxType(d.dir, e, live, sym, pfxMarketOk(d));
   const pair = sp.n, full = d.dir + type;
   const dup = pfxLastList.find(o => o.pair === pair && (o.status === 'NEW' || o.status === 'PLACED') && Date.now() - o.at < PFX_EXP_MIN * 60000);
-  const msg = `${pair} · ${d.dir} ${type}\n` +
+  const acc = await pfxPickAcct(); if(acc === null) return;          /* v10.5.8 */
+  const msg = `${pair} · ${d.dir} ${type}\n` + (pfxAcctTxt(acc) ? pfxAcctTxt(acc) + '\n\n' : '') +
     (type === 'MARKET' ? `Abhi ke price pe (live ${fmt(sym, live)})` : `Entry ${fmt(sym, e)}  (live ${fmt(sym, live)})`) +
     `\n\nLot: PERSONAL FX ka input\nTP / SL: PERSONAL FX grid rules` +
     (type === 'MARKET' ? '' : `\nPending ${PFX_EXP_MIN} min me na bhare to hat jayega`) +
@@ -10281,14 +10352,17 @@ async function pfxSend(){
   const body = {id: now, pair, type: full, entry: type === 'MARKET' ? 0 : +(+e).toFixed(sp.d),
     live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW', src: 'SamuSignal ' + VERSION};
   try{
-    const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-    if(!r.ok){
-      let why = 'HTTP ' + r.status;
-      if(r.status === 401 || r.status === 403) why = 'Firebase rules ne mana kiya — write permission do';
-      throw new Error(why);
+    for(const a of (acc.length ? acc : [null])){
+      const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(a ? Object.assign({}, body, {acct: a.login}) : body)});
+      if(!r.ok){
+        let why = 'HTTP ' + r.status;
+        if(r.status === 401 || r.status === 403) why = 'Firebase rules ne mana kiya — write permission do';
+        throw new Error(why + (a ? ' (' + pfxAcctName(a) + ')' : ''));
+      }
     }
     d.sentAt = now; save(); pfCount();
-    logAdd(`PERSONAL FX ko bheja: ${pair} ${d.dir} ${type}${type === 'MARKET' ? '' : ' @ ' + body.entry}`);
+    logAdd(`PERSONAL FX ko bheja: ${pair} ${d.dir} ${type}${type === 'MARKET' ? '' : ' @ ' + body.entry}${acc.length ? ' → ' + acc.map(pfxAcctName).join(' + ') : ''}`);
     toast(`Gaya — ${pair} ${d.dir} ${type}`);
     if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → PERSONAL FX</b>\n\n<b>${pair}</b> ${d.dir} ${type}` +
       (type === 'MARKET' ? '' : ` <code>${body.entry}</code>`) + `\nLive <code>${body.live}</code> · lot EA input\n⏰ ${t12(now)}`, true);
@@ -10340,6 +10414,7 @@ function pfxDrawList(){
         <b style="color:${buy ? 'var(--up)' : 'var(--dn)'}">${escH(ty)}</b>
         <span class="mono">${o.entry ? escH(o.entry) : 'market'}</span>
         ${o.batch ? `<span title="ek batch" style="color:var(--gold);font-size:11px">🔗${escH(o.leg || '')}/${escH(o.legs || '')}</span>` : ''}
+        ${o.acct ? `<span style="color:var(--blue);font-size:10px;white-space:nowrap">${escH(pfxAcctLbl(o.acct))}</span>` : ''}
         <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(o.at)}</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
