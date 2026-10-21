@@ -210,6 +210,11 @@ input:focus,select:focus{border-color:var(--gold)}
 #autoBtn{border:2px solid rgba(22,226,126,.95) !important;color:#16E27E !important;background:rgba(22,226,126,.08) !important;animation:cpGlow 2.4s ease-in-out infinite}
 #autoBtn.cpBusy{animation:cpBusy .55s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){#cpPair,#cpPair.cpBusy,#autoBtn,#autoBtn.cpBusy{animation:none}}
+/* v10.5.11: header ka CHART ANALYSIS button — halka hara, dheere-dheere jalta-bujhta (dim-dim) */
+html body .hrow .ib.ib-cht{border:2px solid rgba(22,226,126,.95) !important;color:#16E27E !important;
+  background:rgba(22,226,126,.07) !important;animation:cpGlow 3s ease-in-out infinite}
+html body .hrow .ib.ib-cht span{color:#16E27E !important;-webkit-text-fill-color:#16E27E !important}
+@media (prefers-reduced-motion:reduce){html body .hrow .ib.ib-cht{animation:none}}
 .saGood{display:inline-block;background:rgba(22,226,126,.18);color:#16E27E !important;font-weight:800;
   border:1px solid rgba(22,226,126,.6);border-radius:5px;padding:1px 7px;margin-top:3px}
 .sig-l{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:3px}
@@ -1313,6 +1318,8 @@ body.t-gold #autoTag{background:transparent !important;border:1px solid rgba(217
 .brand .brandWord{height:28px;width:auto;max-width:calc(100% - 50px)}
 body.ds-gold .brand .brandMark{height:36px}
 body.ds-gold .brand .brandWord{height:24px}
+/* v10.5.11: Chart Analysis ki chalti line (candles aa rahi / AI analyze / live price) — hari highlight */
+.hint.busyg{color:var(--up);font-weight:700;background:rgba(46,204,113,.10);border:1px solid rgba(46,204,113,.45);border-radius:8px;padding:7px 10px}
 </style>
 </head>
 <body>
@@ -2265,7 +2272,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.10';
+const VERSION = '10.5.11';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9553,14 +9560,14 @@ async function shotAnalyze(f){
   const pv = () => `<img src="${shotPrev.url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px">`;
   $('shotState').textContent = 'chart padh raha hoon…';
   cpPairBusy(true);
-  box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Image taiyaar ho rahi hai…</p>';
+  box.innerHTML = pv() + '<p class="hint busyg"><span class="spin"></span> Image taiyaar ho rahi hai…</p>';
   S.shot = null; save(); pfxRender();
 
   try{
     const img = await shrinkImage(f, 1280);
-    box.innerHTML = pv() + '<p class="hint"><span class="spin"></span> Chart analyze ho raha hai…</p>';
+    box.innerHTML = pv() + '<p class="hint busyg"><span class="spin"></span> Chart analyze ho raha hai…</p>';
     const d = await gVision(shotPrompt(), img.b64, (m, wait) => {
-      box.innerHTML = pv() + `<p class="hint"><span class="spin"></span> ` +
+      box.innerHTML = pv() + `<p class="hint busyg"><span class="spin"></span> ` +
         (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se padh raha hoon…`) + `</p>`;
     });
 
@@ -9834,7 +9841,7 @@ async function autoAnalyze(){
   if(btn){ btn.disabled = true; btn.textContent = '⏳ CHAL RAHA…' }
   S.shot = null; save(); pfxRender();
   try{ box.closest('.card').scrollIntoView({behavior:'smooth', block:'start'}) }catch(e){}
-  const note = t => { box.innerHTML = '<p class="hint"><span class="spin"></span> ' + t + '</p>' };
+  const note = t => { box.innerHTML = '<p class="hint busyg"><span class="spin"></span> ' + t + '</p>' };
   try{
     /* 1. chaaron timeframe ki candles (ek-ek karke — TwelveData 8/min) */
     const sets = [];
@@ -9880,13 +9887,13 @@ async function autoAnalyze(){
 
     /* 3. Gemini: sirf 2 level chunna */
     $('shotState').textContent = 'AI level chun raha hai…';
-    box.innerHTML = `<img src="${url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px"><p class="hint"><span class="spin"></span> AI 2 order level chun raha hai…</p>`;
+    box.innerHTML = `<img src="${url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px"><p class="hint busyg"><span class="spin"></span> AI 2 order level chun raha hai…</p>`;
     const tails = sets.map(s => {
       const k = {'1h':24, '15min':32, '5min':36, '1min':30}[s.tf.id];
       return `${s.tf.l}:\n` + s.bars.slice(-k).map(b => `${b.t} ${fmt(sym, b.o)} ${fmt(sym, b.h)} ${fmt(sym, b.l)} ${fmt(sym, b.c)}`).join('\n');
     }).join('\n\n');
     const ai = await gVision(mtfPrompt(sym, live, R, g, specs, c, tails), url.split(',')[1], (m, wait) => {
-      box.innerHTML = `<img src="${url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px"><p class="hint"><span class="spin"></span> ` +
+      box.innerHTML = `<img src="${url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px"><p class="hint busyg"><span class="spin"></span> ` +
         (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se pooch raha hoon…`) + `</p>`;
     });
 
@@ -10222,7 +10229,7 @@ function pfxRender(){
   const sym = d.sym, sp = SPECS[sym];
   if(!(d.live > 0)){
     box.innerHTML = pfxBusy
-      ? '<p class="hint"><span class="spin"></span> Live price la raha hoon (TwelveData · 1 credit)…</p>'
+      ? '<p class="hint busyg"><span class="spin"></span> Live price la raha hoon (TwelveData · 1 credit)…</p>'
       : `<div style="border:1px solid var(--dn);border-radius:10px;padding:13px">
           <b style="color:var(--dn)">Live price nahi mila</b>
           <p class="hint" style="margin:6px 0 10px">${escH(d.liveErr || '')}</p>
