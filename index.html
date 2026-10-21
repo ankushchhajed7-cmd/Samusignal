@@ -2251,7 +2251,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.6';
+const VERSION = '10.5.7';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -11367,20 +11367,85 @@ async function prScan(){
 }
 
 /* ---------- virtual tracker (sirf app me) ---------- */
-function prTrackAdd(key){
+function prTrackAdd(key, real){
   const r = PR.last && PR.last.rows.find(x => x.key === key);
   if(!r || !r.sig || r.sig.k !== 'ENTRY' || !r.lotB) return;
-  if(PR.track.some(t => t.key === key && t.tf === r.tf && t.st === 'OPEN')){ toast('Ye pair pehle se track ho raha hai'); return }
-  PR.track.unshift({
+  if(PR.track.some(t => t.key === key && t.tf === r.tf && t.st === 'OPEN' && !!t.real === !!real)){ toast(real ? 'Ye jodi pehle se LIYA me hai' : 'Ye pair pehle se track ho raha hai'); return }
+  const t = {
     id: Date.now(), key, a:r.a, b:r.b, tf:r.tf, dA:r.sig.dA, dB:r.sig.dB,
     lotA:r.lotA, lotB:r.lotB, pA:r.pxA, pB:r.pxB, z0:r.z, beta:r.beta,
     at: Date.now(), st:'OPEN', z:r.z, pl:0, nA:r.pxA, nB:r.pxB
-  });
+  };
+  if(real){ t.real = true; t.lock = null; t.peak = 0 }
+  PR.track.unshift(t);
   PR.track = PR.track.slice(0, 40);
   LS.set('prTrack', PR.track);
-  toast('📌 Track shuru — har scan pe P&L update hoga');
   prRenderTrack();
+  if(!real){ toast('📌 Track shuru — P&L apne aap update hoga'); return }
+  toast('✓ LIYA — dono milake $ lock / SL app dekhega');
+  /* v10.5.7: entry = abhi ka live price (scan ki candle purani ho sakti hai) */
+  prRealEntry(t).catch(() => {});
 }
+
+/* ---------- v10.5.7: MAINE TRADE LIYA — sirf app me, dono legs milake $ niyam ----------
+   lot ke hisaab se (Lot A / 0.01 = k):  +$1·k aate hi lock +$0.50·k, phir har +$0.10·k pe lock aage
+   (+$1.10 -> +$0.60 ...). P/L wapas lock tak = LOCK band.  −$10·k = SL band.  Z se band nahi hota.
+   App MT5 band nahi karta — notification aata hai, MT5 me khud band karo. */
+const PR_SL_USD = 10;
+let prRealBusy = false, prRealAt = 0;
+function prPx2(px, sym){ return (px && px[sym]) || (prices[sym] && prices[sym].p) || null }
+async function prRealEntry(t){
+  if(!S.key) return;
+  const q = await getQuotes([t.a, t.b], null, 30000);
+  if(q[t.a] && q[t.b]){
+    t.pA = t.nA = q[t.a].p; t.pB = t.nB = q[t.b].p; t.upd = Date.now();
+    LS.set('prTrack', PR.track); prRenderTrack();
+  }
+}
+function prRealRules(t){
+  const k = (+t.lotA || 0.01) / 0.01, g = t.pl / k;            /* profit $ (0.01 lot pe) */
+  const au = /^XA[UG]/.test(t.a) || /^XA[UG]/.test(t.b);
+  const st = au ? PLR.gStart : PLR.tStart, gp = au ? PLR.gGap : PLR.tGap, sp = au ? PLR.gStep : PLR.tStep;
+  t.peak = Math.max(t.peak || 0, t.pl);
+  if(g >= st - 1e-6){
+    const lk = +((Math.floor(g / sp + 1e-6) * sp - gp) * k).toFixed(2);
+    if(lk > 0 && (t.lock == null || lk > t.lock)) t.lock = lk;     /* sirf aage */
+  }
+  let why = '';
+  if(t.lock != null && t.pl <= t.lock + 1e-9){ t.st = 'LOCK'; why = 'LOCK' }
+  else if(t.pl <= -PR_SL_USD * k + 1e-9){ t.st = 'STOP'; why = 'SL' }
+  if(!why) return;
+  t.end = Date.now();
+  const nm = `${prName(t.a)}/${prName(t.b)}`, pl = `${t.pl >= 0 ? '+' : '−'}$${Math.abs(t.pl).toFixed(2)}`;
+  toast(`${why === 'LOCK' ? '✅' : '🛑'} ${nm} ${why} ${pl} — MT5 me dono band karo`);
+  notify(`Pair ${why}: ${nm} ${pl}`, `MT5 me dono trade band karo: ${t.dA} ${prName(t.a)} ${t.lotA} + ${t.dB} ${prName(t.b)} ${t.lotB}`, 'pr-' + t.id);
+}
+async function prRealCheck(manual){
+  if(prRealBusy) return;
+  const open = PR.track.filter(t => t.real && t.st === 'OPEN');
+  if(!open.length || !S.key) return;
+  if(!manual){
+    if(document.hidden || !S.autoM) return;
+    if(Date.now() - prRealAt < Math.max(1, +S.autoM) * 60000) return;
+  }
+  const syms = [...new Set(open.flatMap(t => [t.a, t.b]))];
+  if(creditsLeft() < syms.length || dayLeft() < syms.length){ if(manual) toast(`Credits kam hain — ${syms.length} chahiye`); return }
+  prRealBusy = true; prRealAt = Date.now();
+  try{
+    const q = await getQuotes(syms, manual ? null : () => {}, manual ? 0 : 30000);
+    const px = {}; Object.keys(q).forEach(s => px[s] = q[s].p);
+    open.forEach(t => {
+      if(!px[t.a] || !px[t.b]) return;
+      t.nA = px[t.a]; t.nB = px[t.b]; t.upd = Date.now();
+      t.pl = +(prLegPl(t.a, t.dA, t.lotA, t.pA, t.nA, px) + prLegPl(t.b, t.dB, t.lotB, t.pB, t.nB, px)).toFixed(2);
+      prRealRules(t);
+    });
+    LS.set('prTrack', PR.track);
+  }catch(e){ if(manual) toast('Rate nahi mila: ' + (e.message || e)) }
+  finally{ prRealBusy = false; prRenderTrack() }
+}
+setInterval(() => { prRealCheck(false).catch(() => { prRealBusy = false }) }, 30000);
+function prRefreshAll(){ prRealCheck(true); prTrackRefresh(true) }
 function prTrackUpdate(bars, px, tf){
   const cfg = PR.cfg;
   PR.track.forEach(t => {
@@ -11389,6 +11454,7 @@ function prTrackUpdate(bars, px, tf){
     if(!ba || !bb) return;
     const al = prAlign(ba, bb);
     const m = prMath(al.a, al.b, cfg.look);
+    if(t.real){ if(m) t.z = +m.z.toFixed(2); return }   /* v10.5.7: LIYA — P&L live price se, band sirf $ niyam se */
     t.nA = al.a[al.a.length-1]; t.nB = al.b[al.b.length-1]; t.upd = Date.now();
     t.pl = +(prLegPl(t.a, t.dA, t.lotA, t.pA, t.nA, px) + prLegPl(t.b, t.dB, t.lotB, t.pB, t.nB, px)).toFixed(2);
     if(m){
@@ -11519,7 +11585,9 @@ function prRowHtml(r, c){
     body = `<div class="pr-legs">${leg(r.a, r.sig.dA, r.lotA)}<i>+</i>${leg(r.b, r.sig.dB, r.lotB)}</div>
       <p class="hint" style="margin-top:8px">Dono order <b>ek saath</b>. Band karo jab Z <b>${c.exit}</b> ke andar aaye (profit) ya <b>${c.stop}</b> ke bahar jaaye (stop).` +
       (r.lotOff > 0.25 ? ` <span style="color:var(--gold)">⚠️ Lot chhota hone se balance ${Math.round(r.lotOff*100)}% hil raha — Lot A badhao.</span>` : '') + `</p>
-      <button class="btn ghost sm" style="margin-top:8px" onclick="prTrackAdd('${escH(r.key)}')">📌 TRACK KARO (virtual)</button>`;
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn ghost sm" style="flex:1" onclick="prTrackAdd('${escH(r.key)}')">📌 TRACK (virtual)</button>
+        <button class="btn gold sm" style="flex:1" onclick="prTrackAdd('${escH(r.key)}', true)">✓ MAINE TRADE LIYA</button></div>`;
   } else {
     const why = {
       WAIT:   `Spread fail raha hai par abhi ${c.entry} tak nahi pahuncha. Nazar rakho.`,
@@ -11565,30 +11633,40 @@ function prRenderTrack(){
   if(!T.length){ box.innerHTML = '<p class="hint">Koi trade track nahi ho raha. Signal card pe <b>📌 TRACK</b> dabao — P&amp;L aur Z apne aap update hoga.</p>'; return }
   const closed = T.filter(t => t.st !== 'OPEN');
   const wins = closed.filter(t => t.pl > 0).length, sum = closed.reduce((p,t) => p + t.pl, 0);
-  const stCol = {OPEN:'var(--blue)', EXIT:'var(--up)', STOP:'var(--dn)', MANUAL:'var(--gold)'};
-  const stTxt = {OPEN:'OPEN', EXIT:'TP ✓', STOP:'SL ✗', MANUAL:'KHUD ✋'};
+  const stCol = {OPEN:'var(--blue)', EXIT:'var(--up)', STOP:'var(--dn)', MANUAL:'var(--gold)', LOCK:'var(--up)'};
+  const stTxt = {OPEN:'OPEN', EXIT:'TP ✓', STOP:'SL ✗', MANUAL:'KHUD ✋', LOCK:'LOCK ✓'};
   const cntSt = k => closed.filter(t => t.st === k).length;
+  const usd = v => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`;
+  const rc = closed.filter(t => t.real), rSum = rc.reduce((p,t) => p + t.pl, 0);
+  /* v10.5.7 LIYA: $ patti — baayein SL (−$10·k), daayein lock shuru (+$1·k) se aage */
+  const dBar = t => {
+    const k = (+t.lotA || 0.01) / 0.01, lo = -PR_SL_USD * k, hi = Math.max(2 * k, (t.peak || 0) + 0.5 * k);
+    const ps = v => Math.min(100, Math.max(0, (v - lo) / (hi - lo) * 100)).toFixed(1);
+    return `<div class="pr-zb"><i style="left:${ps(0)}%" title="0"></i>${t.lock != null ? `<i style="left:${ps(t.lock)}%;background:var(--up)" title="lock"></i>` : ''}<em style="left:${ps(t.pl)}%"></em></div>
+    <div class="pr-zl mono"><span style="color:var(--dn)">SL ${usd(lo)}</span><span>Z ${(+t.z).toFixed(2)}</span><span style="color:var(--up)">${t.lock != null ? 'Lock ' + usd(t.lock) : 'Lock @' + usd(PLR.tStart * k)}</span></div>`;
+  };
   const span = Math.max(0.1, c.stop - c.exit);
   /* 0% = SL (Z stop pe), 100% = TP (Z exit pe) */
   const pos = (z, s) => Math.min(100, Math.max(0, (c.stop - s * z) / span * 100)).toFixed(1);
   const leg = (sym, d, lot, p0, p1) => `<div class="lg mono"><span style="color:${d==='BUY'?'var(--up)':'var(--dn)'}">${d==='BUY'?'BUY':'SELL'} ${prName(sym)} ${lot}</span><span>${prPx(sym, p0)} → <b>${prPx(sym, p1 ?? p0)}</b></span></div>`;
-  box.innerHTML = (closed.length ? `<div class="pr-kv" style="margin:0 0 10px"><div><span>BAND</span><b>${closed.length}</b></div><div><span>JEETE</span><b style="color:var(--up)">${wins}/${closed.length}</b></div><div><span>TP·SL·KHUD</span><b>${cntSt('EXIT')}·${cntSt('STOP')}·${cntSt('MANUAL')}</b></div><div><span>KUL $</span><b style="color:${sum >= 0 ? 'var(--up)' : 'var(--dn)'}">${sum >= 0 ? '+' : '−'}${Math.abs(sum).toFixed(2)}</b></div></div>` : '') +
+  box.innerHTML = (closed.length ? `<div class="pr-kv" style="margin:0 0 10px"><div><span>BAND</span><b>${closed.length}</b></div><div><span>JEETE</span><b style="color:var(--up)">${wins}/${closed.length}</b></div><div><span>TP·SL·KHUD</span><b>${cntSt('EXIT') + cntSt('LOCK')}·${cntSt('STOP')}·${cntSt('MANUAL')}</b></div><div><span>KUL $</span><b style="color:${sum >= 0 ? 'var(--up)' : 'var(--dn)'}">${sum >= 0 ? '+' : '−'}${Math.abs(sum).toFixed(2)}</b></div></div>` : '') +
+  (rc.length ? `<p class="hint" style="margin:-4px 0 10px">✓ LIYA (asli): ${rc.length} band · jeete ${rc.filter(t => t.pl > 0).length} · kul <b style="color:${rSum >= 0 ? 'var(--up)' : 'var(--dn)'}">${usd(rSum)}</b></p>` : '') +
   T.map(t => {
     const sg = Math.sign(t.z0) || 1, z = +t.z, z0 = +t.z0;
     const upd = t.upd ? `<span data-ago="${t.upd}">${ago(t.upd)}</span>` : '<span style="color:var(--gold)">abhi tak nahi</span>';
     return `<div class="pr-tk">
-    <div class="hd"><b>${prName(t.a)}/${prName(t.b)}</b><small class="sp">${t.tf === '4h' ? 'H4' : 'H1'} · <span data-ago="${t.at}">${ago(t.at)}</span></small>
+    <div class="hd"><b>${prName(t.a)}/${prName(t.b)}${t.real ? ' <span class="st" style="color:var(--gold);font-size:9px;padding:1px 4px;white-space:nowrap;vertical-align:middle">LIYA</span>' : ''}</b><small class="sp">${t.tf === '4h' ? 'H4' : 'H1'} · <span data-ago="${t.at}">${ago(t.at)}</span></small>
       <span class="st" style="color:${stCol[t.st]}">${stTxt[t.st] || t.st}</span>
       <button class="chip" style="padding:4px 8px" onclick="prTrackDel(${t.id})">×</button></div>
     ${leg(t.a, t.dA, t.lotA, t.pA, t.nA)}${leg(t.b, t.dB, t.lotB, t.pB, t.nB)}
-    <div class="pr-zb"><i style="left:${pos(z0, sg)}%" title="entry"></i><em style="left:${pos(z, sg)}%"></em></div>
-    <div class="pr-zl mono"><span style="color:var(--dn)">SL: Z ${(sg * c.stop).toFixed(1)}</span><span>Z ${z0.toFixed(2)} → <b>${z.toFixed(2)}</b></span><span style="color:var(--up)">TP: Z ${(sg * c.exit).toFixed(1)}</span></div>
+    ${t.real ? dBar(t) : `<div class="pr-zb"><i style="left:${pos(z0, sg)}%" title="entry"></i><em style="left:${pos(z, sg)}%"></em></div>
+    <div class="pr-zl mono"><span style="color:var(--dn)">SL: Z ${(sg * c.stop).toFixed(1)}</span><span>Z ${z0.toFixed(2)} → <b>${z.toFixed(2)}</b></span><span style="color:var(--up)">TP: Z ${(sg * c.exit).toFixed(1)}</span></div>`}
     <div class="ft"><span class="pl mono" style="color:${t.pl >= 0 ? 'var(--up)' : 'var(--dn)'}">${t.pl >= 0 ? '+' : '−'}$${Math.abs(t.pl).toFixed(2)}</span>
       <small class="hint" style="margin:0">${t.st === 'OPEN' ? 'update: ' + upd : 'band: <span data-ago="' + t.end + '">' + ago(t.end) + '</span>'}</small>
-      ${t.st === 'OPEN' ? `<button class="chip" style="padding:4px 9px" ${PR.tBusy ? 'disabled' : ''} onclick="prTrackRefresh(true)">${PR.tBusy ? '⏳' : '🔄'}</button>
+      ${t.st === 'OPEN' ? `<button class="chip" style="padding:4px 9px" ${PR.tBusy ? 'disabled' : ''} onclick="prRefreshAll()">${PR.tBusy ? '⏳' : '🔄'}</button>
       <button class="chip" style="padding:4px 9px;color:var(--gold);border-color:var(--gold)" onclick="prTrackClose(${t.id})">✓ BAND KARO</button>` : ''}</div>
   </div>`}).join('') +
-  `<p class="hint" style="margin-top:4px">🔵 = Z abhi, | = entry. <b>✓ BAND KARO</b> = khud band (result upar BAND/KUL me judta hai), <b>×</b> = list se mitao. Dot <b style="color:var(--up)">daayein (TP)</b> pahunche to profit me band, <b style="color:var(--dn)">baayein (SL)</b> to stop. Z ${c.exit} ke andar ya ulti taraf = TP, ${c.stop} ke bahar = SL. App khula ho to H1 har 15 min, H4 har 45 min apne aap update (har symbol 1 credit). P&amp;L candle close se — spread/commission nahi gina.</p>`;
+  `<p class="hint" style="margin-top:4px">🔵 = Z abhi, | = entry. <b>✓ BAND KARO</b> = khud band (result upar BAND/KUL me judta hai), <b>×</b> = list se mitao. Dot <b style="color:var(--up)">daayein (TP)</b> pahunche to profit me band, <b style="color:var(--dn)">baayein (SL)</b> to stop. Z ${c.exit} ke andar ya ulti taraf = TP, ${c.stop} ke bahar = SL. App khula ho to H1 har 15 min, H4 har 45 min apne aap update (har symbol 1 credit). P&amp;L candle close se — spread/commission nahi gina.<br><b style="color:var(--gold)">✓ LIYA</b> = asli trade: dono milake +$1 → lock +$0.50, har +$0.10 pe lock aage; wapas lock tak = <b>LOCK</b> band, −$10 = <b>SL</b> (0.01 lot pe, lot ke saath badhta). Live price har ${S.autoM || 5} min (app khula ho, har symbol 1 credit). App MT5 band nahi karta — notification pe MT5 me dono khud band karo.</p>`;
 }
 
 function prRenderPairs(){
