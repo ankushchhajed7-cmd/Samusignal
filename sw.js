@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.5.11 — Chart Analysis: chalti line (candles aa rahi / AI analyze / live price) green highlight + header CHART ANALYSIS button halka hara dim-dim glow
    v10.5.10 — Pair tab: scan status line (API limit / sec ruko) green highlight
    v10.5.9 — Pair tab: '🚀 AUTO TRADE → MT5' — account tick, dono leg MARKET (PERSONAL FX v6.9: dono milake lock +$1→+$0.50, −$10 dono band), MT5 Pair Trades card
    v10.5.8 — PERSONAL FX 2 account: bhejte waqt 2+ account chal rahe ho to tick list (1 ho to seedha usi pe), order me acct (EA v6.8)
@@ -80,7 +81,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.5.10';
+const VERSION = '10.5.11';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
