@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.5.9 — Pair tab: '🚀 AUTO TRADE → MT5' — account tick, dono leg MARKET (PERSONAL FX v6.9: dono milake lock +$1→+$0.50, −$10 dono band), MT5 Pair Trades card
    v10.5.8 — PERSONAL FX 2 account: bhejte waqt 2+ account chal rahe ho to tick list (1 ho to seedha usi pe), order me acct (EA v6.8)
    v10.5.7 — Pair: '✓ MAINE TRADE LIYA' — sirf app me, dono legs milake +$1→lock +$0.50 (har $0.10 aage), −$10 SL (0.01 lot pe), live price, notification
    v10.5.6 — Pair Tracker: '✓ BAND KARO' (khud band, result save), upar BAND/JEETE/TP·SL·KHUD/KUL $ box, × pe confirm
@@ -78,7 +79,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.5.8';
+const VERSION = '10.5.9';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

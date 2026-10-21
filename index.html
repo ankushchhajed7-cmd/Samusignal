@@ -1912,6 +1912,11 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 
   <div class="card">
+    <p class="ttl">MT5 Pair Trades <span class="sp"><button class="chip" style="padding:3px 9px" onclick="prMt5Load(true)">🔄</button></span></p>
+    <div id="prMt5Box"><p class="hint">Abhi koi pair trade MT5 pe nahi bheja.</p></div>
+  </div>
+
+  <div class="card">
     <p class="ttl">Pairs <span class="sp">ON = scan me</span></p>
     <div id="prPairs"></div>
     <p class="hint" style="margin:12px 0 6px">Apni jodi banao:</p>
@@ -2260,7 +2265,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.8';
+const VERSION = '10.5.9';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9388,8 +9393,8 @@ async function pfxAccounts(){
 const pfxAcctName = a => `${a.real ? 'REAL' : 'DEMO'} ${a.login}`;
 const pfxAcctLbl = login => { const a = pfxAcctAll.find(x => x.login === String(login)); return a ? pfxAcctName(a) : String(login) };
 /* null = cancel, [] = koi v6.8 nahi chal raha (bina acct), [a, ...] = in pe bhejo */
-async function pfxPickAcct(){
-  const live = (await pfxAccounts()).filter(a => Date.now() - a.at < PFX_ACCT_LIVE)
+async function pfxPickAcct(only){
+  const live = (await pfxAccounts()).filter(a => Date.now() - a.at < PFX_ACCT_LIVE && (!only || only(a)))
     .sort((x, y) => (y.real ? 1 : 0) - (x.real ? 1 : 0) || x.login.localeCompare(y.login));
   if(live.length <= 1) return live;
   const last = LS.get('pfxAcct', []);
@@ -11662,7 +11667,8 @@ function prRowHtml(r, c){
       (r.lotOff > 0.25 ? ` <span style="color:var(--gold)">⚠️ Lot chhota hone se balance ${Math.round(r.lotOff*100)}% hil raha — Lot A badhao.</span>` : '') + `</p>
       <div style="display:flex;gap:6px;margin-top:8px">
         <button class="btn ghost sm" style="flex:1" onclick="prTrackAdd('${escH(r.key)}')">📌 TRACK (virtual)</button>
-        <button class="btn gold sm" style="flex:1" onclick="prTrackAdd('${escH(r.key)}', true)">✓ MAINE TRADE LIYA</button></div>`;
+        <button class="btn gold sm" style="flex:1" onclick="prTrackAdd('${escH(r.key)}', true)">✓ MAINE TRADE LIYA</button></div>
+      <button class="btn sm" style="margin-top:6px;border:2px solid var(--up);color:var(--up)" onclick="prMt5Send('${escH(r.key)}')">🚀 AUTO TRADE → MT5</button>`;
   } else {
     const why = {
       WAIT:   `Spread fail raha hai par abhi ${c.entry} tak nahi pahuncha. Nazar rakho.`,
@@ -11766,7 +11772,88 @@ function prRenderCfg(){
   });
 }
 
-function prOnShow(){ prRenderCfg(); prRenderPairs(); prRender(); prTrackRefresh(false).catch(() => { PR.tBusy = false; prRenderTrack() }) }
+function prOnShow(){ prRenderCfg(); prRenderPairs(); prRender(); prTrackRefresh(false).catch(() => { PR.tBusy = false; prRenderTrack() }); if(pfxBase()) prMt5Load(false) }
+
+/* ---------- v10.5.9: AUTO TRADE → MT5 (PERSONAL FX v6.9) ----------
+   Dono leg MARKET, order me "pr" = jodi id. Lot = us account ke EA ka input (dono leg same).
+   EA: grid niyam nahi — dono milake +$1 → lock +$0.50, har +$0.10 aage, wapas lock = dono band,
+   −$10 = dono band (0.01 lot pe). Ek leg na khule → EA dusra 60 sec me band. Z se kuch nahi. */
+let prMt5Res = {}, prMt5Poll = null;
+async function prMt5Send(key){
+  const r = PR.last && PR.last.rows.find(x => x.key === key);
+  if(!r || !r.sig || r.sig.k !== 'ENTRY') return;
+  if(!pfxBase()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
+  if(Date.now() - PR.last.at > 30 * 60000 && !confirm('Scan 30 min se purana hai — Z badal chuka hoga. Phir bhi bhejein?')) return;
+  const acc = await pfxPickAcct(a => a.pair === true);
+  if(acc === null) return;
+  if(!acc.length){ alert('Kisi account pe PERSONAL FX v6.9 online nahi dikh raha.\n\nPair trade ke liye v6.9 chahiye (purana EA isse grid trade bana dega). VPS pe v6.9 lagao, 1 min ruko, phir bhejo.'); return }
+  const nm = `${prName(r.a)} / ${prName(r.b)}`;
+  const msg = `PAIR TRADE → MT5\n${nm} (${r.tf === '4h' ? 'H4' : 'H1'} · Z ${r.z})\n` + pfxAcctTxt(acc) + `\n\n` +
+    `${r.sig.dA} ${prName(r.a)}  MARKET\n${r.sig.dB} ${prName(r.b)}  MARKET\n\n` +
+    `Lot: ${acc.map(a => `${pfxAcctName(a)} → ${(+a.lot || 0).toFixed(2)}`).join(', ')} (dono leg same)\n` +
+    `Dono milake: +$1 pe lock +$0.50, har +$0.10 pe aage · −$10 pe dono band (0.01 lot pe)\nGrid / Z niyam nahi lagega.\n\nBhejein?`;
+  if(!confirm(msg)) return;
+  const now = Date.now(), grp = 'P' + now.toString(36);
+  const legs = [[r.a, r.sig.dA, r.pxA], [r.b, r.sig.dB, r.pxB]];
+  let n = 0;
+  try{
+    for(const a of acc){
+      for(let k = 0; k < 2; k++){
+        const [sym, dir, px] = legs[k];
+        const body = {id: now + k, pair: prName(sym), type: dir + 'MARKET', entry: 0, live: +px, at: now, exp: PFX_EXP_MIN,
+          status: 'NEW', src: 'SamuSignal ' + VERSION + ' PAIR', acct: a.login, pr: grp, leg: k + 1, legs: 2, prName: nm};
+        const res = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+        if(!res.ok) throw new Error(res.status === 401 || res.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + res.status);
+        n++;
+      }
+    }
+  }catch(err){
+    logAdd('Pair MT5 bhejna fail: ' + err.message);
+    alert((n ? `Sirf ${n} leg gaya — ` : 'Nahi gaya — ') + err.message + (n % 2 ? '\n\nEk hi leg gaya: EA 60 sec me use khud band kar dega.' : ''));
+    if(!n) return;
+  }
+  logAdd(`Pair MT5 bheja: ${nm} ${r.sig.dA}/${r.sig.dB} → ${acc.map(pfxAcctName).join(' + ')}`);
+  toast(`🚀 Gaya — ${nm} · ${acc.length} account`);
+  if(S.tgAuto) tgSend(`🚀 <b>PAIR → MT5</b>\n\n<b>${nm}</b>\n${r.sig.dA} ${prName(r.a)} + ${r.sig.dB} ${prName(r.b)}\n${acc.map(pfxAcctName).join(' + ')}\n⏰ ${t12(now)}`, true);
+  clearInterval(prMt5Poll);
+  const until = Date.now() + 90000;
+  prMt5Poll = setInterval(() => { if(Date.now() > until) clearInterval(prMt5Poll); prMt5Load(false) }, 5000);
+  prMt5Load(false);
+}
+async function prMt5Load(manual){
+  const box = $('prMt5Box'); if(!box || !pfxBase()) return;
+  try{
+    const [ro, rp] = await Promise.all([fetch(pfxUrl('orders'), {cache:'no-store'}), fetch(pfxUrl('pairs'), {cache:'no-store'})]);
+    if(!ro.ok) throw new Error('HTTP ' + ro.status);
+    const jo = (await ro.json()) || {}, jp = rp.ok ? ((await rp.json()) || {}) : {};
+    prMt5Res = jp;
+    pfxLastList = Object.keys(jo).map(k => Object.assign({key:k}, jo[k])).filter(o => o && o.at).sort((a, b) => b.at - a.at);
+    prMt5Render();
+    if(manual) toast('Update ho gaya');
+  }catch(e){ if(manual) toast('Nahi aaya — ' + e.message) }
+}
+function prMt5Render(){
+  const box = $('prMt5Box'); if(!box) return;
+  const G = {};
+  pfxLastList.filter(o => o.pr).forEach(o => { const k = o.pr + '|' + (o.acct || ''); (G[k] = G[k] || []).push(o) });
+  const keys = Object.keys(G).sort((a, b) => G[b][0].at - G[a][0].at).slice(0, 12);
+  if(!keys.length){ box.innerHTML = '<p class="hint">Abhi koi pair trade MT5 pe nahi bheja. Signal card pe <b>🚀 AUTO TRADE → MT5</b> dabao.</p>'; return }
+  const usd = v => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`;
+  box.innerHTML = keys.map(k => {
+    const L = G[k].sort((a, b) => (a.leg || 0) - (b.leg || 0)), o = L[0];
+    const res = prMt5Res[(o.acct || '') + '_' + o.pr];
+    const placed = L.filter(x => x.status === 'PLACED').length;
+    const st = res ? [res.why === 'LOCK' ? 'LOCK ✓' : res.why === 'SL' ? 'SL ✗' : res.why, res.pl >= 0 ? 'var(--up)' : 'var(--dn)']
+      : placed === 2 ? ['OPEN · MT5', 'var(--blue)'] : L.some(x => x.status === 'NEW') ? ['EA ka intezaar', 'var(--gold)'] : [placed === 1 ? 'EK LEG FAIL — EA dusra band karega' : 'NAHI LAGA', 'var(--dn)'];
+    return `<div class="pr-tk">
+      <div class="hd"><b>${escH(o.prName || L.map(x => x.pair).join(' / '))}</b><small class="sp">${escH(pfxAcctLbl(o.acct || '—'))} · <span data-ago="${o.at}">${ago(o.at)}</span></small>
+        <span class="st" style="color:${st[1]}">${escH(st[0])}</span></div>
+      ${L.map(x => `<div class="lg"><span class="mono" style="color:${/^BUY/.test(x.type) ? 'var(--up)' : 'var(--dn)'}">${escH(String(x.type).replace('MARKET', ''))} ${escH(x.pair)}</span>
+        <small style="color:${(PFX_ST[x.status] || ['', 'var(--mut)'])[1]};text-align:right">${escH((PFX_ST[x.status] || [x.status])[0])}${x.msg ? ' · ' + escH(String(x.msg).replace(/ \| PAIR leg.*$/, '')) : ''}</small></div>`).join('')}
+      ${res ? `<div class="ft"><span class="pl mono" style="color:${res.pl >= 0 ? 'var(--up)' : 'var(--dn)'}">${usd(+res.pl)}</span><small class="hint" style="margin:0">EA ne band kiya · <span data-ago="${res.at}">${ago(res.at)}</span></small></div>` : ''}
+    </div>`;
+  }).join('') + `<p class="hint" style="margin-top:4px">P/L aur band karna EA (v6.9) karta hai: dono milake +$1 → lock +$0.50 (har +$0.10 aage), −$10 = dono band. Khule trade ka live P/L MT5 me dekho.</p>`;
+}
 
 if('serviceWorker' in navigator){
   /* v9.9.42: "Share → SamuSignal" se aayi screenshot (sw.js cache me rakhta hai) */
