@@ -1459,6 +1459,7 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
   <div class="card" id="bpCard">
     <p class="ttl">🏆 Best Pair Abhi <span class="sp" id="bpT">—</span></p>
+    <div class="chips" id="bpGrps" style="margin-bottom:10px"></div>
     <button class="btn gold" id="bpBtn" onclick="bestPair()">🏆 BEST PAIR DHUNDHO</button>
     <p class="hint mono" id="bpCost" style="margin-top:8px">—</p>
     <div id="bpBox"></div>
@@ -2282,7 +2283,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.14';
+const VERSION = '10.5.15';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9847,9 +9848,13 @@ function cpPairBusy(on){ const b = $('cpPair'); if(b) b.classList.toggle('cpBusy
    beech me + dono kinare kai baar chhue + tez trend nahi. News / market band = bahar.
    Limit ke bhaav sirf andaza (15m ka kinara) — asli order AUTO ANALYZE se. */
 const BP_TTL = 5 * 60000;
-let BP = {busy:false, cache:{}, last: LS.get('bpLast', null)};
-const bpSkip = s => /^(XAU|XAG|XPT|XPD|BTC|ETH|LTC|XRP|SOL|BNB|DOGE|ADA)/.test(s);
-function bpList(){ return [...new Set(S.watch || [])].filter(s => SPECS[s] && !bpSkip(s) && !isBad(s)) }
+let BP = {busy:false, cache:{}, last: LS.get('bpLast', null), grp: LS.get('bpGrp', 'wl1')};
+if(!WL_SETS[BP.grp]) BP.grp = 'wl1';
+const bpSkip = s => /^(XAU|XAG|XPT|XPD|BTC|ETH|LTC|XRP|SOL|BNB|DOGE|ADA|US30)/.test(s);
+/* v10.5.15: Best Pair ki apni watchlist (Scan tab wali se alag) — ek baar me ek group */
+const bpGrpName = () => WL_SETS[BP.grp] || 'Majors';
+function bpList(){ return [...new Set(GROUPS[bpGrpName()] || [])].filter(s => SPECS[s] && !bpSkip(s) && !isBad(s)) }
+function bpSetGrp(k){ if(BP.busy || !WL_SETS[k]) return; BP.grp = k; LS.set('bpGrp', k); bpRender() }
 function bpNeed(){ return bpList().reduce((n, s) => n + ['1h','15min'].filter(tf => { const c = BP.cache[s + '|' + tf]; return !(c && Date.now() - c.t < BP_TTL) }).length, 0) }
 async function bpBars(sym, tf, note){
   const k = sym + '|' + tf, c = BP.cache[k];
@@ -9897,7 +9902,7 @@ async function bestPair(){
   if(BP.busy) return;
   if(needKey()) return;
   const L = bpList();
-  if(!L.length){ toast('Watchlist me (Gold/BTC chhod ke) koi pair nahi — Scan tab me pair jodo'); return }
+  if(!L.length){ toast(bpGrpName() + ' me koi pair nahi (plan me band?)'); return }
   const need = bpNeed();
   if(dayLeft() < need && !confirm(`Isme ${need} credit lagenge, aaj ${dayLeft()} bache hain. Phir bhi chalu karein?`)) return;
   BP.busy = true; bpRender();
@@ -9915,7 +9920,7 @@ async function bestPair(){
     }catch(e){ rows.push({sym, score: 0, skip: 'Data nahi aaya — ' + (e.message || e)}) }
   }
   rows.sort((x, y) => y.score - x.score);
-  BP.last = {at: Date.now(), rows, n: L.length};
+  BP.last = {at: Date.now(), rows, n: L.length, grp: BP.grp};
   LS.set('bpLast', BP.last);
   BP.busy = false; bpRender();
   const b = rows.find(r => r.score > 0);
@@ -9926,17 +9931,19 @@ function bpRender(){
   const n = bpList().length, need = bpNeed();
   btn.disabled = BP.busy;
   btn.textContent = BP.busy ? '⏳ DHUNDH RAHA HAI…' : '🏆 BEST PAIR DHUNDHO';
-  $('bpCost').textContent = `${n} pair (watchlist · Gold/BTC chhod ke) · ` + (need ? `~${need} credit` + (need > 8 ? ` · ~${Math.ceil(need / 8)} min` : '') : 'data taaza — free');
+  $('bpGrps').innerHTML = Object.keys(WL_SETS).map((k, i) => `<button class="chip ${BP.grp === k ? 'on' : ''}" ${BP.busy ? 'disabled' : ''} onclick="bpSetGrp('${k}')">${i + 1} · ${escH(WL_SETS[k])}</button>`).join('');
+  $('bpCost').textContent = `${bpGrpName()} · ${n} pair (Gold/BTC chhod ke) · ` + (need ? `~${need} credit` + (need > 8 ? ` · ~${Math.ceil(need / 8)} min` : '') : 'data taaza — free');
   if(BP.busy) return;
   const D = BP.last;
   if(!D || !D.rows){ box.innerHTML = ''; $('bpT').textContent = '—'; return }
+  if((D.grp || 'wl1') !== BP.grp){ box.innerHTML = `<p class="hint" style="margin-top:10px">${escH(bpGrpName())} ka result abhi nahi — <b>BEST PAIR DHUNDHO</b> dabao.</p>`; $('bpT').textContent = '—'; return }
   if(Date.now() - D.at > BP_TTL){ box.innerHTML = '<p class="hint" style="margin-top:10px">Pichhla result 5 min se purana — dobara dhundho.</p>'; $('bpT').textContent = 'purana'; return }
   $('bpT').innerHTML = `<span data-ago="${D.at}">${ago(D.at)}</span>`;
   const best = D.rows.find(r => r.score > 0);
   const others = D.rows.filter(r => r !== best).map(r => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--line)">
       <b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : escH(r.sym)}</b><span style="color:var(--mut);text-align:right">${r.score > 0 ? 'score ' + r.score : escH(r.skip || '—')}</span></div>`).join('');
   if(!best){
-    box.innerHTML = `<p class="hint busyg" style="margin-top:10px">🧮 Abhi watchlist me koi pair theek nahi — thodi der baad dobara dhundho.</p>${others}`;
+    box.innerHTML = `<p class="hint busyg" style="margin-top:10px">🧮 Abhi ${escH(WL_SETS[D.grp || 'wl1'] || 'is group')} me koi pair theek nahi — thodi der baad dobara dhundho ya dusra group chuno.</p>${others}`;
     return;
   }
   const sp = SPECS[best.sym], pips = d => (Math.abs(d) / sp.pip).toFixed(1);
@@ -9947,7 +9954,7 @@ function bpRender(){
       <small style="margin-left:auto;color:var(--mut)">${pips(px - best.live)} pips ${side}${withT && withT !== dir ? ' · ⚠ trend ke khilaaf' : withT ? ' · ✓ trend ke saath' : ''}</small></div>`;
   box.innerHTML = `<div style="margin-top:12px;border:2px solid var(--gold);border-radius:12px;padding:12px">
       <div style="display:flex;align-items:center;gap:8px"><b class="shine gd" style="font-size:18px;letter-spacing:1px">🏆 ${sp.n}</b>
-        <small style="margin-left:auto;color:var(--mut);text-align:right">${D.n} me se #1 · score ${best.score}<br>
+        <small style="margin-left:auto;color:var(--mut);text-align:right">${escH(WL_SETS[D.grp || 'wl1'] || '')} · ${D.n} me se #1 · score ${best.score}<br>
           <b style="color:${best.score >= 60 ? 'var(--up)' : best.score >= 40 ? 'var(--gold)' : 'var(--dn)'}">${best.score >= 60 ? 'ACHHA' : best.score >= 40 ? 'THEEK' : 'KAMZOR — dhyan se'}</b></small></div>
       <p class="hint" style="margin:6px 0 0">Live ${fmt(best.sym, best.live)} · 1H ${best.t1} · 15m ${best.t15} · ADX ${best.adx}</p>
       ${leg('SELL', best.sell, 'upar')}${leg('BUY', best.buy, 'neeche')}
