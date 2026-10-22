@@ -2288,7 +2288,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.6.0';
+const VERSION = '10.6.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9800,8 +9800,9 @@ function mtfDraw(sym, sets){
    3) STOP: 15m/1H ka asli swing (5m ka chhota nahi) + buffer (sikuda price 0.2, warna 0.35 ATR5) + spread.
    4) AI in zones me se chunta hai; AI ka bhaav zone se 0.3 ATR me ho to zone pe khiskao, door ho to zone lo.
    5) Seekhna: Report Card har bhare order ke baad ulta kitna gaya (MAE) / stop turant palta — pair ke hisaab
-      se limit gehrai aur stop buffer thoda badalta hai (8+ bhare order ke baad, seema ke andar). */
-let LVL = Object.assign({on:true, learn:true, start:0, fb:[], decided:0, adj:{}}, LS.get('lvl', {}));
+      se limit gehrai aur stop buffer thoda badalta hai (8+ bhare order ke baad, seema ke andar).
+   v10.6.1: app ke andar 'khush ho?' wala box hataya — feedback chat me liya jaata hai. */
+let LVL = Object.assign({on:true, learn:true, adj:{}}, LS.get('lvl', {}));
 function lvlSave(){ LS.set('lvl', LVL) }
 const LVL_SPR = {'EUR/USD':1, 'GBP/USD':1.2, 'USD/JPY':1.2, 'USD/CHF':1.5, 'USD/CAD':1.5, 'AUD/USD':1.2, 'NZD/USD':1.6,
   'EUR/GBP':1.5, 'EUR/JPY':2, 'GBP/JPY':2.5, 'XAU/USD':20};
@@ -9917,31 +9918,8 @@ function lvlLearn(){
   });
   LVL.adj = out; lvlSave();
 }
-function lvlDay(){ return LVL.start ? Math.floor((Date.now() - LVL.start) / 86400000) + 1 : 0 }
-function lvlFb(at, v){
-  if(v === 'old'){ LVL.on = false; LVL.decided = Date.now(); lvlSave(); toast('↩ Purana tareeka wapas — Settings me dobara chalu kar sakte ho'); pfxRender(); return }
-  if(v === 'keep'){ LVL.decided = Date.now(); lvlSave(); toast('✓ Naya Level Engine pakka'); pfxRender(); return }
-  const d = S.shot;
-  LVL.fb = (LVL.fb || []).filter(x => x.at !== at).concat({at, sym: d && d.sym, ok: v ? 1 : 0}).slice(-60);
-  lvlSave(); toast(v ? '👍 Darj — shukriya' : '👎 Darj — dhyan rakhenge'); pfxRender();
-}
-function lvlAsk(d){
-  if(!d.mtf || !d.mtf.lvl || LVL.decided) return '';
-  const day = lvlDay(), fb = LVL.fb || [], up = fb.filter(x => x.ok).length, dn = fb.length - up;
-  if(day > 5) return `<div style="border:2px solid #16E27E;border-radius:10px;padding:10px 12px;margin-top:10px;background:rgba(22,226,126,.07)">
-      <b style="color:#16E27E">📐 5 din poore — naye levels ka faisla</b>
-      <p class="hint" style="margin:4px 0 8px">Aapke jawab: 👍 ${up} · 👎 ${dn}. Report Card me nateeja bhi dekh lo.</p>
-      <div class="grid2"><button class="btn g sm" onclick="lvlFb(0,'keep')">✓ Naya rakho</button><button class="btn ghost sm" onclick="lvlFb(0,'old')">↩ Purana default</button></div></div>`;
-  const mine = fb.find(x => x.at === d.at);
-  return `<div style="border:1px solid #16E27E;border-radius:10px;padding:10px 12px;margin-top:10px;background:rgba(22,226,126,.06)">
-      <b style="color:#16E27E">📐 Naya Level Engine · din ${day}/5</b>
-      <p class="hint" style="margin:4px 0 8px">${mine ? (mine.ok ? '👍 Is chart ka jawab darj.' : '👎 Is chart ka jawab darj.') : 'Is chart ke levels (jagah) se khush ho?'} Ab tak 👍 ${up} · 👎 ${dn}</p>
-      ${mine ? '' : `<div class="grid2"><button class="btn g sm" onclick="lvlFb(${d.at},1)">👍 Haan, achhe</button><button class="btn ghost sm" onclick="lvlFb(${d.at},0)">👎 Nahi</button></div>`}
-      <button class="btn ghost sm" style="margin-top:6px" onclick="lvlFb(0,'old')">↩ Purana tareeka (default) wapas</button></div>`;
-}
 function lvlToggle(k, el){
   LVL[k] = !LVL[k];
-  if(k === 'on' && LVL.on){ LVL.decided = 0; LVL.start = 0; LVL.fb = [] }      /* dobara chalu = 5 din phir se */
   el.classList.toggle('on', LVL[k]); lvlSave();
   toast(k === 'on' ? (LVL.on ? '📐 Level Engine ON' : 'Level Engine OFF — purana tareeka') : (LVL.learn ? '📏 Seekhna ON' : 'Seekhna OFF'));
 }
@@ -10240,7 +10218,6 @@ async function autoAnalyze(){
     });
     const good = d.mtf.legs.filter(L => L.ok);
     d.mtf.lvl = !!lv; d.mtf.a5 = a5; d.mtf.a15 = a15;
-    if(lv && good.length && !LVL.start){ LVL.start = Date.now(); lvlSave() }
     if(good.length){
       d.signal = 'TRADE'; d.dir = good[0].dir; d.entry = good[0].entry;
       mtfLogAdd(d);
@@ -10307,7 +10284,7 @@ function mtfRender(box, d){
       <button class="btn gold" onclick="mtfSend()">🚀 PERSONAL FX ko bhejo</button>
       <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
     </div>
-    <button class="btn g" style="width:100%;margin-top:8px" onclick="pfxJournal()">✓ Maine trade liya</button>` + lvlAsk(d);
+    <button class="btn g" style="width:100%;margin-top:8px" onclick="pfxJournal()">✓ Maine trade liya</button>`;
   M.legs.forEach((L, i) => { if(L.ok) mtfDist(i) });
 }
 
