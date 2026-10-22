@@ -2042,6 +2042,11 @@ body.ds-gold .brand .brandWord{height:24px}
     <div><label>PERSONAL FX TP $</label><input id="setPfxTp" type="number" inputmode="decimal" step="0.5"></div>
   </div>
   <div style="margin-bottom:6px"><label>PERSONAL FX grid gap $</label><input id="setPfxGap" type="number" inputmode="decimal" step="0.5"></div>
+  <div class="sw" id="swLvlOn" onclick="lvlToggle('on', this)"><div class="tg"></div>
+    <div>📐 Level Engine (v10.6)<small>On = order ka bhaav pakke zone pe (swing + EMA + wapsi + round). Off = purana tareeka (AI ka bhaav).</small></div></div>
+  <div class="sw" id="swLvlLearn" onclick="lvlToggle('learn', this)"><div class="tg"></div>
+    <div>📏 Seekhna<small>Report Card se pair-wise limit gehrai / stop buffer thoda sudhare (8+ bhare order ke baad).</small></div></div>
+  <button class="btn ghost sm" style="margin:4px 0 10px" onclick="lvlReset()">Seekha hua reset</button>
   <p class="hint" style="margin-bottom:16px">Min confidence = AI ka setup-quality score (65 = achha setup, 75+ = sirf bahut saaf setup; ek order ke liye 10 kam chalega). TP aur gap = PERSONAL FX ke <b>Grid_TP_Dollar</b> aur <b>Grid_Gap_Usd</b> jaise hi (per 0.01 lot, default 3 aur 5). AI inhi ke hisaab se level chunta hai.</p>
 
   <p class="ttl">MT5 Bridge</p>
@@ -2283,7 +2288,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.16';
+const VERSION = '10.6.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9715,14 +9720,21 @@ function mtfSim(rec, bars){
   }
   if(fi < 0) return {r: last(B).ms >= rec.at + W - 60000 ? 'NOFILL' : 'OPEN'};
   const L = rec.legs[leg], e = L.entry, buy = L.dir === 'BUY';
+  /* v10.6.0: bharne ke baad ulta kitna gaya (MAE) + stop turant palta (flip) */
+  let worst = e, flip = false;
+  const a15 = rec.a15 || 0, a5 = rec.a5 || 0;
+  const extra = o => { const mae = Math.max(0, buy ? e - worst : worst - e);
+    return Object.assign(o, {kind: L.kind, mae: +mae.toPrecision(4), maeA: a15 ? +(mae / a15).toFixed(2) : null, flip}) };
   for(let i = fi; i < B.length; i++){
     const b = B[i];
+    worst = buy ? Math.min(worst, b.l) : Math.max(worst, b.h);
+    if(L.kind === 'STOP' && a5 && i <= fi + 5 && (buy ? b.l <= e - 0.3 * a5 : b.h >= e + 0.3 * a5)) flip = true;
     const bad = buy ? b.l <= e - rec.gap : b.h >= e + rec.gap;
     const good = i > fi && (buy ? b.h >= e + rec.tp : b.l <= e - rec.tp);
-    if(bad) return {r:'AVG', leg, fillAt: B[fi].ms, endAt: b.ms};
-    if(good) return {r:'WIN', leg, fillAt: B[fi].ms, endAt: b.ms};
+    if(bad) return extra({r:'AVG', leg, fillAt: B[fi].ms, endAt: b.ms});
+    if(good) return extra({r:'WIN', leg, fillAt: B[fi].ms, endAt: b.ms});
   }
-  return {r:'OPEN', leg, fillAt: B[fi].ms};
+  return extra({r:'OPEN', leg, fillAt: B[fi].ms});
 }
 
 /* 4 chhote charts ek image me (2x2) — candles + EMA 21/50 + live line */
@@ -9779,7 +9791,163 @@ function mtfDraw(sym, sets){
   return cv.toDataURL('image/jpeg', 0.85);
 }
 
-function mtfPrompt(sym, live, R, g, specs, c, tails){
+/* ================= 📐 LEVEL ENGINE (v10.6.0) =================
+   Sirf TRADE wale analysis me order ka BHAAV (jagah) — mode / order type / NO TRADE wahi.
+   1) Pakke zones: 1H/15m/5m swing high-low (kitni baar chhua), 15m+5m EMA, 38–61% wapsi,
+      round number — 2+ cheezein 0.3 ATR me = zone (score ke saath).
+   2) LIMIT: pullback zone (trend me 0.4–1.2 × 15m ATR gehra), kinare se thoda pehle
+      (spread + 0.1 ATR5), round number se 2–3 pip aage.
+   3) STOP: 15m/1H ka asli swing (5m ka chhota nahi) + buffer (sikuda price 0.2, warna 0.35 ATR5) + spread.
+   4) AI in zones me se chunta hai; AI ka bhaav zone se 0.3 ATR me ho to zone pe khiskao, door ho to zone lo.
+   5) Seekhna: Report Card har bhare order ke baad ulta kitna gaya (MAE) / stop turant palta — pair ke hisaab
+      se limit gehrai aur stop buffer thoda badalta hai (8+ bhare order ke baad, seema ke andar). */
+let LVL = Object.assign({on:true, learn:true, start:0, fb:[], decided:0, adj:{}}, LS.get('lvl', {}));
+function lvlSave(){ LS.set('lvl', LVL) }
+const LVL_SPR = {'EUR/USD':1, 'GBP/USD':1.2, 'USD/JPY':1.2, 'USD/CHF':1.5, 'USD/CAD':1.5, 'AUD/USD':1.2, 'NZD/USD':1.6,
+  'EUR/GBP':1.5, 'EUR/JPY':2, 'GBP/JPY':2.5, 'XAU/USD':20};
+const lvlSpr = sym => (LVL_SPR[sym] || 2.2) * SPECS[sym].pip;         /* aam spread (pip) — broker ka asli nahi */
+function lvlPivots(bars, k, n){
+  const B = bars.slice(-n), out = [];
+  for(let i = k; i < B.length - k; i++){
+    let H = true, L = true;
+    for(let j = i - k; j <= i + k; j++){ if(j === i) continue; if(B[j].h > B[i].h) H = false; if(B[j].l < B[i].l) L = false }
+    if(H) out.push({px: B[i].h, t: 'H'});
+    if(L) out.push({px: B[i].l, t: 'L'});
+  }
+  return out;
+}
+function lvlZones(sym, sets, R, mode){
+  const sp = SPECS[sym], a = R['15min'].atr || sp.pip * 10, tol = 0.3 * a;
+  const b1 = sets[0].bars, b15 = sets[1].bars, b5 = sets[2].bars, m1 = sets[3].bars, live = m1[m1.length - 1].c;
+  const it = [];
+  [[b1, '1H', 3, 3, 48], [b15, '15m', 2, 2, 80], [b5, '5m', 1, 2, 72]].forEach(([b, l, w, k, n]) =>
+    lvlPivots(b, k, n).forEach(p => it.push({px: p.px, w, lab: `${l} swing ${p.t === 'H' ? 'high' : 'low'}`})));
+  it.push({px: R['15min'].e21, w: 1.5, lab: '15m EMA21'}, {px: R['15min'].e50, w: 1, lab: '15m EMA50'}, {px: R['5min'].e21, w: 0.8, lab: '5m EMA21'});
+  if(mode === 'UP' || mode === 'DOWN'){
+    const B = b15.slice(-40);
+    if(mode === 'UP'){
+      const i0 = B.reduce((m, b, i) => b.l < B[m].l ? i : m, 0); let i1 = i0;
+      for(let i = i0; i < B.length; i++) if(B[i].h > B[i1].h) i1 = i;
+      const lo = B[i0].l, hi = B[i1].h;
+      if(hi > lo) [0.382, 0.5, 0.618].forEach(f => it.push({px: hi - (hi - lo) * f, w: 1, lab: `${Math.round(f * 100)}% wapsi`}));
+    } else {
+      const i0 = B.reduce((m, b, i) => b.h > B[m].h ? i : m, 0); let i1 = i0;
+      for(let i = i0; i < B.length; i++) if(B[i].l < B[i1].l) i1 = i;
+      const hi = B[i0].h, lo = B[i1].l;
+      if(hi > lo) [0.382, 0.5, 0.618].forEach(f => it.push({px: lo + (hi - lo) * f, w: 1, lab: `${Math.round(f * 100)}% wapsi`}));
+    }
+  }
+  const step = sp.pip * 50, base = Math.round(live / step) * step;
+  for(let k = -4; k <= 4; k++){ const px = base + k * step; if(Math.abs(px - live) <= 2.5 * a) it.push({px, w: 0.8, lab: 'round ' + fmt(sym, px)}) }
+  it.sort((x, y) => x.px - y.px);
+  const Z = [];
+  it.forEach(o => { const z = Z[Z.length - 1]; if(z && o.px - z.lo <= tol){ z.items.push(o); z.hi = o.px } else Z.push({lo: o.px, hi: o.px, items: [o]}) });
+  const recent = b15.slice(-60);
+  return Z.map(z => {
+    const w = z.items.reduce((s2, o) => s2 + o.w, 0), px = z.items.reduce((s2, o) => s2 + o.px * o.w, 0) / w;
+    const touch = recent.filter(b => Math.abs(b.l - px) <= 0.2 * a || Math.abs(b.h - px) <= 0.2 * a).length;
+    return {px, lo: z.lo, hi: z.hi, n: z.items.length, touch, score: +(w + 0.5 * Math.min(touch, 4)).toFixed(2), labs: [...new Set(z.items.map(o => o.lab))]};
+  }).filter(z => z.n >= 2 || z.score >= 3);
+}
+function lvlLegs(sym, sets, R, g, specs, c){
+  const sp = SPECS[sym], live = c.live, a = R['15min'].atr || sp.pip * 10, a5 = R['5min'].atr || a / 2.5;
+  const spr = lvlSpr(sym), Z = lvlZones(sym, sets, R, g.mode);
+  const adj = (LVL.learn && LVL.adj[sym]) || {lim: 0, stop: 0};
+  const rn = sp.pip * 50;
+  const avoidRound = (e, toward) => { const r = Math.round(e / rn) * rn; return Math.abs(e - r) < 2 * sp.pip ? r + toward * 2.5 * sp.pip : e };
+  const l6 = sets[2].bars.slice(-6), tight = (Math.max(...l6.map(b => b.h)) - Math.min(...l6.map(b => b.l))) < 1.5 * a5;
+  return specs.map(L => {
+    const below = L.side < 0, toward = below ? 1 : -1;          /* live ki taraf */
+    let cands = [];
+    if(L.kind === 'LIMIT'){
+      const pick = (lo, hi) => Z.filter(z => { const d = below ? live - z.hi : z.lo - live; return d >= lo * a && d <= hi * a }).map(z => {
+        let e = (below ? z.hi : z.lo) + toward * (spr + 0.1 * a5) - toward * (adj.lim || 0) * a;   /* seekha: gehra/paas */
+        e = avoidRound(e, toward);
+        return {entry: +e.toFixed(sp.d), score: z.score, lab: z.labs.slice(0, 3).join(' + ') + (z.touch >= 2 ? ` · ${z.touch}× chhua` : '')};
+      });
+      cands = g.mode === 'RANGE' ? pick(0.25, 3) : pick(0.4, 1.2);
+      if(!cands.length) cands = pick(0.25, 1.6);
+    } else {
+      const pv = lvlPivots(sets[1].bars, 2, 60).concat(lvlPivots(sets[0].bars, 3, 48));
+      const lv = pv.filter(p => p.t === (below ? 'L' : 'H') && (p.px - live) * L.side > 0).map(p => p.px);
+      const ext = below ? R['15min'].lo24 : R['15min'].hi24;
+      if((ext - live) * L.side > 0) lv.push(ext);
+      const buf = ((tight ? 0.2 : 0.35) + (adj.stop || 0)) * a5 + spr;
+      const uq = [...new Set(lv.map(v => +v.toFixed(sp.d)))].sort((x, y) => Math.abs(x - live) - Math.abs(y - live));
+      cands = uq.map((v, i) => {
+        const e = v + L.side * buf, nx = uq[i + 1], room = nx === undefined ? Infinity : Math.abs(nx - e);
+        const touch = sets[1].bars.slice(-60).filter(b => Math.abs((below ? b.l : b.h) - v) <= 0.2 * a).length;
+        return {entry: +e.toFixed(sp.d), score: +(2 + 0.5 * Math.min(touch, 4) - 0.3 * i - (room < c.tp ? 1.5 : 0)).toFixed(2),
+          lab: `15m/1H asli ${below ? 'low' : 'high'} ${fmt(sym, v)} + ${tight ? 'chhota' : 'bada'} buffer` + (touch >= 2 ? ` · ${touch}× chhua` : '') + (room < c.tp ? ' · ⚠ aage jagah kam' : '')};
+      });
+    }
+    cands = cands.filter(x => { const d = (x.entry - live) * L.side; return d >= c.minD && d <= c.maxD }).sort((x, y) => y.score - x.score).slice(0, 3);
+    return {cands, best: cands[0] || null};
+  });
+}
+/* AI ka bhaav -> zone (0.3 ATR me ho to us zone pe, door ho to sabse achha zone) */
+function lvlSnap(leg, lv, a15){
+  if(!lv || !lv.best || !(leg.entry > 0)) return;
+  const near = lv.cands.map(x => ({x, d: Math.abs(x.entry - leg.entry)})).sort((p, q) => p.d - q.d)[0];
+  leg.ai = leg.entry;
+  if(near && near.d <= 0.3 * a15){ leg.entry = near.x.entry; leg.zone = near.x.lab }
+  else { leg.entry = lv.best.entry; leg.zone = lv.best.lab + ' · AI ka bhaav zone se door tha' }
+}
+/* 5) seekhna — Report Card ke bhare orders se, pair ke hisaab se */
+function lvlLearn(){
+  const by = {};
+  (S.mtfLog || []).filter(r => r.lvl && r.res && r.res.r !== 'OPEN').forEach(r => (by[r.sym] = by[r.sym] || []).push(r));
+  const out = {};
+  Object.keys(by).forEach(sym => {
+    const R0 = by[sym].slice(0, 20), med = v => { const x = v.slice().sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : 0 };
+    const lim = R0.filter(r => r.legs.some(L => L.kind === 'LIMIT')), limF = lim.filter(r => r.res.kind === 'LIMIT');
+    const stp = R0.filter(r => r.legs.some(L => L.kind === 'STOP')), stpF = stp.filter(r => r.res.kind === 'STOP');
+    const o = {lim: 0, stop: 0, n: R0.length, nL: limF.length, nS: stpF.length};
+    if(limF.length >= 8){
+      o.lim = Math.max(0, Math.min(0.5, med(limF.map(r => +r.res.maeA || 0)) - 0.3));
+      if(limF.length / Math.max(1, lim.length) < 0.3) o.lim = Math.max(-0.2, o.lim - 0.2);
+    }
+    if(stpF.length >= 8){
+      const fr = stpF.filter(r => r.res.flip).length / stpF.length;
+      o.stop = fr > 0.6 ? 0.2 : fr > 0.4 ? 0.1 : 0;
+      if(stpF.length / Math.max(1, stp.length) < 0.3) o.stop -= 0.05;
+    }
+    o.lim = +o.lim.toFixed(2); o.stop = +o.stop.toFixed(2);
+    out[sym] = o;
+  });
+  LVL.adj = out; lvlSave();
+}
+function lvlDay(){ return LVL.start ? Math.floor((Date.now() - LVL.start) / 86400000) + 1 : 0 }
+function lvlFb(at, v){
+  if(v === 'old'){ LVL.on = false; LVL.decided = Date.now(); lvlSave(); toast('↩ Purana tareeka wapas — Settings me dobara chalu kar sakte ho'); pfxRender(); return }
+  if(v === 'keep'){ LVL.decided = Date.now(); lvlSave(); toast('✓ Naya Level Engine pakka'); pfxRender(); return }
+  const d = S.shot;
+  LVL.fb = (LVL.fb || []).filter(x => x.at !== at).concat({at, sym: d && d.sym, ok: v ? 1 : 0}).slice(-60);
+  lvlSave(); toast(v ? '👍 Darj — shukriya' : '👎 Darj — dhyan rakhenge'); pfxRender();
+}
+function lvlAsk(d){
+  if(!d.mtf || !d.mtf.lvl || LVL.decided) return '';
+  const day = lvlDay(), fb = LVL.fb || [], up = fb.filter(x => x.ok).length, dn = fb.length - up;
+  if(day > 5) return `<div style="border:2px solid #16E27E;border-radius:10px;padding:10px 12px;margin-top:10px;background:rgba(22,226,126,.07)">
+      <b style="color:#16E27E">📐 5 din poore — naye levels ka faisla</b>
+      <p class="hint" style="margin:4px 0 8px">Aapke jawab: 👍 ${up} · 👎 ${dn}. Report Card me nateeja bhi dekh lo.</p>
+      <div class="grid2"><button class="btn g sm" onclick="lvlFb(0,'keep')">✓ Naya rakho</button><button class="btn ghost sm" onclick="lvlFb(0,'old')">↩ Purana default</button></div></div>`;
+  const mine = fb.find(x => x.at === d.at);
+  return `<div style="border:1px solid #16E27E;border-radius:10px;padding:10px 12px;margin-top:10px;background:rgba(22,226,126,.06)">
+      <b style="color:#16E27E">📐 Naya Level Engine · din ${day}/5</b>
+      <p class="hint" style="margin:4px 0 8px">${mine ? (mine.ok ? '👍 Is chart ka jawab darj.' : '👎 Is chart ka jawab darj.') : 'Is chart ke levels (jagah) se khush ho?'} Ab tak 👍 ${up} · 👎 ${dn}</p>
+      ${mine ? '' : `<div class="grid2"><button class="btn g sm" onclick="lvlFb(${d.at},1)">👍 Haan, achhe</button><button class="btn ghost sm" onclick="lvlFb(${d.at},0)">👎 Nahi</button></div>`}
+      <button class="btn ghost sm" style="margin-top:6px" onclick="lvlFb(0,'old')">↩ Purana tareeka (default) wapas</button></div>`;
+}
+function lvlToggle(k, el){
+  LVL[k] = !LVL[k];
+  if(k === 'on' && LVL.on){ LVL.decided = 0; LVL.start = 0; LVL.fb = [] }      /* dobara chalu = 5 din phir se */
+  el.classList.toggle('on', LVL[k]); lvlSave();
+  toast(k === 'on' ? (LVL.on ? '📐 Level Engine ON' : 'Level Engine OFF — purana tareeka') : (LVL.learn ? '📏 Seekhna ON' : 'Seekhna OFF'));
+}
+function lvlReset(){ if(!confirm('Seekha hua (pair-wise limit/stop sudhaar) mita du?')) return; LVL.adj = {}; lvlSave(); toast('Seekha hua reset') }
+
+function mtfPrompt(sym, live, R, g, specs, c, tails, lv){
   const sp = SPECS[sym], P = v => fmt(sym, v);
   const lang = aiLangWord() === 'English' ? 'simple plain English'
     : 'simple Hinglish (Hindi written in Roman/English letters, the way Indian traders talk)';
@@ -9792,7 +9960,10 @@ function mtfPrompt(sym, live, R, g, specs, c, tails){
       : 'near the range RESISTANCE (top), slightly inside the range so it can fill — never in the middle';
     else if(L.kind === 'LIMIT') how = `at the best PULLBACK level in the trend direction on 5m (5m EMA 21, last 5m swing ${L.dir === 'BUY' ? 'low' : 'high'}, or a broken level that flipped); use the 1m chart to fine-tune where buyers/sellers actually reacted`;
     else how = `just beyond the nearest real 5m ${L.dir === 'BUY' ? 'resistance / recent swing high' : 'support / recent swing low'} that price must break, with a small buffer so a real break triggers it and not a wick`;
-    return `LEG ${i + 1}: ${L.dir} ${L.kind} — entry must be ${where} the current price, ${how}.`;
+    const zc = lv && lv[i] && lv[i].cands.length
+      ? `\n   App-computed zones for this leg (strongest first) — PREFER one of these exact prices:\n` + lv[i].cands.map((x, k) => `     ${k + 1}) ${fmt(sym, x.entry)} — ${x.lab} (score ${x.score})`).join('\n')
+      : '';
+    return `LEG ${i + 1}: ${L.dir} ${L.kind} — entry must be ${where} the current price, ${how}.` + zc;
   }).join('\n');
   const rd = MTF_TFS.map(t => { const r = R[t.id];
     return `- ${t.l} (${t.role}): ${r.t} · EMA21 ${P(r.e21)} · EMA50 ${P(r.e50)} · ADX ${r.adx.toFixed(1)} · ATR ${P(r.atr)} · 32-bar range ${P(r.lo)}–${P(r.hi)}` }).join('\n');
@@ -10046,7 +10217,9 @@ async function autoAnalyze(){
       const k = {'1h':24, '15min':32, '5min':36, '1min':30}[s.tf.id];
       return `${s.tf.l}:\n` + s.bars.slice(-k).map(b => `${b.t} ${fmt(sym, b.o)} ${fmt(sym, b.h)} ${fmt(sym, b.l)} ${fmt(sym, b.c)}`).join('\n');
     }).join('\n\n');
-    const ai = await gVision(mtfPrompt(sym, live, R, g, specs, c, tails), url.split(',')[1], (m, wait) => {
+    let lv = null;
+    if(LVL.on){ try{ lv = lvlLegs(sym, sets, R, g, specs, c) }catch(e){ lv = null } }     /* v10.6.0 Level Engine */
+    const ai = await gVision(mtfPrompt(sym, live, R, g, specs, c, tails, lv), url.split(',')[1], (m, wait) => {
       box.innerHTML = `<img src="${url}" alt="" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);margin-bottom:10px"><p class="hint busyg"><span class="spin"></span> ` +
         (wait ? `Rate limit — ${wait}s ruk raha hoon (${m})` : `${m} se pooch raha hoon…`) + `</p>`;
     });
@@ -10058,6 +10231,7 @@ async function autoAnalyze(){
     d.mtf.legs = specs.map((L, i) => {
       const a = ai['leg' + (i + 1)] || {};
       const leg = Object.assign({}, L, {entry: +(+a.entry || 0).toFixed(sp.d), conf: Math.round(+a.confidence || 0), why: String(a.why || '').slice(0, 200)});
+      if(lv) lvlSnap(leg, lv[i], a15);
       const chk = String(ai.signal).toUpperCase() !== 'TRADE' ? {ok:false, why:'AI ne NO TRADE kaha'}
         : conf < c.minConf ? {ok:false, why:`Kul confidence ${conf}% — ${c.minConf}% se kam`}
         : mtfLegCheck(leg, c);
@@ -10065,6 +10239,8 @@ async function autoAnalyze(){
       return leg;
     });
     const good = d.mtf.legs.filter(L => L.ok);
+    d.mtf.lvl = !!lv; d.mtf.a5 = a5; d.mtf.a15 = a15;
+    if(lv && good.length && !LVL.start){ LVL.start = Date.now(); lvlSave() }
     if(good.length){
       d.signal = 'TRADE'; d.dir = good[0].dir; d.entry = good[0].entry;
       mtfLogAdd(d);
@@ -10119,6 +10295,7 @@ function mtfRender(box, d){
           <span class="gr" style="margin-left:auto">${L.conf}%</span></div>
         <input class="mono" id="mtfE${i}" type="number" inputmode="decimal" step="${sp.pip}" value="${fmt(sym, e)}" oninput="mtfEdit(${i})" style="padding:8px;font-size:14px;margin-top:6px">
         <p class="hint" id="mtfD${i}" style="margin:5px 0 0">—</p>
+        ${L.zone ? `<p class="hint" style="margin:4px 0 0;color:#16E27E">📐 Zone: ${escH(L.zone)}</p>` : ''}
         ${L.why ? `<p class="hint" style="margin:4px 0 0">${escH(L.why)}</p>` : ''}</div>`;
   }).join('');
   box.innerHTML = head + `<p class="hint" style="margin:0">${liveLine}</p>` + legHTML + `
@@ -10130,7 +10307,7 @@ function mtfRender(box, d){
       <button class="btn gold" onclick="mtfSend()">🚀 PERSONAL FX ko bhejo</button>
       <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
     </div>
-    <button class="btn g" style="width:100%;margin-top:8px" onclick="pfxJournal()">✓ Maine trade liya</button>`;
+    <button class="btn g" style="width:100%;margin-top:8px" onclick="pfxJournal()">✓ Maine trade liya</button>` + lvlAsk(d);
   M.legs.forEach((L, i) => { if(L.ok) mtfDist(i) });
 }
 
@@ -10210,7 +10387,8 @@ async function mtfSend(){
    ya −gap (averaging). Spread nahi gina — asli se thoda behtar dikhega. */
 function mtfLogAdd(d){
   const rec = {at: d.at, sym: d.sym, mode: d.mtf.mode, conf: d.mtf.conf, tp: d.mtf.tp, gap: d.mtf.gap,
-    legs: d.mtf.legs.filter(L => L.ok).map(L => ({dir: L.dir, kind: L.kind, entry: L.entry})), sent: false, res: null};
+    lvl: !!d.mtf.lvl, a5: d.mtf.a5 || 0, a15: d.mtf.a15 || 0,
+    legs: d.mtf.legs.filter(L => L.ok).map(L => ({dir: L.dir, kind: L.kind, entry: L.entry, zone: !!L.zone})), sent: false, res: null};
   S.mtfLog = [rec].concat((S.mtfLog || []).filter(x => x.at !== rec.at)).slice(0, 80);
   save(); mtfRcRender();
 }
@@ -10235,7 +10413,7 @@ async function mtfRcCheck(){
       r.res = mtfSim(r, bars); r.res.chk = Date.now(); done++;
     }catch(e){ logAdd('Report Card check fail: ' + (e.message || e)); }
   }
-  mtfRcBusy = false; save(); mtfRcRender();
+  mtfRcBusy = false; lvlLearn(); save(); mtfRcRender();
   toast(`${done} record check hue`);
 }
 function mtfRcRender(){
@@ -10259,9 +10437,17 @@ function mtfRcRender(){
       return `<div style="border-bottom:1px dashed var(--line);padding:7px 0;font-size:11.5px">
         <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.mode} · ${r.conf}%${r.sent ? ' · 🚀' : ''}</span>
           <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(r.at)}</span></div>
-        <div style="display:flex;gap:8px;margin-top:3px"><span class="mono">${lg}</span><b style="margin-left:auto;color:${t[1]};white-space:nowrap">${t[0]}</b></div></div>`;
-    }).join('') +
+        <div style="display:flex;gap:8px;margin-top:3px"><span class="mono">${lg}</span><b style="margin-left:auto;color:${t[1]};white-space:nowrap">${t[0]}</b></div>
+        ${r.res && r.res.maeA != null ? `<div style="color:var(--mut);margin-top:2px">${r.lvl ? '📐 ' : ''}Bharne ke baad ulta ${r.res.maeA}× ATR${r.res.flip ? ' · stop turant palta' : ''}${r.res.endAt && r.res.fillAt ? ' · ' + Math.round((r.res.endAt - r.res.fillAt) / 60000) + ' min me nateeja' : ''}</div>` : ''}</div>`;
+    }).join('') + lvlLearnTxt() +
     `<p class="hint" style="margin-top:8px">Hisaab: jo order pehle bhara, uske baad price pehle +$${S.pfxTp || 3} (TP) gaya ya −$${S.pfxGap || 5} (averaging) — per 0.01 lot. Ek hi candle me dono = averaging maana. Spread nahi gina.</p>`;
+}
+
+function lvlLearnTxt(){
+  const A = LVL.adj || {}, ks = Object.keys(A).filter(k => A[k].lim || A[k].stop);
+  const head = `<p class="hint" style="margin-top:8px">📏 Seekhna ${LVL.learn ? 'ON' : 'OFF'} · Level Engine ${LVL.on ? 'ON' : 'OFF'} — kisi pair pe 8+ bhare order ke baad hi sudhaar.</p>`;
+  if(!ks.length) return head;
+  return head + ks.map(k => `<p class="hint" style="margin:2px 0 0;color:#16E27E">📏 Seekha hua: ${SPECS[k] ? SPECS[k].n : k} — limit ${A[k].lim > 0 ? '+' + A[k].lim + ' ATR gehra' : A[k].lim < 0 ? A[k].lim + ' ATR paas' : 'wahi'}, stop ${A[k].stop > 0 ? '+' + A[k].stop + ' ATR door' : A[k].stop < 0 ? A[k].stop + ' ATR paas' : 'wahi'}</p>`).join('');
 }
 
 /* model ne jo naam bola use apne symbol pe map karo */
@@ -11299,6 +11485,7 @@ function boot(){
   loadPairDef(pickVal.minstop || 'XAU/USD');
   $('setGKey').value = S.gKey;
   $('setMtfConf').value = S.mtfConf; $('setPfxTp').value = S.pfxTp; $('setPfxGap').value = S.pfxGap;
+  $('swLvlOn').classList.toggle('on', !!LVL.on); $('swLvlLearn').classList.toggle('on', !!LVL.learn);
   $('swGAuto').classList.toggle('on', S.gAuto);
   $('gModelNote').innerHTML = S.gModel ? `<br>Model: <b class="mono">${S.gModel}</b>` : '';
   $('setFb').value = S.fbUrl; $('setFbAuth').value = S.fbAuth;
