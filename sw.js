@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.6.1 — Level Engine ka 'khush ho? (din X/5)' box hataya — engine + Settings switch wahi
    v10.6.0 — 📐 Level Engine: AUTO ANALYZE ke order ka bhaav pakke zone pe (swing/EMA/wapsi/round, STOP 15m asli swing + buffer), AI zones me se chunta hai; Report Card MAE/flip se seekhna; 5 din har chart pe 'khush ho?' + purana default switch
    v10.5.16 — Best Pair = AUTO ANALYZE ka hi faisla (extra range shart hata di): sirf trade wale pair dikhte hain (NO TRADE chhupe), trend me LIMIT + STOP, range me BUY + SELL LIMIT
    v10.5.15 — Best Pair: apni alag watchlist chips (Majors / EUR Cross / GBP Cross / AUD-NZD / CAD-CHF), ek group me se best pair
@@ -87,7 +88,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.6.0';
+const VERSION = '10.6.1';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
