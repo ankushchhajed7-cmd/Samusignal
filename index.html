@@ -2283,7 +2283,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.5.15';
+const VERSION = '10.5.16';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9864,38 +9864,48 @@ async function bpBars(sym, tf, note){
   return bars;
 }
 function bpScore(sym, b1h, b15){
+  /* v10.5.16: wahi faisla jo AUTO ANALYZE ka (mtfGate) — koi extra shart nahi. NONE = NO TRADE (chhupa). */
   const R = {'1h': mtfRead(b1h), '15min': mtfRead(b15)}, r = R['15min'];
   const live = b15[b15.length - 1].c, sp = SPECS[sym];
   const tp = dollarsToDist(sym, live, 0.01, +S.pfxTp || 3);
   const g = mtfGate(R, tp);
   const hi = r.hi, lo = r.lo, w = hi - lo, a = r.atr || w / 10 || sp.pip;
-  const buf = 0.15 * a;
-  const o = {sym, live, mode: g.mode, why: g.why, hi, lo, buy: lo + buf, sell: hi - buf, t1: R['1h'].t, t15: r.t, adx: +r.adx.toFixed(0), score: 0};
+  const o = {sym, live, mode: g.mode, why: g.why, hi, lo, t1: R['1h'].t, t15: r.t, adx: +r.adx.toFixed(0), score: 0, legs: []};
   const lastT = Date.parse(String(b15[b15.length - 1].t).replace(' ', 'T') + '+05:30');
   if(isFinite(lastT) && Date.now() - lastT > 90 * 60000) return Object.assign(o, {skip:'Market band / data purana'});
   const nw = newsRisk(sym);
   if(nw) return Object.assign(o, {skip:`News ka waqt (${nw.c} · ${nw.t})`});
   if(g.mode === 'NONE') return Object.assign(o, {skip: g.why});
-  const room = w / tp;
-  if(room < 2) return Object.assign(o, {skip:'Range bahut patli hai — TP tak jagah nahi'});
-  /* ank (100): jagah 20 · price beech me 20 · kinare chhue 20 · trend 25 · dono limit paas 15 */
-  const roomS = Math.min(1, (room - 2) / 4) * 20;
-  const pos = (live - lo) / w;
-  const centerS = Math.max(0, 1 - Math.abs(pos - 0.5) * 2) * 20;
-  const near = (live - o.buy) < 0.3 * a || (o.sell - live) < 0.3 * a;
-  const last = b15.slice(-32);
-  const lowT = last.filter(b => b.l <= lo + 0.25 * a).length, hiT = last.filter(b => b.h >= hi - 0.25 * a).length;
-  const touchS = (Math.min(lowT, 3) + Math.min(hiT, 3)) / 6 * 20;
-  const trendS = g.mode === 'RANGE' ? 25 : r.t === 'FLAT' ? 18 : R['1h'].t === 'FLAT' ? 10 : 6;
-  const reach = d => d <= 3 * a ? 7.5 : d >= 6 * a ? 0 : 7.5 * (6 * a - d) / (3 * a);   /* 60 min me pahunche */
-  const distS = reach(live - o.buy) + reach(o.sell - live);
-  let sc = roomS + centerS + touchS + trendS + distS;
-  if(r.adx > 35) sc -= 10;                       /* tez trend — ulti limit phans jaati hai */
-  if(near) sc *= 0.6;                            /* price ek kinare pe baitha */
+  const reach = d => d <= 3 * a ? 1 : d >= 6 * a ? 0 : (6 * a - d) / (3 * a);   /* 60 min me pahunche */
+  let sc;
+  if(g.mode === 'RANGE'){
+    /* dono kinare: neeche BUY LIMIT, upar SELL LIMIT */
+    const buf = 0.15 * a, buy = lo + buf, sell = hi - buf;
+    o.legs = [{dir:'SELL', kind:'LIMIT', px: sell}, {dir:'BUY', kind:'LIMIT', px: buy}];
+    const room = w / tp, pos = (live - lo) / w;
+    const last = b15.slice(-32);
+    const lowT = last.filter(b => b.l <= lo + 0.25 * a).length, hiT = last.filter(b => b.h >= hi - 0.25 * a).length;
+    const near = (live - buy) < 0.3 * a || (sell - live) < 0.3 * a;
+    sc = Math.min(1, (room - 2) / 4) * 20 + Math.max(0, 1 - Math.abs(pos - 0.5) * 2) * 20 +
+         (Math.min(lowT, 3) + Math.min(hiT, 3)) / 6 * 25 + 20 + (reach(live - buy) + reach(sell - live)) * 7.5;
+    if(near) sc *= 0.6;
+    o.note = `15m kinare ${fmt(sym, lo)} – ${fmt(sym, hi)} · neeche ${lowT}× / upar ${hiT}× chhua` + (near ? ' · ⚠ ek kinara bahut paas' : '');
+  } else {
+    /* trend: LIMIT pullback (15m EMA21) + STOP breakout (haal ka high/low) — AUTO ANALYZE jaisa */
+    const up = g.mode === 'UP', dir = up ? 'BUY' : 'SELL';
+    const ema = r.e21;
+    let lim = up ? Math.min(ema, live - 0.5 * a) : Math.max(ema, live + 0.5 * a);
+    const ext = up ? r.hi24 : r.lo24;
+    let stp = up ? Math.max(ext + 0.1 * a, live + 0.3 * a) : Math.min(ext - 0.1 * a, live - 0.3 * a);
+    o.legs = up ? [{dir, kind:'STOP', px: stp}, {dir, kind:'LIMIT', px: lim}] : [{dir, kind:'LIMIT', px: lim}, {dir, kind:'STOP', px: stp}];
+    const adxS = Math.max(0, Math.min(1, (r.adx - 18) / 17)) * 30;                 /* 15m ADX 18 → 35 */
+    const h1S = R['1h'].t === g.mode ? 25 : 15;                                   /* 1H bhi saath */
+    const stretch = Math.abs(live - ema) / a;                                      /* EMA se kitna door bhaaga */
+    const chaseS = stretch <= 1 ? 20 : stretch >= 3 ? 0 : 20 * (3 - stretch) / 2;
+    sc = adxS + h1S + chaseS + (reach(Math.abs(live - lim)) + reach(Math.abs(stp - live))) * 12.5;
+    o.note = `15m ADX ${o.adx} · 1H ${R['1h'].t} · EMA21 se ${stretch.toFixed(1)}× ATR door` + (stretch > 2 ? ' · ⚠ bahut bhaag chuka' : '');
+  }
   o.score = Math.max(1, Math.round(sc));
-  const far = Math.max(live - o.buy, o.sell - live) > 6 * a;
-  o.note = `15m kinare ${fmt(sym, lo)} – ${fmt(sym, hi)} · neeche ${lowT}× / upar ${hiT}× chhua` + (near ? ' · ⚠ ek kinara bahut paas' : '') + (far ? ' · ⚠ ek kinara bahut door' : '');
-  o.room = +room.toFixed(1);
   return o;
 }
 async function bestPair(){
@@ -9939,30 +9949,33 @@ function bpRender(){
   if((D.grp || 'wl1') !== BP.grp){ box.innerHTML = `<p class="hint" style="margin-top:10px">${escH(bpGrpName())} ka result abhi nahi — <b>BEST PAIR DHUNDHO</b> dabao.</p>`; $('bpT').textContent = '—'; return }
   if(Date.now() - D.at > BP_TTL){ box.innerHTML = '<p class="hint" style="margin-top:10px">Pichhla result 5 min se purana — dobara dhundho.</p>'; $('bpT').textContent = 'purana'; return }
   $('bpT').innerHTML = `<span data-ago="${D.at}">${ago(D.at)}</span>`;
-  const best = D.rows.find(r => r.score > 0);
-  const others = D.rows.filter(r => r !== best).map(r => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--line)">
-      <b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : escH(r.sym)}</b><span style="color:var(--mut);text-align:right">${r.score > 0 ? 'score ' + r.score : escH(r.skip || '—')}</span></div>`).join('');
-  if(!best){
-    box.innerHTML = `<p class="hint busyg" style="margin-top:10px">🧮 Abhi ${escH(WL_SETS[D.grp || 'wl1'] || 'is group')} me koi pair theek nahi — thodi der baad dobara dhundho ya dusra group chuno.</p>${others}`;
+  const T = D.rows.filter(r => r.score > 0), N = D.rows.filter(r => !(r.score > 0));
+  const hidden = N.length ? `<details style="margin-top:10px"><summary class="small" style="color:var(--mut);cursor:pointer">${N.length} pair NO TRADE — chhupaye ▸</summary>${N.map(r => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--line)">
+      <b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : escH(r.sym)}</b><span style="color:var(--mut);text-align:right">${escH(r.skip || '—')}</span></div>`).join('')}</details>` : '';
+  if(!T.length){
+    box.innerHTML = `<p class="hint busyg" style="margin-top:10px">🧮 Abhi ${escH(WL_SETS[D.grp || 'wl1'] || 'is group')} me kisi pair pe trade nahi — thodi der baad dobara dhundho ya dusra group chuno.</p>${hidden}`;
     return;
   }
-  const sp = SPECS[best.sym], pips = d => (Math.abs(d) / sp.pip).toFixed(1);
-  const withT = best.mode === 'UP' ? 'BUY' : best.mode === 'DOWN' ? 'SELL' : '';
-  const leg = (dir, px, side) => `<div style="display:flex;align-items:center;gap:8px;border:1px solid ${dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};border-radius:10px;padding:9px 12px;margin-top:8px">
-      <b style="color:${dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};letter-spacing:.5px;white-space:nowrap">${dir} LIMIT</b>
-      <b class="mono" style="font-size:16px">~${fmt(best.sym, px)}</b>
-      <small style="margin-left:auto;color:var(--mut)">${pips(px - best.live)} pips ${side}${withT && withT !== dir ? ' · ⚠ trend ke khilaaf' : withT ? ' · ✓ trend ke saath' : ''}</small></div>`;
-  box.innerHTML = `<div style="margin-top:12px;border:2px solid var(--gold);border-radius:12px;padding:12px">
-      <div style="display:flex;align-items:center;gap:8px"><b class="shine gd" style="font-size:18px;letter-spacing:1px">🏆 ${sp.n}</b>
-        <small style="margin-left:auto;color:var(--mut);text-align:right">${escH(WL_SETS[D.grp || 'wl1'] || '')} · ${D.n} me se #1 · score ${best.score}<br>
-          <b style="color:${best.score >= 60 ? 'var(--up)' : best.score >= 40 ? 'var(--gold)' : 'var(--dn)'}">${best.score >= 60 ? 'ACHHA' : best.score >= 40 ? 'THEEK' : 'KAMZOR — dhyan se'}</b></small></div>
-      <p class="hint" style="margin:6px 0 0">Live ${fmt(best.sym, best.live)} · 1H ${best.t1} · 15m ${best.t15} · ADX ${best.adx}</p>
-      ${leg('SELL', best.sell, 'upar')}${leg('BUY', best.buy, 'neeche')}
-      <p class="hint busyg" style="margin:10px 0 0">🧮 ${escH(best.why)} · ${escH(best.note || '')}</p>
-      <p class="hint" style="margin:6px 0 0">Ye bhaav sirf <b>andaza</b> (15m ke kinare) hain — asli order AUTO ANALYZE se niklega.</p>
-      <button class="btn bpGo" style="margin-top:10px" onclick="bpGo('${best.sym}')">📸 IS PAIR PE AUTO ANALYZE</button>
-    </div>
-    ${others ? `<p class="small" style="color:var(--mut);margin:12px 0 4px">Baaki pair kyon nahi</p>${others}` : ''}`;
+  const MODE = {UP:['↑ UPTREND','var(--up)'], DOWN:['↓ DOWNTREND','var(--dn)'], RANGE:['⇅ RANGE','var(--gold)']};
+  const card = (r, i) => {
+    const sp = SPECS[r.sym], pips = d => (Math.abs(d) / sp.pip).toFixed(1), m = MODE[r.mode] || ['—','var(--mut)'];
+    const lab = r.score >= 60 ? ['ACHHA','var(--up)'] : r.score >= 40 ? ['THEEK','var(--gold)'] : ['KAMZOR','var(--dn)'];
+    const leg = L => `<div style="display:flex;align-items:center;gap:8px;border:1px solid ${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};border-radius:9px;padding:7px 10px;margin-top:6px">
+        <b style="color:${L.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'};white-space:nowrap;font-size:13px">${L.dir} ${L.kind}</b>
+        <b class="mono">~${fmt(r.sym, L.px)}</b>
+        <small style="margin-left:auto;color:var(--mut);white-space:nowrap">${pips(L.px - r.live)} pips ${L.px > r.live ? 'upar' : 'neeche'}</small></div>`;
+    return `<div style="margin-top:12px;border:${i ? '1px solid var(--line)' : '2px solid var(--gold)'};border-radius:12px;padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <b class="${i ? '' : 'shine gd'}" style="font-size:${i ? 16 : 18}px;letter-spacing:1px">${i ? (i + 1) + ')' : '🏆'} ${sp.n}</b>
+        <b style="color:${m[1]};font-size:12px;letter-spacing:.5px">${m[0]}</b>
+        <small style="margin-left:auto;text-align:right;color:var(--mut)">score ${r.score} · <b style="color:${lab[1]}">${lab[0]}</b></small></div>
+      ${r.legs.map(leg).join('')}
+      <p class="hint busyg" style="margin:8px 0 0">🧮 ${escH(r.why)} · ${escH(r.note || '')}</p>
+      <button class="btn bpGo" style="margin-top:8px" onclick="bpGo('${r.sym}')">📸 ${i ? '' : 'IS PAIR PE '}AUTO ANALYZE</button></div>`;
+  };
+  box.innerHTML = `<p class="small" style="color:var(--mut);margin:10px 0 0">${escH(WL_SETS[D.grp || 'wl1'] || '')} · ${D.n} me se <b style="color:var(--up)">${T.length} pair me trade</b></p>
+    ${T.map(card).join('')}
+    <p class="hint" style="margin:8px 0 0">Bhaav sirf <b>andaza</b> — asli order AUTO ANALYZE se (wo 5m/1m + AI bhi dekhta hai, kabhi NO TRADE bhi de sakta hai).</p>${hidden}`;
 }
 function bpGo(sym){
   if(!SPECS[sym]) return;
