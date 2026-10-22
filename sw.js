@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.5.16 — Best Pair = AUTO ANALYZE ka hi faisla (extra range shart hata di): sirf trade wale pair dikhte hain (NO TRADE chhupe), trend me LIMIT + STOP, range me BUY + SELL LIMIT
    v10.5.15 — Best Pair: apni alag watchlist chips (Majors / EUR Cross / GBP Cross / AUD-NZD / CAD-CHF), ek group me se best pair
    v10.5.14 — Best Pair: 'IS PAIR PE AUTO ANALYZE' button hara chamak (AUTO ANALYZE jaisa)
    v10.5.13 — Chart Analysis: '🏆 BEST PAIR DHUNDHO' — watchlist (Gold/BTC chhod ke) me se ek best pair + BUY/SELL LIMIT andaza, 'Is pair pe AUTO ANALYZE' button
@@ -85,7 +86,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.5.15';
+const VERSION = '10.5.16';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
