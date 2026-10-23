@@ -2288,7 +2288,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.6.4';
+const VERSION = '10.6.5';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -10392,6 +10392,33 @@ function mtfLogSent(d, legs){
   r.sent = true; r.legs = legs.map(L => ({dir: L.dir, kind: L.kind, entry: +L.e}));
   save(); mtfRcRender();
 }
+/* v10.6.5: IST ke hisaab se session — Asia 2:30–12:30, London 12:30–18:30, NY 18:30–2:30 (andaza, DST ka farq ~1 ghanta) */
+function mtfSess(at){
+  const m = (Math.floor((at + 330 * 60000) / 60000) % 1440 + 1440) % 1440;
+  return m >= 150 && m < 750 ? 'Asia' : m >= 750 && m < 1110 ? 'London' : 'New York';
+}
+/* v10.6.5 (S3): pair aur session ke hisaab se +TP pehle — kis pair/waqt pe AUTO ANALYZE achha chalta hai */
+function mtfRcSplit(L){
+  const done = L.filter(r => r.res && (r.res.r === 'WIN' || r.res.r === 'AVG'));
+  if(!done.length) return '';
+  const grp = key => {
+    const o = {};
+    done.forEach(r => { const k = key(r), x = o[k] || (o[k] = {w: 0, n: 0}); x.n++; if(r.res.r === 'WIN') x.w++ });
+    return Object.keys(o).map(k => Object.assign({k}, o[k])).sort((a, b) => b.n - a.n || b.w / b.n - a.w / a.n);
+  };
+  const row = x => {
+    const p = Math.round(x.w / x.n * 100), few = x.n < 3, col = few ? 'var(--mut)' : p >= 60 ? 'var(--up)' : p >= 45 ? 'var(--gold)' : 'var(--dn)';
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;padding:3px 0">
+      <b class="mono" style="min-width:74px">${escH(x.k)}</b>
+      <span style="flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden"><span style="display:block;height:100%;width:${p}%;background:${col}"></span></span>
+      <b style="color:${col};min-width:34px;text-align:right">${p}%</b><small style="color:var(--mut);min-width:34px;text-align:right">${x.w}/${x.n}</small></div>`;
+  };
+  return `<details open style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0 0 8px">
+    <summary class="small" style="cursor:pointer;font-weight:700">📊 Pair / session hisaab · +TP pehle</summary>
+    <p class="small" style="margin:8px 0 2px;color:var(--mut)">PAIR</p>${grp(r => SPECS[r.sym] ? SPECS[r.sym].n : r.sym).map(row).join('')}
+    <p class="small" style="margin:8px 0 2px;color:var(--mut)">SESSION (IST)</p>${grp(r => mtfSess(r.at)).map(row).join('')}
+    <p class="hint" style="margin:6px 0 0">Sirf check hue records (✓ +TP / ✗ averaging). 3 se kam record = grey, abhi bharosa mat karo. Session: Asia 2:30–12:30 · London 12:30–6:30 pm · NY 6:30 pm–2:30.</p></details>`;
+}
 let mtfRcBusy = false;
 async function mtfRcCheck(){
   if(mtfRcBusy) return;
@@ -10427,7 +10454,7 @@ function mtfRcRender(){
       <div style="border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center"><b style="font-size:20px;color:${pct === null ? 'var(--mut)' : pct >= 60 ? 'var(--up)' : 'var(--dn)'}">${pct === null ? '—' : pct + '%'}</b><br><small>+TP pehle (${W}/${W + A})</small></div>
       <div style="border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;line-height:1.7"><small>✓ ${W} · ✗ ${A} · bhara nahi ${NF} · baaki ${O}</small><br><small>Bheje gaye: ${sentOnly.length ? sW + '/' + sentOnly.length : '—'}</small></div>
     </div>
-    <p class="hint" style="margin:0 0 8px">⚠ tag wale +TP pehle: <b>${wr(r => r.warn > 0)}</b> · bina tag: <b>${wr(r => !(r.warn > 0))}</b></p>
+    <p class="hint" style="margin:0 0 8px">⚠ tag wale +TP pehle: <b>${wr(r => r.warn > 0)}</b> · bina tag: <b>${wr(r => !(r.warn > 0))}</b></p>${mtfRcSplit(L)}
     <button class="btn ghost sm" onclick="mtfRcCheck()" ${mtfRcBusy ? 'disabled' : ''}>${mtfRcBusy ? '<span class="spin"></span> check ho raha hai…' : '🔎 RESULT CHECK · 1 credit / record (max 4)'}</button>` +
     L.slice(0, 12).map(r => {
       const t = r.res ? tag[r.res.r] : tag.OPEN;
