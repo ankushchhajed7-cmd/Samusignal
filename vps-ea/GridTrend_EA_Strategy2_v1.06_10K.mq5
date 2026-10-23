@@ -1,5 +1,13 @@
 //+------------------------------------------------------------------+
-//|            GridTrend_EA_Strategy2.mq5   v1.06 (10K)              |
+//|            GridTrend_EA_Strategy2.mq5   v1.07 (10K)              |
+//|  v1.07 10K: TREND PROTECTION — 2 naye rule, dono OFF by default  |
+//|   (OFF rehne tak EA bilkul v1.06 jaisa chalta hai):              |
+//|   - H4 TREND FILTER: kisi side ka PEHLA trade sirf tab jab H4    |
+//|     Supertrend usi taraf ho. DD flip wali hedge side allowed.    |
+//|   - PROFIT RECYCLING: ek side frozen + loss >= trigger + H4      |
+//|     active side ke saath → active side ka booked profit "bank"   |
+//|     mein; bank se frozen side ke sabse saste trades band.         |
+//|   File naam v1.06_10K hi rakha (VPS Helper isi EA ko update kare)|
 //|  v1.06 10K: Strategy 2 (30K) ke saath same account/VPS pe clash   |
 //|   na ho, aur 10K ke hisaab se flip chhota (settings only, logic   |
 //|   v1.05 jaisa hi):                                                |
@@ -126,7 +134,7 @@
 //|  v3.04 FIX: Global-basket baseline BALANCE-anchored + float guard |
 //+------------------------------------------------------------------+
 #property copyright "GridTrend S2 v1.06 10K"
-#property version   "1.06"
+#property version   "1.07"
 #property strict
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
@@ -257,6 +265,12 @@ input int  Trade_End_Hour      = 17;     // Is IST hour ke baad naya cycle nahi 
 input group "══ DAILY PROFIT TARGET (10K) ══"
 input bool   Enable_DailyTarget = true;  // ON = din ka profit target hit → sab trades band, agle din Trade_Start_Hour (7 AM IST) tak trading stop
 input double Daily_Target_Pct   = 1.0;   // Din shuru (7 AM IST) hone pe jo balance tha uska itna % = daily target (10000 → 100)
+input group "══ TREND PROTECTION (v1.07, OFF by default) ══"
+input bool            Enable_H4_Filter        = false;     // ON = kisi side ka PEHLA trade sirf jab H4 Supertrend usi taraf ho (DD flip hedge allowed)
+input ENUM_TIMEFRAMES H4_Filter_TF            = PERIOD_H4; // Bada trend kis timeframe se dekhna hai
+input bool            Enable_ProfitRecycle    = false;     // ON = active side ka booked profit se frozen side ke saste trades band
+input double          Recycle_Trigger_Dollars = 150.0;     // Frozen side ka loss itna ho tabhi recycling (account currency)
+input bool            Recycle_Need_H4         = true;      // Recycling sirf jab H4 trend active side ke saath ho
 input group "══ NOTIFICATIONS ══"
 input bool   Enable_PushNotify  = true;    // ON = MT5 mobile app pe push notification alerts milenge
 input bool   Enable_Telegram    = false;   // ON = Telegram alerts (abhi placeholder — actual sending implement nahi hai)
@@ -289,6 +303,10 @@ bool     g_dailyLocked=false;  // 10K: aaj ka daily target hit ho chuka
 int      g_lastSig=0, g_lastSTDir=0;
 int      g_pendingSig=0, g_pendingCount=0;   // whipsaw confirmation
 int      atrHandle=INVALID_HANDLE;
+int      atrHandleH4=INVALID_HANDLE;   // v1.07: H4 trend filter / recycling
+int      g_flipAllowDir=0;             // v1.07: DD flip ki hedge side — uska pehla trade H4 filter se mukt
+bool     g_h4BlockLogged=false;
+double   g_recycleBank=0;              // v1.07: frozen side band karne ke liye jama profit
 datetime g_lastOpenTime=0;
 datetime g_lastH1=0;
 datetime g_lastM1=0;
@@ -970,7 +988,8 @@ void UpdateDB()
    double worstSide=MathMin(bSideDD,sSideDD);
    string ddMsg=DRow("Side DD")+"B$"+DoubleToString(bSideDD,0)+" S$"+DoubleToString(sSideDD,0)+
                 "  F"+IntegerToString(g_flipCount)+"/"+IntegerToString(DD_Flip_Max_Per_Cycle)+
-                (g_ddFrozenDir!=0?((g_ddFrozenDir==1)?" [B frz]":" [S frz]"):"");
+                (g_ddFrozenDir!=0?((g_ddFrozenDir==1)?" [B frz]":" [S frz]"):"")+
+                (Enable_ProfitRecycle&&g_recycleBank>0?(" R$"+DoubleToString(g_recycleBank,0)):"");
    color ddSts=(worstSide<=-DD_Flip_Dollars*0.75)?CL_RED:(worstSide<=-DD_Flip_Dollars*0.5)?CL_AMBER:CL_DIM;
    UpdateDBLine(R_DD_STS,ddMsg,ddSts,BG_MID);
    bool nw=IsNews();
@@ -1098,6 +1117,86 @@ int GetST()
    return g_lastSTDir;
 }
 
+// v1.07: kisi bhi TF ka Supertrend — GetST jaisa hi formula, par g_lastSTDir nahi chhoota.
+// Data tayyar na ho to 0 (filter us waqt kuch nahi rokta).
+int GetSTDirTF(ENUM_TIMEFRAMES tf,int handle)
+{
+   if(handle==INVALID_HANDLE) return 0;
+   int bars=ST_Period+100;
+   double aB[],hi[],lo[],cl[];
+   ArraySetAsSeries(aB,true);ArraySetAsSeries(hi,true);ArraySetAsSeries(lo,true);ArraySetAsSeries(cl,true);
+   if(CopyBuffer(handle,0,1,bars,aB)<bars) return 0;
+   if(CopyHigh(_Symbol,tf,1,bars,hi)<bars) return 0;
+   if(CopyLow(_Symbol,tf,1,bars,lo)<bars) return 0;
+   if(CopyClose(_Symbol,tf,1,bars,cl)<bars) return 0;
+   double pU=0,pD=0; int tr=-1;
+   for(int i=bars-1;i>=0;i--)
+   {
+      double hl=(hi[i]+lo[i])/2;
+      double bU=hl+ST_Multiplier*aB[i],bD=hl-ST_Multiplier*aB[i];
+      double fU,fD;
+      if(i==bars-1){fU=bU;fD=bD;}
+      else{fD=(bD>pD||cl[i+1]<pD)?bD:pD;fU=(bU<pU||cl[i+1]>pU)?bU:pU;}
+      tr=(tr==-1)?((cl[i]>fU)?1:-1):((cl[i]<fD)?-1:1);
+      pU=fU;pD=fD;
+   }
+   return tr;
+}
+
+// v1.07: H4 direction, har naye H4 bar pe hi dobara calculate
+int GetH4Dir()
+{
+   static datetime lastBar=0; static int dir=0;
+   datetime b=iTime(_Symbol,H4_Filter_TF,0);
+   if(b!=lastBar || dir==0){ int d=GetSTDirTF(H4_Filter_TF,atrHandleH4); if(d!=0){ dir=d; lastBar=b; } }
+   return dir;
+}
+
+bool IsFrozenSide(int dir){ return (dir==1)?buyFrozen:sellFrozen; }
+
+// v1.07: recycling chalu hone ki shart — active side ke saamne frozen side loss mein
+bool RecycleActive()
+{
+   if(!Enable_ProfitRecycle || g_lastSig==0) return false;
+   int f=-g_lastSig;
+   if(CountTrades(f)==0 || !IsFrozenSide(f)) return false;
+   if(GetNetPnL(f)>-Recycle_Trigger_Dollars) return false;
+   if(Recycle_Need_H4 && GetH4Dir()!=g_lastSig) return false;
+   return true;
+}
+
+// v1.07: bank se frozen side ka sabse sasta (har lot pe sabse kam loss) trade band. Ek tick mein ek.
+// Frozen side ka aakhri trade nahi chhoota — woh basket TP / global pe band hoga.
+void ProcessRecycle()
+{
+   if(!Enable_ProfitRecycle) return;
+   if(g_lastSig==0){ g_recycleBank=0; return; }
+   int f=-g_lastSig;
+   // bank sirf usi frozen side ke liye — side badli to purana bank khatam
+   static int bankSide=0;
+   if(bankSide!=0 && bankSide!=f && g_recycleBank!=0){ g_recycleBank=0; GlobalVariableSet(DayGV("rbank"),0); }
+   bankSide=f;
+   if(CountTrades(f)==0){ if(g_recycleBank!=0){ g_recycleBank=0; GlobalVariableSet(DayGV("rbank"),0); } return; }
+   if(g_recycleBank<=0 || !IsFrozenSide(f) || CountTrades(f)<2 || IsClosePending(f)) return;
+   ulong best=0; double bestPerLot=-1e18, bestLoss=0;
+   for(int i=PositionsTotal()-1;i>=0;i--)
+   {
+      if(!pos.SelectByIndex(i)) continue;
+      if(pos.Symbol()!=_Symbol||pos.Magic()!=Magic_Number) continue;
+      bool m=(f==1&&pos.PositionType()==POSITION_TYPE_BUY)||(f==-1&&pos.PositionType()==POSITION_TYPE_SELL);
+      if(!m||pos.Volume()<=0) continue;
+      double pl=pos.Profit()+pos.Swap();
+      double perLot=pl/pos.Volume();
+      if(perLot>bestPerLot){ bestPerLot=perLot; best=pos.Ticket(); bestLoss=-pl; }
+   }
+   if(best==0 || bestLoss<=0 || bestLoss>g_recycleBank) return;
+   if(!TradeRequestAccepted(trade.PositionClose(best),"RECYCLE CLOSE")) return;
+   g_recycleBank-=bestLoss;
+   GlobalVariableSet(DayGV("rbank"),g_recycleBank);
+   SendAlert("RECYCLE: "+(f==1?"BUY":"SELL")+" #"+IntegerToString((long)best)+" band, loss $"+DoubleToString(bestLoss,2)+
+             " bank se cover. Bank baaki $"+DoubleToString(g_recycleBank,2));
+}
+
 bool IsNews()
 {
    if(!Enable_News) return false;
@@ -1183,6 +1282,7 @@ void CheckDDFlip()
    if(loseDir==0) return;
 
    int newDir=-loseDir;
+   g_flipAllowDir=newDir;   // v1.07: hedge side ka pehla trade H4 filter se mukt (retry bhi)
    g_flipCount++;
    g_lastFlipTime=TimeCurrent();
    g_ddFrozenDir=loseDir;
@@ -1454,6 +1554,16 @@ void OpenTrade(int dir,double forceLot=0)
    if(Enable_TotalDD_Limit && GetCurrentDD_Dollar()>=Total_DD_Dollar_Limit) return;   // v3.12 — ab yehi single DD gate hai
    int idx=CountTrades(dir);
    if(IsWeekendBlock()&&idx==0) return;
+   // v1.07: H4 TREND FILTER — side ka pehla trade H4 ke khilaaf nahi (DD flip hedge chhoot)
+   if(Enable_H4_Filter && idx==0 && dir!=g_flipAllowDir)
+   {
+      int h4=GetH4Dir();
+      if(h4==-dir)
+      {
+         if(!g_h4BlockLogged){ Print("H4 FILTER: ",(dir==1?"BUY":"SELL")," cycle ruka — H4 trend ",(h4==1?"UP":"DOWN")); g_h4BlockLogged=true; }
+         return;
+      }
+   }
    if(IsOutsideHours() && CountTrades(1)+CountTrades(-1)==0) return;   // 10K: 5 PM-7 AM naya cycle nahi
    if(IsNews()) return;
    int max=GetMaxTrades();
@@ -2441,6 +2551,13 @@ int OnInit()
    ArrayCopy(lotArr,l);
    atrHandle=iATR(_Symbol,Filter_TF,ST_Period);
    if(atrHandle==INVALID_HANDLE) return INIT_FAILED;
+   // v1.07: H4 handle sirf jab koi trend-protection rule ON ho
+   if(Enable_H4_Filter || (Enable_ProfitRecycle && Recycle_Need_H4))
+   {
+      atrHandleH4=iATR(_Symbol,H4_Filter_TF,ST_Period);
+      if(atrHandleH4==INVALID_HANDLE) return INIT_FAILED;
+   }
+   if(Enable_ProfitRecycle && GlobalVariableCheck(DayGV("rbank"))) g_recycleBank=GlobalVariableGet(DayGV("rbank"));
    g_lastH1=iTime(_Symbol,Filter_TF,0);
    g_lastM1=iTime(_Symbol,PERIOD_M1,0);
    LoadEAState();
@@ -2523,6 +2640,7 @@ void OnDeinit(const int reason)
 {
    EventKillTimer();   // v1.03 bridge timer
    if(atrHandle!=INVALID_HANDLE) IndicatorRelease(atrHandle);
+   if(atrHandleH4!=INVALID_HANDLE){ IndicatorRelease(atrHandleH4); atrHandleH4=INVALID_HANDLE; }
    SaveEAState();
    ClearDB();
    ClearHistoryPanel();
@@ -2545,6 +2663,23 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    if(trans.type!=TRADE_TRANSACTION_DEAL_ADD) return;
    if(!HistoryDealSelect(trans.deal)) return;
    long dealType=HistoryDealGetInteger(trans.deal,DEAL_TYPE);
+   // v1.07: PROFIT RECYCLING — active side ka band hua trade (broker TP ya EA close) profit mein,
+   // aur frozen side loss mein → woh profit bank mein
+   if(Enable_ProfitRecycle && (dealType==DEAL_TYPE_BUY || dealType==DEAL_TYPE_SELL)
+      && HistoryDealGetInteger(trans.deal,DEAL_ENTRY)==DEAL_ENTRY_OUT
+      && HistoryDealGetInteger(trans.deal,DEAL_MAGIC)==Magic_Number
+      && HistoryDealGetString(trans.deal,DEAL_SYMBOL)==_Symbol)
+   {
+      int closedDir=(dealType==DEAL_TYPE_SELL)?1:-1;   // BUY position SELL deal se band hoti hai
+      double net=HistoryDealGetDouble(trans.deal,DEAL_PROFIT)+HistoryDealGetDouble(trans.deal,DEAL_SWAP)
+                +HistoryDealGetDouble(trans.deal,DEAL_COMMISSION);
+      if(closedDir==g_lastSig && net>0 && RecycleActive())
+      {
+         g_recycleBank+=net;
+         GlobalVariableSet(DayGV("rbank"),g_recycleBank);
+      }
+      return;
+   }
    if(dealType!=DEAL_TYPE_BALANCE) return;   // sirf deposit/withdrawal/credit deals — trading deals nahi
    // v3.22 FIX: EA/backtest start ke turant baad (~5 sec) wala balance-deal IGNORE karo — yeh
    // initial deposit ka apna record hai (jo OnInit mein already cycleStartBal ban chuka hai),
@@ -2568,6 +2703,10 @@ void OnTick()
    RetryPendingCloses();  // v1.05: pichla fail hua close dobara try
    CheckVolatilitySpike();   // v3.16: sudden $ spike detect karke naya trade temporarily block karo
    CheckDDFlip();   // S2: per-side DD limit cross ho to us side freeze + opposite grid start
+   // v1.07: flip hedge chhoot sirf jab tak woh side khul na jaye / signal badal na jaye
+   if(g_flipAllowDir!=0 && (CountTrades(g_flipAllowDir)>0 || g_lastSig!=g_flipAllowDir)) g_flipAllowDir=0;
+   if(g_lastSig!=0 && CountTrades(g_lastSig)>0) g_h4BlockLogged=false;
+   ProcessRecycle();   // v1.07: bank se frozen side ke saste trades band (OFF by default)
    CheckProfitTarget();
    FetchNextNewsEvents();
    if(TimeCurrent()-g_lastStateSave>=3600) SaveEAState();
