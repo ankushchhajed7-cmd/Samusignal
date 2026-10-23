@@ -2288,7 +2288,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.6.1';
+const VERSION = '10.6.2';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9629,6 +9629,8 @@ const MTF_TFS = [
   {id:'1min',  l:'1m',  n:120, show:72, role:'timing'}
 ];
 const MTF_ADX_RANGE = 22;      /* 15m ADX isse kam + 1H flat = range */
+const MTF_REST_ADX = 25;       /* v10.6.2: 15m FLAT tabhi 'rest' jab ADX isse kam — upar = trend palat raha */
+const MTF_LTF_ADX = 30;        /* v10.6.2: 5m ulta + ADX isse upar + 1m bhi ulta = chhote TF virodh -> NO TRADE */
 const MTF_ADX_TREND = 18;      /* isse kam ADX = trend kamzor, FLAT maano (chop me trend ka dhokha) */
 const MTF_CONF_DEF = 65;       /* v10.4.1: isse kam setup-quality = NO TRADE (ek leg ke liye 10 kam chalega) */
 let mtfBusy = false;
@@ -9655,6 +9657,16 @@ function mtfGate(R, tpDist){
   const ar = x => x === 'UP' ? '↑' : x === 'DOWN' ? '↓' : '→';
   if(m !== 'FLAT' && h !== 'FLAT' && m !== h)
     return {mode:'NONE', why:`15m ${ar(m)} aur 1H ${ar(h)} ulte chal rahe hain — aise me trade nahi`};
+  /* v10.6.2 (1): 15m FLAT par ADX tez = ruka nahi, trend palat raha (V-reversal) — 1H ki taraf trade nahi */
+  if(m === 'FLAT' && h !== 'FLAT' && r15.adx >= MTF_REST_ADX)
+    return {mode:'NONE', why:`15m me tez chaal (ADX ${r15.adx.toFixed(0)}) par EMA nahi palti — trend badal raha hai, abhi trade nahi`};
+  /* v10.6.2 (2): 5m aur 1m dono ulti disha me (5m tez) — chhote TF virodh me (sirf jab 5m/1m data ho, jaise AUTO ANALYZE) */
+  const dirNow = m !== 'FLAT' ? m : h;
+  if(dirNow !== 'FLAT' && R['5min'] && R['1min']){
+    const opp = dirNow === 'UP' ? 'DOWN' : 'UP', r5 = R['5min'];
+    if(r5.t === opp && r5.adx >= MTF_LTF_ADX && R['1min'].t === opp)
+      return {mode:'NONE', why:`${dirNow === 'UP' ? '15m/1H upar' : '15m/1H neeche'} par 5m ${ar(opp)} (ADX ${r5.adx.toFixed(0)}) aur 1m ${ar(opp)} ulte tez — chhote TF virodh me, abhi trade nahi`};
+  }
   if(m === 'UP' || (m === 'FLAT' && h === 'UP'))
     return {mode:'UP', why: m === 'UP' ? `15m uptrend, 1H ${h === 'UP' ? 'bhi upar' : 'khilaaf nahi'}` : '1H uptrend, 15m ruka hua (rest) — upar ki taraf'};
   if(m === 'DOWN' || (m === 'FLAT' && h === 'DOWN'))
