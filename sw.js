@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.6.5 — Report Card: pair aur session (Asia/London/NY, IST) ke hisaab se +TP pehle %
    v10.6.4 — AUTO ANALYZE card pe sirf ⚠ chetavni tag (15m tez chaal / 5m+1m ulte) — order block nahi; Report Card me ⚠ vs bina ⚠ hisaab
    v10.6.3 — v10.6.2 wale 2 NO TRADE niyam hataye (user: v10.6.1 jaisa hi rakho) — Level Engine wahi
    v10.6.2 — AUTO ANALYZE niyam: 15m FLAT + ADX 25+ = trend palat raha (NO TRADE); 5m (ADX 30+) aur 1m dono ulte = NO TRADE. Best Pair pe niyam 1 bhi
@@ -91,7 +92,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.6.4';
+const VERSION = '10.6.5';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
