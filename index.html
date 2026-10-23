@@ -2288,7 +2288,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.6.3';
+const VERSION = '10.6.4';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9629,6 +9629,8 @@ const MTF_TFS = [
   {id:'1min',  l:'1m',  n:120, show:72, role:'timing'}
 ];
 const MTF_ADX_RANGE = 22;      /* 15m ADX isse kam + 1H flat = range */
+const MTF_WARN_ADX15 = 25;    /* v10.6.4: 15m FLAT par ADX isse upar = sirf ⚠ tag (block nahi) */
+const MTF_WARN_ADX5 = 30;     /* v10.6.4: 5m ulta + ADX isse upar + 1m ulta = sirf ⚠ tag */
 const MTF_ADX_TREND = 18;      /* isse kam ADX = trend kamzor, FLAT maano (chop me trend ka dhokha) */
 const MTF_CONF_DEF = 65;       /* v10.4.1: isse kam setup-quality = NO TRADE (ek leg ke liye 10 kam chalega) */
 let mtfBusy = false;
@@ -9666,6 +9668,19 @@ function mtfGate(R, tpDist){
   return {mode:'NONE', why: r15.adx >= MTF_ADX_RANGE
     ? `Trend saaf nahi aur range bhi nahi (15m ADX ${r15.adx.toFixed(0)}) — gadbad market`
     : 'Range bahut patli hai — TP tak jagah nahi'};
+}
+
+/* v10.6.4: sirf jaankari — order wahi rehte hain, bas card pe peela ⚠ tag. User khud dekh ke faisla kare. */
+function mtfWarn(R, g){
+  const w = [], h = R['1h'].t, r15 = R['15min'], r5 = R['5min'], r1 = R['1min'];
+  if(g.mode !== 'UP' && g.mode !== 'DOWN') return w;
+  const ar = x => x === 'UP' ? '↑' : '↓';
+  if(r15.t === 'FLAT' && h !== 'FLAT' && r15.adx >= MTF_WARN_ADX15)
+    w.push(`15m tez chaal (ADX ${r15.adx.toFixed(0)}) par EMA nahi palti — trend badal sakta hai`);
+  const opp = g.mode === 'UP' ? 'DOWN' : 'UP';
+  if(r5 && r1 && r5.t === opp && r5.adx >= MTF_WARN_ADX5 && r1.t === opp)
+    w.push(`chhote TF ulte — 5m ${ar(opp)} (ADX ${r5.adx.toFixed(0)}) aur 1m ${ar(opp)}`);
+  return w;
 }
 
 /* har mode ke 2 order. side -1 = entry live se neeche, +1 = upar */
@@ -10178,7 +10193,7 @@ async function autoAnalyze(){
     const d = {v:10, src:'mtf', at: Date.now(), sym, symbol: sp.n, timeframe:'1H · 15m · 5m · 1m',
       live, liveAt: Date.now(), liveSrc:'live', liveErr:'', current_price: live, userEntry: null,
       signal:'NO TRADE', confidence: 0, reason: '', dir: null, entry: 0,
-      mtf: {mode: g.mode, why: g.why, reads, tp, gap, legs: [], conf: 0, chase: c.chase}};
+      mtf: {mode: g.mode, why: g.why, reads, tp, gap, legs: [], conf: 0, chase: c.chase, warn: mtfWarn(R, g)}};
 
     /* 2. NO TRADE = Gemini ko call hi nahi */
     if(g.mode === 'NONE'){
@@ -10252,6 +10267,7 @@ function mtfRender(box, d){
       <span class="gr" style="margin-left:auto">${sp.n}${M.conf ? ' · ' + M.conf + '%' : ''}</span></div>
     <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${chips}</div>
     <p class="hint busyg" style="margin:0 0 6px">🧮 ${escH(M.why)}</p>
+    ${(M.warn || []).map(w => `<p class="hint" style="margin:0 0 6px;border:1px solid var(--gold);border-radius:8px;padding:6px 9px;color:var(--gold);font-weight:600">⚠ ${escH(w)} <small style="color:var(--mut);font-weight:400">· sirf chetavni, order wahi</small></p>`).join('')}
     ${d.reason && d.reason !== M.why ? `<p class="hint" style="margin:0 0 8px">🤖 ${escH(d.reason)}</p>` : ''}`;
   const good = M.legs.filter(L => L.ok);
   if(!good.length){
@@ -10325,6 +10341,7 @@ async function mtfSend(){
   const msg = `${pair} · ${legs.length} order (live ${fmt(sym, live)})\n` + (pfxAcctTxt(acc) ? pfxAcctTxt(acc) + '\n' : '') + '\n' +
     legs.map(L => `${L.dir} ${L.kind} @ ${fmt(sym, L.e)}`).join('\n') +
     (legs.length > 1 ? '\n\nJo pehle bhare, dusra PERSONAL FX khud cancel karega (v5.9+ chahiye)' : '') +
+    ((d.mtf.warn || []).length ? '\n\n' + d.mtf.warn.map(w => '⚠ ' + w).join('\n') : '') +
     `\n\nLot, TP/SL, averaging: PERSONAL FX ke niyam\nPending ${PFX_EXP_MIN} min me na bhare to hat jayega` +
     (dup ? `\n\n⚠ ${pair} ka ek order pehle se "${(PFX_ST[dup.status] || [dup.status])[0]}" hai (${t12(dup.at)}) — naya batch usko hata dega` : '') +
     (pfl.length ? '\n\n🛫 PRE-FLIGHT\n' + pfl.map(x => (x.ok ? '✓ ' : '⚠ ') + x.txt).join('\n') : '') +
@@ -10365,7 +10382,7 @@ async function mtfSend(){
    ya −gap (averaging). Spread nahi gina — asli se thoda behtar dikhega. */
 function mtfLogAdd(d){
   const rec = {at: d.at, sym: d.sym, mode: d.mtf.mode, conf: d.mtf.conf, tp: d.mtf.tp, gap: d.mtf.gap,
-    lvl: !!d.mtf.lvl, a5: d.mtf.a5 || 0, a15: d.mtf.a15 || 0,
+    lvl: !!d.mtf.lvl, warn: (d.mtf.warn || []).length, a5: d.mtf.a5 || 0, a15: d.mtf.a15 || 0,
     legs: d.mtf.legs.filter(L => L.ok).map(L => ({dir: L.dir, kind: L.kind, entry: L.entry, zone: !!L.zone})), sent: false, res: null};
   S.mtfLog = [rec].concat((S.mtfLog || []).filter(x => x.at !== rec.at)).slice(0, 80);
   save(); mtfRcRender();
@@ -10403,17 +10420,20 @@ function mtfRcRender(){
   const pct = W + A ? Math.round(W / (W + A) * 100) : null;
   const sentOnly = L.filter(r => r.sent && r.res && (r.res.r === 'WIN' || r.res.r === 'AVG'));
   const sW = sentOnly.filter(r => r.res.r === 'WIN').length;
+  /* v10.6.4: ⚠ wale vs bina ⚠ — kuch din me pata chalega tag sahi hai ya nahi */
+  const wr = f => { const x = L.filter(r => f(r) && r.res && (r.res.r === 'WIN' || r.res.r === 'AVG')); return x.length ? `${x.filter(r => r.res.r === 'WIN').length}/${x.length}` : '—' };
   const tag = {WIN:['✓ +TP pehle','var(--up)'], AVG:['✗ averaging','var(--dn)'], NOFILL:['— bhara nahi','var(--mut)'], OPEN:['… baaki','var(--gold)']};
   box.innerHTML = `<div class="grid2" style="gap:6px;margin-bottom:8px;font-size:12px">
       <div style="border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center"><b style="font-size:20px;color:${pct === null ? 'var(--mut)' : pct >= 60 ? 'var(--up)' : 'var(--dn)'}">${pct === null ? '—' : pct + '%'}</b><br><small>+TP pehle (${W}/${W + A})</small></div>
       <div style="border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;line-height:1.7"><small>✓ ${W} · ✗ ${A} · bhara nahi ${NF} · baaki ${O}</small><br><small>Bheje gaye: ${sentOnly.length ? sW + '/' + sentOnly.length : '—'}</small></div>
     </div>
+    <p class="hint" style="margin:0 0 8px">⚠ tag wale +TP pehle: <b>${wr(r => r.warn > 0)}</b> · bina tag: <b>${wr(r => !(r.warn > 0))}</b></p>
     <button class="btn ghost sm" onclick="mtfRcCheck()" ${mtfRcBusy ? 'disabled' : ''}>${mtfRcBusy ? '<span class="spin"></span> check ho raha hai…' : '🔎 RESULT CHECK · 1 credit / record (max 4)'}</button>` +
     L.slice(0, 12).map(r => {
       const t = r.res ? tag[r.res.r] : tag.OPEN;
       const lg = r.legs.map((x, i) => `<span style="color:${x.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}${r.res && r.res.leg === i ? ';font-weight:800' : ''}">${x.dir[0]}${x.kind === 'LIMIT' ? 'L' : 'S'} ${fmt(r.sym, x.entry)}</span>`).join(' · ');
       return `<div style="border-bottom:1px dashed var(--line);padding:7px 0;font-size:11.5px">
-        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.mode} · ${r.conf}%${r.sent ? ' · 🚀' : ''}</span>
+        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.mode} · ${r.conf}%${r.sent ? ' · 🚀' : ''}${r.warn > 0 ? ' · <b style="color:var(--gold)">⚠</b>' : ''}</span>
           <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(r.at)}</span></div>
         <div style="display:flex;gap:8px;margin-top:3px"><span class="mono">${lg}</span><b style="margin-left:auto;color:${t[1]};white-space:nowrap">${t[0]}</b></div>
         ${r.res && r.res.maeA != null ? `<div style="color:var(--mut);margin-top:2px">${r.lvl ? '📐 ' : ''}Bharne ke baad ulta ${r.res.maeA}× ATR${r.res.flip ? ' · stop turant palta' : ''}${r.res.endAt && r.res.fillAt ? ' · ' + Math.round((r.res.endAt - r.res.fillAt) / 60000) + ' min me nateeja' : ''}</div>` : ''}</div>`;
