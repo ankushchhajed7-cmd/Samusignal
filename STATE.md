@@ -13,8 +13,23 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
-| ARADHAYA SCALPER (safe mode gold scalper, FXMIND SCALPANDO ka idea) | **1.00** | `vps-ea/ARADHAYA SCALPER v1.00.mq5` |
+| ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.00** | `vps-ea/ARADHAYA SCALPER v2.00.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## ARADHAYA SCALPER v2.00 — multi engine + manager (24 Oct 2026)
+
+- **Ankush ka idea:** ek account par alag-alag strategy, exit ek saath (averaging / group net). Chop ka khatra bhi cover ho.
+- **6 mahine ka M5 backtest** (Twelve Data XAUUSD, 20 Apr – 23 Oct 2026, 38,256 candle, apna bar-level simulator, cent 20000, lot 0.10, spread 0.25/0.35):
+  - v1.00 (sirf trend, 6 level): **+3.6%, DD 39%, 13 basket SL** → v1.00 LIVE par nahi.
+  - Sirf trend + regime: +81% / DD 16% / 4 SL. Sirf chop (regime ke saath): +120% / 4 SL; bina regime +7% / 11 SL.
+  - Trend + Range + Chop bina group exit: +39% / DD 43%. **Group exit ke saath ("L2"): +181% / DD 11% / 4 SL** (0.35 spread: +153% / DD 12.5%).
+  - Breakout (E3) jodne se nateeja bigda → v2.00 me default OFF.
+  - Dhyaan: approximate simulation + ~20 setup me se best chuna (overfit ho sakta hai). Asli faisla MT5 Strategy Tester (real ticks) + demo.
+- **v2.00 = L2 ke niyam:** E1 Trend (sirf TREND, market, 4 lvl, TP 1.5) · E2 Range (sirf RANGE, Bollinger limit OCO, 4 lvl, TP 1.5) · E4 Chop (RANGE/MIXED, 1 ghante ka box limit OCO, 3 lvl, TP 0.75) · E3 Breakout OFF.
+- **Manager:** regime M15 ADX(14)/CHOP(14) (25/50 trend, 20/55 range) · group exit bank + floating ≥ 0.2% balance → sab band · kul lot 1.50 / net 0.60 (pending bhi gine) · group SL 10% → sab band + aaj band · din 1% target / 10% loss · server emergency SL 15% har basket.
+- **Order type:** E1 market, E2/E4 limit, E3 stop, grid add market, exit market. News / time / pause / regime badle → pending cancel.
+- **Magic:** 24102611 (E1), 24102612 (E2), 24102613 (E3), 24102614 (E4).
+- **Baaki:** VPS compile check · Strategy Tester real ticks 3–6 mahine · demo 2 hafta · phir Smart Recovery (v2.0x) aur E3 dobara test.
 
 ## ARADHAYA SCALPER v1.00 — naya safe mode scalper (24 Oct 2026)
 
