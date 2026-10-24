@@ -13,8 +13,41 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
-| ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.00** | `vps-ea/ARADHAYA SCALPER v2.00.mq5` |
+| ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## ARADHAYA SCALPER v2.04 — E2 EMA slope veto (24 Oct 2026)
+
+- **Replit agent se idea liya** ("Forex Scalping Signals" app — usme live signal asal me nahi bante, demo values hain). 4 idea M1 data par DD10 ke saath test (30000):
+  - ATR min 2.5: +26.8% / DD 8.7% ❌ · trend me averaging band: koi farq nahi · band ke andar close par market entry: +2.1% / DD 13.8% ❌
+  - **EMA slope veto** (M15 EMA50 ka 1 ghante ka move > ATR(M5) × 0.5 → E2 entry nahi): **+29.0% / DD 7.9%** (spread 0.35: +28.5% / 7.9%) ✅
+- **Faisla (Ankush):** veto jodo. Input `InpE2SlopeVeto` (default ON), `InpE2SlopeMax` 0.5. Baaki sab v2.03 jaisa.
+
+## ARADHAYA SCALPER v2.03 — PRESET DD10 / DD15 / DD20 (24 Oct 2026)
+
+- **⚠️ Simulator ki galti mili:** pehle wale backtest me TP candle ke high/low par band ho raha tha aur grid add candle ke sabse achhe price par → v2.00–v2.02 ke saare % (+181%, +90% ...) **galat / bahut zyada** the. Theek karke M5 aur M1 dono par: v1.00, v2.00 (3 engine), v2.02 default **sab loss me**.
+- **Naya sahi test:** Twelve Data XAUUSD **M1** (21 Apr – 23 Oct 2026, 2.68 lakh candle), har M5 candle ke andar M1 ki chaal, TP / add asli price par, 30000 balance, spread 0.25 aur 0.35. 60+ setup.
+- **Nateeja:** sirf **E2 Range** lagataar profit me (2 level par TP 1.5 / 3 / 4.5 teeno plus, SL 0). E1 2-level thoda plus, E4 aur 3 engine saath loss, 4-level grid lagbhag har jagah loss.
+- **Preset (30000, spread 0.25):**
+  - **DD10 (default):** sirf E2, 2 level, TP 4.5, 4000 par 0.01, Group SL 8% → +27.9%, DD 8.6%, SL 0, 498 trade, 95% din plus, bura din −980.
+  - **DD15:** sirf E2, 1 trade, TP 4.5, 1000 par 0.01, Group SL 16%, emergency 20% → +58.6%, DD 15.6% (1333 par DD 19% bhi aaya — khatra).
+  - **DD20:** sirf E2, 2 level, TP 3.0, 2000 par 0.01, Group SL 16%, emergency 20% → +39.9%, DD 18.7%.
+- Asli raftaar ~0.3–0.6% roz (0.8% target kam din pura). Sample chhota (1 engine, 6 mahine).
+- **Baaki:** MT5 Strategy Tester (real ticks) me DD10 chala kar milaan · demo 2 hafta.
+
+## ARADHAYA SCALPER v2.02 — 4000 par 0.01 lot (24 Oct 2026)
+
+- **30000 balance par 6 mahine (v2.01, 3000 par 0.01):** +79% / +90% (spread 0.25 / 0.35), DD 19–21%, Group SL 8 baar, 92% din profit, sabse bura din −2,919 (~9%), August −7.1%.
+- **Wahi test 4000 par 0.01:** +92% / +105%, **DD 12–14%, SL 5 baar**. 20000 par bhi DD 13.5% (3000 wale me 21%). Isliye v2.02 default 4000.
+- Lot: 30000 = 0.07, 50000 = 0.12. Baaki sab v2.01 jaisa (din 0.8%, Group SL 8%, group target pehla lot × $4, lot limit × 15 / × 6).
+- Dhyaan: bar-level simulation, settings ke chhote badlav par nateeja kaafi badalta hai. Tester (real ticks) + demo pehle.
+
+## ARADHAYA SCALPER v2.01 — 3000 par 0.01 lot, din 0.80% (24 Oct 2026)
+
+- **Ankush ki setting:** AUTO lot har 3000 balance par 0.01 (20000 = 0.06, 50000 = 0.16) · din ka target 0.80%.
+- **Re-test (wahi 6 mahine, 0.06 lot):** purane 0.2% group target / 10% SL ke saath DD 14.6–15.4%, chhote lot par group target der se aata tha. Group target = pehla lot × $4 move (0.12% @20000) + Group SL 8% → **+86–89%, DD 11–12%, 6 SL** (spread 0.25/0.35). Isliye v2.01 me yahi default.
+- **Badlav:** AutoPerBalance 3000 · DailyTarget 0.8% · GroupSL 8% · DailyLoss 8% · GroupTargetMove 4.0 (pehla lot × $4) · lot limit apne aap: kul = pehla lot × 15, net = × 6. Engine / regime / grid / TP v2.00 jaise.
+- Dhyaan: simulation approximate; Strategy Tester (real ticks) + demo pehle.
 
 ## ARADHAYA SCALPER v2.00 — multi engine + manager (24 Oct 2026)
 
