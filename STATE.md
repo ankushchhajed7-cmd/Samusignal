@@ -9,11 +9,18 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
-| BTC Trailing Manager (Buster ke liye) | **1.02** | `vps-ea/BTC Trailing Manager v1.02.mq5` |
+| BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
 | Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## BTC Trailing Manager v1.03 — set F hybrid-C (24 Oct 2026)
+
+- **Shadow 17–24 Oct (15 trade):** Buster asli +4.89 (balance 55.62→60.51) · A +1.96 · B +0.84 · C +9.29 · D +11.72 (2 bade trade hata do to −2.99). E sirf 2 trade: Buster +4.58, D −0.86, E +1.20.
+- Kai trade ~300 price (30000 pts) par palat jaate hain → D/E ki trailing shuru hi nahi hoti (23 Oct: peak 296.6, D −2.01, E +0.05, Buster +2.34). C zyada bharosemand.
+- **Naya set F (hybrid-C):** BE 5500 pts par SL = open+500, phir 20000 par trailing shuru, 15000 doori. Shadow me ab 6 sets (A–F). Real par zero risk (Mode=SHADOW).
+- Faisla: abhi LIVE nahi; ~1 hafta aur (E/F ke 10+ trade), phir winner LIVE.
 
 ## BTC Trailing Manager v1.02 — set E hybrid (22 Oct 2026)
 
