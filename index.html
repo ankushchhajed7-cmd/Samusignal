@@ -1448,21 +1448,24 @@ body.ds-gold .brand .brandWord{height:24px}
 
 <!-- ============ CHART ANALYSIS (v10.0.0) — screenshot se seedha PERSONAL FX ============ -->
 <section id="pgChart" class="hide">
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <button class="btn ghost sm" style="width:auto;padding:0 12px" onclick="go('Signals', document.querySelector('nav button[data-pg=&quot;Signals&quot;]'))">← Signals</button>
-      <b style="letter-spacing:1.5px;font-size:14px">📈 CHART ANALYSIS</b>
-      <span class="sp mono" id="cpSym" style="margin-left:auto"></span>
-    </div>
-    <button class="pick" id="cpPair" style="margin-top:10px" onclick="openPick('main')"></button>
-    <p class="hint" style="margin:8px 0 0"><b style="color:var(--gold)">📸 AUTO ANALYZE</b> dabao — app <b>1H · 15m · 5m · 1m</b> chaaron dekhti hai (4 credits). Trend saaf ho to trend ki taraf <b>Limit + Stop</b>, range ho to <b>Buy Limit + Sell Limit</b>, warna <b>NO TRADE</b>. Jo order pehle bhare, <b style="color:var(--gold)">PERSONAL FX</b> baaki cancel karta hai. Screenshot wala tareeka pehle jaisa (ek direction).</p>
-  </div>
   <div class="card" id="bpCard">
+    <!-- v10.6.7: Best Pair sabse upar, ← Signals isi ke upar; Chart Analysis (pair + jaankari) iske neeche -->
+    <div style="margin-bottom:10px">
+      <button class="btn ghost sm" style="width:auto;padding:0 12px" onclick="go('Signals', document.querySelector('nav button[data-pg=&quot;Signals&quot;]'))">← Signals</button>
+    </div>
     <p class="ttl">🏆 Best Pair Abhi <span class="sp" id="bpT">—</span></p>
     <div class="chips" id="bpGrps" style="margin-bottom:10px"></div>
     <button class="btn gold" id="bpBtn" onclick="bestPair()">🏆 BEST PAIR DHUNDHO</button>
     <p class="hint mono" id="bpCost" style="margin-top:8px">—</p>
     <div id="bpBox"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <b style="letter-spacing:1.5px;font-size:14px">📈 CHART ANALYSIS</b>
+      <span class="sp mono" id="cpSym" style="margin-left:auto"></span>
+    </div>
+    <button class="pick" id="cpPair" style="margin-top:10px" onclick="openPick('main')"></button>
+    <p class="hint" style="margin:8px 0 0"><b style="color:var(--gold)">📸 AUTO ANALYZE</b> dabao — app <b>1H · 15m · 5m · 1m</b> chaaron dekhti hai (4 credits). Trend saaf ho to trend ki taraf <b>Limit + Stop</b>, range ho to <b>Buy Limit + Sell Limit</b>, warna <b>NO TRADE</b>. Jo order pehle bhare, <b style="color:var(--gold)">PERSONAL FX</b> baaki cancel karta hai. Screenshot wala tareeka pehle jaisa (ek direction).</p>
   </div>
   <div class="card">
     <p class="ttl">Live Chart <button id="autoBtn" onclick="autoAnalyze()" style="margin-left:8px;padding:5px 9px;border:1px solid var(--gold);border-radius:8px;color:var(--gold);font-size:10.5px;font-weight:800;letter-spacing:.8px;background:rgba(214,180,106,.08);white-space:nowrap">📸 AUTO ANALYZE</button> <span class="sp" id="chartSym">—</span></p>
@@ -2288,7 +2291,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.6.6';
+const VERSION = '10.6.7';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
