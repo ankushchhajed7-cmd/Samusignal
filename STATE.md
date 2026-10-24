@@ -13,8 +13,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
-| ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
+| ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.05** | `vps-ea/ARADHAYA SCALPER v2.05.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## ARADHAYA SCALPER v2.05 — default preset SL20 (24 Oct 2026)
+
+- **Test (M1, 30000, v2.04 niyam + EMA veto):** 2000 par 0.01 + SL 8% → +7.9% / DD 25.7% / 5 SL (July −18.5%). Wahi 2000 + **Group SL 20%** → **+45.8% / DD 15.8% / SL 0** (spread 0.35: +44.7% / 16.0%). 4000 + SL 20% = DD10 jaisa (+29.0% / 7.9%).
+- **Faisla (Ankush):** 2000 par 0.01 + SL 20%, baaki sab same. Naya preset **SL20 = default**: E2 only, 2 level, TP 4.5, EMA veto, AutoPer 2000, Group SL 20%, din loss 20%, emergency 25%.
+- Dhyaan: in 6 mahine me floating max ~16% gaya; SL laga to ek jhatke me ~20% (30000 par ~6000). Demo 2–4 hafta pehle.
 
 ## ARADHAYA SCALPER v2.04 — E2 EMA slope veto (24 Oct 2026)
 
