@@ -13,7 +13,22 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
+| ARADHAYA SCALPER (safe mode gold scalper, FXMIND SCALPANDO ka idea) | **1.00** | `vps-ea/ARADHAYA SCALPER v1.00.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## ARADHAYA SCALPER v1.00 — naya safe mode scalper (24 Oct 2026)
+
+- **Kahan se idea:** FXMIND SCALPANDO (MT4, 3 engine martingale, x1.55, $2 gap, koi SL nahi, news filter naqli). Usme se sirf "chhota TP + basket average par sab band" liya; baaki khatarnak hissa hata diya.
+- **Ankush ke saath tay (Discuss):** Cent account 20000 · XAUUSD **M5** · Basket SL **10%** · Din ka target **1% default ON** · naam ARADHAYA SCALPER.
+- **Entry:** M15 EMA50/EMA200 + close EMA50 ke paar = trend; M5 pichli candle trend ki taraf; RSI(14) BUY 50–70 / SELL 30–50. Ek samay ek hi basket, sirf nayi M5 candle par.
+- **Filter:** spread > 0.50 nahi · M5 ATR > 8 nahi · MT5 calendar USD high impact ±30 min · IST 02:30–05:30 nahi · Shukra 23:00 → Somvar 06:00 IST nahi · Shanivar 02:00 IST basket band.
+- **Grid:** max 6 level · gap = ATR×1.5 (min $3, max $10), har level ×1.2 · lot L1–L2 same, phir ×1.3 · max lot 0.50 · AUTO lot har 2000 balance = 0.01 (20000 → 0.10) · ek M5 candle me ek hi add.
+- **Exit:** L1–3 TP = avg ± 1.50 · L4+ = avg ± 0.30 · lock: avg se 1.00 aage → SL avg ± 0.30.
+- **Safety:** basket SL (balance ka 10%) **server par har trade ki SL me** (VPS band ho tab bhi) + EA backup check · basket loss me band → aaj band · din loss limit 10% · din target 1% → sab band, kal tak band (restart ke baad bhi yaad, GlobalVariable).
+- **Panel:** status, trend, basket, avg/TP/SL, aaj P/L vs target, spread/ATR/gap, agli news, CLOSE ALL + PAUSE/RESUME button. Push alert.
+- **Magic:** 24102601.
+- **Dhyaan:** 1% roz vs 10% SL → ek SL = ~10 din ka profit. Pehle Strategy Tester + demo/cent par 1–2 hafta.
+- **Baaki:** Strategy Tester nateeja · VPS par compile check (VPS Helper card) · zarurat ho to TP / gap tune.
 
 ## BTC Trailing Manager v1.03 — set F hybrid-C (24 Oct 2026)
 
