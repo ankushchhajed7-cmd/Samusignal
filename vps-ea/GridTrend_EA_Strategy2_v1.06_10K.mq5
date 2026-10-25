@@ -1,5 +1,17 @@
 //+------------------------------------------------------------------+
-//|            GridTrend_EA_Strategy2.mq5   v1.07 (10K)              |
+//|            GridTrend_EA_Strategy2.mq5   v1.08 (10K)              |
+//|  v1.08 10K: NEW STRATEGY — SEEDHI (ladder), OFF by default       |
+//|   (Enable_NewStrategy=false rehne tak EA bilkul v1.07 jaisa):    |
+//|   - Trend palta (Supertrend 2 bar ya DD flip) → purani grid      |
+//|     FREEZE, nayi disha mein grid nahi, sirf profit wali seedhi:  |
+//|     favour mein gap table pe naya trade (lot table), har trade   |
+//|     TP $25 + trailing lock (+10 pe +5, $1 step), TP pe wahin     |
+//|     usi lot ka re-entry, lock pe mark point se re-entry.         |
+//|   - Seedhi exit: total (booked+khule) +50 paar karke ghat kar 50 |
+//|     pe ya breakeven (sirf jab kuch book na hua ho) → 20 min      |
+//|     cooldown + mark point. Trend/seedhi -300 pe disha palti.     |
+//|   - Sab milakar +50 → saare trades band, nayi cycle (purane      |
+//|     niyam se). Seedhi trades ka Magic = Magic_Number+1.          |
 //|  v1.07 10K: TREND PROTECTION — 2 naye rule, dono OFF by default  |
 //|   (OFF rehne tak EA bilkul v1.06 jaisa chalta hai):              |
 //|   - H4 TREND FILTER: kisi side ka PEHLA trade sirf tab jab H4    |
@@ -134,7 +146,7 @@
 //|  v3.04 FIX: Global-basket baseline BALANCE-anchored + float guard |
 //+------------------------------------------------------------------+
 #property copyright "GridTrend S2 v1.06 10K"
-#property version   "1.07"
+#property version   "1.08"
 #property strict
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
@@ -271,6 +283,16 @@ input ENUM_TIMEFRAMES H4_Filter_TF            = PERIOD_H4; // Bada trend kis tim
 input bool            Enable_ProfitRecycle    = false;     // ON = active side ka booked profit se frozen side ke saste trades band
 input double          Recycle_Trigger_Dollars = 150.0;     // Frozen side ka loss itna ho tabhi recycling (account currency)
 input bool            Recycle_Need_H4         = true;      // Recycling sirf jab H4 trend active side ke saath ho
+input group "══ NEW STRATEGY — SEEDHI (v1.08, OFF by default) ══"
+input bool   Enable_NewStrategy     = false;  // ON = trend palatne pe nayi disha mein grid ki jagah profit wali seedhi (purani grid freeze)
+input double Ladder_TP_Dollars      = 25.0;   // Seedhi ke har trade ka TP: entry se itne $ price (0.01 lot pe 25, 0.02 pe 50 profit)
+input double Ladder_Lock_Start      = 10.0;   // Trade itne $ favour mein aaye to trailing lock shuru
+input double Ladder_Lock_Gap        = 5.0;    // Lock SL profit se itne $ peeche (+10 pe +5, +11 pe +6 ...)
+input double Ladder_Lock_Step       = 1.0;    // Har itne $ pe SL aage
+input double Ladder_Floor_Dollars   = 50.0;   // Seedhi total (booked+khule) isse upar jaake ghat kar yahan aaye → saari seedhi band
+input double Ladder_BE_Arm_Dollars  = 10.0;   // Breakeven tabhi jab kuch book na hua ho aur total kam se kam -itna gaya ho (spread noise se bachav)
+input int    Ladder_Cooldown_Min    = 20;     // Seedhi exit ke baad itne minute ruk kar mark point check
+input double Ladder_Cycle_Target    = 50.0;   // Sab milakar (frozen grid + seedhi + cycle booked) itna profit → saare trades band, nayi cycle
 input group "══ NOTIFICATIONS ══"
 input bool   Enable_PushNotify  = true;    // ON = MT5 mobile app pe push notification alerts milenge
 input bool   Enable_Telegram    = false;   // ON = Telegram alerts (abhi placeholder — actual sending implement nahi hai)
@@ -307,6 +329,22 @@ int      atrHandleH4=INVALID_HANDLE;   // v1.07: H4 trend filter / recycling
 int      g_flipAllowDir=0;             // v1.07: DD flip ki hedge side — uska pehla trade H4 filter se mukt
 bool     g_h4BlockLogged=false;
 double   g_recycleBank=0;              // v1.07: frozen side band karne ke liye jama profit
+#define  LAD_MAXQ 60
+bool     g_ladMode=false;              // v1.08: seedhi mode chalu (trend palt chuka)
+int      g_ladDir=0;                   // seedhi ki abhi ki disha
+int      g_ladStep=0;                  // seedhi steps (0 = pehla trade baaki)
+double   g_ladLastPx=0;                // aakhri seedhi step ka entry price
+double   g_ladBooked[2]={0,0};         // session booked profit [0]=BUY [1]=SELL
+bool     g_ladArmed[2]={false,false};  // total floor ke upar ja chuka
+bool     g_ladNeg[2]={false,false};    // total -BE_Arm tak ja chuka (breakeven armed)
+bool     g_ladCooling=false;           // exit ke baad cooldown
+datetime g_ladCdUntil=0;
+double   g_ladCdMark=0;
+double   g_ladMarkPx[LAD_MAXQ], g_ladMarkLot[LAD_MAXQ];
+int      g_ladMarkN=0;                 // lock close ke mark points
+double   g_ladReLot[LAD_MAXQ];
+int      g_ladReN=0;                   // TP re-entry queue (lot)
+bool     g_ladDirty=false;
 datetime g_lastOpenTime=0;
 datetime g_lastH1=0;
 datetime g_lastM1=0;
@@ -989,7 +1027,8 @@ void UpdateDB()
    string ddMsg=DRow("Side DD")+"B$"+DoubleToString(bSideDD,0)+" S$"+DoubleToString(sSideDD,0)+
                 "  F"+IntegerToString(g_flipCount)+"/"+IntegerToString(DD_Flip_Max_Per_Cycle)+
                 (g_ddFrozenDir!=0?((g_ddFrozenDir==1)?" [B frz]":" [S frz]"):"")+
-                (Enable_ProfitRecycle&&g_recycleBank>0?(" R$"+DoubleToString(g_recycleBank,0)):"");
+                (Enable_ProfitRecycle&&g_recycleBank>0?(" R$"+DoubleToString(g_recycleBank,0)):"")+
+                (Enable_NewStrategy&&g_ladMode?(" L"+(g_ladDir==1?"B":"S")+IntegerToString(LadCount(g_ladDir))+(g_ladCooling?"c":"")):"");
    color ddSts=(worstSide<=-DD_Flip_Dollars*0.75)?CL_RED:(worstSide<=-DD_Flip_Dollars*0.5)?CL_AMBER:CL_DIM;
    UpdateDBLine(R_DD_STS,ddMsg,ddSts,BG_MID);
    bool nw=IsNews();
@@ -1197,6 +1236,295 @@ void ProcessRecycle()
              " bank se cover. Bank baaki $"+DoubleToString(g_recycleBank,2));
 }
 
+//+------------------------------------------------------------------+
+//| v1.08: NEW STRATEGY — SEEDHI (LADDER). OFF by default.            |
+//| Trend palta → purani grid FREEZE, nayi disha mein sirf profit     |
+//| book karne wali seedhi: har trade TP $25, trailing lock, TP pe    |
+//| wahin re-entry, lock pe mark point, +floor/breakeven exit,        |
+//| cooldown, aur sab milakar +target pe poori cycle band.            |
+//| Seedhi trades ka Magic = Magic_Number+1 (grid se alag).           |
+//+------------------------------------------------------------------+
+long   LadMagic(){ return Magic_Number+1; }
+int    LIx(int d){ return (d==1)?0:1; }
+double LadAsk(){ return SymbolInfoDouble(_Symbol,SYMBOL_ASK); }
+double LadBid(){ return SymbolInfoDouble(_Symbol,SYMBOL_BID); }
+double LadEntryPx(int d){ return (d==1)?LadAsk():LadBid(); }   // naya trade is price pe khulta hai
+
+bool LadIsOurs(int d)   // pos already selected
+{
+   if(pos.Symbol()!=_Symbol || pos.Magic()!=LadMagic()) return false;
+   if(d==0) return true;
+   return (d==1&&pos.PositionType()==POSITION_TYPE_BUY)||(d==-1&&pos.PositionType()==POSITION_TYPE_SELL);
+}
+
+int LadCount(int d)
+{
+   int n=0;
+   for(int i=PositionsTotal()-1;i>=0;i--)
+      if(pos.SelectByIndex(i) && LadIsOurs(d)) n++;
+   return n;
+}
+
+double LadPnL(int d)
+{
+   double t=0;
+   for(int i=PositionsTotal()-1;i>=0;i--)
+      if(pos.SelectByIndex(i) && LadIsOurs(d)) t+=pos.Profit()+pos.Swap();
+   return t;
+}
+
+void LadCloseAll(int d)
+{
+   for(int i=PositionsTotal()-1;i>=0;i--)
+      if(pos.SelectByIndex(i) && LadIsOurs(d))
+         TradeRequestAccepted(trade.PositionClose(pos.Ticket()),"LADDER CLOSE");
+}
+
+void LadResetSide(int d){ int k=LIx(d); g_ladBooked[k]=0; g_ladArmed[k]=false; g_ladNeg[k]=false; g_ladDirty=true; }
+void LadClearQueues(){ g_ladMarkN=0; g_ladReN=0; g_ladDirty=true; }
+
+// Seedhi ke har NAYE trade pe wahi suraksha filter jo grid pe (trading hours nahi — cycle chal rahi hai)
+bool LadFiltersOK()
+{
+   if(g_totalDDTriggered) return false;
+   if(Enable_DailyTarget && g_dailyLocked) return false;
+   if(IsSpreadTooHigh() || IsSpikeBlocked() || IsWeekendBlock() || IsNews()) return false;
+   if(Enable_TotalDD_Limit && GetCurrentDD_Dollar()>=Total_DD_Dollar_Limit) return false;
+   return true;
+}
+
+bool LadOpen(int d,double lot,string tag)
+{
+   if(!LadFiltersOK()) return false;
+   lot=NormalizeLot(lot);
+   if(lot<=0) return false;
+   double pr=LadEntryPx(d);
+   double tp=NormalizeDouble(pr+d*Ladder_TP_Dollars,_Digits);
+   string cm=Trade_Comment+"_L"+(d==1?"B":"S")+tag;
+   trade.SetExpertMagicNumber(LadMagic());
+   bool ok=(d==1)?trade.Buy(lot,_Symbol,pr,0,tp,cm):trade.Sell(lot,_Symbol,pr,0,tp,cm);
+   bool acc=TradeRequestAccepted(ok,"LADDER OPEN");
+   trade.SetExpertMagicNumber(Magic_Number);
+   if(acc)
+   {
+      g_lastOpenTime=TimeCurrent();
+      BrEventT("OPEN","SEEDHI "+(d==1?"BUY":"SELL")+" "+tag+"  "+DoubleToString(lot,2)+" lot @ "+
+               DoubleToString(trade.ResultPrice()>0?trade.ResultPrice():pr,_Digits));
+   }
+   return acc;
+}
+
+// Trailing lock: favour mein Ladder_Lock_Start aate hi SL (Start-Gap) pe, phir har Step pe aage. SL sirf aage.
+void LadManageLocks()
+{
+   for(int i=PositionsTotal()-1;i>=0;i--)
+   {
+      if(!pos.SelectByIndex(i) || !LadIsOurs(0)) continue;
+      bool isB=(pos.PositionType()==POSITION_TYPE_BUY);
+      double op=pos.PriceOpen();
+      double cur=isB?LadBid():LadAsk();
+      double mv=isB?(cur-op):(op-cur);
+      if(mv<Ladder_Lock_Start) continue;
+      double stepN=MathFloor((mv-Ladder_Lock_Start)/Ladder_Lock_Step+1e-9);
+      double lockMv=(Ladder_Lock_Start-Ladder_Lock_Gap)+stepN*Ladder_Lock_Step;
+      double sl=NormalizeDouble(isB?(op+lockMv):(op-lockMv),_Digits);
+      double curSL=pos.StopLoss();
+      bool better=(curSL<=0) || (isB?(sl>curSL+_Point):(sl<curSL-_Point));
+      if(better) TradeRequestAccepted(trade.PositionModify(pos.Ticket(),sl,pos.TakeProfit()),"LADDER LOCK");
+   }
+}
+
+void EnterLadderMode(int d)
+{
+   g_ladMode=true; g_ladDir=d; g_ladStep=0; g_ladLastPx=0;
+   g_ladCooling=false; g_ladCdUntil=0; g_ladCdMark=0;
+   LadResetSide(1); LadResetSide(-1); LadClearQueues();
+   SendAlert("SEEDHI MODE: trend palta — "+(d==1?"BUY":"SELL")+" seedhi shuru, purani grid FREEZE");
+}
+
+void EndLadderMode(string why)
+{
+   g_ladMode=false; g_ladDir=0; g_ladStep=0; g_ladLastPx=0; g_ladCooling=false;
+   LadResetSide(1); LadResetSide(-1); LadClearQueues();
+   Print("SEEDHI MODE khatam: ",why);
+}
+
+void LadderReverse(int nd,string why)
+{
+   if(nd==0 || nd==g_ladDir) return;
+   LadClearQueues();                       // purani disha ka re-entry / mark khatam
+   g_ladDir=nd; g_ladStep=0; g_ladLastPx=0; g_ladCooling=false;
+   if(LadCount(nd)==0) LadResetSide(nd);   // nayi disha ka fresh session
+   g_ladDirty=true;
+   SendAlert("SEEDHI: disha palti ("+why+") — ab "+(nd==1?"BUY":"SELL")+" seedhi. Purani disha ke trades apne niyam se band honge");
+}
+
+void LadderOnSignal(int s){ if(g_ladMode && s!=0 && s!=g_ladDir) LadderReverse(s,"Supertrend"); }
+
+// DD flip jaisi seemayein: max flips/cycle, pause, cooldown
+bool LadFlipAllowed()
+{
+   if(g_flipPauseUntil>0)
+   {
+      if(TimeCurrent()<g_flipPauseUntil) return false;
+      g_flipPauseUntil=0; g_flipCount=0;
+   }
+   if(g_flipCount>=DD_Flip_Max_Per_Cycle){ g_flipPauseUntil=TimeCurrent()+DD_Flip_Pause_Hrs*3600; return false; }
+   if(TimeCurrent()-g_lastFlipTime < DD_Flip_Cooldown_Min*60) return false;
+   return true;
+}
+
+void LadderTick()
+{
+   if(!Enable_NewStrategy || !g_ladMode) return;
+   int gridN=CountTrades(1)+CountTrades(-1);
+
+   // 1) CYCLE: sab milakar (frozen grid + seedhi + cycle ka booked) +target → sab band, nayi cycle
+   if(basketStartEquity<=0) basketStartEquity=AccountInfoDouble(ACCOUNT_BALANCE);
+   double rec=AccountInfoDouble(ACCOUNT_EQUITY)-basketStartEquity;
+   if(rec>=Ladder_Cycle_Target)
+   {
+      double durHrs=0; datetime st=GetGlobalBasketStart();
+      if(st>0) durHrs=(double)(TimeCurrent()-st)/3600.0;
+      SendAlert("SEEDHI CYCLE +$"+DoubleToString(rec,2)+" — sab trades band, nayi cycle");
+      LogCycleResult("BOTH",rec,durHrs,"LADDER_CYCLE");
+      bool okB=CloseAll(1), okS=CloseAll(-1);
+      LadCloseAll(0);
+      buyFrozen=false; sellFrozen=false; basketStartEquity=0;
+      EndLadderMode("cycle target");
+      if(okB && okS && g_lastSig!=0) Restart(g_lastSig);
+      return;
+   }
+
+   // 2) frozen grid bhi band aur seedhi bhi flat → mode khatam, normal niyam wapas
+   if(gridN==0 && LadCount(0)==0 && g_ladReN==0)
+   {
+      EndLadderMode("grid aur seedhi dono flat");
+      buyFrozen=false; sellFrozen=false;
+      if(g_lastSig==1) buyActive=1; else if(g_lastSig==-1) sellActive=1;
+      return;
+   }
+
+   // 3) trailing lock (dono disha ke seedhi trades)
+   LadManageLocks();
+   int d=g_ladDir;
+
+   // 4) exit: +floor (ghat kar) / breakeven — har disha ka apna session
+   for(int k=0;k<2;k++)
+   {
+      int sd=(k==0)?1:-1;
+      if(LadCount(sd)==0) continue;
+      double tot=g_ladBooked[k]+LadPnL(sd);
+      if(tot>Ladder_Floor_Dollars && !g_ladArmed[k]){ g_ladArmed[k]=true; g_ladDirty=true; }
+      if(tot<=-Ladder_BE_Arm_Dollars && !g_ladNeg[k]){ g_ladNeg[k]=true; g_ladDirty=true; }
+      bool ex2=g_ladArmed[k] && tot<=Ladder_Floor_Dollars;
+      bool be =(MathAbs(g_ladBooked[k])<0.005) && g_ladNeg[k] && tot>=0;
+      if(!ex2 && !be) continue;
+      SendAlert("SEEDHI "+(sd==1?"BUY":"SELL")+(ex2?" FLOOR +$":" BREAKEVEN $")+DoubleToString(tot,2)+" — seedhi trades band");
+      LadCloseAll(sd);
+      LadResetSide(sd);
+      if(sd==d)
+      {
+         LadClearQueues();
+         g_ladCooling=true; g_ladCdUntil=TimeCurrent()+Ladder_Cooldown_Min*60; g_ladCdMark=LadEntryPx(d);
+         g_ladStep=0; g_ladLastPx=0;
+      }
+   }
+
+   // 5) cooldown: 20 min baad price mark se favour mein → nayi seedhi, warna mark khiskao + phir ruko
+   if(g_ladCooling)
+   {
+      if(TimeCurrent()<g_ladCdUntil) return;
+      double cp=LadEntryPx(d);
+      bool fav=(d==1)?(cp>=g_ladCdMark):(cp<=g_ladCdMark);
+      if(!fav){ g_ladCdMark=cp; g_ladCdUntil=TimeCurrent()+Ladder_Cooldown_Min*60; g_ladDirty=true; return; }
+      g_ladCooling=false; g_ladStep=0; LadResetSide(d);
+   }
+
+   // 6) seedhi ka loss -DD_Flip_Dollars → trend palta maano (DD flip ki seemayein)
+   if(Enable_DDFlip && LadCount(d)>0 && LadPnL(d)<=-DD_Flip_Dollars && LadFlipAllowed())
+   {
+      g_flipCount++; g_lastFlipTime=TimeCurrent();
+      if(g_flipCount>=DD_Flip_Max_Per_Cycle) g_flipPauseUntil=TimeCurrent()+DD_Flip_Pause_Hrs*3600;
+      g_lastSig=-d; g_pendingSig=0; g_pendingCount=0;
+      LadderReverse(-d,"seedhi DD $"+DoubleToString(LadPnL(d),2));
+      return;
+   }
+
+   // 7) TP re-entry: wahin, usi lot ka
+   while(g_ladReN>0)
+   {
+      if(!LadOpen(d,g_ladReLot[0],"R")) break;
+      for(int q=1;q<g_ladReN;q++) g_ladReLot[q-1]=g_ladReLot[q];
+      g_ladReN--; g_ladDirty=true;
+   }
+
+   // 8) lock mark points: price mark se favour mein aate hi usi lot ka trade
+   for(int m=g_ladMarkN-1;m>=0;m--)
+   {
+      bool hit=(d==1)?(LadAsk()>g_ladMarkPx[m]):(LadBid()<g_ladMarkPx[m]);
+      if(!hit || !LadOpen(d,g_ladMarkLot[m],"M")) continue;
+      for(int q=m+1;q<g_ladMarkN;q++){ g_ladMarkPx[q-1]=g_ladMarkPx[q]; g_ladMarkLot[q-1]=g_ladMarkLot[q]; }
+      g_ladMarkN--; g_ladDirty=true;
+   }
+
+   // 9) seedhi steps: favour mein gap table ke hisaab se, lot table ke hisaab se
+   int maxSt=GetMaxTrades();
+   if(g_ladStep==0)
+   {
+      if(LadOpen(d,lotArr[0],"1")){ g_ladStep=1; g_ladLastPx=(trade.ResultPrice()>0)?trade.ResultPrice():LadEntryPx(d); g_ladDirty=true; }
+   }
+   else if(g_ladStep<maxSt && lotArr[g_ladStep]>0 && gapArr[g_ladStep-1]>0)
+   {
+      double cp=LadEntryPx(d);
+      double mv=(d==1)?(cp-g_ladLastPx):(g_ladLastPx-cp);
+      if(mv>=gapArr[g_ladStep-1] && LadOpen(d,lotArr[g_ladStep],IntegerToString(g_ladStep+1)))
+      { g_ladStep++; g_ladLastPx=(trade.ResultPrice()>0)?trade.ResultPrice():cp; g_ladDirty=true; }
+   }
+}
+
+// State terminal GlobalVariables mein — MT5/VPS restart ke baad seedhi wahi se chale
+void SaveLadderState()
+{
+   if(!g_ladDirty) return;
+   g_ladDirty=false;
+   GlobalVariableSet(DayGV("lmode"),g_ladMode?1:0);
+   GlobalVariableSet(DayGV("ldir"),g_ladDir);
+   GlobalVariableSet(DayGV("lstep"),g_ladStep);
+   GlobalVariableSet(DayGV("llast"),g_ladLastPx);
+   GlobalVariableSet(DayGV("lb0"),g_ladBooked[0]);  GlobalVariableSet(DayGV("lb1"),g_ladBooked[1]);
+   GlobalVariableSet(DayGV("la0"),g_ladArmed[0]?1:0); GlobalVariableSet(DayGV("la1"),g_ladArmed[1]?1:0);
+   GlobalVariableSet(DayGV("ln0"),g_ladNeg[0]?1:0);   GlobalVariableSet(DayGV("ln1"),g_ladNeg[1]?1:0);
+   GlobalVariableSet(DayGV("lcool"),g_ladCooling?1:0);
+   GlobalVariableSet(DayGV("lcdu"),(double)g_ladCdUntil);
+   GlobalVariableSet(DayGV("lcdm"),g_ladCdMark);
+   GlobalVariableSet(DayGV("lmn"),g_ladMarkN);
+   for(int i=0;i<g_ladMarkN;i++){ GlobalVariableSet(DayGV("lmp"+IntegerToString(i)),g_ladMarkPx[i]); GlobalVariableSet(DayGV("lml"+IntegerToString(i)),g_ladMarkLot[i]); }
+   GlobalVariableSet(DayGV("lrn"),g_ladReN);
+   for(int i=0;i<g_ladReN;i++) GlobalVariableSet(DayGV("lrl"+IntegerToString(i)),g_ladReLot[i]);
+}
+
+void LoadLadderState()
+{
+   if(!GlobalVariableCheck(DayGV("lmode"))) return;
+   g_ladMode   =GlobalVariableGet(DayGV("lmode"))>0.5;
+   g_ladDir    =(int)GlobalVariableGet(DayGV("ldir"));
+   g_ladStep   =(int)GlobalVariableGet(DayGV("lstep"));
+   g_ladLastPx =GlobalVariableGet(DayGV("llast"));
+   g_ladBooked[0]=GlobalVariableGet(DayGV("lb0")); g_ladBooked[1]=GlobalVariableGet(DayGV("lb1"));
+   g_ladArmed[0]=GlobalVariableGet(DayGV("la0"))>0.5; g_ladArmed[1]=GlobalVariableGet(DayGV("la1"))>0.5;
+   g_ladNeg[0]  =GlobalVariableGet(DayGV("ln0"))>0.5; g_ladNeg[1]  =GlobalVariableGet(DayGV("ln1"))>0.5;
+   g_ladCooling=GlobalVariableGet(DayGV("lcool"))>0.5;
+   g_ladCdUntil=(datetime)GlobalVariableGet(DayGV("lcdu"));
+   g_ladCdMark =GlobalVariableGet(DayGV("lcdm"));
+   g_ladMarkN  =(int)MathMin(LAD_MAXQ,GlobalVariableGet(DayGV("lmn")));
+   for(int i=0;i<g_ladMarkN;i++){ g_ladMarkPx[i]=GlobalVariableGet(DayGV("lmp"+IntegerToString(i))); g_ladMarkLot[i]=GlobalVariableGet(DayGV("lml"+IntegerToString(i))); }
+   g_ladReN    =(int)MathMin(LAD_MAXQ,GlobalVariableGet(DayGV("lrn")));
+   for(int i=0;i<g_ladReN;i++) g_ladReLot[i]=GlobalVariableGet(DayGV("lrl"+IntegerToString(i)));
+   if(g_ladMode && g_ladDir==0) g_ladMode=false;
+   if(g_ladMode) Print("SEEDHI MODE restore: ",(g_ladDir==1?"BUY":"SELL")," step ",g_ladStep);
+}
+
 bool IsNews()
 {
    if(!Enable_News) return false;
@@ -1253,6 +1581,7 @@ bool IsSpikeBlocked(){ return Enable_SpikeFilter && TimeCurrent()<g_spikeBlockUn
 void CheckDDFlip()
 {
    if(!Enable_DDFlip) return;
+   if(Enable_NewStrategy && g_ladMode) return;   // v1.08: seedhi mode ka flip LadderTick mein
    if(g_totalDDTriggered) return;   // v1.05: DD lock ke dauraan koi flip / naya grid nahi
    int bCnt=CountTrades(1), sCnt=CountTrades(-1);
    if(bCnt==0 && sCnt==0)
@@ -1299,6 +1628,7 @@ void CheckDDFlip()
    if(loseDir==1){ buyFrozen=true;  sellFrozen=false; }
    else          { sellFrozen=true; buyFrozen=false;  }
    g_lastSig=newDir;   // flip ko hi naya signal maan lo
+   if(Enable_NewStrategy && CountTrades(newDir)==0){ EnterLadderMode(newDir); return; }   // v1.08: DD flip → seedhi
    if(newDir==1 && Enable_BuyGrid)
    {
       buyActive=1;
@@ -1461,6 +1791,8 @@ void CheckTotalDDLimit()
    {
       if(CountTrades(1)>0)  CloseAll(1);
       if(CountTrades(-1)>0) CloseAll(-1);
+      if(LadCount(0)>0) LadCloseAll(0);               // v1.08: seedhi bhi band
+      if(g_ladMode) EndLadderMode("Total DD lock");
       if(CountTrades(1)==0 && CountTrades(-1)==0)
       {
          g_closePendB=false; g_closePendS=false;
@@ -1547,6 +1879,7 @@ void OpenTrade(int dir,double forceLot=0)
 {
    if(g_totalDDTriggered) return;      // v1.05: DD lock — manual reset tak koi naya trade nahi
    if(Enable_DailyTarget && g_dailyLocked) return;   // 10K: aaj ka target ho gaya — kal 7 AM tak stop
+   if(Enable_NewStrategy && g_ladMode) return;       // v1.08: seedhi mode mein grid ka naya trade nahi
    if(IsClosePending(dir)) return;     // v1.05: is side ka close abhi pending hai — pehle flat ho
    if(TimeCurrent()-g_lastOpenTime<3) return;
    if(IsSpreadTooHigh()) return;
@@ -1765,6 +2098,7 @@ void ManageGrid(int dir)
 //+------------------------------------------------------------------+
 void HandleSignal(int sig)
 {
+   if(Enable_NewStrategy && g_ladMode){ LadderOnSignal(sig); return; }   // v1.08: seedhi mode — sirf disha
    int bCnt=CountTrades(1),sCnt=CountTrades(-1);
    // S2: DD ki wajah se frozen side ko SuperTrend signal se dobara mat kholo —
    // pehle uska loss limit ke DD_Flip_Unfreeze_Frac hisse tak recover hona chahiye.
@@ -1789,7 +2123,10 @@ void HandleSignal(int sig)
          if(Enable_RecoveryHold && sCnt>=RecoveryHold_MinOppositeTrades && LastNTradesProfitable(-1,RecoveryHold_LastN))
             Print("RECOVERY HOLD: SELL (",sCnt," trades deep) last ",RecoveryHold_LastN," profit mein — naya BUY entry paused is H1 bar tak");
          else
-         { buyActive=1;buyStartTime=TimeCurrent();OpenTrade(1); }
+         {
+            if(Enable_NewStrategy && sCnt>0) EnterLadderMode(1);   // v1.08: trend palta → seedhi
+            else { buyActive=1;buyStartTime=TimeCurrent();OpenTrade(1); }
+         }
       }
       else buyActive=1;
    }
@@ -1804,7 +2141,10 @@ void HandleSignal(int sig)
          if(Enable_RecoveryHold && bCnt>=RecoveryHold_MinOppositeTrades && LastNTradesProfitable(1,RecoveryHold_LastN))
             Print("RECOVERY HOLD: BUY (",bCnt," trades deep) last ",RecoveryHold_LastN," profit mein — naya SELL entry paused is H1 bar tak");
          else
-         { sellActive=1;sellStartTime=TimeCurrent();OpenTrade(-1); }
+         {
+            if(Enable_NewStrategy && bCnt>0) EnterLadderMode(-1);   // v1.08: trend palta → seedhi
+            else { sellActive=1;sellStartTime=TimeCurrent();OpenTrade(-1); }
+         }
       }
       else sellActive=1;
    }
@@ -1839,6 +2179,7 @@ double GetGlobalTarget()
 void CheckGlobalBasket()
 {
    if(!Enable_GlobalBasket) return;
+   if(Enable_NewStrategy && g_ladMode) return;   // v1.08: seedhi mode mein cycle +Ladder_Cycle_Target (LadderTick)
    if(CountTrades(1)==0 && CountTrades(-1)==0) return;
    double eq  = AccountInfoDouble(ACCOUNT_EQUITY);
    double bal = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -1962,6 +2303,8 @@ void CheckProfitTarget()
       last3CloseDuration[0]= dur;
       SendAlert("Cycle #"+IntegerToString(cycleCount)+" done! $"+DoubleToString(pnl,2));
       bool okB=CloseAll(1), okS=CloseAll(-1);
+      LadCloseAll(0);                                   // v1.08: seedhi bhi band
+      if(g_ladMode) EndLadderMode("profit target");
       // Reset cycleStartBal for next cycle
       cycleStartBal = AccountInfoDouble(ACCOUNT_BALANCE);
       basketStartEquity = 0;   // naya basket fresh capture karega
@@ -2017,6 +2360,7 @@ void CheckDailyTarget()
       // close fail hua ho to har tick dobara try
       if(CountTrades(1)>0)  CloseAll(1);
       if(CountTrades(-1)>0) CloseAll(-1);
+      if(LadCount(0)>0) LadCloseAll(0);   // v1.08
       return;
    }
    double dayPnl=GetDailyPnL(), tgt=GetDailyTarget();
@@ -2033,6 +2377,8 @@ void CheckDailyTarget()
    SendAlert("DAILY TARGET HIT! Aaj +$"+DoubleToString(dayPnl,2)+" >= $"+DoubleToString(tgt,2)+
              " — sab band, kal "+IntegerToString(Trade_Start_Hour)+":00 IST tak trading stop");
    CloseAll(1); CloseAll(-1);
+   LadCloseAll(0);                                   // v1.08: seedhi bhi band
+   if(g_ladMode) EndLadderMode("daily target");
    basketStartEquity=0;
    SaveEAState();
 }
@@ -2362,6 +2708,7 @@ string BrStatus()
    if(g_totalDDTriggered)  return "DD LOCKED - MANUAL RESET";   // v1.05
    if(Enable_TotalDD_Limit && GetCurrentDD_Dollar()>=Total_DD_Dollar_Limit) return "DD LIMIT HIT";
    if(Enable_DailyTarget && g_dailyLocked) return "DAILY TARGET HIT - STOP TILL 7 AM";   // 10K
+   if(Enable_NewStrategy && g_ladMode) return "SEEDHI "+(g_ladDir==1?"BUY":"SELL")+(g_ladCooling?" COOLDOWN":"");   // v1.08
    if(IsWeekendBlock() && b+s==0) return "WEEKEND BLOCK";
    if(IsOutsideHours() && b+s==0) return "OUTSIDE HOURS";   // 10K
    if(IsNews())            return "NEWS BLOCK";
@@ -2558,6 +2905,7 @@ int OnInit()
       if(atrHandleH4==INVALID_HANDLE) return INIT_FAILED;
    }
    if(Enable_ProfitRecycle && GlobalVariableCheck(DayGV("rbank"))) g_recycleBank=GlobalVariableGet(DayGV("rbank"));
+   if(Enable_NewStrategy) LoadLadderState();   // v1.08
    g_lastH1=iTime(_Symbol,Filter_TF,0);
    g_lastM1=iTime(_Symbol,PERIOD_M1,0);
    LoadEAState();
@@ -2663,6 +3011,29 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    if(trans.type!=TRADE_TRANSACTION_DEAL_ADD) return;
    if(!HistoryDealSelect(trans.deal)) return;
    long dealType=HistoryDealGetInteger(trans.deal,DEAL_TYPE);
+   // v1.08: SEEDHI deals — booked profit, TP re-entry, lock mark point
+   if((dealType==DEAL_TYPE_BUY || dealType==DEAL_TYPE_SELL)
+      && HistoryDealGetInteger(trans.deal,DEAL_MAGIC)==LadMagic()
+      && HistoryDealGetString(trans.deal,DEAL_SYMBOL)==_Symbol)
+   {
+      if(Enable_NewStrategy && HistoryDealGetInteger(trans.deal,DEAL_ENTRY)==DEAL_ENTRY_OUT)
+      {
+         int pd=(dealType==DEAL_TYPE_SELL)?1:-1;      // BUY position SELL deal se band hoti hai
+         long rsn=HistoryDealGetInteger(trans.deal,DEAL_REASON);
+         double net=HistoryDealGetDouble(trans.deal,DEAL_PROFIT)+HistoryDealGetDouble(trans.deal,DEAL_SWAP)
+                   +HistoryDealGetDouble(trans.deal,DEAL_COMMISSION);
+         double vol=HistoryDealGetDouble(trans.deal,DEAL_VOLUME);
+         double px =HistoryDealGetDouble(trans.deal,DEAL_PRICE);
+         if(rsn!=DEAL_REASON_EXPERT){ g_ladBooked[LIx(pd)]+=net; g_ladDirty=true; }   // EA ke apne exit ginti mein nahi
+         if(g_ladMode && pd==g_ladDir && !g_ladCooling)
+         {
+            if(rsn==DEAL_REASON_TP && g_ladReN<LAD_MAXQ){ g_ladReLot[g_ladReN]=vol; g_ladReN++; g_ladDirty=true; }
+            else if(rsn==DEAL_REASON_SL && g_ladMarkN<LAD_MAXQ)
+            { g_ladMarkPx[g_ladMarkN]=px; g_ladMarkLot[g_ladMarkN]=vol; g_ladMarkN++; g_ladDirty=true; }
+         }
+      }
+      return;
+   }
    // v1.07: PROFIT RECYCLING — active side ka band hua trade (broker TP ya EA close) profit mein,
    // aur frozen side loss mein → woh profit bank mein
    if(Enable_ProfitRecycle && (dealType==DEAL_TYPE_BUY || dealType==DEAL_TYPE_SELL)
@@ -2707,6 +3078,12 @@ void OnTick()
    if(g_flipAllowDir!=0 && (CountTrades(g_flipAllowDir)>0 || g_lastSig!=g_flipAllowDir)) g_flipAllowDir=0;
    if(g_lastSig!=0 && CountTrades(g_lastSig)>0) g_h4BlockLogged=false;
    ProcessRecycle();   // v1.07: bank se frozen side ke saste trades band (OFF by default)
+   if(Enable_NewStrategy)   // v1.08: seedhi
+   {
+      if(g_ladMode) LadderTick();
+      else if(LadCount(0)>0) LadCloseAll(0);   // mode khatam par seedhi trade bacha (close fail) → band
+      SaveLadderState();
+   }
    CheckProfitTarget();
    FetchNextNewsEvents();
    if(TimeCurrent()-g_lastStateSave>=3600) SaveEAState();
