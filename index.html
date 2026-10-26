@@ -2295,7 +2295,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.6.9';
+const VERSION = '10.6.10';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -10161,14 +10161,15 @@ const TZ_K = 160;                       /* min per (u1 / ATR15) — backtest med
 let TZ = {busy:false, last: LS.get('tzLast', null)};
 function tzList(){ return FX.filter(s => SPECS[s] && !isBad(s)) }
 function tzNeed(){ return tzList().filter(s => { const c = BP.cache[s + '|15min']; return !(c && Date.now() - c.t < BP_TTL) }).length }
-function tzEta(sym, live, a15){ if(!(a15 > 0)) return null; const u1 = dollarsToDist(sym, live, 0.01, 1); return Math.max(15, Math.round(TZ_K * u1 / a15 / 15) * 15) }
+/* v10.6.10 (T2): abhi ki chaal bhi gino — aam ghanta ≈ 2 × ATR15, to pichhle ghante ki range / 2 = "abhi ka ATR" */
+function tzEta(sym, live, a15, hr){ const a = Math.max(a15 || 0, (hr || 0) / 2); if(!(a > 0)) return null; const u1 = dollarsToDist(sym, live, 0.01, 1); return Math.max(15, Math.round(TZ_K * u1 / a / 15) * 15) }
 const tzEtaTxt = m => m === null ? '—' : m < 60 ? `~${m} min` : `~${(m / 60).toFixed(m < 180 ? 1 : 0)} ghanta`;
 function tzRow(sym, b){
   const A = atr(b, 14), n = b.length, a15 = A[n - 1] || 0, live = b[n - 1].c, h4 = b.slice(-4);
   const hr = Math.max(...h4.map(x => x.h)) - Math.min(...h4.map(x => x.l)), mv = live - b[n - 5].c;
   const lastT = Date.parse(String(b[n - 1].t).replace(' ', 'T') + '+05:30');
   return {sym, live, a15, hr, hot: a15 > 0 ? hr / (2 * a15) : 0, dir: mv > 0 ? 1 : mv < 0 ? -1 : 0,
-    hrUsd: distToDollars(sym, live, 0.01, hr), eta: tzEta(sym, live, a15), stale: isFinite(lastT) && Date.now() - lastT > 90 * 60000, nw: newsRisk(sym)};
+    hrUsd: distToDollars(sym, live, 0.01, hr), eta: tzEta(sym, live, a15, hr), stale: isFinite(lastT) && Date.now() - lastT > 90 * 60000, nw: newsRisk(sym)};
 }
 async function tezScan(){
   if(TZ.busy || BP.busy) return;
@@ -10187,37 +10188,54 @@ async function tezScan(){
       rows.push(tzRow(sym, b));
     }catch(e){ rows.push({sym, err: e.message || String(e)}) }
   }
+  /* v10.6.10 (T1): 🔥 pairs pe wahi AUTO ANALYZE ka niyam (mtfGate, 1H + 15m) — "trade layak?" (1H = 1 credit / 🔥 pair) */
+  const hotL = rows.filter(r => !r.err && !r.stale && r.hot >= 1.25);
+  for(let i = 0; i < hotL.length; i++){
+    const r = hotL[i], nm = SPECS[r.sym].n;
+    try{
+      note(`🔥 ${i + 1}/${hotL.length} · ${nm} · trend check (1H)…`);
+      const b1 = await bpBars(r.sym, '1h', sec => note(`⏳ API limit — ${sec} sec ruko · ${nm}`));
+      const b15 = await bpBars(r.sym, '15min');
+      if(!b1 || b1.length < 60) throw new Error('1H data kam');
+      const g = mtfGate({'1h': mtfRead(b1), '15min': mtfRead(b15)}, dollarsToDist(r.sym, r.live, 0.01, +S.pfxTp || 3));
+      r.gate = {mode: g.mode, cat: g.cat || '', why: g.why};
+    }catch(e){ r.gate = {mode: '?', cat: '', why: 'trend check nahi hua — ' + (e.message || e)} }
+  }
   TZ.last = {at: Date.now(), rows}; LS.set('tzLast', TZ.last);
   TZ.busy = false; tzRender();
-  const h = rows.filter(r => !r.err && !r.stale && r.hot >= 1.25);
-  toast(h.length ? `🔥 ${h.length} pair abhi tez: ` + h.slice(0, 3).map(r => SPECS[r.sym].n).join(', ') : 'Abhi koi pair khaas tez nahi');
+  const okT = hotL.filter(r => r.gate && r.gate.mode !== 'NONE' && r.gate.mode !== '?');
+  toast(hotL.length ? `🔥 ${hotL.length} tez · ✅ ${okT.length} trade layak` + (okT.length ? ': ' + okT.slice(0, 3).map(r => SPECS[r.sym].n).join(', ') : '') : 'Abhi koi pair khaas tez nahi');
 }
 function tzRender(){
   const btn = $('tzBtn'), box = $('tzBox'); if(!btn || !box) return;
   btn.disabled = TZ.busy || BP.busy;
   btn.textContent = TZ.busy ? '⏳ SAB PAIR DEKH RAHA HAI…' : '⚡ TEZ MOVEMENT · SAB PAIR';
   const need = tzNeed();
-  $('tzCost').textContent = `${tzList().length} forex pair (Gold/BTC nahi) · ` + (need ? `~${need} credit · ~${Math.ceil(need / 8)} min` : 'data taaza — free');
+  $('tzCost').textContent = `${tzList().length} forex pair (Gold/BTC nahi) · ` + (need ? `~${need} credit · ~${Math.ceil(need / 8)} min` : 'data taaza — free') + ' · + 🔥 pair ka 1H (1 credit / pair)';
   if(TZ.busy) return;
   const D = TZ.last;
   if(!D || !D.rows){ box.innerHTML = ''; return }
   if(Date.now() - D.at > BP_TTL){ box.innerHTML = '<p class="hint" style="margin-top:8px">Pichhla tez-movement result 5 min se purana — dobara dabao.</p>'; return }
   const ok = D.rows.filter(r => !r.err && !r.stale), bad = D.rows.length - ok.length;
-  const hot = ok.filter(r => r.hot >= 1.25).sort((x, y) => y.hot - x.hot);
+  const lay = r => r.gate && r.gate.mode !== 'NONE' && r.gate.mode !== '?';
+  const hot = ok.filter(r => r.hot >= 1.25).sort((x, y) => (lay(y) - lay(x)) || (y.hot - x.hot));
   const rest = ok.filter(r => r.hot < 1.25).sort((x, y) => (x.eta || 1e9) - (y.eta || 1e9));
   const row = r => {
-    const sp = SPECS[r.sym], slow = r.eta >= 240, col = r.hot >= 1.25 ? 'var(--gold)' : 'var(--line)';
-    return `<div style="display:flex;align-items:center;gap:8px;border:1px solid ${col};border-radius:9px;padding:7px 10px;margin-top:6px;font-size:12px">
+    const sp = SPECS[r.sym], slow = r.eta >= 240, L = lay(r), col = L ? 'var(--up)' : r.hot >= 1.25 ? 'var(--gold)' : 'var(--line)';
+    const G = r.gate, gl = !G ? '' : L
+      ? `<div style="font-size:11.5px;margin-top:4px;color:var(--up);font-weight:700">✅ ${G.mode === 'RANGE' ? 'Range — dono taraf limit' : `Naya trend ${G.mode === 'UP' ? '↑' : '↓'}`} — AUTO ANALYZE layak</div>`
+      : `<div style="font-size:11.5px;margin-top:4px;color:var(--mut)">⏸ Tez hai par trade nahi — ${escH(G.cat === 'purana' ? 'trend purana (15m + 1H dono saath)' : G.cat === 'rest' ? '15m ruka hua (rest)' : G.why)}</div>`;
+    return `<div style="border:1px solid ${col};border-radius:9px;padding:7px 10px;margin-top:6px"><div style="display:flex;align-items:center;gap:8px;font-size:12px">
       <b class="mono" style="min-width:62px">${sp.n}</b>
       <b style="color:${r.dir > 0 ? 'var(--up)' : r.dir < 0 ? 'var(--dn)' : 'var(--mut)'}">${r.dir > 0 ? '↑' : r.dir < 0 ? '↓' : '→'}</b>
       <span style="color:var(--mut)">1 ghante me <b style="color:var(--txt)">${money(r.hrUsd)}</b></span>
       <span style="margin-left:auto;text-align:right;color:${slow ? 'var(--dn)' : 'var(--mut)'}">+$1 ${tzEtaTxt(r.eta)}${r.nw ? ' · 📰' : ''}</span>
-      <button style="color:var(--gold);font-size:11px;font-weight:800;padding:2px 4px" onclick="bpGo('${r.sym}')">📸</button></div>`;
+      <button style="font-size:12px;font-weight:800;padding:3px 6px;border-radius:7px;${L ? 'background:var(--gold);color:#000' : G ? 'opacity:.4' : 'color:var(--gold)'}" onclick="bpGo('${r.sym}')">📸</button></div>${gl}</div>`;
   };
-  box.innerHTML = `<p class="small" style="margin:10px 0 0">🔥 <b>Abhi bade movement me: ${hot.length}</b> <span style="color:var(--mut)">· <span data-ago="${D.at}">${ago(D.at)}</span></span></p>` +
+  box.innerHTML = `<p class="small" style="margin:10px 0 0">🔥 <b>Abhi bade movement me: ${hot.length}</b>${hot.length ? ` · <b style="color:var(--up)">✅ ${hot.filter(lay).length} trade layak</b>` : ''} <span style="color:var(--mut)">· <span data-ago="${D.at}">${ago(D.at)}</span></span></p>` +
     (hot.length ? hot.map(row).join('') : '<p class="hint" style="margin-top:6px">Abhi koi pair apne aam se khaas tez nahi.</p>') +
     `<details style="margin-top:10px"><summary class="small" style="color:var(--mut);cursor:pointer">Baaki ${rest.length} pair — tez se dheeme ▸</summary>${rest.map(row).join('')}</details>` +
-    `<p class="hint" style="margin:8px 0 0">"1 ghante me" = pichhle 1 ghante ki range (0.01 lot pe $). "+$1" = backtest se andaza (median) — pakka nahi. 📸 = us pair pe AUTO ANALYZE (wahi naya-trend niyam). 📰 = news paas.${bad ? ` ${bad} pair ka data nahi / market band.` : ''}</p>`;
+    `<p class="hint" style="margin:8px 0 0">"1 ghante me" = pichhle 1 ghante ki range (0.01 lot pe $). "+$1" = backtest se andaza (median) — pakka nahi. 📸 = us pair pe AUTO ANALYZE. ✅ = 🔥 pair pe AUTO ANALYZE wala niyam (1H + 15m) bhi haan bolta hai; ⏸ = tez hai par trend saaf nahi (AUTO ANALYZE NO TRADE dega). 📰 = news paas.${bad ? ` ${bad} pair ka data nahi / market band.` : ''}</p>`;
 }
 function bpGo(sym){
   if(!SPECS[sym]) return;
@@ -10312,6 +10330,7 @@ async function autoAnalyze(){
     });
     const good = d.mtf.legs.filter(L => L.ok);
     d.mtf.lvl = !!lv; d.mtf.a5 = a5; d.mtf.a15 = a15;
+    { const h4 = sets[1].bars.slice(-4); d.mtf.hr = Math.max(...h4.map(x => x.h)) - Math.min(...h4.map(x => x.l)) }   /* v10.6.10 (T2) */
     if(good.length){
       d.signal = 'TRADE'; d.dir = good[0].dir; d.entry = good[0].entry;
       mtfLogAdd(d);
@@ -10359,7 +10378,7 @@ function mtfRender(box, d){
     ${d.reason && d.reason !== M.why ? `<p class="hint" style="margin:0 0 8px">🤖 ${escH(d.reason)}</p>` : ''}`;
   const good = M.legs.filter(L => L.ok);
   /* v10.6.8 (P2): +$1 ka andaza (backtest median) · (P4): currency daav dohra */
-  const eta = good.length ? tzEta(sym, d.live, M.a15) : null;
+  const eta = good.length ? tzEta(sym, d.live, M.a15, M.hr) : null;
   const clash = good.length ? ccyClash(sym, good[0].dir) : [];
   const info = (eta !== null ? `<p class="hint" style="margin:0 0 6px;${eta >= 240 ? 'color:var(--dn);font-weight:600' : ''}">⏱ +$1 (0.01 lot) aane me ${tzEtaTxt(eta)} lag sakte hain${eta >= 240 ? ' — ⚠ dheema pair, lamba wait / DD' : ''} <small style="color:var(--mut)">· andaza</small></p>` : '') +
     clash.map(w => `<p class="hint" style="margin:0 0 6px;border:1px solid var(--dn);border-radius:8px;padding:6px 9px;color:#ffb3b3;font-weight:600">⚠ ${escH(w)} <small style="color:var(--mut);font-weight:400">· sirf chetavni</small></p>`).join('');
