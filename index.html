@@ -1458,6 +1458,10 @@ body.ds-gold .brand .brandWord{height:24px}
     <button class="btn gold" id="bpBtn" onclick="bestPair()">🏆 BEST PAIR DHUNDHO</button>
     <p class="hint mono" id="bpCost" style="margin-top:8px">—</p>
     <div id="bpBox"></div>
+    <!-- v10.6.8 (P1): saare 28 forex pair me abhi kaun tez chal raha hai -->
+    <button class="btn ghost" id="tzBtn" style="margin-top:12px" onclick="tezScan()">⚡ TEZ MOVEMENT · SAB PAIR</button>
+    <p class="hint mono" id="tzCost" style="margin-top:6px">—</p>
+    <div id="tzBox"></div>
   </div>
   <div class="card">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -2291,7 +2295,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.6.7';
+const VERSION = '10.6.8';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -3222,7 +3226,7 @@ function go(pg,btn){
     $('btTf').textContent = S.tf; $('btT').innerHTML = S.bt ? `<span data-ago="${S.bt.at}">${ago(S.bt.at)}</span>` : '—' }
   if(pg==='Trades'){ renderTrades(); refreshOpen(false) }
   if(pg==='Alerts'){ renderLog(); renderCloud(); renderStorage(); renderTrack() }
-  if(pg==='Chart'){ chartPageShow(); if(window.bpRender) bpRender() }
+  if(pg==='Chart'){ chartPageShow(); if(window.bpRender) bpRender(); if(window.tzRender) tzRender() }
   /* v9.9.0 Copy Trade — naya tab, sirf apna kaam */
   if(pg==='Copy'){ if(window.cpOnShow) cpOnShow() } else if(window.cpOnHide) cpOnHide();
   /* v10.5.0 Pair Trading — naya tab */
@@ -10148,6 +10152,73 @@ function bpRender(){
     ${T.map(card).join('')}
     <p class="hint" style="margin:8px 0 0">Bhaav sirf <b>andaza</b> — asli order AUTO ANALYZE se (wo 5m/1m + AI bhi dekhta hai, kabhi NO TRADE bhi de sakta hai).</p>${hidden}`;
 }
+/* ================= ⚡ TEZ MOVEMENT (v10.6.8, P1) =================
+   Saare 28 forex pair (Gold / Silver / crypto / index nahi) ki 15m candles (1 credit / pair, Best Pair ke cache se
+   share). Har pair: 15m ATR, pichhle 1 ghante ki range, disha, aur +$1 (0.01 lot) ka andaza time.
+   Backtest (12 pair, 22 din): +$1 ka median time ≈ 160 min × ($1 ki doori / 15m ATR) — isliye "$1 kitne ATR".
+   🔥 = pichhla 1 ghanta apne aam ghante (~2 × ATR15) se 1.25 guna bada. Sirf jaankari — order AUTO ANALYZE se. */
+const TZ_K = 160;                       /* min per (u1 / ATR15) — backtest median */
+let TZ = {busy:false, last: LS.get('tzLast', null)};
+function tzList(){ return FX.filter(s => SPECS[s] && !isBad(s)) }
+function tzNeed(){ return tzList().filter(s => { const c = BP.cache[s + '|15min']; return !(c && Date.now() - c.t < BP_TTL) }).length }
+function tzEta(sym, live, a15){ if(!(a15 > 0)) return null; const u1 = dollarsToDist(sym, live, 0.01, 1); return Math.max(15, Math.round(TZ_K * u1 / a15 / 15) * 15) }
+const tzEtaTxt = m => m === null ? '—' : m < 60 ? `~${m} min` : `~${(m / 60).toFixed(m < 180 ? 1 : 0)} ghanta`;
+function tzRow(sym, b){
+  const A = atr(b, 14), n = b.length, a15 = A[n - 1] || 0, live = b[n - 1].c, h4 = b.slice(-4);
+  const hr = Math.max(...h4.map(x => x.h)) - Math.min(...h4.map(x => x.l)), mv = live - b[n - 5].c;
+  const lastT = Date.parse(String(b[n - 1].t).replace(' ', 'T') + '+05:30');
+  return {sym, live, a15, hr, hot: a15 > 0 ? hr / (2 * a15) : 0, dir: mv > 0 ? 1 : mv < 0 ? -1 : 0,
+    hrUsd: distToDollars(sym, live, 0.01, hr), eta: tzEta(sym, live, a15), stale: isFinite(lastT) && Date.now() - lastT > 90 * 60000, nw: newsRisk(sym)};
+}
+async function tezScan(){
+  if(TZ.busy || BP.busy) return;
+  if(needKey()) return;
+  const L = tzList(), need = tzNeed();
+  if(dayLeft() < need && !confirm(`Isme ${need} credit lagenge, aaj ${dayLeft()} bache hain. Phir bhi chalu karein?`)) return;
+  TZ.busy = true; tzRender();
+  const box = $('tzBox'), rows = [];
+  const note = t => { box.innerHTML = `<p class="hint busyg" style="margin-top:10px"><span class="spin"></span> ${t}</p>` };
+  for(let i = 0; i < L.length; i++){
+    const sym = L[i], nm = SPECS[sym].n;
+    try{
+      note(`${i + 1}/${L.length} · ${nm} · 15m candles…`);
+      const b = await bpBars(sym, '15min', sec => note(`⏳ API limit — ${sec} sec ruko · ${nm} (${i + 1}/${L.length})`));
+      if(!b || b.length < 30) throw new Error('kaafi candles nahi');
+      rows.push(tzRow(sym, b));
+    }catch(e){ rows.push({sym, err: e.message || String(e)}) }
+  }
+  TZ.last = {at: Date.now(), rows}; LS.set('tzLast', TZ.last);
+  TZ.busy = false; tzRender();
+  const h = rows.filter(r => !r.err && !r.stale && r.hot >= 1.25);
+  toast(h.length ? `🔥 ${h.length} pair abhi tez: ` + h.slice(0, 3).map(r => SPECS[r.sym].n).join(', ') : 'Abhi koi pair khaas tez nahi');
+}
+function tzRender(){
+  const btn = $('tzBtn'), box = $('tzBox'); if(!btn || !box) return;
+  btn.disabled = TZ.busy || BP.busy;
+  btn.textContent = TZ.busy ? '⏳ SAB PAIR DEKH RAHA HAI…' : '⚡ TEZ MOVEMENT · SAB PAIR';
+  const need = tzNeed();
+  $('tzCost').textContent = `${tzList().length} forex pair (Gold/BTC nahi) · ` + (need ? `~${need} credit · ~${Math.ceil(need / 8)} min` : 'data taaza — free');
+  if(TZ.busy) return;
+  const D = TZ.last;
+  if(!D || !D.rows){ box.innerHTML = ''; return }
+  if(Date.now() - D.at > BP_TTL){ box.innerHTML = '<p class="hint" style="margin-top:8px">Pichhla tez-movement result 5 min se purana — dobara dabao.</p>'; return }
+  const ok = D.rows.filter(r => !r.err && !r.stale), bad = D.rows.length - ok.length;
+  const hot = ok.filter(r => r.hot >= 1.25).sort((x, y) => y.hot - x.hot);
+  const rest = ok.filter(r => r.hot < 1.25).sort((x, y) => (x.eta || 1e9) - (y.eta || 1e9));
+  const row = r => {
+    const sp = SPECS[r.sym], slow = r.eta >= 240, col = r.hot >= 1.25 ? 'var(--gold)' : 'var(--line)';
+    return `<div style="display:flex;align-items:center;gap:8px;border:1px solid ${col};border-radius:9px;padding:7px 10px;margin-top:6px;font-size:12px">
+      <b class="mono" style="min-width:62px">${sp.n}</b>
+      <b style="color:${r.dir > 0 ? 'var(--up)' : r.dir < 0 ? 'var(--dn)' : 'var(--mut)'}">${r.dir > 0 ? '↑' : r.dir < 0 ? '↓' : '→'}</b>
+      <span style="color:var(--mut)">1 ghante me <b style="color:var(--txt)">${money(r.hrUsd)}</b></span>
+      <span style="margin-left:auto;text-align:right;color:${slow ? 'var(--dn)' : 'var(--mut)'}">+$1 ${tzEtaTxt(r.eta)}${r.nw ? ' · 📰' : ''}</span>
+      <button style="color:var(--gold);font-size:11px;font-weight:800;padding:2px 4px" onclick="bpGo('${r.sym}')">📸</button></div>`;
+  };
+  box.innerHTML = `<p class="small" style="margin:10px 0 0">🔥 <b>Abhi bade movement me: ${hot.length}</b> <span style="color:var(--mut)">· <span data-ago="${D.at}">${ago(D.at)}</span></span></p>` +
+    (hot.length ? hot.map(row).join('') : '<p class="hint" style="margin-top:6px">Abhi koi pair apne aam se khaas tez nahi.</p>') +
+    `<details style="margin-top:10px"><summary class="small" style="color:var(--mut);cursor:pointer">Baaki ${rest.length} pair — tez se dheeme ▸</summary>${rest.map(row).join('')}</details>` +
+    `<p class="hint" style="margin:8px 0 0">"1 ghante me" = pichhle 1 ghante ki range (0.01 lot pe $). "+$1" = backtest se andaza (median) — pakka nahi. 📸 = us pair pe AUTO ANALYZE (wahi naya-trend niyam). 📰 = news paas.${bad ? ` ${bad} pair ka data nahi / market band.` : ''}</p>`;
+}
 function bpGo(sym){
   if(!SPECS[sym]) return;
   pickCtx = 'main';
@@ -10262,6 +10333,16 @@ async function autoAnalyze(){
   }
 }
 
+/* v10.6.8 (P4): naya order wahi currency daav dohra raha hai? (TRADES tab ke khule / pending trade dekhe)
+   GBPUSD BUY + GBPAUD BUY + USDCAD SELL = teeno "GBP mazboot / USD kamzor" — ek hi daav, risk teen guna. Sirf chetavni. */
+function ccyClash(sym, dir){
+  const sp = SPECS[sym]; if(!sp || !sp.ccy) return [];
+  const sg = dir === 'BUY' ? 1 : -1, mine = {[sp.ccy[0]]: sg, [sp.ccy[1]]: -sg}, hits = {};
+  (S.open || []).forEach(t => { const q = SPECS[t.sym]; if(!q || !q.ccy) return; const s2 = t.dir === 'BUY' ? 1 : -1;
+    [[q.ccy[0], s2], [q.ccy[1], -s2]].forEach(([c, v]) => { if(mine[c] === v) (hits[c] = hits[c] || []).push(q.n + ' ' + t.dir) }) });
+  return Object.keys(hits).map(c => `${c} ${mine[c] > 0 ? 'mazboot' : 'kamzor'} ka daav pehle se ${hits[c].length} trade me (${hits[c].join(', ')}) — risk ${hits[c].length + 1} guna`);
+}
+
 /* ---- 4-TF result card (PERSONAL FX order) ---- */
 function mtfRender(box, d){
   const sym = d.sym, sp = SPECS[sym], M = d.mtf;
@@ -10277,6 +10358,11 @@ function mtfRender(box, d){
     ${(M.warn || []).map(w => `<p class="hint" style="margin:0 0 6px;border:1px solid var(--gold);border-radius:8px;padding:6px 9px;color:var(--gold);font-weight:600">⚠ ${escH(w)} <small style="color:var(--mut);font-weight:400">· sirf chetavni, order wahi</small></p>`).join('')}
     ${d.reason && d.reason !== M.why ? `<p class="hint" style="margin:0 0 8px">🤖 ${escH(d.reason)}</p>` : ''}`;
   const good = M.legs.filter(L => L.ok);
+  /* v10.6.8 (P2): +$1 ka andaza (backtest median) · (P4): currency daav dohra */
+  const eta = good.length ? tzEta(sym, d.live, M.a15) : null;
+  const clash = good.length ? ccyClash(sym, good[0].dir) : [];
+  const info = (eta !== null ? `<p class="hint" style="margin:0 0 6px;${eta >= 240 ? 'color:var(--dn);font-weight:600' : ''}">⏱ +$1 (0.01 lot) aane me ${tzEtaTxt(eta)} lag sakte hain${eta >= 240 ? ' — ⚠ dheema pair, lamba wait / DD' : ''} <small style="color:var(--mut)">· andaza</small></p>` : '') +
+    clash.map(w => `<p class="hint" style="margin:0 0 6px;border:1px solid var(--dn);border-radius:8px;padding:6px 9px;color:#ffb3b3;font-weight:600">⚠ ${escH(w)} <small style="color:var(--mut);font-weight:400">· sirf chetavni</small></p>`).join('');
   if(!good.length){
     box.innerHTML = head + `<div style="border:1px solid var(--gold);border-radius:10px;padding:12px;text-align:center;margin-top:6px">
       <b class="shine gd" style="font-size:16px;letter-spacing:1px">⏸ NO TRADE</b>
@@ -10299,7 +10385,7 @@ function mtfRender(box, d){
         ${L.zone ? `<p class="hint" style="margin:4px 0 0;color:#16E27E">📐 Zone: ${escH(L.zone)}</p>` : ''}
         ${L.why ? `<p class="hint" style="margin:4px 0 0">${escH(L.why)}</p>` : ''}</div>`;
   }).join('');
-  box.innerHTML = head + `<p class="hint" style="margin:0">${liveLine}</p>` + legHTML + `
+  box.innerHTML = head + info + `<p class="hint" style="margin:0">${liveLine}</p>` + legHTML + `
     <div style="border:1px dashed var(--line);border-radius:8px;padding:9px 11px;margin:10px 0;font-size:11.5px;line-height:1.8">
       🔗 ${good.length === 2 ? '<b>Dono order ek saath</b> — jo pehle bhare, PERSONAL FX baaki ko cancel karega (v5.9+)' : 'Sirf ek order pakka nikla'}<br>
       📦 Lot, 🎯 TP / SL, averaging: <b>PERSONAL FX ke apne niyam</b><br>
@@ -10349,6 +10435,7 @@ async function mtfSend(){
     legs.map(L => `${L.dir} ${L.kind} @ ${fmt(sym, L.e)}`).join('\n') +
     (legs.length > 1 ? '\n\nJo pehle bhare, dusra PERSONAL FX khud cancel karega (v5.9+ chahiye)' : '') +
     ((d.mtf.warn || []).length ? '\n\n' + d.mtf.warn.map(w => '⚠ ' + w).join('\n') : '') +
+    (ccyClash(sym, legs[0].dir).length ? '\n\n' + ccyClash(sym, legs[0].dir).map(w => '⚠ ' + w).join('\n') : '') +
     `\n\nLot, TP/SL, averaging: PERSONAL FX ke niyam\nPending ${PFX_EXP_MIN} min me na bhare to hat jayega` +
     (dup ? `\n\n⚠ ${pair} ka ek order pehle se "${(PFX_ST[dup.status] || [dup.status])[0]}" hai (${t12(dup.at)}) — naya batch usko hata dega` : '') +
     (pfl.length ? '\n\n🛫 PRE-FLIGHT\n' + pfl.map(x => (x.ok ? '✓ ' : '⚠ ') + x.txt).join('\n') : '') +

@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.6.8 — ⚡ Tez movement scanner (28 forex pair), AUTO ANALYZE card pe +$1 ka ⏱ andaza, currency daav dohra ⚠ chetavni
    v10.6.7 — Chart page: Best Pair Abhi sabse upar (← Signals uske upar), Chart Analysis (pair + jaankari) uske neeche
    v10.6.6 — AUTO ANALYZE: sirf 'naya trend' (15m trend + 1H flat) pe order; purana trend / rest = NO TRADE (backtest). Report Card: naya vs 👻 purana/rest live hisaab
    v10.6.5 — Report Card: pair aur session (Asia/London/NY, IST) ke hisaab se +TP pehle %
@@ -94,7 +95,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.6.7';
+const VERSION = '10.6.8';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
