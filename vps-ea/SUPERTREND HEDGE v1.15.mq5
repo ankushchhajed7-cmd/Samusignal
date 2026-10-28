@@ -6,10 +6,11 @@
 //| v1.15 (28-Oct-2026) - HYBRID hedge (default). Ankush: M1 CLOSE me |
 //|  hedge der se lagta, spike me DD badhta (screenshot: -4.47, hedge |
 //|  nahi). Ab: M1 candle level ke paar band -> market hedge, AUR     |
-//|  level se InpHedgeEmergency (0.70) aage server par Stop order ->  |
+//|  level se InpHedgeEmergency (0.30) aage server par Stop order ->  |
 //|  spike me turant hedge (VPS band ho tab bhi). Duplicate se bachne |
 //|  ke liye M1 hedge se pehle Stop hatate hain; hat-na fail = bhar   |
-//|  chuka -> doosra nahi. Hedge lagne tak main loss max ~$3.7-4      |
+//|  chuka -> doosra nahi. Hedge lagne tak main loss ~$3.3 (Ankush:   |
+//|  DD $3-3.5 se upar nahi) + spread / slippage                       |
 //|  FIX: hedge +$0.20 par band hua to price level ke paar hi tha;    |
 //|  naya hedge "pehle level ke peeche jao" ka intezaar karta tha ->  |
 //|  main akela (screenshot -6.20). Ab M1 CLOSE / HYBRID me ye        |
@@ -179,7 +180,7 @@ input double InpHedgeMult    = 1.0;        // Hedge lot = main lot x (1.0 = 0.01
 input double InpReentryGap   = 0.0;        // Re-entry gap (price, 0 = usi level par)
 input double InpBEBuffer     = 0.0;        // BE close buffer (price, 0 = turant) - jo hedge kabhi 0 tak nahi pahuncha
 input EHedgeMode InpHedgeMode = HM_HYBRID;   // Hedge entry mode
-input double InpHedgeEmergency = 0.70;     // HYBRID: level se itna aage server par Stop (spike me turant hedge)
+input double InpHedgeEmergency = 0.30;     // HYBRID: level se itna aage server par Stop (spike me turant hedge) - DD ~$3.3 par ruke
 input double InpHedgeBuffer  = 0.30;       // BUFFER mode: level se kitna aage (price)
 input int    InpHedgeCooldown = 0;         // Hedge cooldown (sec): pichhla hedge khulne ke itne sec baad hi agla (0 = off)
 input double InpHedgeMinProfit = 0.20;     // Hedge (0.02 aur bacha 0.01) kam se kam itna $ profit lekar band (0 = 0-0)

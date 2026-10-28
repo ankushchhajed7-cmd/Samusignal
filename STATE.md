@@ -21,7 +21,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 ## SUPERTREND HEDGE v1.15 — HYBRID hedge + main akela rehne ka fix (28 Oct 2026)
 
 - **Ankush ke screenshot:** Buy 0.01 @ 4053.07 → −4.47, phir −6.20, koi hedge nahi (level 4050.07). M1 CLOSE me hedge der se; spike me DD badhne ka darr.
-- **HYBRID (`InpHedgeMode` 3, default):** M1 candle level ke paar band → market hedge, **aur** level se `InpHedgeEmergency` 0.70 aage server par Stop order → spike me turant hedge (VPS band ho tab bhi). M1 hedge se pehle Stop hataya jaata hai; hat-na fail = bhar chuka → doosra nahi (duplicate se bachav). Hedge lagne tak main loss max ~$3.7-4 (+ slippage).
+- **HYBRID (`InpHedgeMode` 3, default):** M1 candle level ke paar band → market hedge, **aur** level se `InpHedgeEmergency` 0.30 aage server par Stop order → spike me turant hedge (VPS band ho tab bhi). M1 hedge se pehle Stop hataya jaata hai; hat-na fail = bhar chuka → doosra nahi (duplicate se bachav). **Ankush: DD $3-3.5 se upar nahi → emergency 0.70 → 0.30**, hedge lagne tak main loss ~$3.3 (+ spread / slippage).
 - **Bug fix (−6.20 ki wajah):** hedge +$0.20 par band hota hai jab price abhi level ke paar hai; purana "arm" niyam naye hedge se pehle price ko level ke peeche bhejta tha → price seedha aage gaya to main akela. Ab M1 CLOSE / HYBRID me ye intezaar nahi (TOUCH / BUFFER me pehle jaisa).
 
 ## SUPERTREND HEDGE v1.14 — hedge 0.01, partial band (28 Oct 2026)
