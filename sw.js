@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.7.2 — AUTO ANALYZE card pe '⚡ ABHI ENTRY': LIMIT/STOP ke saath turant MARKET order bhi (analysis ki disha, live bhaav) — RANGE me nahi
    v10.7.1 — AUTO ANALYZE card pe '🔄 ULTA bhejo': usi bhaav pe ulta order (BUY LIMIT -> SELL STOP, BUY STOP -> SELL LIMIT, ulta bhi)
    v10.7.0 — 📡 MT5 Data Feed: Settings 'Data source: Auto' — VPS ke Data Feed EA ka broker data (0 credit), band ho to TwelveData
    v10.6.10 — Tez scanner: 🔥 pair pe AUTO ANALYZE ka niyam (✅ trade layak / ⏸ tez par trend nahi); +$1 andaza abhi ki chaal se
@@ -99,7 +100,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.7.1';
+const VERSION = '10.7.2';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

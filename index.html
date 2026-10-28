@@ -2298,7 +2298,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.7.1';
+const VERSION = '10.7.2';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9810,7 +9810,7 @@ function mtfSim(rec, bars){
   const W = 60 * 60000;
   const B = bars.map(b => Object.assign({ms: mtfTime(b.t)}, b)).filter(b => b.ms >= rec.at);
   if(!B.length) return {r:'OPEN'};
-  const hit = (L, b) => L.dir === 'BUY'
+  const hit = (L, b) => L.kind === 'MARKET' ? true : L.dir === 'BUY'           /* v10.7.2: ⚡ ABHI = pehli candle pe bhara */
     ? (L.kind === 'LIMIT' ? b.l <= L.entry : b.h >= L.entry)
     : (L.kind === 'LIMIT' ? b.h >= L.entry : b.l <= L.entry);
   let fi = -1, leg = -1;
@@ -10494,6 +10494,7 @@ function mtfRender(box, d){
       <button class="btn gold" onclick="mtfSend()">🚀 PERSONAL FX ko bhejo</button>
       <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
     </div>
+    ${mtfMktDir(good) ? `<button class="btn ghost" style="width:100%;margin-top:8px;border-color:${mtfMktDir(good) === 'BUY' ? 'var(--up)' : 'var(--dn)'};color:${mtfMktDir(good) === 'BUY' ? 'var(--up)' : '#ffb3b3'}" onclick="mtfSendMkt()">⚡ ABHI ENTRY — ${mtfMktDir(good)} MARKET (turant, live bhaav pe)</button>` : ''}
     <button class="btn ghost" style="width:100%;margin-top:8px;border-color:var(--dn);color:#ffb3b3" onclick="mtfSend(true)">🔄 ULTA bhejo — ${good.map(L => mtfFlip(L).dir + ' ' + mtfFlip(L).kind).join(' + ')} (usi bhaav pe)</button>
     <button class="btn g" style="width:100%;margin-top:8px" onclick="pfxJournal()">✓ Maine trade liya</button>`;
   M.legs.forEach((L, i) => { if(L.ok) mtfDist(i) });
@@ -10575,6 +10576,58 @@ async function mtfSend(rev){
   pfxList(false); pfxStartPoll();
 }
 
+/* v10.7.2: ⚡ ABHI ENTRY — LIMIT/STOP ka intezaar nahi, analysis ki disha me turant MARKET order (live bhaav).
+   Sirf jab saare order ek hi disha ke hon (UP/DOWN); RANGE (BUY neeche + SELL upar) me disha pakki nahi = button nahi.
+   Backtest (v10.6.6): market entry ki jeet LIMIT/STOP jitni hi (~91%), bas +$1 thoda der se (median 190 vs 140 min). */
+const mtfMktDir = good => good.length && good.every(L => L.dir === good[0].dir) ? good[0].dir : '';
+async function mtfSendMkt(){
+  const d = S.shot;
+  if(!d || !d.mtf || !d.sym){ toast('Pehle AUTO ANALYZE karo'); return }
+  if(Date.now() - d.at > PFX_SHOW_MS){ toast('Result 5 min se purana — dobara AUTO ANALYZE karo'); pfxRender(); return }
+  if(!pfxBase()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
+  const dir = mtfMktDir(d.mtf.legs.filter(L => L.ok));
+  if(!dir){ alert('Is analysis me ek pakki disha nahi (RANGE) — ABHI ENTRY nahi. LIMIT/STOP bhejo.'); return }
+  const sym = d.sym, sp = SPECS[sym], pair = sp.n;
+  const p = await getPrice(sym);                       /* MARKET: hamesha taza bhaav (MT5 feed, nahi to TwelveData) */
+  if(p > 0){ d.live = p; d.liveAt = Date.now() }
+  const live = d.live;
+  if(!(live > 0) || Date.now() - d.liveAt > PFX_LIVE_MAX_MS){ alert('Taza live price nahi mila — order nahi bheja'); return }
+  const dup = pfxLastList.find(o => o.pair === pair && (o.status === 'NEW' || o.status === 'PLACED') && Date.now() - o.at < PFX_EXP_MIN * 60000);
+  const pfl = preflight(sym, dir, live, 0, 0);
+  const acc = await pfxPickAcct(); if(acc === null) return;
+  const msg = `⚡ ABHI ENTRY — ${pair} ${dir} MARKET\nLive ${fmt(sym, live)} (EA broker ke bhaav pe turant bharega)\n` + (pfxAcctTxt(acc) ? pfxAcctTxt(acc) + '\n' : '') +
+    '\nLIMIT/STOP ka intezaar nahi. Backtest: jeet LIMIT/STOP jitni hi, bas +$1 thoda der se.' +
+    ((d.mtf.warn || []).length ? '\n\n' + d.mtf.warn.map(w => '⚠ ' + w).join('\n') : '') +
+    (ccyClash(sym, dir).length ? '\n\n' + ccyClash(sym, dir).map(w => '⚠ ' + w).join('\n') : '') +
+    '\n\nLot, TP/SL, averaging: PERSONAL FX ke niyam' +
+    (dup ? `\n\n⚠ ${pair} ka ek order pehle se "${(PFX_ST[dup.status] || [dup.status])[0]}" hai (${t12(dup.at)}) — EA purana pending hata dega` : '') +
+    (pfl.length ? '\n\n🛫 PRE-FLIGHT\n' + pfl.map(x => (x.ok ? '✓ ' : '⚠ ') + x.txt).join('\n') : '') +
+    '\n\nPERSONAL FX ko bhejein?';
+  if(!confirm(msg)) return;
+  const now = Date.now(), batch = 'B' + now.toString(36), sent = [];
+  try{
+    for(const a of (acc.length ? acc : [null])){
+      const body = {id: now + sent.length, pair, type: dir + 'MARKET', entry: 0, live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW',
+        src: 'SamuSignal ' + VERSION + ' ABHI', batch, leg: 1, legs: 1};
+      if(a) body.acct = a.login;
+      const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+      if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + r.status);
+      sent.push(`${dir} MARKET` + (acc.length > 1 ? ' (' + pfxAcctName(a) + ')' : ''));
+    }
+  }catch(err){
+    logAdd('PERSONAL FX bhejna fail: ' + err.message);
+    alert(sent.length ? `Sirf ${sent.length} gaya (${sent.join(', ')}) — baaki fail: ${err.message}` : 'Order nahi gaya — ' + err.message);
+    if(!sent.length) return;
+  }
+  d.sentAt = now; save(); pfCount();
+  mtfLogSent(d, [{dir, kind: 'MARKET', e: live}], false, true);
+  logAdd(`PERSONAL FX ko bheja (⚡ ABHI): ${pair} ${sent.join(' + ')} @ ~${fmt(sym, live)}${acc.length === 1 ? ' → ' + pfxAcctName(acc[0]) : ''}`);
+  toast(`Gaya — ${pair} ${dir} MARKET`);
+  if(S.tgAuto) tgSend(`⚡ <b>SamuSignal → PERSONAL FX · ABHI ENTRY</b>\n\n<b>${pair}</b>\n` + sent.map(x => '• ' + x).join('\n') +
+    `\nLive <code>${fmt(sym, live)}</code> · lot EA input\n⏰ ${t12(now)}`, true);
+  pfxList(false); pfxStartPoll();
+}
+
 /* ================= AI REPORT CARD (v10.4.0) =================
    Har 4-TF faisla (jisme order nikla) yahan likha jaata hai. "RESULT CHECK"
    baad me 1m candles laakar dekhta hai: bhara ya nahi, bhara to pehle +TP aaya
@@ -10600,9 +10653,9 @@ function mtfLogAdd(d){
   S.mtfLog = [rec].concat((S.mtfLog || []).filter(x => x.at !== rec.at)).slice(0, 80);
   save(); mtfRcRender();
 }
-function mtfLogSent(d, legs, rev){
+function mtfLogSent(d, legs, rev, mkt){
   const r = (S.mtfLog || []).find(x => x.at === d.at); if(!r) return;
-  r.sent = true; r.rev = !!rev; r.legs = legs.map(L => ({dir: L.dir, kind: L.kind, entry: +L.e}));
+  r.sent = true; r.rev = !!rev; r.mkt = !!mkt; r.legs = legs.map(L => ({dir: L.dir, kind: L.kind, entry: +L.e}));
   save(); mtfRcRender();
 }
 /* v10.6.5: IST ke hisaab se session — Asia 2:30–12:30, London 12:30–18:30, NY 18:30–2:30 (andaza, DST ka farq ~1 ghanta) */
@@ -10636,8 +10689,9 @@ function mtfRcSplit(L){
 function mtfRcCat(LA){
   const done = LA.filter(r => r.res && (r.res.r === 'WIN' || r.res.r === 'AVG'));
   const G = [
-    ['🟢 Naya trend (asli order)', r => !r.shadow && r.cat === 'naya' && !r.rev],
+    ['🟢 Naya trend (asli order)', r => !r.shadow && r.cat === 'naya' && !r.rev && !r.mkt],
     ['🔄 ULTA bheje (v10.7.1)', r => !r.shadow && r.rev],
+    ['⚡ ABHI ENTRY (market, v10.7.2)', r => !r.shadow && r.mkt],
     ['👻 Purana trend (NO TRADE)', r => r.shadow && r.cat === 'purana'],
     ['👻 Rest (NO TRADE)', r => r.shadow && r.cat === 'rest'],
     ['v10.6.5 tak (purane niyam)', r => !r.shadow && !r.cat]
@@ -10695,9 +10749,9 @@ function mtfRcRender(){
     <button class="btn ghost sm" onclick="mtfRcCheck()" ${mtfRcBusy ? 'disabled' : ''}>${mtfRcBusy ? '<span class="spin"></span> check ho raha hai…' : '🔎 RESULT CHECK · 1 credit / record (max 4)'}</button>` +
     LA.slice(0, 12).map(r => {
       const t = r.res ? tag[r.res.r] : tag.OPEN;
-      const lg = r.legs.map((x, i) => `<span style="color:${x.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}${r.res && r.res.leg === i ? ';font-weight:800' : ''}">${x.dir[0]}${x.kind === 'LIMIT' ? 'L' : 'S'} ${fmt(r.sym, x.entry)}</span>`).join(' · ');
+      const lg = r.legs.map((x, i) => `<span style="color:${x.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}${r.res && r.res.leg === i ? ';font-weight:800' : ''}">${x.dir[0]}${x.kind === 'LIMIT' ? 'L' : x.kind === 'MARKET' ? 'M' : 'S'} ${fmt(r.sym, x.entry)}</span>`).join(' · ');
       return `<div style="border-bottom:1px dashed var(--line);padding:7px 0;font-size:11.5px">
-        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.shadow ? '👻 ' + (r.cat === 'purana' ? 'purana' : 'rest') + ' · ' + r.mode : r.mode + ' · ' + r.conf + '%'}${r.sent ? (r.rev ? ' · 🔄 ULTA' : ' · 🚀') : ''}${r.warn > 0 ? ' · <b style="color:var(--gold)">⚠</b>' : ''}</span>
+        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.shadow ? '👻 ' + (r.cat === 'purana' ? 'purana' : 'rest') + ' · ' + r.mode : r.mode + ' · ' + r.conf + '%'}${r.sent ? (r.rev ? ' · 🔄 ULTA' : r.mkt ? ' · ⚡ ABHI' : ' · 🚀') : ''}${r.warn > 0 ? ' · <b style="color:var(--gold)">⚠</b>' : ''}</span>
           <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(r.at)}</span></div>
         <div style="display:flex;gap:8px;margin-top:3px"><span class="mono">${lg}</span><b style="margin-left:auto;color:${t[1]};white-space:nowrap">${t[0]}</b></div>
         ${r.res && r.res.maeA != null ? `<div style="color:var(--mut);margin-top:2px">${r.lvl ? '📐 ' : ''}Bharne ke baad ulta ${r.res.maeA}× ATR${r.res.flip ? ' · stop turant palta' : ''}${r.res.endAt && r.res.fillAt ? ' · ' + Math.round((r.res.endAt - r.res.fillAt) / 60000) + ' min me nateeja' : ''}</div>` : ''}</div>`;
