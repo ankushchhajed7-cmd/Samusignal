@@ -23,6 +23,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - **Ankush:** partial ka niyam band, hedge bhi 0.01 se. (Unka "hedge ko main bana do" idea nahi liya — numbers se: hedge −$8 tak, phir 0.02 → 0.04 → 0.08 = martingale.)
 - **Badlav:** `InpHedgeMult` 2.0 → 1.0 (hedge 0.01 = main jitna → $1 lock / partial apne aap band) · `InpMaxPartials` -1 (band) · **FIX:** whipsaw ab sirf LOSS me kate hedge (+$0.20 / 0-0 wale nahi gine). Panel par "LOSS HEDGE x / 6".
 - Hedge: +$0.20 ke upar → SL entry + $0.20; nahi pahuncha → M1 cut / hard SL 1.00.
+- **Ankush (DD na badhe, cycle der se band ho to chalega, ek-tarfa market me haath se $2-3 loss book karenge):** LOSS HEDGE limit band (`InpMaxWhipsaw` -1) aur 60 sec cooldown band (`InpHedgeCooldown` 0). M1 CLOSE me ek candle par ek hedge waise bhi. Max DD $20 waisa hi.
 - **⚠️ Naya khatra:** 0.01 / 0.01 = poora lock. Price main ke khilaf aage badhta rahe to loss ~−$3 par jam jaata hai par basket +$1 kabhi nahi (pehle 0.02 se aata tha). Cycle tab tak atki jab tak price hedge entry − 0.20 tak wapas na aaye; swap katega, naya cycle nahi.
 
 ## SUPERTREND HEDGE v1.13 — saari setting default (28 Oct 2026)

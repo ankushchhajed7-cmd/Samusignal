@@ -9,6 +9,9 @@
 //|  2. Partial limit band (InpMaxPartials -1)                        |
 //|  3. FIX: whipsaw me sirf LOSS me kate hedge gine jaate hain.      |
 //|     Pehle +$0.20 par band hua hedge bhi gina jaata tha            |
+//|  4. LOSS HEDGE limit band (InpMaxWhipsaw -1) aur 60 sec cooldown  |
+//|     band (InpHedgeCooldown 0). M1 CLOSE mode me ek candle par ek  |
+//|     hi hedge waise bhi                                            |
 //|  Hedge: +$0.20 ke upar gaya -> SL entry + $0.20. Nahi pahuncha -> |
 //|  M1 cut / hard SL. Baaki v1.13 jaisa                              |
 //| v1.13 (28-Oct-2026) - Ankush: saari setting default me hi, kuch   |
@@ -165,13 +168,13 @@ input double InpReentryGap   = 0.0;        // Re-entry gap (price, 0 = usi level
 input double InpBEBuffer     = 0.0;        // BE close buffer (price, 0 = turant) - jo hedge kabhi 0 tak nahi pahuncha
 input EHedgeMode InpHedgeMode = HM_M1CLOSE;  // Hedge entry mode
 input double InpHedgeBuffer  = 0.30;       // BUFFER mode: level se kitna aage (price)
-input int    InpHedgeCooldown = 60;        // Hedge cooldown (sec): pichhla hedge khulne ke itne sec baad hi agla (0 = off)
+input int    InpHedgeCooldown = 0;         // Hedge cooldown (sec): pichhla hedge khulne ke itne sec baad hi agla (0 = off)
 input double InpHedgeMinProfit = 0.20;     // Hedge (0.02 aur bacha 0.01) kam se kam itna $ profit lekar band (0 = 0-0)
 input double InpBEPlus       = 0.0;        // Asli BE SL entry se kitna plus (price, 0 = bilkul 0-0)
 input double InpBackupSL     = 1.00;       // Hedge HARD SL server par, entry + spread se (price, 0 = off)
 input bool   InpHedgeExitM1  = true;       // Profit se pehle cut sirf M1 candle level ke andar band hone par (false = turant)
 input int    InpMaxPartials  = -1;         // Max partial ($1) per cycle -> phir naya hedge nahi + 0-0 exit (-1 = band)
-input int    InpMaxWhipsaw   = 6;          // Max LOSS wale hedge per cycle -> phir naya hedge nahi (-1 = no limit)
+input int    InpMaxWhipsaw   = -1;         // Max LOSS wale hedge per cycle -> phir naya hedge nahi (-1 = band)
 
 input group "4. Din / Safety"
 input double InpDailyTarget  = 10.0;       // Din ka target ($, 0 = off)
@@ -1333,7 +1336,8 @@ void Panel()
          SetV("HG", FindPending() > 0 ? "PENDING LAGA" : "--", FindPending() > 0 ? QT_AMBER : QT_DOTS);
       SetV("PC", InpMaxPartials < 0 ? "OFF" : StringFormat("%d / %d", pc, InpMaxPartials),
            InpMaxPartials < 0 ? QT_AMBERD : (pc >= InpMaxPartials ? QT_AMBER : QT_WHITE));
-      SetV("WS", StringFormat("%d / %d", ws, InpMaxWhipsaw), ws >= InpMaxWhipsaw && InpMaxWhipsaw >= 0 ? QT_AMBER : QT_WHITE);
+      SetV("WS", InpMaxWhipsaw < 0 ? StringFormat("%d (limit OFF)", ws) : StringFormat("%d / %d", ws, InpMaxWhipsaw),
+           InpMaxWhipsaw >= 0 && ws >= InpMaxWhipsaw ? QT_AMBER : QT_WHITE);
       SetV("SB", "$" + DoubleToString(bal, 2), QT_WHITE);
       SetV("CP", Money(cyc) + " / +$" + DoubleToString(InpTPMoney, 2), cyc >= 0 ? QT_GREEN : QT_RED);
      }
