@@ -2298,7 +2298,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.7.0';
+const VERSION = '10.7.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -10494,6 +10494,7 @@ function mtfRender(box, d){
       <button class="btn gold" onclick="mtfSend()">🚀 PERSONAL FX ko bhejo</button>
       <button class="btn ghost" onclick="pfxLive()" ${pfxBusy ? 'disabled' : ''}>⟳ Live price · 1 credit</button>
     </div>
+    <button class="btn ghost" style="width:100%;margin-top:8px;border-color:var(--dn);color:#ffb3b3" onclick="mtfSend(true)">🔄 ULTA bhejo — ${good.map(L => mtfFlip(L).dir + ' ' + mtfFlip(L).kind).join(' + ')} (usi bhaav pe)</button>
     <button class="btn g" style="width:100%;margin-top:8px" onclick="pfxJournal()">✓ Maine trade liya</button>`;
   M.legs.forEach((L, i) => { if(L.ok) mtfDist(i) });
 }
@@ -10515,7 +10516,10 @@ function mtfDist(i){
     : `<span style="color:var(--dn)">⚠ Price is level ke paar chala gaya — ye order nahi jayega. Dobara AUTO ANALYZE karo.</span>`;
 }
 
-async function mtfSend(){
+/* v10.7.1: ULTA order — usi bhaav pe ulti disha: BUY LIMIT -> SELL STOP, BUY STOP -> SELL LIMIT,
+   SELL LIMIT -> BUY STOP, SELL STOP -> BUY LIMIT (bhaav live ke usi taraf rehta hai, isliye type badalta hai) */
+const mtfFlip = L => Object.assign({}, L, {dir: L.dir === 'BUY' ? 'SELL' : 'BUY', kind: L.kind === 'LIMIT' ? 'STOP' : 'LIMIT'});
+async function mtfSend(rev){
   const d = S.shot;
   if(!d || !d.mtf || !d.sym){ toast('Pehle AUTO ANALYZE karo'); return }
   if(Date.now() - d.at > PFX_SHOW_MS){ toast('Result 5 min se purana — dobara AUTO ANALYZE karo'); pfxRender(); return }   /* v10.5.2 */
@@ -10527,11 +10531,12 @@ async function mtfSend(){
   const legs = d.mtf.legs.map((L, i) => Object.assign({i}, L, {e: L.user > 0 ? L.user : L.entry}))
     .filter(L => L.ok && (L.e - live) * L.side > 0);
   if(!legs.length){ alert('Price dono levels ke paar ja chuka hai — dobara AUTO ANALYZE karo.'); pfxRender(); return }
+  if(rev) legs.forEach((L, k) => { legs[k] = mtfFlip(L) });
   const pair = sp.n;
   const dup = pfxLastList.find(o => o.pair === pair && (o.status === 'NEW' || o.status === 'PLACED') && Date.now() - o.at < PFX_EXP_MIN * 60000);
   const pfl = preflight(sym, legs[0].dir, legs[0].e, 0, 0);
   const acc = await pfxPickAcct(); if(acc === null) return;          /* v10.5.8 */
-  const msg = `${pair} · ${legs.length} order (live ${fmt(sym, live)})\n` + (pfxAcctTxt(acc) ? pfxAcctTxt(acc) + '\n' : '') + '\n' +
+  const msg = (rev ? '🔄 ULTA ORDER — analysis ke ulta, usi bhaav pe\n⚠ Backtest (v10.6.6 niyam): ulta = nuksaan (−$0.10/trade, DD zyada)\n\n' : '') + `${pair} · ${legs.length} order (live ${fmt(sym, live)})\n` + (pfxAcctTxt(acc) ? pfxAcctTxt(acc) + '\n' : '') + '\n' +
     legs.map(L => `${L.dir} ${L.kind} @ ${fmt(sym, L.e)}`).join('\n') +
     (legs.length > 1 ? '\n\nJo pehle bhare, dusra PERSONAL FX khud cancel karega (v5.9+ chahiye)' : '') +
     ((d.mtf.warn || []).length ? '\n\n' + d.mtf.warn.map(w => '⚠ ' + w).join('\n') : '') +
@@ -10549,7 +10554,7 @@ async function mtfSend(){
         const L = legs[k];
         const body = {id: now + k, pair, type: L.dir + L.kind, entry: +(+L.e).toFixed(sp.d),
           live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW',
-          src: 'SamuSignal ' + VERSION, batch, leg: k + 1, legs: legs.length};
+          src: 'SamuSignal ' + VERSION + (rev ? ' ULTA' : ''), batch, leg: k + 1, legs: legs.length};
         if(a) body.acct = a.login;
         const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
         if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + r.status);
@@ -10562,10 +10567,10 @@ async function mtfSend(){
     if(!sent.length) return;
   }
   d.sentAt = now; save(); pfCount();
-  mtfLogSent(d, legs);
-  logAdd(`PERSONAL FX ko bheja: ${pair} ${sent.join(' + ')}${acc.length === 1 ? ' → ' + pfxAcctName(acc[0]) : ''}`);
+  mtfLogSent(d, legs, rev);
+  logAdd(`PERSONAL FX ko bheja${rev ? ' (🔄 ULTA)' : ''}: ${pair} ${sent.join(' + ')}${acc.length === 1 ? ' → ' + pfxAcctName(acc[0]) : ''}`);
   toast(`Gaya — ${pair} · ${sent.length} order`);
-  if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → PERSONAL FX</b>\n\n<b>${pair}</b>\n` + sent.map(x => '• ' + x).join('\n') +
+  if(S.tgAuto) tgSend(`🚀 <b>SamuSignal → PERSONAL FX</b>${rev ? ' · 🔄 ULTA' : ''}\n\n<b>${pair}</b>\n` + sent.map(x => '• ' + x).join('\n') +
     `\nLive <code>${fmt(sym, live)}</code> · lot EA input\n⏰ ${t12(now)}`, true);
   pfxList(false); pfxStartPoll();
 }
@@ -10595,9 +10600,9 @@ function mtfLogAdd(d){
   S.mtfLog = [rec].concat((S.mtfLog || []).filter(x => x.at !== rec.at)).slice(0, 80);
   save(); mtfRcRender();
 }
-function mtfLogSent(d, legs){
+function mtfLogSent(d, legs, rev){
   const r = (S.mtfLog || []).find(x => x.at === d.at); if(!r) return;
-  r.sent = true; r.legs = legs.map(L => ({dir: L.dir, kind: L.kind, entry: +L.e}));
+  r.sent = true; r.rev = !!rev; r.legs = legs.map(L => ({dir: L.dir, kind: L.kind, entry: +L.e}));
   save(); mtfRcRender();
 }
 /* v10.6.5: IST ke hisaab se session — Asia 2:30–12:30, London 12:30–18:30, NY 18:30–2:30 (andaza, DST ka farq ~1 ghanta) */
@@ -10631,7 +10636,8 @@ function mtfRcSplit(L){
 function mtfRcCat(LA){
   const done = LA.filter(r => r.res && (r.res.r === 'WIN' || r.res.r === 'AVG'));
   const G = [
-    ['🟢 Naya trend (asli order)', r => !r.shadow && r.cat === 'naya'],
+    ['🟢 Naya trend (asli order)', r => !r.shadow && r.cat === 'naya' && !r.rev],
+    ['🔄 ULTA bheje (v10.7.1)', r => !r.shadow && r.rev],
     ['👻 Purana trend (NO TRADE)', r => r.shadow && r.cat === 'purana'],
     ['👻 Rest (NO TRADE)', r => r.shadow && r.cat === 'rest'],
     ['v10.6.5 tak (purane niyam)', r => !r.shadow && !r.cat]
@@ -10691,7 +10697,7 @@ function mtfRcRender(){
       const t = r.res ? tag[r.res.r] : tag.OPEN;
       const lg = r.legs.map((x, i) => `<span style="color:${x.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}${r.res && r.res.leg === i ? ';font-weight:800' : ''}">${x.dir[0]}${x.kind === 'LIMIT' ? 'L' : 'S'} ${fmt(r.sym, x.entry)}</span>`).join(' · ');
       return `<div style="border-bottom:1px dashed var(--line);padding:7px 0;font-size:11.5px">
-        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.shadow ? '👻 ' + (r.cat === 'purana' ? 'purana' : 'rest') + ' · ' + r.mode : r.mode + ' · ' + r.conf + '%'}${r.sent ? ' · 🚀' : ''}${r.warn > 0 ? ' · <b style="color:var(--gold)">⚠</b>' : ''}</span>
+        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.shadow ? '👻 ' + (r.cat === 'purana' ? 'purana' : 'rest') + ' · ' + r.mode : r.mode + ' · ' + r.conf + '%'}${r.sent ? (r.rev ? ' · 🔄 ULTA' : ' · 🚀') : ''}${r.warn > 0 ? ' · <b style="color:var(--gold)">⚠</b>' : ''}</span>
           <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(r.at)}</span></div>
         <div style="display:flex;gap:8px;margin-top:3px"><span class="mono">${lg}</span><b style="margin-left:auto;color:${t[1]};white-space:nowrap">${t[0]}</b></div>
         ${r.res && r.res.maeA != null ? `<div style="color:var(--mut);margin-top:2px">${r.lvl ? '📐 ' : ''}Bharne ke baad ulta ${r.res.maeA}× ATR${r.res.flip ? ' · stop turant palta' : ''}${r.res.endAt && r.res.fillAt ? ' · ' + Math.round((r.res.endAt - r.res.fillAt) / 60000) + ' min me nateeja' : ''}</div>` : ''}</div>`;
