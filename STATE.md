@@ -14,8 +14,19 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.01** | `vps-ea/SUPERTREND HEDGE v1.01.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.02** | `vps-ea/SUPERTREND HEDGE v1.02.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.02 — 4 partial + 0-0 exit, whipsaw 6, Max DD $10 (28 Oct 2026)
+
+- **Hisaab (spread 0.25):** partial wala hedge round ≈ +$0.75 (0.01 par +$1, bacha 0.01 BE par −spread) · whipsaw round ≈ −$0.50. Main 0.01 ka hedge level par loss $3 → **4 partial ≈ $3 = lagbhag 0-0** (3 partial = $2.25, kam).
+- **Ankush ka faisla:**
+  - Limit ab **partial ki ginti** se (`InpMaxPartials` 4), entry se nahi. 4 partial → naya hedge nahi.
+  - **0-0 exit:** 4 partial ke baad cycle ka kul ≥ 0 → sab band, naya cycle.
+  - **Whipsaw** (bina partial BE) alag gine, `InpMaxWhipsaw` 6 → naya hedge nahi (~$3 spread kharcha par ruk).
+  - **Max DD $10** default (cycle −$10 → sab band, aaj band).
+- v1.01 ka `InpMaxReentry` hata diya. Ginti deal history se (restart safe).
+- **Dhyaan:** ek Max DD = 2 din ka target ($5). Limit ke baad main akela → Max DD hi bachav.
 
 ## SUPERTREND HEDGE v1.01 — cycle TP, re-entry 3, news filter (28 Oct 2026)
 
