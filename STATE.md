@@ -15,8 +15,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.17** | `vps-ea/SUPERTREND HEDGE v1.17.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.18** | `vps-ea/SUPERTREND HEDGE v1.18.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.18 — lock me loss book nahi (28 Oct 2026)
+
+- **Ankush:** hedge ka kaam sirf main ko sambhalna, DD maintain rahe; chop me +$0.20 book ho rahe hain to loss kisi bhi angle se nahi hona chahiye.
+- **Bacha hua loss point:** lock ke dauraan main ka server TP lagta → main +$1 par band, cycle khatam hone par hedge ~−4.3 me band → cycle ~−3.3.
+- **Fix (`InpNoLossClose` true):** hedge khula ho to main ka TP hata dete hain; lock me cycle sirf "kul (band + khuli) ≥ +$1" niyam se band. Hedge band ho aur main akela ho to cycle wala TP wapas. Panel MAIN TP: "LOCK - kul +$1 par band".
+- **Keemat (Ankush ko bataya):** loss book nahi hota par khuli trades me baitha rehta hai — equity ~$3.3 neeche, cycle ghante / din atak sakta hai (naya cycle nahi), swap, ek-tarfa trend me lock khisak sakta hai. Max DD $20 aakhri safety (ye loss book karega) — rakhne ki salah.
 
 ## SUPERTREND HEDGE v1.17 — hedge kabhi loss me nahi katega (28 Oct 2026)
 
