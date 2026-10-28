@@ -15,8 +15,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.13** | `vps-ea/SUPERTREND HEDGE v1.13.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.14** | `vps-ea/SUPERTREND HEDGE v1.14.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.14 — hedge 0.01, partial band (28 Oct 2026)
+
+- **Ankush:** partial ka niyam band, hedge bhi 0.01 se. (Unka "hedge ko main bana do" idea nahi liya — numbers se: hedge −$8 tak, phir 0.02 → 0.04 → 0.08 = martingale.)
+- **Badlav:** `InpHedgeMult` 2.0 → 1.0 (hedge 0.01 = main jitna → $1 lock / partial apne aap band) · `InpMaxPartials` -1 (band) · **FIX:** whipsaw ab sirf LOSS me kate hedge (+$0.20 / 0-0 wale nahi gine). Panel par "LOSS HEDGE x / 6".
+- Hedge: +$0.20 ke upar → SL entry + $0.20; nahi pahuncha → M1 cut / hard SL 1.00.
+- **⚠️ Naya khatra:** 0.01 / 0.01 = poora lock. Price main ke khilaf aage badhta rahe to loss ~−$3 par jam jaata hai par basket +$1 kabhi nahi (pehle 0.02 se aata tha). Cycle tab tak atki jab tak price hedge entry − 0.20 tak wapas na aaye; swap katega, naya cycle nahi.
 
 ## SUPERTREND HEDGE v1.13 — saari setting default (28 Oct 2026)
 
