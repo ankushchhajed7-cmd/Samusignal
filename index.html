@@ -2298,7 +2298,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.7.2';
+const VERSION = '10.7.3';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9590,6 +9590,15 @@ function pfxUrl(path){
   const b = pfxBase(); if(!b) return '';
   return b + '/personalfx/' + path + '.json' + (S.fbAuth ? '?auth=' + encodeURIComponent(S.fbAuth) : '');
 }
+/* v10.7.3: order apni key se (POST ki random key ki jagah) — key me order ki kism, jo EA MT5 comment me likhta hai
+   ("PFXA" + key) aur Watcher GitHub pe le jaata hai. Isse har trade pehchaan me aata hai:
+   -SN = 🚀 normal LIMIT/STOP · -SU = 🔄 ULTA · -SA = ⚡ ABHI (market) · -SO = baaki (screenshot wala).
+   20 akshar (Firebase push key jitni) — comment 31 ki seema me. */
+function pfxKey(tag){
+  const r = Array.from(crypto.getRandomValues(new Uint8Array(9)), x => (x % 36).toString(36)).join('');
+  return ('-S' + tag + Date.now().toString(36) + r).slice(0, 20);
+}
+const pfxPut = (tag, body) => fetch(pfxUrl('orders/' + pfxKey(tag)), {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
 
 function shotPrompt(){
   const names = PAIRS.map(p => SPECS[p].n).join(', ');
@@ -10557,7 +10566,7 @@ async function mtfSend(rev){
           live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW',
           src: 'SamuSignal ' + VERSION + (rev ? ' ULTA' : ''), batch, leg: k + 1, legs: legs.length};
         if(a) body.acct = a.login;
-        const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+        const r = await pfxPut(rev ? 'U' : 'N', body);
         if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + r.status);
         sent.push(`${L.dir} ${L.kind} @ ${body.entry}` + (acc.length > 1 ? ' (' + pfxAcctName(a) + ')' : ''));
       }
@@ -10610,7 +10619,7 @@ async function mtfSendMkt(){
       const body = {id: now + sent.length, pair, type: dir + 'MARKET', entry: 0, live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW',
         src: 'SamuSignal ' + VERSION + ' ABHI', batch, leg: 1, legs: 1};
       if(a) body.acct = a.login;
-      const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+      const r = await pfxPut('A', body);
       if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + r.status);
       sent.push(`${dir} MARKET` + (acc.length > 1 ? ' (' + pfxAcctName(a) + ')' : ''));
     }
@@ -11021,8 +11030,7 @@ async function pfxSend(){
     live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN, status: 'NEW', src: 'SamuSignal ' + VERSION};
   try{
     for(const a of (acc.length ? acc : [null])){
-      const r = await fetch(pfxUrl('orders'), {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(a ? Object.assign({}, body, {acct: a.login}) : body)});
+      const r = await pfxPut('O', a ? Object.assign({}, body, {acct: a.login}) : body);
       if(!r.ok){
         let why = 'HTTP ' + r.status;
         if(r.status === 401 || r.status === 403) why = 'Firebase rules ne mana kiya — write permission do';
