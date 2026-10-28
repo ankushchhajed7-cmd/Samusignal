@@ -15,8 +15,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.09** | `vps-ea/SUPERTREND HEDGE v1.09.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.10** | `vps-ea/SUPERTREND HEDGE v1.10.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.10 — hedge entry mode, nakli hedge kam (28 Oct 2026)
+
+- **Ankush:** BE par loss hi asli problem hai, ye solve ho jaaye to EA taiyaar.
+- **Sach:** buy Ask par khulta, Bid par band → jo hedge kabhi spread se upar nahi gaya, uska 0-0 par band hona mumkin nahi (broker ka spread). Hedge na kaatna (net 0.01 ulta, loss badhta) ya 0.01 lock (main TP kabhi nahi) — dono khatarnak. Isliye hal = **nakli hedge kam karo** (level chhoo kar laut-ne wale).
+- **`InpHedgeMode`:** 0 TOUCH (pehle jaisa) · **1 M1 CLOSE (default)** — 1 min candle level ke paar band ho + price abhi bhi paar → market hedge, ek candle par ek hi · 2 BUFFER — level se `InpHedgeBuffer` 0.30 aage Stop.
+- Text-to-Quant / Replit is hedge + partial + BE logic ko sahi test nahi kar sakte; whipsaw seconds me hote hain → **MT5 Strategy Tester (real ticks)** me teeno mode 2 hafte par chala kar milaana. Raw/Zero spread account se har cut ka loss aur kam.
 
 ## SUPERTREND HEDGE v1.09 — buttons status patti me (28 Oct 2026)
 
