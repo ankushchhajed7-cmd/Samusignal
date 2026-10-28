@@ -15,8 +15,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.11** | `vps-ea/SUPERTREND HEDGE v1.11.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.12** | `vps-ea/SUPERTREND HEDGE v1.12.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.12 — bacha 0.01 hedge +$0.20 par band (28 Oct 2026)
+
+- **Ankush:** abhi bhi loss. Baaki sab waisa hi rakho, sirf ek badlav: 0.02 hedge → $1 par lock → wapas aaye to $1 lekar 0.01 band → **bacha 0.01 ab 0-0 par nahi, +$0.20 profit bacha ho tab band**.
+- **Kaise:** partial ke baad bacha hedge (volume = main jitna) ka server SL = entry + $0.20 (0.01 par 0.20 price), EA bhi wahi check karta hai. Input `InpRemainLock` 0.20 (0 = purana 0-0).
+- Pehle wala 0.02 hedge (partial se pehle) ka 0-0 aur M1 cut v1.11 jaisa.
+- H1 Supertrend filter / trend palte to cycle band — sujhaye, Ankush ne abhi nahi liye.
 
 ## SUPERTREND HEDGE v1.11 — hedge seconds me nahi kate (28 Oct 2026)
 
