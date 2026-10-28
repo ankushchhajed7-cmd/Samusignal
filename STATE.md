@@ -135,6 +135,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - **Dhyaan:** 1% roz vs 10% SL → ek SL = ~10 din ka profit. Pehle Strategy Tester + demo/cent par 1–2 hafta.
 - **Baaki:** Strategy Tester nateeja · VPS par compile check (VPS Helper card) · zarurat ho to TP / gap tune.
 
+## ✅ FINAL FAISLA — Buster trailing test band (28 Oct 2026)
+
+- **Shadow 17–27 Oct, 22 trade (0.01):** Buster asli **+10.39** (19/22 jeet, max DD −2.16, 2 best hata ke +5.81) · A +7.80 · B +4.96 · C +11.07 (max DD −5.51, 2 best hata ke +2.87) · D +2.10 (max DD −11.97). E (9 trade) +3.39 vs Buster +10.08; F (7 trade) +4.66 vs Buster +5.50.
+- **Faisla:** Buster ka **apna trailing hi rakho** (`UseTrailingStop = true`). C ka +0.68 ka fark 22 trade par na ke barabar, aur uska DD 2.5 guna. Chaudi trailing (D/E) me jeet ka % gir jaata hai. Trailing Manager LIVE **nahi** hoga; shadow test band. Balance 55.62 → 66.01 (~10 din).
+- Buster ka rule (data se): ~5000–6000 pts profit par SL ≈ open+5, phir ~5000 pts peeche. Apne `BTC EA` clone me same chahiye to (money-based inputs, lot ke hisaab se): 0.01 lot par InpBETrigger 0.55, InpBEPlus 0.05, InpTPMin 0.55, InpTrailing true, InpTrailDist 0.50 (0.10 lot par sab 10 guna).
+- `BTC Trailing Manager v1.03` file rakhi hai (future test ke liye), chart se hata do.
+
 ## BTC Trailing Manager v1.03 — set F hybrid-C (24 Oct 2026)
 
 - **Shadow 17–24 Oct (15 trade):** Buster asli +4.89 (balance 55.62→60.51) · A +1.96 · B +0.84 · C +9.29 · D +11.72 (2 bade trade hata do to −2.99). E sirf 2 trade: Buster +4.58, D −0.86, E +1.20.
