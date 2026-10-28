@@ -15,8 +15,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.15** | `vps-ea/SUPERTREND HEDGE v1.15.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.16** | `vps-ea/SUPERTREND HEDGE v1.16.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.16 — churn fix + frozen fix (28 Oct 2026)
+
+- **Ankush (v1.15 live):** equity $95 → $88. Experts log: hedge +$0.20 par band → usi pal "spike" se naya hedge (price abhi bhi emergency level ke paar) → har kuch second chakkar, +0.20 − spread ≈ 0 ya minus. Saath me close "10029 frozen" (server SL usi price par, broker freeze) aur emergency stop "invalid price". 19:16:00 par v1.14 ki line bhi → shayad do chart par do version — ek hatana.
+- **Fix:** profit wale hedge ke baad naya hedge tabhi jab price us band price se `InpHedgeEmergency` (0.30) aur aage jaaye, ya band hone ke BAAD ki M1 candle uske paar band ho. Loss wale cut ke baad pehle jaisa (level se). Server par +$0.20 SL ho to EA khud close nahi bhejta.
+- $95 → $88 me main Buy ka floating loss bhi shaamil (price 4053 se neeche) — wo lock me hai, book nahi hua.
 
 ## SUPERTREND HEDGE v1.15 — HYBRID hedge + main akela rehne ka fix (28 Oct 2026)
 
