@@ -14,8 +14,18 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.00** | `vps-ea/SUPERTREND HEDGE v1.00.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.01** | `vps-ea/SUPERTREND HEDGE v1.01.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.01 — cycle TP, re-entry 3, news filter (28 Oct 2026)
+
+- **Ankush ka faisla (risk review ke baad):**
+  - **Main TP cycle ke hisaab se:** TP = jahan cycle ka kul (band partial / BE + main) +$1 bane. BE ke spread loss se cycle ab minus me band nahi hoga.
+  - **Re-entry max 3:** pehla hedge + 3 baar dobara (kul 4 hedge ek cycle me). Uske baad naya hedge nahi, main TP ka intezaar. Input `InpMaxReentry` (-1 = no limit).
+  - **News filter:** USD HIGH impact se 30 min pehle / 30 min baad naya cycle nahi (MT5 calendar). Chalu cycle chalta rahega. Strategy Tester me calendar nahi → tester me filter apne aap off.
+- **⚠️ Dhyaan:** 3 re-entry ke baad main trade bina hedge ke hai → loss ki seema nahi. `InpMaxDD` set karna zaroori (default abhi bhi 0 = off).
+- Ankush: din me ~1 ghanta chalana hai ($5 target), isliye news filter shayad hi lage, phir bhi ON rakha.
+- **Baaki:** v1.00 jaisa (compile check VPS par, tester, demo).
 
 ## SUPERTREND HEDGE v1.00 — naya EA (28 Oct 2026)
 
