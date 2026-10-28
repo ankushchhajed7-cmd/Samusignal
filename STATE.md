@@ -15,8 +15,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.11** | `vps-ea/SUPERTREND HEDGE v1.11.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.12** | `vps-ea/SUPERTREND HEDGE v1.12.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.12 — hedge 0-0 nahi, +$0.20 profit par band (28 Oct 2026)
+
+- **Ankush:** abhi bhi loss. Baaki sab waisa hi rakho, sirf hedge band hone ka niyam: 0-0 par nahi, **kam se kam +$0.20 profit** lekar. 0.02 hedge aur partial ke baad bacha 0.01 — dono par.
+- **Kaise:** hedge ka profit $0.20 ke upar gaya → server SL = entry + $0.20 (0.02 par 0.10 price, 0.01 par 0.20 price), EA bhi wahi check karta hai. Aage chale to chalne do, wapas $0.20 par aaye to band. Input `InpHedgeMinProfit` 0.20 (0 = purana 0-0).
+- Jo hedge $0.20 tak nahi pahuncha → M1 cut / hard SL (v1.11 jaisa). $1 lock + 0.01 partial waise hi.
+- H1 Supertrend filter / trend palte to cycle band — sujhaye, Ankush ne abhi nahi liye.
 
 ## SUPERTREND HEDGE v1.11 — hedge seconds me nahi kate (28 Oct 2026)
 
