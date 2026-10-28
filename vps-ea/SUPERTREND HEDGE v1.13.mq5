@@ -4,7 +4,7 @@
 //+------------------------------------------------------------------+
 //| CHANGELOG                                                        |
 //| v1.13 (28-Oct-2026) - Ankush: saari setting default me hi, kuch   |
-//|  badalna na pade. Max DD default 10 -> 20 (Ankush ki live         |
+//|  badalna na pade. Din target 5 -> 10, Max DD 10 -> 20 (live)     |
 //|  setting). Baaki default pehle se live jaise. Niyam v1.12 jaise   |
 //| v1.12 (28-Oct-2026) - Ankush: hedge 0-0 par nahi, kam se kam     |
 //|  +$0.20 profit lekar band. 0.02 hedge aur partial ke baad bacha   |
@@ -166,7 +166,7 @@ input int    InpMaxPartials  = 4;          // Max partial ($1) per cycle -> phir
 input int    InpMaxWhipsaw   = 6;          // Max whipsaw (bina partial BE) per cycle -> phir naya hedge nahi (-1 = no limit)
 
 input group "4. Din / Safety"
-input double InpDailyTarget  = 5.0;        // Din ka target ($, 0 = off)
+input double InpDailyTarget  = 10.0;       // Din ka target ($, 0 = off)
 input double InpMaxDD        = 20.0;       // Max DD cycle ($, 0 = off) -> sab band, aaj band
 input bool   InpShowPanel    = true;       // Chart panel (dashboard)
 input int    InpPanelX       = 10;         // Panel X

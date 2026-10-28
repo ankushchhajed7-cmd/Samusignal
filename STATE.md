@@ -21,7 +21,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 ## SUPERTREND HEDGE v1.13 — saari setting default (28 Oct 2026)
 
 - **Ankush:** saari setting default me hi ho, kuch badalna na pade.
-- Ankush ke aakhri screenshot ki setting: din target $5, **Max DD $20** → Max DD default 10 → 20. Baaki saare default (0.01 lot, $1 TP, $3 gap, 2x hedge, M1 CLOSE, cooldown 60s, hedge min +$0.20, M1 cut, hard SL 1.00, 4 partial, 6 whipsaw, news USD ±30) pehle se live jaise. Niyam v1.12 jaise.
+- Ankush ki live setting: **din target $10** (default 5 → 10), **Max DD $20** (default 10 → 20). Baaki saare default (0.01 lot, $1 TP, $3 gap, 2x hedge, M1 CLOSE, cooldown 60s, hedge min +$0.20, M1 cut, hard SL 1.00, 4 partial, 6 whipsaw, news USD ±30) pehle se live jaise. Niyam v1.12 jaise.
 
 ## SUPERTREND HEDGE v1.12 — hedge 0-0 nahi, +$0.20 profit par band (28 Oct 2026)
 
