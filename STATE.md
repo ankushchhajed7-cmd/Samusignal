@@ -15,8 +15,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.18** | `vps-ea/SUPERTREND HEDGE v1.18.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.19 — poora code review (28 Oct 2026)
+
+- **Ankush:** abhi bhi kuch galat ho raha hai, poora setup check karo.
+- **Sahi mila:** Supertrend (TV jaisa, band candle), nayi M5 candle par entry, hedge level (main ± 3), HYBRID emergency Stop (± 0.30, server), +$0.20 SL (Ask/Bid ke baad asli profit), lock me main TP hatna, cycle kul +$1, Max DD, din target, news, manual close ginti.
+- **Kamiyan (fix):** (1) kabhi 2 hedge khule (pehle log me 06:20:43 / 06:20:46) to hedge > main → net ulti exposure → DD badhta; ab extra (sabse naya) hedge turant band · (2) market hedge se thik pehle positions dobara gine (usi pal Stop bhara ho to doosra nahi) · (3) +$0.20 ke baad wala "aage jaao" niyam price level ke main wali taraf wapas jaaye to reset.
+- **Dhaanche ki seema (bug nahi):** lock me cycle tab tak atka rahega jab tak kul +$1 na bane; price main ki taraf bhaag jaaye aur hedge kabhi +$0.20 na dekhe to lock lamba chalega (swap). Yahan compile / tester nahi — VPS par compile + Strategy Tester (real ticks).
 
 ## SUPERTREND HEDGE v1.18 — lock me loss book nahi (28 Oct 2026)
 
