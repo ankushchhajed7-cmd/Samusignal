@@ -15,6 +15,8 @@
 //|  naya hedge "pehle level ke peeche jao" ka intezaar karta tha ->  |
 //|  main akela (screenshot -6.20). Ab M1 CLOSE / HYBRID me ye        |
 //|  intezaar nahi: agli M1 close / emergency Stop par turant hedge   |
+//|  FIX: log me "cancel ... [invalid request]" - ab sirf asli        |
+//|  pending (Stop / Limit) hataye jaate hain, market order nahi      |
 //| v1.14 (28-Oct-2026) - Ankush:                                     |
 //|  1. Hedge ab 0.01 (main jitna, InpHedgeMult 1.0). Partial / $1    |
 //|     lock apne aap band (hedge main se bada nahi)                  |
@@ -440,6 +442,11 @@ void DeletePendings()
       if(tk == 0)
          continue;
       if(OrderGetString(ORDER_SYMBOL) != _Symbol || OrderGetInteger(ORDER_MAGIC) != InpMagic)
+         continue;
+      // sirf asli pending (Stop / Limit). Market order (hedge khulna / SL se band) kuch pal list me
+      // dikhta hai - use cancel karne par "invalid request" aata tha
+      ENUM_ORDER_TYPE t = (ENUM_ORDER_TYPE)OrderGetInteger(ORDER_TYPE);
+      if(t != ORDER_TYPE_BUY_STOP && t != ORDER_TYPE_SELL_STOP && t != ORDER_TYPE_BUY_LIMIT && t != ORDER_TYPE_SELL_LIMIT)
          continue;
       trade.OrderDelete(tk);
      }
@@ -950,7 +957,7 @@ void ManageHedge(const SPos &h, const SPos &m, double lockDist, const MqlTick &t
       // price wapas entry par -> bilkul 0-0 band (server SL bhi yahi hai)
       if(prof <= bePlus)
         {
-         ClosePos(h.ticket, StringFormat("%s hedge +%.2f par band", remain ? "bacha" : "0.02", InpHedgeMinProfit));
+         ClosePos(h.ticket, StringFormat("%s %.2f hedge +%.2f par band", remain ? "bacha" : "", h.vol, InpHedgeMinProfit));
          return;
         }
       // server SL = entry (EA / VPS band ho tab bhi 0-0)

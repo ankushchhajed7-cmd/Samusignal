@@ -22,6 +22,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 
 - **Ankush ke screenshot:** Buy 0.01 @ 4053.07 → −4.47, phir −6.20, koi hedge nahi (level 4050.07). M1 CLOSE me hedge der se; spike me DD badhne ka darr.
 - **HYBRID (`InpHedgeMode` 3, default):** M1 candle level ke paar band → market hedge, **aur** level se `InpHedgeEmergency` 0.30 aage server par Stop order → spike me turant hedge (VPS band ho tab bhi). M1 hedge se pehle Stop hataya jaata hai; hat-na fail = bhar chuka → doosra nahi (duplicate se bachav). **Ankush: DD $3-3.5 se upar nahi → emergency 0.70 → 0.30**, hedge lagne tak main loss ~$3.3 (+ spread / slippage).
+- **Log fix (Ankush ka Experts screenshot, v1.14):** "cancel #... [invalid request]" baar-baar — EA hedge khule hone par har tick saare orders hata raha tha, market order (hedge khulna / SL se band) bhi. Nuksan nahi tha. Ab sirf Stop / Limit pending hate hain. Log me hedge ka asli lot (pehle "0.02" likha aata tha).
 - **Bug fix (−6.20 ki wajah):** hedge +$0.20 par band hota hai jab price abhi level ke paar hai; purana "arm" niyam naye hedge se pehle price ko level ke peeche bhejta tha → price seedha aage gaya to main akela. Ab M1 CLOSE / HYBRID me ye intezaar nahi (TOUCH / BUFFER me pehle jaisa).
 
 ## SUPERTREND HEDGE v1.14 — hedge 0.01, partial band (28 Oct 2026)
