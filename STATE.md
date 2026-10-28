@@ -22,7 +22,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - **Ankush ka faisla (risk review ke baad):**
   - **Main TP cycle ke hisaab se:** TP = jahan cycle ka kul (band partial / BE + main) +$1 bane. BE ke spread loss se cycle ab minus me band nahi hoga.
   - **Re-entry max 3:** pehla hedge + 3 baar dobara (kul 4 hedge ek cycle me). Uske baad naya hedge nahi, main TP ka intezaar. Input `InpMaxReentry` (-1 = no limit).
-  - **News filter:** USD HIGH impact se 30 min pehle / 30 min baad naya cycle nahi (MT5 calendar). Chalu cycle chalta rahega. Strategy Tester me calendar nahi → tester me filter apne aap off.
+  - **News filter:** USD HIGH impact se 30 min pehle / 30 min baad naya cycle nahi (MT5 calendar). Chalu cycle chalta rahega. Panel par news ka time **IST** me (Ankush). Strategy Tester me calendar nahi → tester me filter apne aap off.
 - **⚠️ Dhyaan:** 3 re-entry ke baad main trade bina hedge ke hai → loss ki seema nahi. `InpMaxDD` set karna zaroori (default abhi bhi 0 = off).
 - Ankush: din me ~1 ghanta chalana hai ($5 target), isliye news filter shayad hi lage, phir bhi ON rakha.
 - **Baaki:** v1.00 jaisa (compile check VPS par, tester, demo).

@@ -11,7 +11,8 @@
 //|     baad is cycle me naya hedge nahi                              |
 //|  3. News filter: USD HIGH impact news se 30 min pehle / 30 min   |
 //|     baad naya cycle nahi (MT5 calendar; Strategy Tester me        |
-//|     calendar nahi chalta). Chalu cycle chalta rahega              |
+//|     calendar nahi chalta). Chalu cycle chalta rahega. Panel par  |
+//|     news ka time IST (India) me                                   |
 //| v1.00 (28-Oct-2026) - POORA NAYA EA (Ankush ki strategy)          |
 //|  1. Entry  : M5 Supertrend (ATR 10, x3, band candle) jis taraf,   |
 //|              us taraf MAIN trade 0.01, TP $1 (server par)         |
@@ -420,7 +421,9 @@ bool NewsBlocked(string &info)
    for(int i = 0; i < ArraySize(g_newsTimes); i++)
       if(now >= g_newsTimes[i] - InpNewsBefore * 60 && now <= g_newsTimes[i] + InpNewsAfter * 60)
         {
-         info = g_newsNames[i] + " @ " + TimeToString(g_newsTimes[i], TIME_MINUTES);
+         // news ka time server time me aata hai -> dikhane ke liye IST (GMT+5:30)
+         datetime ist = g_newsTimes[i] - (TimeTradeServer() - TimeGMT()) + 19800;
+         info = g_newsNames[i] + " @ " + TimeToString(ist, TIME_MINUTES) + " IST";
          return true;
         }
    return false;
