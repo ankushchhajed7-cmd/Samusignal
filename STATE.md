@@ -15,8 +15,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.16** | `vps-ea/SUPERTREND HEDGE v1.16.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.17** | `vps-ea/SUPERTREND HEDGE v1.17.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.17 — hedge kabhi loss me nahi katega (28 Oct 2026)
+
+- **Ankush ki History (28 Oct, demo, balance ~98 → 81.30) ka hisaab:** TP wali cycle 6 × +$1 = +6 · 11:xx cycle (purana 0.02 hedge) −6.11 · **13:xx cycle −13.52** (main Buy 4053.07 −2.88 haath se band; ~21 hedge me **hard SL 9 baar × −1.24 = −11.16**, +0.20 wale sirf +1.09) · 15:xx −3.40 (3 hedge, main khula).
+- **Wajah:** price hedge level (4050.07) ke aas-paas 4049–4051 ghoom raha tha → hedge → 1.24 ulta → hard SL → wapas neeche → naya hedge → phir hard SL. 0.01 hedge (main jitna) me hard SL ki zarurat hi nahi — hedge jitna gawaye main utna kamaye, DD nahi badhta. Hard SL 0.02 hedge ke zamane ka niyam tha.
+- **Fix:** `InpHedgeNoLossCut` true (default) → hard SL aur M1 cut band, purana loss-side SL bhi hata dete hain. Hedge sirf +$0.20 par band (pehle $0.20 ke aage jaaye tab). DD ~−$3.3 par jama.
+- **Sach:** jis cycle me hedge laga, wo lagbhag −$3.3 me hi khatm hogi (main TP par hedge loss me band hota hai). Profit = bina hedge wali cycle (≥75–80% chahiye).
 
 ## SUPERTREND HEDGE v1.16 — churn fix + frozen fix (28 Oct 2026)
 
