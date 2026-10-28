@@ -15,8 +15,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.07** | `vps-ea/SUPERTREND HEDGE v1.07.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.08** | `vps-ea/SUPERTREND HEDGE v1.08.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.08 — RESUME se Max DD stop hatao, panel fit (28 Oct 2026)
+
+- **Ankush ka screenshot (v1.07):** status "AAJ BAND (Max DD)", jabki Max DD input $50 aur din ka P&L +0.11. Wajah: aaj pehle purane version (Max DD $10) me ek cycle −$10 tak gaya (SELL 0.01 −4.77 + hedge loss) → aaj ka stop GlobalVariable me yaad. Input badalne se nahi hat-ta.
+- **Fix:** din band ho to panel ka button **RESUME** dikhata hai; dabane par aaj ka Max DD stop hat jaata hai.
+- **Panel:** chhote chart par daayein kat raha tha → chart ki chaudai me fit hone ke liye scale + font apne aap chhota (min font 7).
+- Ankush ne apni setting badli: din target $10, Max DD $50.
 
 ## SUPERTREND HEDGE v1.07 — hedge 1 min cooldown (28 Oct 2026)
 
