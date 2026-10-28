@@ -15,8 +15,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.08** | `vps-ea/SUPERTREND HEDGE v1.08.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.09** | `vps-ea/SUPERTREND HEDGE v1.09.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.09 — buttons status patti me (28 Oct 2026)
+
+- **Ankush:** RESUME button dikh hi nahi raha tha — panel ke sabse neeche tha, chart chhota (neeche Toolbox khula) to kat jaata.
+- **Fix:** PAUSE / RESUME aur CLOSE ALL ab upar STATUS patti me daayein. Trading niyam v1.08 jaise.
 
 ## SUPERTREND HEDGE v1.08 — RESUME se Max DD stop hatao, panel fit (28 Oct 2026)
 
