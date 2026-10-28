@@ -10,6 +10,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
+| BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
 | Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
@@ -234,6 +235,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Buster ka rule (data se): ~5000–6000 pts profit par SL ≈ open+5, phir ~5000 pts peeche. Apne `BTC EA` clone me same chahiye to (money-based inputs, lot ke hisaab se): 0.01 lot par InpBETrigger 0.55, InpBEPlus 0.05, InpTPMin 0.55, InpTrailing true, InpTrailDist 0.50 (0.10 lot par sab 10 guna).
 - `BTC Trailing Manager v1.03` file rakhi hai (future test ke liye), chart se hata do.
 - **BTC EA v1.18** (28 Oct): ye final trailing default me — Trailing ON, TPMin (shuru) $0.55, TrailDist $0.50, Breakeven $0.55 par entry+$0.05, Profit Lock OFF (Buster me nahi; jaldi kaat-ta). Sab $ 0.01 lot ke liye; lot badhao to $ bhi utne guna.
+- **BTCGOLD EA v1.02** (28 Oct): BTC EA v1.18 wali FINAL Buster trailing gold par. Code same (ZigZag swing scan, stop orders, 72 ghante), sirf defaults gold ke hisaab se — M30 ATR BTC ~230 / gold ~7.5 (≈ ÷30): SL MAX $5, Trailing ON shuru $1.80 doori $1.60, Breakeven $1.80 par entry+$0.20, Profit Lock OFF, TP MAX $20, DAY LOSS $10, same-disha doori 3.0, ATR threshold 0.0008. Magic 111334 (v1.01 wala) — v1.01 chart se hata kar v1.02 lagao. Sab $ 0.01 lot ke liye; lot badhao to $ bhi utne guna. Pehle DEMO par 1 hafta.
 
 ## BTC Trailing Manager v1.03 — set F hybrid-C (24 Oct 2026)
 
