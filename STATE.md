@@ -14,8 +14,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.04** | `vps-ea/SUPERTREND HEDGE v1.04.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.05** | `vps-ea/SUPERTREND HEDGE v1.05.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.05 — PERSONAL FX jaisa dashboard (28 Oct 2026)
+
+- **Live:** v1.04 Exness demo (XAUUSDm M5) par compile ho kar chal raha hai (Ankush ka photo: aaj +0.58, balance 100.92).
+- **Ankush:** dashboard PERSONAL FX jaisa chahiye → amber terminal panel (Consolas, DPI-aware, chart ki chaudai jitna): status bar + [1] CYCLE (Supertrend, main, TP, hedge level, hedge, partial x/4, whipsaw x/6, start balance, cycle P&L) · [2] ACCOUNT · [3] RISK CONTROL (din target, Max DD, news, algo) · [4] SETTINGS · [5] RECENT CLOSES (IST).
+- **Buttons:** PAUSE / RESUME (naya cycle rokta, chalu trade nahi chhedta; restart ke baad bhi yaad) · CLOSE ALL.
+- Trading niyam v1.04 jaise. Compile check VPS par.
 
 ## SUPERTREND HEDGE v1.04 — asli 0-0 BE + duplicate hedge fix (28 Oct 2026)
 
