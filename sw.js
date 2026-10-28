@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.7.3 — PERSONAL FX order apni key se (-SN normal / -SU ULTA / -SA ABHI / -SO baaki) — MT5 comment se har trade ki kism pehchaan (record tracking)
    v10.7.2 — AUTO ANALYZE card pe '⚡ ABHI ENTRY': LIMIT/STOP ke saath turant MARKET order bhi (analysis ki disha, live bhaav) — RANGE me nahi
    v10.7.1 — AUTO ANALYZE card pe '🔄 ULTA bhejo': usi bhaav pe ulta order (BUY LIMIT -> SELL STOP, BUY STOP -> SELL LIMIT, ulta bhi)
    v10.7.0 — 📡 MT5 Data Feed: Settings 'Data source: Auto' — VPS ke Data Feed EA ka broker data (0 credit), band ho to TwelveData
@@ -100,7 +101,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.7.2';
+const VERSION = '10.7.3';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
