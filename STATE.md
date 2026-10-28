@@ -14,7 +14,23 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.00** | `vps-ea/SUPERTREND HEDGE v1.00.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.00 — naya EA (28 Oct 2026)
+
+- **Ankush ki strategy (sab tay):** MT5, hedging account, XAUUSD.
+  - **Entry:** M5 Supertrend (ATR 10 RMA, x3, band candle) jis taraf, us taraf MAIN 0.01, TP $1 (server par). Naya cycle turant mojooda trend ki taraf.
+  - **Hedge:** price $3 ulta (Buy 4000 → 3997) → ulti side **0.02** (Sell Stop / Buy Stop pending, level par market fallback).
+  - **Lock:** hedge $1 per 0.01 (0.02 par $2, 3996) → lock. Price aur gaya + basket floating ≥ $1 → sab band. Price wapas 3996 → **0.01 partial close** (+$1); bacha 0.01 sirf hedge.
+  - **BE:** hedge (0.02 ya bacha 0.01) entry se ulta gaya → turant band (sirf spread ka loss). Price dobara level ke paar → fir 0.02, wahi niyam, jitni baar bhi.
+  - **Cycle +$1:** cycle shuru par balance note; cycle ka kul (band partial / BE + khuli trades) ≥ $1 → sab band, naya cycle (100 → 101).
+  - **Cycle khatam:** main TP → hedge bhi band → fir Supertrend → naya cycle.
+  - **Din:** $5 target (server 00:00 se, sirf band deals) → naya cycle nahi, chalu cycle pura hoga.
+- **Safety:** hedge par backup SL server par (BE se 0.50 aage, EA band ho tab bhi) · Max DD input (default OFF; lage to sab band + aaj band) · Re-entry gap input (default 0 = usi level par).
+- **Dhyaan:** entry aur BE ek hi level par → har chakkar spread jitna loss (~$0.4–0.6, 0.02 lot). Price level ke aas-paas ghoome to jud-ta hai; tab Re-entry gap 0.3 jaisa try karo. Gap / slippage me DD $3 se zyada ho sakta hai. Lock lamba chale to dono trade par swap.
+- **Magic:** 26102801. Restart safe (main ticket + lock GlobalVariable me).
+- **Baaki:** VPS par compile check (yahan compile nahi hota) · Strategy Tester real ticks · demo 1–2 hafta.
 
 ## ARADHAYA SCALPER v2.04 — E2 EMA slope veto (24 Oct 2026)
 
