@@ -14,8 +14,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
-| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.05** | `vps-ea/SUPERTREND HEDGE v1.05.mq5` |
+| SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.06** | `vps-ea/SUPERTREND HEDGE v1.06.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND HEDGE v1.06 — manual close bhi target me (28 Oct 2026)
+
+- **Ankush:** EA ki trade manual band karun to bhi profit / target me gini jaaye.
+- **Wajah:** manual close wali deal ka Magic 0 hota hai → pehle din ka P&L, cycle P&L, recent closes me nahi aati thi.
+- **Fix:** EA ki position (IN deal is Magic se, 7 din peeche tak) ki har band deal gini jaati hai — EA ne band ki ho ya haath se. EA ke bina khuli manual trade nahi gini jaati. Trading niyam v1.05 jaise.
 
 ## SUPERTREND HEDGE v1.05 — PERSONAL FX jaisa dashboard (28 Oct 2026)
 
