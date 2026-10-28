@@ -3,9 +3,12 @@
 //|                 Ankush New Vision - Supertrend + 2x hedge cycle  |
 //+------------------------------------------------------------------+
 //| CHANGELOG                                                        |
-//| v1.12 (28-Oct-2026) - Ankush: partial ke baad bacha 0.01 hedge    |
-//|  ab 0-0 par nahi, +$0.20 profit bacha ho tab band (server SL =    |
-//|  entry + $0.20). Input InpRemainLock. Baaki sab v1.11 jaisa       |
+//| v1.12 (28-Oct-2026) - Ankush: hedge 0-0 par nahi, kam se kam     |
+//|  +$0.20 profit lekar band. 0.02 hedge aur partial ke baad bacha   |
+//|  0.01 dono: profit $0.20 ke upar gaya -> server SL = entry +      |
+//|  $0.20 (0.02 par 0.10 price, 0.01 par 0.20 price). Aage chale to  |
+//|  chalne do, wapas $0.20 par aaye to band. Input InpHedgeMinProfit |
+//|  Jo hedge $0.20 tak nahi pahuncha -> M1 cut / hard SL (v1.11)     |
 //| v1.11 (28-Oct-2026) - Ankush: hedge 1-3 SECOND me kat jaata tha   |
 //|  (entry se 1 tick ulta = turant cut). Ab jo hedge abhi profit me  |
 //|  nahi aaya, wo tabhi katega jab 1 min (M1) candle hedge level ke  |
@@ -100,7 +103,7 @@
 #property copyright   "Ankush New Vision"
 #property link        "https://github.com/ankushchhajed7-cmd"
 #property version     "1.12"
-#property description "SUPERTREND HEDGE v1.12 - bacha 0.01 hedge +$0.20 par band, hedge M1 close par hi kate (seconds me nahi), hedge entry mode (M1 close confirm / buffer), buttons status patti me, RESUME se Max DD stop hatao, panel chart me fit, hedge 1 min cooldown, manual close bhi target me, PERSONAL FX jaisa dashboard, asli 0-0 BE (server SL), duplicate hedge fix, naya cycle sirf nayi M5 candle par, M5 Supertrend main trade (cycle +$1 TP), news filter, max 4 partial + 0-0 exit, whipsaw 6, max DD $10, 2x hedge, profit lock + partial close, breakeven re-entry, cycle +$1 close, daily target. Paise wale inputs account currency me."
+#property description "SUPERTREND HEDGE v1.12 - hedge 0-0 nahi, +$0.20 profit par band, hedge M1 close par hi kate (seconds me nahi), hedge entry mode (M1 close confirm / buffer), buttons status patti me, RESUME se Max DD stop hatao, panel chart me fit, hedge 1 min cooldown, manual close bhi target me, PERSONAL FX jaisa dashboard, asli 0-0 BE (server SL), duplicate hedge fix, naya cycle sirf nayi M5 candle par, M5 Supertrend main trade (cycle +$1 TP), news filter, max 4 partial + 0-0 exit, whipsaw 6, max DD $10, 2x hedge, profit lock + partial close, breakeven re-entry, cycle +$1 close, daily target. Paise wale inputs account currency me."
 
 #include <Trade\Trade.mqh>
 
@@ -152,7 +155,7 @@ input double InpBEBuffer     = 0.0;        // BE close buffer (price, 0 = turant
 input EHedgeMode InpHedgeMode = HM_M1CLOSE;  // Hedge entry mode
 input double InpHedgeBuffer  = 0.30;       // BUFFER mode: level se kitna aage (price)
 input int    InpHedgeCooldown = 60;        // Hedge cooldown (sec): pichhla hedge khulne ke itne sec baad hi agla (0 = off)
-input double InpRemainLock   = 0.20;       // Partial ke baad bacha hedge: itna $ profit bacha ho tab band (0 = 0-0)
+input double InpHedgeMinProfit = 0.20;     // Hedge (0.02 aur bacha 0.01) kam se kam itna $ profit lekar band (0 = 0-0)
 input double InpBEPlus       = 0.0;        // Asli BE SL entry se kitna plus (price, 0 = bilkul 0-0)
 input double InpBackupSL     = 1.00;       // Hedge HARD SL server par, entry + spread se (price, 0 = off)
 input bool   InpHedgeExitM1  = true;       // Profit se pehle cut sirf M1 candle level ke andar band hone par (false = turant)
@@ -840,16 +843,16 @@ void ManageHedge(const SPos &h, const SPos &m, double lockDist, const MqlTick &t
    string gv = GvKey("L" + (string)h.ticket);
    string gb = GvKey("B" + (string)h.ticket);
    double prof   = h.dir * (c - h.open);           // asli profit (spread ke baad)
-   // partial ho chuka (hedge = main jitna bacha) -> 0-0 nahi, +InpRemainLock $ par band
+   // 0-0 nahi: hedge (0.02 ya bacha 0.01) kam se kam +InpHedgeMinProfit $ lekar band
    double stepV  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
    bool   remain = (InpHedgeMult > 1.0 && h.vol <= m.vol + stepV * 0.5);
    double bePlus = InpBEPlus;
-   if(remain && InpRemainLock > 0)
-      bePlus = MathMax(bePlus, MoneyToDist(InpRemainLock, h.vol));
+   if(InpHedgeMinProfit > 0)
+      bePlus = MathMax(bePlus, MoneyToDist(InpHedgeMinProfit, h.vol));
    double bePx   = NormPrice(h.open + h.dir * bePlus);
    bool   beOn   = GlobalVariableCheck(gb);
 
-   // 1a. Hedge spread cover karke 0 ke upar -> asli 0-0 BE chalu
+   // 1a. Hedge +$0.20 ke upar gaya -> profit lock chalu (server SL = entry + $0.20)
    if(!beOn && prof > bePlus + MinDist())
      {
       GlobalVariableSet(gb, 1);
@@ -860,7 +863,7 @@ void ManageHedge(const SPos &h, const SPos &m, double lockDist, const MqlTick &t
       // price wapas entry par -> bilkul 0-0 band (server SL bhi yahi hai)
       if(prof <= bePlus)
         {
-         ClosePos(h.ticket, remain ? StringFormat("bacha hedge +%.2f par band", InpRemainLock) : "hedge BE 0-0");
+         ClosePos(h.ticket, StringFormat("%s hedge +%.2f par band", remain ? "bacha" : "0.02", InpHedgeMinProfit));
          return;
         }
       // server SL = entry (EA / VPS band ho tab bhi 0-0)
@@ -1354,7 +1357,7 @@ void Panel()
    SetV("HS", StringFormat("%.2f @ $%.2f gap | %s", NormLot(InpLot * InpHedgeMult), InpHedgeGap,
                            InpHedgeMode == HM_M1CLOSE ? "M1 CLOSE" : (InpHedgeMode == HM_BUFFER ? StringFormat("BUFFER %.2f", InpHedgeBuffer) : "TOUCH")),
         QT_WHITE);
-   SetV("BE", StringFormat("0.02: 0-0 | BACHA 0.01: +$%.2f | M1 CUT %s", InpRemainLock, InpHedgeExitM1 ? "ON" : "OFF"), QT_GREEN);
+   SetV("BE", StringFormat("HEDGE MIN +$%.2f | M1 CUT %s", InpHedgeMinProfit, InpHedgeExitM1 ? "ON" : "OFF"), QT_GREEN);
 
    // recent closes: is EA ki aaj ki aakhri 5 band deals
    int shown = 0;
