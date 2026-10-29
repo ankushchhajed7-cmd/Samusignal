@@ -17,8 +17,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
-| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.03** | `vps-ea/SUPERTREND GRID v2.03.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.04** | `vps-ea/SUPERTREND GRID v2.04.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.04 — cycle profit $50 (29 Oct 2026)
+
+- **Ankush:** kabhi atak jaaye (lock) to jab opening balance se +$50 ho jaaye, saare trade band, naya basket / naya cycle.
+- **Badlav:** `InpCycleProfit` 50: basket ki pehli trade se ab tak ki band deals (lock ki TP wali Sell bhi, manual close bhi) + khuli trade ≥ +$50 → CloseAll → cooldown → naya basket. Panel [1] me naya row "CYCLE P&L x / +$50".
 
 ## SUPERTREND GRID v2.03 — LOCK+TP round 7 6 5 4 3 (29 Oct 2026)
 
