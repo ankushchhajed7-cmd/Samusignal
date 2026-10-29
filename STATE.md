@@ -17,8 +17,19 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
-| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.04** | `vps-ea/SUPERTREND GRID v2.04.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.05** | `vps-ea/SUPERTREND GRID v2.05.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.05 — TF chuno, AUTO lot, spread / weekend / push / spike (29 Oct 2026)
+
+- **Ankush ke saath tay:**
+  - Supertrend TF chuno: **M1** (default) / M5 / M15 / M30. Upar wale TF ka filter (default M15) **OFF** — Ankush: M1 par basket band hokar naye trend se shuru hota hai, dono taraf trade aayenge.
+  - **AUTO lot:** har **$2000** balance par 0.01 ($10,000 = 0.05), basket shuru par tay. Trailing ($2 / $1 / $1) aur lock TP ($5) 0.01 ke hisaab, lot ke saath x badhte. Max DD $500, cycle $50, din 1% — account ke hisaab, nahi badhte.
+  - **Spread filter:** spread > 0.50 → naya basket / grid nahi.
+  - **Weekend:** Shukra **3 PM IST** ke baad se Somvar **7 AM IST** tak naya basket nahi (chalu basket chalta rahe).
+  - **Push alert:** Max DD lock / band, cycle profit, din ka target, spike.
+  - **SPIKE:** pichhle 5 min (M1) me basket ke khilaf **$30** → basket ke kul lot jitni **ek** ulti trade, **TP price $5** (0.05 lot par $25). Khuli rahe tab grid / trailing / Max DD lock ruke. Agla spike kam se kam 5 min baad.
+  - **News ke samay grid bhi nahi** (`InpNewsBlockGrid`, default ON).
 
 ## SUPERTREND GRID v2.04 — cycle profit $50 (29 Oct 2026)
 
