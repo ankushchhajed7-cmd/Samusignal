@@ -17,8 +17,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
-| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.06** | `vps-ea/SUPERTREND GRID v2.06.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.07** | `vps-ea/SUPERTREND GRID v2.07.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.07 — Cockpit dashboard (29 Oct 2026)
+
+- **Ankush:** dashboard alag / unique chahiye — rang, ghadi, emergency par screen par flash. 6 preview banaye (Design canvas artifact: Neon Cyber, Cockpit, Light Desk, Matrix Terminal, Top Strip, Gold Luxe) → Ankush ne **Cockpit** chuna.
+- **Panel (960 px design, chart ki chaudai me scale):** Row1 badi IST ghadi (second, din / tareekh, server time, session) + TREND + **MASTER CAUTION** · Row2 bade number BASKET P&L / DAILY / CYCLE / RESERVE · Row3 **DD gauge** 20 khane (hara / amber / laal) · Row4 lights NEWS / SPREAD / ALGO / WEEKEND / LOCK / SPIKE · Row5 status + PAUSE / CLOSE ALL · Row6 avg / agla grid / lock + reserve USE box. Fonts Consolas + Arial.
+- **Alert:** `Notify(msg, level)` — 2 = laal (Max DD lock / band, spike): master caution laal blink, chart ke beech bada flash 15 sec, `alert2.wav`, click = OK · 1 = hara (cycle profit, din target) 60 sec. Timer 0.5 sec.
 
 ## SUPERTREND GRID v2.06 — 30% reserve (29 Oct 2026)
 
