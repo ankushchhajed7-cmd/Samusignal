@@ -17,7 +17,23 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.00** | `vps-ea/SUPERTREND GRID v2.00.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.00 — nayi strategy, hedge ki jagah grid (29 Oct 2026)
+
+- **Ankush:** hedge wala achha nahi chal raha (demo ~$98 → ~$81). Supertrend se entry wahi, baaki badlo.
+- **Niyam (Ankush ke saath tay):**
+  - Entry: **M1** Supertrend (ATR 10, ×3, band candle) ki disha, nayi M1 candle par **0.01**.
+  - Grid: pehli entry se har **$10** ulta → usi disha me ek aur 0.01, **kul 7 trade** tak.
+  - Basket: kul profit **+$2** → **$1 lock**, phir sabse unche profit se **$1 peeche** trailing. Fixed TP nahi. Lock ka SL server par bhi (sab trade par ek hi price, avg + lock / lots).
+  - **Max DD $40** (basket) → sab band, aaj band (RESUME se hatao).
+  - Band hone ke baad **5 min cooldown**, phir M1 Supertrend ki mojooda disha me naya basket.
+  - Din ka target: din ki shuruaat ke balance ka **1%**.
+  - Pehle jaisa: news filter (USD ±30), manual close ginti, dashboard, PAUSE/RESUME, CLOSE ALL. Naya Magic **26102901**, GV prefix `STG2_`.
+- **⚠️ Ankush ko bataya:** $10 gap par 3 trade (−$20) ke baad price ~−$23 par hi loss −$40 → Max DD $40 me grid asal me ~3 trade tak; 7 trade tak −$210 khula loss (account ~$81).
+- **Pending (baad me):** 5 min me $30 ek-tarfa chaal → ulti disha me basket jitne lot ka ek trade, TP $5 — Ankush ne abhi rok diya.
+- **Baaki:** VPS par compile (yahan compile nahi) · Strategy Tester real ticks · demo.
 
 ## SUPERTREND HEDGE v1.19 — poora code review (28 Oct 2026)
 
