@@ -17,8 +17,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
-| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.05** | `vps-ea/SUPERTREND GRID v2.05.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.06** | `vps-ea/SUPERTREND GRID v2.06.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.06 — 30% reserve (29 Oct 2026)
+
+- **Ankush:** jo profit aaye uska 30% emergency ke liye alag; panel par dikhe kitna bacha hai aur kitna use karna hai; use na karo to pada rahe ($10k → $20k ho jaaye tab bhi).
+- **Sach (bataya):** MT5 EA paisa alag account me nahi bhej sakta (Exness Personal Area → Transfer haath se). Isliye **usi account me kagzi reserve** chuna gaya.
+- **Kaise:** har cycle band → us cycle ka P/L (`CSTART` se) → pichhla loss (`RCARRY`) pehle pura, baaki ka **30%** `RES` me (push alert). AUTO lot aur din target sirf **Trading balance = balance − reserve** par. Panel [6] RESERVE: bacha / use kiya / trading balance + box me $ likho → **USE** (reserve se utna trading me, reserve se zyada nahi). Inputs `InpReserve`, `InpReservePct`.
+- Kagzi hai → margin call / stop-out me broker poora balance use karta hai; asli suraksha ke liye haath se transfer.
 
 ## SUPERTREND GRID v2.05 — TF chuno, AUTO lot, spread / weekend / push / spike (29 Oct 2026)
 
