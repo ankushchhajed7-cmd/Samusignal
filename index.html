@@ -2314,7 +2314,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.8.2';
+const VERSION = '10.8.3';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -4132,8 +4132,8 @@ function renderV20(){
       <p class="hint" style="margin:4px 0 0">${v.buy} BUY · ${v.hold} HOLD · ${v.sell} SELL</p></div>
     <div class="vbar">${v.buy ? `<i style="width:${v.buy * 5}%;background:var(--up)">${v.buy}</i>` : ''}${v.hold ? `<i style="width:${v.hold * 5}%;background:#3a3a3a;color:var(--mut)">${v.hold}</i>` : ''}${v.sell ? `<i style="width:${v.sell * 5}%;background:var(--dn)">${v.sell}</i>` : ''}</div>
     <div class="grid2" style="margin-top:10px">
-      <div style="border:1px solid var(--up);border-radius:8px;padding:9px;text-align:center"><small style="color:var(--mut);letter-spacing:1px">BUY JEET %</small><br><b style="font-size:20px;color:${rc(v.buyRec)}">${pc(v.buyRec)}</b><br><small class="hint">${v.buy} agent BUY bole</small></div>
-      <div style="border:1px solid var(--dn);border-radius:8px;padding:9px;text-align:center"><small style="color:var(--mut);letter-spacing:1px">SELL JEET %</small><br><b style="font-size:20px;color:${rc(v.sellRec)}">${pc(v.sellRec)}</b><br><small class="hint">${v.sell} agent SELL bole</small></div></div>
+      <div style="border:1px solid var(--up);border-radius:8px;padding:9px;text-align:center"><small style="color:var(--mut);letter-spacing:1px">BUY JEET %</small><br><b style="font-size:20px;color:var(--up)">${pc(v.buyRec)}</b><br><small class="hint">${v.buy} agent BUY bole</small></div>
+      <div style="border:1px solid var(--dn);border-radius:8px;padding:9px;text-align:center"><small style="color:var(--mut);letter-spacing:1px">SELL JEET %</small><br><b style="font-size:20px;color:var(--dn)">${pc(v.sellRec)}</b><br><small class="hint">${v.sell} agent SELL bole</small></div></div>
     <p class="hint" style="margin:6px 0 0">Jeet % = jo agent us taraf bole, unka backtest record (12 pair · 15m · ~35 din, +1 ATR pehle ya −1 ATR). 50% = sikka uchhalne jitna.</p>
     ${better && better !== v.verdict ? `<p class="hint" style="margin:6px 0 0;border:1px solid var(--gold);border-radius:8px;padding:6px 9px;color:var(--gold);font-weight:600">⚠ Vote ${v.verdict} hai, par record ke hisaab se ${better} wale agent behtar rahe hain (${pc(better === B ? v.buyRec : v.sellRec)}).</p>` : ''}
     <p class="hint" style="margin:6px 0 0">Top 6 (sabse achhe record wale): <b style="color:${v.top6.v === B ? 'var(--up)' : v.top6.v === SE ? 'var(--dn)' : 'var(--mut)'}">${v.top6.v === H ? 'barabar / chup' : v.top6.v + ' ' + Math.max(v.top6.b, v.top6.s) + '/6'}</b> · backtest: 20-vote ${AG20_BT.all}% · top 6 vote ${AG20_BT.top6}% · purana 49-vote ${AG20_BT.old49}%</p>
