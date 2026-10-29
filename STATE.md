@@ -17,8 +17,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
-| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.01** | `vps-ea/SUPERTREND GRID v2.01.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.02** | `vps-ea/SUPERTREND GRID v2.02.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.02 — DD par 3 vikalp (29 Oct 2026)
+
+- **Ankush (soch rahe hain, vikalp chahiye):** Max DD $500 par jitni Buy (jaise 7 × 0.01) utni Sell, har Sell ka TP $5; market aur neeche gaya to 7 Sell TP par band → phir 7 Sell, aise hi chalta rahe.
+- **`InpDDMode`:** 0 CLOSE (sab band + aaj band) · **1 LOCK (default)** · 2 LOCK+TP (ulti trade ka TP `InpLockTP` $5; saari TP par band → utni hi phir; rokna = CLOSE ALL).
+- **⚠️ Hisaab (Ankush ko bataya):** LOCK+TP me har $5 neeche: Sell +$35 book, Buy −$35 aur khule → equity wahi; phir upar aaye to Buy +$35, nayi Sell −$35 → equity wahi. Yani equity lagbhag jam jaati hai, har nayi 7 Sell par spread (~$1.75) jaata hai, basket kabhi khud band nahi hota — sirf "loss book + profit book" ka roop badalta hai.
 
 ## SUPERTREND GRID v2.01 — Max DD $500 par LOCK (29 Oct 2026)
 
