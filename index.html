@@ -1412,6 +1412,7 @@ body.ds-gold .brand .brandWord{height:24px}
     </div>
   </div>
 
+  <div class="card hide" id="cardV20"></div>
   <div class="card" id="cardSignal"></div>
   <div class="gVerdict" id="gVerdict"></div>
 
@@ -1580,7 +1581,7 @@ body.ds-gold .brand .brandWord{height:24px}
 
 <!-- ============ VOTES ============ -->
 <section id="pgVotes" class="hide">
-  <div class="pghd"><span class="pn">03</span><b>Votes</b><small>50 rule-based agents aur backtest</small></div>
+  <div class="pghd"><span class="pn">03</span><b>Votes</b><small>20 rule-based agents (backtest ke top 20)</small></div>
   <div class="card">
     <p class="ttl">AI Agent Voting <span class="sp" id="voteT">—</span></p>
     <div id="voteBox"></div>
@@ -1616,7 +1617,7 @@ body.ds-gold .brand .brandWord{height:24px}
   </div>
 
   <div class="card" id="voteListCard">
-    <p class="ttl">50 Agents <span class="sp" id="voteFilt">sab</span></p>
+    <p class="ttl">20 Agents <span class="sp" id="voteFilt">sab</span></p>
     <div class="chips" id="voteChips" style="margin-bottom:12px"></div>
     <div id="voteList"></div>
   </div>
@@ -2298,7 +2299,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.7.3';
+const VERSION = '10.8.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -2973,7 +2974,7 @@ async function gAsk(prompt, onNote){
 
 /* signal ka poora data -> prompt */
 function aiPrompt(){
-  const s = lastSignal, a = lastAn, v = lastVotes;
+  const s = lastSignal, a = lastAn, v = lastV20;
   const c = barCache[s.sym] || [];
   const cl = c.map(x=>x.c);
   const P = n => fmt(s.sym, n);
@@ -3008,7 +3009,7 @@ INDICATORS (${s.tf}):
 HIGHER TIMEFRAME BIAS: ${s.tfs.map(t=>t.l+' '+t.b).join(', ')}
 ${s.htfStrict ? '(4H aur 1D dono match kar rahe hain)' : s.htfOk ? '(ek HTF match, ek mismatch)' : '(4H/1D dono match NAHI kar rahe)'}
 
-50 STRATEGY AGENTS: ${v ? `BUY ${v.buy}, HOLD ${v.hold}, SELL ${v.sell} -> ${v.verdict} (${v.conf}% consensus)
+20 AGENTS (backtest ke top 20): ${v ? `BUY ${v.buy}, HOLD ${v.hold}, SELL ${v.sell} -> ${v.verdict} (${v.conf}% consensus)
 Category wise: ${Object.entries(grp).map(([g,z])=>`${g} ${z.B}B/${z.S}S/${z.H}H`).join(', ')}` : 'nahi chale'}
 
 RULE-BASED CHECKS: ${a ? a.pct + '% paas. Chinta: ' + (a.bad.length ? a.bad.map(x=>x.h).join(', ') : 'koi nahi') : 'nahi'}
@@ -3913,7 +3914,7 @@ function analyse(sym, bars, v, s){
     const detail = Object.entries(by)
       .map(([g,z]) => `${g} ${z.b}B/${z.s}S`).join(' · ');
     O.push({
-      h:'50 AGENTS',
+      h:'20 AGENTS',
       ok: v.conf>=70 && v.verdict===d ? 2 : v.verdict===d ? 1 : 0,
       t: `${v.buy} BUY, ${v.hold} HOLD, ${v.sell} SELL — verdict ${v.verdict} (${v.conf}%). ${detail}. ` +
         (v.verdict !== d
@@ -4059,6 +4060,82 @@ function runAgents(bars, htfBias, price){
   return {list:out, buy, sell, hold, verdict:win, conf};
 }
 
+/* ================= v10.8.0: 20 AGENT VOTE =================
+   49 agents me ~28 ek hi sawaal poochte the ("price upar ja raha hai?") — vote unhi se bhar jaata tha.
+   Backtest (12 pair · 15m · ~35 din · 19,129 bindu · BUY/SELL ke baad 8 ghante me pehle +1 ATR ya −1 ATR,
+   ek candle me dono = haar): 49-vote 43.5%. User ne top 20 chune — sirf yahi ab vote karte hain.
+   % = har agent ka apna backtest jeet % (jab usne BUY/SELL bola). 50% = sikka uchhalne jitna. */
+const AG20 = [['Williams %R', 56.0], ['Stochastic 14', 56.0], ['RSI Overbought/sold', 55.2], ['Day High/Low Test', 55.1],
+  ['Range Position', 54.7], ['Bollinger 20/2', 54.6], ['ADX Strength', 52.8], ['RSI Divergence', 51.4], ['ADX Direction', 51.2],
+  ['Supertrend 7/2', 47.5], ['Engulfing Candle', 47.3], ['Supertrend 14/4', 47.1], ['EMA 9/21 Cross', 46.7], ['EMA 50/200 Cross', 46.5],
+  ['SMA 10/30 Cross', 46.4], ['Supertrend 10/3', 46.3], ['Price vs EMA 50', 46.3], ['1D Trend Bias', 46.1], ['1H Trend Bias', 46.0], ['ATR Expansion', 46.0]];
+const AG20_BT = {all: 49.1, top6: 55.3, old49: 43.5, n: 19129};
+/* 49 ka kachcha vote (Report Card weight se pehle) -> sirf 20 ka vote, wahi shape (list/buy/sell/hold/verdict/conf) */
+function vote20(v49, bars, live){
+  if(!v49) return null;
+  const by = {}; v49.list.forEach(x => by[x.n] = x);
+  const list = AG20.map(([n, w]) => ({n, g: (by[n] || {}).g || '', v: (by[n] || {}).v || H, w}));
+  const buy = list.filter(x => x.v === B).length, sell = list.filter(x => x.v === SE).length, hold = 20 - buy - sell;
+  const verdict = buy > sell ? B : sell > buy ? SE : H;
+  const rec = side => { const a = list.filter(x => x.v === side); return a.length ? +(a.reduce((p, x) => p + x.w, 0) / a.length).toFixed(1) : null };
+  const t6 = list.slice(0, 6), b6 = t6.filter(x => x.v === B).length, s6 = t6.filter(x => x.v === SE).length;
+  const out = {list, buy, sell, hold, verdict, conf: Math.round(Math.max(buy, sell) / 20 * 100), n: 20, buyRec: rec(B), sellRec: rec(SE),
+    top6: {b: b6, s: s6, v: b6 > s6 ? B : s6 > b6 ? SE : H}};
+  if(bars && bars.length > 20){
+    const a = last(atr(bars, 14)), p = live || last(bars).c;
+    out.plan = {live: p, atr: a, hh: hh(bars.slice(-11, -1), 10), ll: ll(bars.slice(-11, -1), 10)};
+  }
+  return out;
+}
+let lastV20 = null;
+/* 20-vote ki disha me order: MARKET (abhi) · LIMIT (0.5 ATR pullback) · STOP (pichhli 10 candle ke high/low ke paar).
+   SL / TP = 1 ATR (backtest isi 1:1 pe hua tha). LIMIT/STOP ke bhaav andaza — backtest sirf MARKET ka. */
+function v20Orders(sym, v){
+  if(!v || !v.plan || v.verdict === H || !(v.plan.atr > 0)) return [];
+  const {live: p, atr: a} = v.plan, sg = v.verdict === B ? 1 : -1;
+  const lim = p - sg * 0.5 * a;
+  let stp = sg > 0 ? Math.max(v.plan.hh, p) + 0.1 * a : Math.min(v.plan.ll, p) - 0.1 * a;
+  if(Math.abs(stp - p) < 0.3 * a) stp = p + sg * 0.3 * a;
+  const mk = (kind, e) => ({kind, dir: v.verdict, e, sl: e - sg * a, tp: e + sg * a});
+  return [mk('MARKET', p), mk('LIMIT', lim), mk('STOP', stp)];
+}
+function renderV20(){
+  const box = $('cardV20'); if(!box) return;
+  const v = lastV20;
+  if(!v){ box.classList.add('hide'); return }
+  box.classList.remove('hide');
+  const sym = v.sym, sp = SPECS[sym], lot = +($('inLots') || {}).value || S.dLot || 0.01;
+  const col = v.verdict === B ? 'var(--up)' : v.verdict === SE ? 'var(--dn)' : 'var(--gold)';
+  const pc = x => x == null ? '—' : x.toFixed(1) + '%';
+  const rc = x => x == null ? 'var(--mut)' : x > 52 ? 'var(--up)' : x >= 50 ? 'var(--gold)' : 'var(--dn)';
+  const usd = d => '$' + distToDollars(sym, v.plan.live, lot, d).toFixed(2);
+  const O = v20Orders(sym, v);
+  const better = v.buyRec != null && v.sellRec != null && Math.abs(v.buyRec - v.sellRec) >= 2 ? (v.buyRec > v.sellRec ? B : SE) : null;
+  box.innerHTML = `<p class="ttl">🗳 20 AGENT VOTE <span class="sp">${sp.n} · ${v.tf} · <span data-ago="${v.at}">${ago(v.at)}</span></span></p>
+    <div style="text-align:center;padding:4px 0">
+      <b class="shine ${v.verdict === B ? 'up' : v.verdict === SE ? 'dn' : 'gd'}" style="font-size:24px;letter-spacing:2px">${v.verdict === H ? '⏸ BARABAR — NO TRADE' : v.verdict + ' ' + Math.max(v.buy, v.sell) + '/20'}</b>
+      <p class="hint" style="margin:4px 0 0">${v.buy} BUY · ${v.hold} HOLD · ${v.sell} SELL</p></div>
+    <div class="vbar">${v.buy ? `<i style="width:${v.buy * 5}%;background:var(--up)">${v.buy}</i>` : ''}${v.hold ? `<i style="width:${v.hold * 5}%;background:#3a3a3a;color:var(--mut)">${v.hold}</i>` : ''}${v.sell ? `<i style="width:${v.sell * 5}%;background:var(--dn)">${v.sell}</i>` : ''}</div>
+    <div class="grid2" style="margin-top:10px">
+      <div style="border:1px solid var(--up);border-radius:8px;padding:9px;text-align:center"><small style="color:var(--mut);letter-spacing:1px">BUY JEET %</small><br><b style="font-size:20px;color:${rc(v.buyRec)}">${pc(v.buyRec)}</b><br><small class="hint">${v.buy} agent BUY bole</small></div>
+      <div style="border:1px solid var(--dn);border-radius:8px;padding:9px;text-align:center"><small style="color:var(--mut);letter-spacing:1px">SELL JEET %</small><br><b style="font-size:20px;color:${rc(v.sellRec)}">${pc(v.sellRec)}</b><br><small class="hint">${v.sell} agent SELL bole</small></div></div>
+    <p class="hint" style="margin:6px 0 0">Jeet % = jo agent us taraf bole, unka backtest record (12 pair · 15m · ~35 din, +1 ATR pehle ya −1 ATR). 50% = sikka uchhalne jitna.</p>
+    ${better && better !== v.verdict ? `<p class="hint" style="margin:6px 0 0;border:1px solid var(--gold);border-radius:8px;padding:6px 9px;color:var(--gold);font-weight:600">⚠ Vote ${v.verdict} hai, par record ke hisaab se ${better} wale agent behtar rahe hain (${pc(better === B ? v.buyRec : v.sellRec)}).</p>` : ''}
+    <p class="hint" style="margin:6px 0 0">Top 6 (sabse achhe record wale): <b style="color:${v.top6.v === B ? 'var(--up)' : v.top6.v === SE ? 'var(--dn)' : 'var(--mut)'}">${v.top6.v === H ? 'barabar / chup' : v.top6.v + ' ' + Math.max(v.top6.b, v.top6.s) + '/6'}</b> · backtest: 20-vote ${AG20_BT.all}% · top 6 vote ${AG20_BT.top6}% · purana 49-vote ${AG20_BT.old49}%</p>
+    ${O.length ? `<div style="margin-top:10px"><b style="font-size:11px;letter-spacing:1.2px;color:var(--gold)">ORDER (${v.verdict}) · SL/TP = 1 ATR · lot ${lot}</b>
+      <div class="tbl" style="overflow-x:auto"><table style="width:100%;font-size:12px;margin-top:6px;border-collapse:collapse">
+        <tr style="color:var(--mut)"><td>Order</td><td>Entry</td><td>SL</td><td>TP</td></tr>
+        ${O.map(o => `<tr style="border-top:1px dashed var(--line)"><td><b style="color:${col}">${o.dir} ${o.kind}</b></td><td class="mono">${fmt(sym, o.e)}</td>
+          <td class="mono" style="color:var(--dn)">${fmt(sym, o.sl)}<br><small>−${usd(o.e - o.sl)}</small></td><td class="mono" style="color:var(--up)">${fmt(sym, o.tp)}<br><small>+${usd(o.tp - o.e)}</small></td></tr>`).join('')}
+      </table></div>
+      <p class="hint" style="margin:6px 0 0">MARKET = abhi live bhaav · LIMIT = 0.5 ATR pullback pe · STOP = pichhli 10 candle ke ${v.verdict === B ? 'high' : 'low'} ke paar. Backtest sirf MARKET (1:1) ka hai — LIMIT/STOP ke bhaav andaza.</p></div>`
+      : '<p class="hint" style="margin:10px 0 0">BUY aur SELL vote barabar — koi order nahi.</p>'}
+    <details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">20 agents ke vote</summary>
+      ${v.list.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px dashed var(--line)">
+        <span style="min-width:18px;color:var(--mut)">${i + 1}</span><span style="flex:1">${x.n}</span><small style="color:${rc(x.w)}">${x.w}%</small>
+        <b style="min-width:40px;text-align:right;color:${x.v === B ? 'var(--up)' : x.v === SE ? 'var(--dn)' : 'var(--mut)'}">${x.v}</b></div>`).join('')}</details>`;
+}
+
 /* ---------------- main analysis ---------------- */
 let busy = false;
 async function runAnalyze(){
@@ -4109,6 +4186,8 @@ async function runAnalyze(){
     ['1h','4h','1day'].forEach(k => { if(res[k]) htfB[k] = res[k].bias === 'NEUTRAL' ? 'HOLD' : res[k].bias });
     lastVotes = rcApply(runAgents(barsBase, htfB, live));   /* v10.3.0: Report Card weight */
     lastVotes.sym = sym; lastVotes.at = Date.now(); lastVotes.tf = S.tf;
+    lastV20 = vote20(lastVotes, barsBase, live);                       /* v10.8.0: yahi dikhta + ginta hai */
+    lastV20.sym = sym; lastV20.at = lastVotes.at; lastV20.tf = (TFS.find(x => x.id === S.tf) || {l: S.tf}).l;
     const h4 = res['4h'], d1 = res['1day'], h1 = res['1h'];
 
     /* --- quality score 0-100 --- */
@@ -4153,11 +4232,11 @@ async function runAnalyze(){
       age: sigAge(barsBase, dir, baseTf, live, lv.tpDist, sym),
       at: Date.now()
     };
-    lastAn = analyse(sym, barsBase, lastVotes, lastSignal);
+    lastAn = analyse(sym, barsBase, lastV20, lastSignal);
     lastAn.at = Date.now();
     logSignal(lastSignal, lastVotes, lastAn);
     if(!lastAI || lastAI.sym !== sym) lastAI = null;
-    renderAnalyst(); renderSignal(); renderAI();
+    renderAnalyst(); renderSignal(); renderAI(); renderV20();
     if(S.gAuto && S.gKey && dir !== 'NEUTRAL') runAI();
     const fc = finalCall(lastSignal);
     if(dir !== 'NEUTRAL' && fc.go){
@@ -4195,8 +4274,8 @@ function sumColumn(s){
   const q = tierOf(s.q, 'sig');
   rows.push(['SIG', s.q + '%', q.t, q.c]);
 
-  if(lastVotes && lastVotes.sym === s.sym){
-    const v = lastVotes;
+  if(lastV20 && lastV20.sym === s.sym){
+    const v = lastV20;
     const fit = v.verdict === s.dir ? v.conf : 100 - v.conf;
     const t = tierOf(fit, 'vote');
     rows.push(['VOTE', v.conf + '%', v.verdict === s.dir ? t.t : 'ULTA',
@@ -4387,15 +4466,10 @@ function renderSum(){
   const R = [];
   const q = tierOf(s.q, 'sig');
   R.push(row('SIG', `${s.q}% ${q.t}`, q.c, '', 'cardSignal'));
-  if(lastVotes && lastVotes.sym === s.sym){
-    const v = lastVotes, ok = v.verdict === s.dir, t = tierOf(ok ? v.conf : 100 - v.conf, 'vote');
-    R.push(row('VOTE', `${v.conf}% ${ok ? t.t : 'ULTA'}`, ok ? t.c : 'var(--dn)', '', 'cardSignal'));
-  } else R.push(row('VOTE', '—', 'var(--mut)', '', 'cardSignal'));
-  if(lastVotes && lastVotes.sym === s.sym && (lastVotes.weighted || lastVotes.benched)){
-    const v = lastVotes;
-    R.push(row('REPORT CARD', `${v.weighted || 0} bhaari/halke · ${v.benched || 0} band`, 'var(--gold)',
-      v.raw && v.raw.verdict !== v.verdict ? `bina weight ke ${v.raw.verdict} ${v.raw.conf}% hota` : 'vote isi hisaab se gina', 'agLiveOut'));
-  }
+  if(lastV20 && lastV20.sym === s.sym){
+    const v = lastV20, ok = v.verdict === s.dir, t = tierOf(ok ? v.conf : 100 - v.conf, 'vote');
+    R.push(row('VOTE (20)', `${v.conf}% ${ok ? t.t : 'ULTA'}`, ok ? t.c : 'var(--dn)', '', 'cardV20'));
+  } else R.push(row('VOTE (20)', '—', 'var(--mut)', '', 'cardV20'));
   if(lastAn){ const t = tierOf(lastAn.pct, 'tech'); R.push(row('TECH', `${lastAn.pct}% ${t.t}`, t.c, '', 'anBox')); }
   else R.push(row('TECH', '—', 'var(--mut)', '', 'anBox'));
   const a = s.age;
@@ -4496,7 +4570,7 @@ function orderLeg(s, type){
 function finalCall(s){
   const C = [];                          /* {k:'skip'|'hard'|'timing'|'confirm'|'other', n, ok, why} */
   const add = (k, n, ok, why) => C.push({k, n, ok, why});
-  const v = lastVotes && lastVotes.sym === s.sym ? lastVotes : null;
+  const v = lastV20 && lastV20.sym === s.sym ? lastV20 : null;      /* v10.8.0: 20 agent vote */
   const a = lastAn;
   const ai = lastAI && lastAI.sym === s.sym ? lastAI : null;
   const ema = window.lastEmaPlan && window.lastEmaPlan.sym === s.sym ? window.lastEmaPlan : null;
@@ -4952,12 +5026,12 @@ function renderSignal(){
       </div>
        <p class="hint">${s.mode==='ATR'?'ATR mode':'Fixed $'} · Lots ${s.lots} · R:R 1:${rr} · RSI ${s.rsi.toFixed(1)} · ATR ${fmt(s.sym,s.atr)} · <span style="color:var(--up)">✓ closed candle confirmed</span></p>
       <div class="cWarn">${newsBox}${weak}${warn}</div>
-      ${lastVotes && lastVotes.sym===s.sym ? `<div style="display:flex;align-items:center;gap:8px;background:var(--panel);
+      ${lastV20 && lastV20.sym===s.sym ? `<div style="display:flex;align-items:center;gap:8px;background:var(--panel);
         border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-top:10px" onclick="go('Votes',document.querySelector('nav button[data-pg=Votes]'))">
-        <span style="font-size:10px;color:var(--mut);letter-spacing:1px">50 AGENTS</span>
-        <span class="mono up" style="font-size:12px">${lastVotes.buy}B</span>
-        <span class="mono mu" style="font-size:12px">${lastVotes.hold}H</span>
-        <span class="mono dn" style="font-size:12px">${lastVotes.sell}S</span>
+        <span style="font-size:10px;color:var(--mut);letter-spacing:1px">20 AGENTS</span>
+        <span class="mono up" style="font-size:12px">${lastV20.buy}B</span>
+        <span class="mono mu" style="font-size:12px">${lastV20.hold}H</span>
+        <span class="mono dn" style="font-size:12px">${lastV20.sell}S</span>
         <span style="margin-left:auto;font-size:10px;color:var(--gold)">DEKHO ›</span>
       </div>` : ''}
       <div class="acts actMain">
@@ -5145,10 +5219,11 @@ async function runScan(){
 
       const sig = {sym, dir, live, sl, tp, slPips:lv.slPips, tpPips:lv.tpPips, tfs:tfArr, q};
       const age = sigAge(base, dir, uniq[0], live, lv.tpDist, sym);
-      const an = analyse(sym, base, v, sig);
+      const v20 = vote20(v);
+      const an = analyse(sym, base, v20, sig);
 
-      /* combined score — teeno ka mel */
-      const agentFit = v.verdict === dir ? v.conf : 100 - v.conf;
+      /* combined score — teeno ka mel (v10.8.0: 20 agent vote) */
+      const agentFit = v20.verdict === dir ? v20.conf : 100 - v20.conf;
       const score = Math.round(q*0.4 + an.pct*0.35 + agentFit*0.25);
 
       const nr = newsRisk(sym);
@@ -5159,7 +5234,7 @@ async function runScan(){
 
       rows.push({
         sym, dir, score, q, an:an.pct, grade: q>=80?'A+':q>=70?'A':q>=60?'B':q>=45?'C':'D',
-        entry:live, sl, tp, vb:v.buy, vs:v.sell, conf:v.conf, verdict:v.verdict,
+        entry:live, sl, tp, vb:v20.buy, vs:v20.sell, conf:v20.conf, verdict:v20.verdict,
         htf: tfArr.filter(x=>x.b===dir).length, htfN: tfArr.length,
         news: nr ? nr.c+' news' : '', why, age
       });
@@ -5188,7 +5263,7 @@ async function runScan(){
 async function openScanned(sym){
   S.pair = sym; pickVal.main = sym; save();
   fillPairs(); setChart(sym);
-  lastSignal = null; lastVotes = null; lastAn = null;
+  lastSignal = null; lastVotes = null; lastV20 = null; lastAn = null; renderV20();
   go('Signals', document.querySelector('nav button[data-pg="Signals"]'));
   await runAnalyze();
   const c = $('cardSignal');
@@ -6006,10 +6081,10 @@ function shareAnWa(){
 let voteFilter = 'All';
 
 function renderVotes(){
-  const v = lastVotes;
+  const v = lastV20;                                   /* v10.8.0: sirf 20 agents */
   if(!v){
     $('voteT').textContent = '—';
-    $('voteBox').innerHTML = '<div class="empty"><div>🗳</div>Pehle Signals page pe koi pair Analyze karo.<br>50 agents apna vote yahan denge.</div>';
+    $('voteBox').innerHTML = '<div class="empty"><div>🗳</div>Pehle Signals page pe koi pair Analyze karo.<br>20 agents apna vote yahan denge.</div>';
     $('voteListCard').classList.add('hide');
     return;
   }
@@ -6049,7 +6124,7 @@ function renderVotes(){
       <button class="btn ghost sm" onclick="tgSend(fullReport(true))">Telegram</button>
     </div>`;
 
-  const groups = ['All', ...new Set(AGENTS.map(a=>a.g))];
+  const groups = ['All', ...new Set(v.list.map(a=>a.g))];
   $('voteChips').innerHTML = groups.map(g =>
     `<button class="chip ${voteFilter===g?'on':''}" onclick="voteFilter='${g}';renderVotes()">${g}</button>`).join('');
   $('voteFilt').textContent = voteFilter === 'All' ? 'sab' : voteFilter;
@@ -8880,10 +8955,10 @@ function fullReport(html){
   L.push(`TP    : ${c(fmt(s.sym, s.tp))}   +$${s.tpD}  (${s.tpPips} pips)`);
   L.push(`Lots  : ${s.lots}    R:R 1:${(s.tpD/s.slD).toFixed(2)}`);
 
-  if(lastVotes && lastVotes.sym === s.sym){
-    const v = lastVotes;
+  if(lastV20 && lastV20.sym === s.sym){
+    const v = lastV20;
     L.push('');
-    L.push('━━━ AGENT VOTE (50) ━━━');
+    L.push('━━━ AGENT VOTE (20) ━━━');
     L.push(`BUY   : ${v.buy}`);
     L.push(`HOLD  : ${v.hold}`);
     L.push(`SELL  : ${v.sell}`);
@@ -8947,10 +9022,10 @@ function tradeReport(t, html){
   L.push(`Lots  : ${t.lots}    R:R 1:${(t.tpD/(t.slD||1)).toFixed(2)}`);
   L.push(`Live P/L: ${b(money(pl))}`);
 
-  if(lastVotes && lastVotes.sym === t.sym){
-    const v = lastVotes;
+  if(lastV20 && lastV20.sym === t.sym){
+    const v = lastV20;
     L.push('');
-    L.push('━━━ AGENT VOTE (50) ━━━');
+    L.push('━━━ AGENT VOTE (20) ━━━');
     L.push(`BUY   : ${v.buy}`);
     L.push(`HOLD  : ${v.hold}`);
     L.push(`SELL  : ${v.sell}`);
