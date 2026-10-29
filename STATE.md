@@ -17,8 +17,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
-| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.00** | `vps-ea/SUPERTREND GRID v2.00.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.01** | `vps-ea/SUPERTREND GRID v2.01.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.01 — Max DD $500 par LOCK (29 Oct 2026)
+
+- **Ankush:** Max DD $500, aur DD pahunchne par jitni Buy trade chalu hain utni hi Sell trade lagni chahiye.
+- **Badlav:** `InpMaxDD` 40 → **500**; naya `InpDDLock` (default true): DD par sab band karne ki jagah basket ki har trade ke saamne ek ulti trade (5 Buy × 0.01 → 5 Sell × 0.01, comment `STG_LOCK`). Lock ke baad EA grid / trailing nahi karta — faisla haath se (CLOSE ALL). Lock wali ulti trade haath se band ho to EA basket phir sambhalta hai. `InpDDLock` false = purana (sab band + aaj band).
+- **⚠️ Ankush ko bataya:** $81 account par $500 DD kabhi nahi aayega — usse pehle broker ka stop-out. 7 trade tak (0.07 lot, −$60) khula loss ~−$210 = account khatm. $500 tabhi matlab ka jab account bada ho.
 
 ## SUPERTREND GRID v2.00 — nayi strategy, hedge ki jagah grid (29 Oct 2026)
 
