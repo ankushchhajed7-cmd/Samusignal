@@ -1402,7 +1402,8 @@ body.ds-gold .brand .brandWord{height:24px}
 
 <!-- ============ SIGNALS ============ -->
 <section id="pgSignals">
-  <div class="card" id="sumCard"></div>
+  <!-- v10.8.2: TOTAL ANALYSIS card abhi ke liye band (user) — code (renderSum) rakha hai, "hide" hatao to wapas -->
+  <div class="card hide" id="sumCard"></div>
   <div class="card" id="dayBar"></div>
   <div class="card" id="anlCard">
     <p class="ttl">Analysis <span class="sp" id="apiState">API key set karo</span></p>
@@ -2313,7 +2314,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.8.1';
+const VERSION = '10.8.2';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
