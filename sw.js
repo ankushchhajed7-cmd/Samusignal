@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.8.7 — 20 AGENT VOTE: 'BUY 8  SELL 5  HOLD 7' (hara / laal / grey)
    v10.8.6 — Gemini tez: 3.x model pe thinking 'low', har sawaal 45 sec seema, dheema model chhod ke agla
    v10.8.5 — AUTO ANALYZE: 15m ADX 30+ pe ⭐ mazboot trend (Q3)
    v10.8.4 — AUTO ANALYZE: Gemini ne roka to bina AI wala order 👻 me likho; Report Card me 'AI ne haan kaha' vs '🚫 AI ne roka' (AI filter ka live test)
@@ -108,7 +109,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.8.6';
+const VERSION = '10.8.7';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

@@ -2314,7 +2314,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.8.6';
+const VERSION = '10.8.7';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -4157,7 +4157,7 @@ function renderV20(){
   box.innerHTML = `<p class="ttl">🗳 20 AGENT VOTE <span class="sp">${sp.n} · ${v.tf} · <span data-ago="${v.at}">${ago(v.at)}</span></span></p>
     <div style="text-align:center;padding:4px 0">
       <b class="shine ${v.verdict === B ? 'up' : v.verdict === SE ? 'dn' : 'gd'}" style="font-size:24px;letter-spacing:2px">${v.verdict === H ? '⏸ BARABAR — NO TRADE' : v.verdict + ' ' + Math.max(v.buy, v.sell) + '/20'}</b>
-      <p class="hint" style="margin:4px 0 0">${v.buy} BUY · ${v.hold} HOLD · ${v.sell} SELL</p></div>
+      <p style="margin:6px 0 0;font-size:16px;font-weight:800;letter-spacing:1px"><span style="color:var(--up)">BUY ${v.buy}</span> &nbsp; <span style="color:var(--dn)">SELL ${v.sell}</span> &nbsp; <span style="color:#9a9a9a">HOLD ${v.hold}</span></p></div>
     <div class="vbar">${v.buy ? `<i style="width:${v.buy * 5}%;background:var(--up)">${v.buy}</i>` : ''}${v.hold ? `<i style="width:${v.hold * 5}%;background:#3a3a3a;color:var(--mut)">${v.hold}</i>` : ''}${v.sell ? `<i style="width:${v.sell * 5}%;background:var(--dn)">${v.sell}</i>` : ''}</div>
     <div class="grid2" style="margin-top:10px">
       <div style="border:1px solid var(--up);border-radius:8px;padding:9px;text-align:center"><small style="color:var(--mut);letter-spacing:1px">BUY JEET %</small><br><b style="font-size:20px;color:var(--up)">${pc(v.buyRec)}</b><br><small class="hint">${v.buy} agent BUY bole</small></div>
