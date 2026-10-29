@@ -219,6 +219,16 @@ html body .hrow .ib.ib-cht span{color:#16E27E !important;-webkit-text-fill-color
 .btn.bpGo{border:2px solid rgba(22,226,126,.95) !important;color:#16E27E !important;background:rgba(22,226,126,.08) !important;
   font-weight:800;letter-spacing:1px;animation:cpGlow 2.4s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.btn.bpGo{animation:none}}
+/* v10.8.1: ANALYSIS + 20 AGENT VOTE ek hi bracket — hari border dheere-dheere jalti-bujhti (dim-dim).
+   Theme (ds-gold) card border pe !important lagata hai jo animation rok deta — isliye chamak alag parat (::after) pe */
+html body .card#anlCard{position:relative}
+html body .card#anlCard::before{display:none !important}
+html body .card#anlCard::after{content:"";display:block !important;position:absolute;inset:0;border-radius:inherit;border:2px solid #16E27E;
+  pointer-events:none;z-index:2;box-shadow:0 0 0 1px rgba(22,226,126,.35),0 0 14px rgba(22,226,126,.35),inset 0 0 10px rgba(22,226,126,.12);
+  animation:anlPulse 3s ease-in-out infinite}
+@keyframes anlPulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){html body .card#anlCard::after{animation:none}}
+#anlCard .v20sec{border-top:1px dashed rgba(22,226,126,.45);margin-top:14px;padding-top:12px}
 .saGood{display:inline-block;background:rgba(22,226,126,.18);color:#16E27E !important;font-weight:800;
   border:1px solid rgba(22,226,126,.6);border-radius:5px;padding:1px 7px;margin-top:3px}
 .sig-l{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:3px}
@@ -1203,6 +1213,10 @@ body.ds-gold #swHtf{order:3;margin:2px 0 14px}
 body.ds-gold #cardSignal{order:4}
 body.ds-gold #gVerdict{order:5}
 body.ds-gold .anlBtns{order:6;margin:0 0 14px}
+/* v10.8.1: ds-gold me anlCard bikhar jaata hai (display:contents) — 20 vote buttons ke theek neeche, apni hari chamak ke saath */
+body.ds-gold #cardV20{order:7;position:relative;border:0 !important;margin:0 0 14px;padding:12px;border-radius:12px}
+body.ds-gold #cardV20::after{content:"";position:absolute;inset:0;border-radius:inherit;border:2px solid #16E27E;pointer-events:none;
+  box-shadow:0 0 14px rgba(22,226,126,.35);animation:anlPulse 3s ease-in-out infinite}
 body.ds-gold #sumCard{order:7}
 body.ds-gold #dayBar{order:8}
 
@@ -1410,9 +1424,9 @@ body.ds-gold .brand .brandWord{height:24px}
       <button class="btn ghost cOnly" onclick="refreshAll()">⟳ Rates Refresh</button>
       <button class="btn ghost gOnlyB" onclick="sendSignalMT5()"><svg class="dsi" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"></path><path d="M11.5 13.5L20 4"></path></svg><span>MT5 pe Lagao</span></button>
     </div>
+    <div class="v20sec hide" id="cardV20"></div>
   </div>
 
-  <div class="card hide" id="cardV20"></div>
   <div class="card" id="cardSignal"></div>
   <div class="gVerdict" id="gVerdict"></div>
 
@@ -2299,7 +2313,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.8.0';
+const VERSION = '10.8.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;

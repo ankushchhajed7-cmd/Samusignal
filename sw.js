@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.8.1 — ANALYSIS aur 20 AGENT VOTE ek hi bracket me, hari dim-dim chamakti border
    v10.8.0 — 49 agent vote hata ke 20 agent vote (backtest ke top 20): Analysis ke neeche naya card — BUY/SELL jeet % (backtest), MARKET/LIMIT/STOP entry + SL/TP
    v10.7.3 — PERSONAL FX order apni key se (-SN normal / -SU ULTA / -SA ABHI / -SO baaki) — MT5 comment se har trade ki kism pehchaan (record tracking)
    v10.7.2 — AUTO ANALYZE card pe '⚡ ABHI ENTRY': LIMIT/STOP ke saath turant MARKET order bhi (analysis ki disha, live bhaav) — RANGE me nahi
@@ -102,7 +103,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.8.0';
+const VERSION = '10.8.1';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
