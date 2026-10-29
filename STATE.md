@@ -17,7 +17,71 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.07** | `vps-ea/SUPERTREND GRID v2.07.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.07 — Cockpit dashboard (29 Oct 2026)
+
+- **Ankush:** dashboard alag / unique chahiye — rang, ghadi, emergency par screen par flash. 6 preview banaye (Design canvas artifact: Neon Cyber, Cockpit, Light Desk, Matrix Terminal, Top Strip, Gold Luxe) → Ankush ne **Cockpit** chuna.
+- **Panel (960 px design, chart ki chaudai me scale):** Row1 badi IST ghadi (second, din / tareekh, server time, session) + TREND + **MASTER CAUTION** · Row2 bade number BASKET P&L / DAILY / CYCLE / RESERVE · Row3 **DD gauge** 20 khane (hara / amber / laal) · Row4 lights NEWS / SPREAD / ALGO / WEEKEND / LOCK / SPIKE · Row5 status + PAUSE / CLOSE ALL · Row6 avg / agla grid / lock + reserve USE box. Fonts Consolas + Arial.
+- **Alert:** `Notify(msg, level)` — 2 = laal (Max DD lock / band, spike): master caution laal blink, chart ke beech bada flash 15 sec, `alert2.wav`, click = OK · 1 = hara (cycle profit, din target) 60 sec. Timer 0.5 sec.
+
+## SUPERTREND GRID v2.06 — 30% reserve (29 Oct 2026)
+
+- **Ankush:** jo profit aaye uska 30% emergency ke liye alag; panel par dikhe kitna bacha hai aur kitna use karna hai; use na karo to pada rahe ($10k → $20k ho jaaye tab bhi).
+- **Sach (bataya):** MT5 EA paisa alag account me nahi bhej sakta (Exness Personal Area → Transfer haath se). Isliye **usi account me kagzi reserve** chuna gaya.
+- **Kaise:** har cycle band → us cycle ka P/L (`CSTART` se) → pichhla loss (`RCARRY`) pehle pura, baaki ka **30%** `RES` me (push alert). AUTO lot aur din target sirf **Trading balance = balance − reserve** par. Panel [6] RESERVE: bacha / use kiya / trading balance + box me $ likho → **USE** (reserve se utna trading me, reserve se zyada nahi). Inputs `InpReserve`, `InpReservePct`.
+- Kagzi hai → margin call / stop-out me broker poora balance use karta hai; asli suraksha ke liye haath se transfer.
+
+## SUPERTREND GRID v2.05 — TF chuno, AUTO lot, spread / weekend / push / spike (29 Oct 2026)
+
+- **Ankush ke saath tay:**
+  - Supertrend TF chuno: **M1** (default) / M5 / M15 / M30. Upar wale TF ka filter (default M15) **OFF** — Ankush: M1 par basket band hokar naye trend se shuru hota hai, dono taraf trade aayenge.
+  - **AUTO lot:** har **$2000** balance par 0.01 ($10,000 = 0.05), basket shuru par tay. Trailing ($2 / $1 / $1) aur lock TP ($5) 0.01 ke hisaab, lot ke saath x badhte. Max DD $500, cycle $50, din 1% — account ke hisaab, nahi badhte.
+  - **Spread filter:** spread > 0.50 → naya basket / grid nahi.
+  - **Weekend:** Shukra **3 PM IST** ke baad se Somvar **7 AM IST** tak naya basket nahi (chalu basket chalta rahe).
+  - **Push alert:** Max DD lock / band, cycle profit, din ka target, spike.
+  - **SPIKE:** pichhle 5 min (M1) me basket ke khilaf **$30** → basket ke kul lot jitni **ek** ulti trade, **TP price $5** (0.05 lot par $25). Khuli rahe tab grid / trailing / Max DD lock ruke. Agla spike kam se kam 5 min baad.
+  - **News ke samay grid bhi nahi** (`InpNewsBlockGrid`, default ON).
+
+## SUPERTREND GRID v2.04 — cycle profit $50 (29 Oct 2026)
+
+- **Ankush:** kabhi atak jaaye (lock) to jab opening balance se +$50 ho jaaye, saare trade band, naya basket / naya cycle.
+- **Badlav:** `InpCycleProfit` 50: basket ki pehli trade se ab tak ki band deals (lock ki TP wali Sell bhi, manual close bhi) + khuli trade ≥ +$50 → CloseAll → cooldown → naya basket. Panel [1] me naya row "CYCLE P&L x / +$50".
+
+## SUPERTREND GRID v2.03 — LOCK+TP round 7 6 5 4 3 (29 Oct 2026)
+
+- **Ankush:** DD par pehle round 7 Sell (basket jitni), sab TP $5; market aur neeche → sab band → agle round 6, phir 5, 4, 3, phir wapas 7 — 7 6 5 4 3, 7 6 5 4 3 ...
+- **Badlav:** mode 2 LOCK+TP me har round ek kam (`InpLockMinTrades` 3 tak), phir basket jitni se dobara. Round GV `LOCKK`. Status: "LOCK+TP round k".
+- **⚠️ Hisaab (Ankush ko bataya), 7 Buy:** har $5 neeche wale round me net = (Sell k − 7) × $5 → 7: 0 · 6: −5 · 5: −10 · 4: −15 · 3: −20 → ek poora chakkar ($25 neeche) ≈ **−$50** aur. Kam Sell = basket ki disha me khula exposure → market palte to tezi se wapas, na palte to DD badhta. Basket ka apna exit lock me nahi — CLOSE ALL.
+
+## SUPERTREND GRID v2.02 — DD par 3 vikalp (29 Oct 2026)
+
+- **Ankush (soch rahe hain, vikalp chahiye):** Max DD $500 par jitni Buy (jaise 7 × 0.01) utni Sell, har Sell ka TP $5; market aur neeche gaya to 7 Sell TP par band → phir 7 Sell, aise hi chalta rahe.
+- **Account:** Ankush ise **$10,000** balance par chalayenge → $500 DD = 5%, stop-out ki chinta nahi (pehle wali $81 wali chetavani demo ke liye thi).
+- **`InpDDMode`:** 0 CLOSE (sab band + aaj band) · **1 LOCK (default)** · 2 LOCK+TP (ulti trade ka TP `InpLockTP` $5; saari TP par band → utni hi phir; rokna = CLOSE ALL).
+- **⚠️ Hisaab (Ankush ko bataya):** LOCK+TP me har $5 neeche: Sell +$35 book, Buy −$35 aur khule → equity wahi; phir upar aaye to Buy +$35, nayi Sell −$35 → equity wahi. Yani equity lagbhag jam jaati hai, har nayi 7 Sell par spread (~$1.75) jaata hai, basket kabhi khud band nahi hota — sirf "loss book + profit book" ka roop badalta hai.
+
+## SUPERTREND GRID v2.01 — Max DD $500 par LOCK (29 Oct 2026)
+
+- **Ankush:** Max DD $500, aur DD pahunchne par jitni Buy trade chalu hain utni hi Sell trade lagni chahiye.
+- **Badlav:** `InpMaxDD` 40 → **500**; naya `InpDDLock` (default true): DD par sab band karne ki jagah basket ki har trade ke saamne ek ulti trade (5 Buy × 0.01 → 5 Sell × 0.01, comment `STG_LOCK`). Lock ke baad EA grid / trailing nahi karta — faisla haath se (CLOSE ALL). Lock wali ulti trade haath se band ho to EA basket phir sambhalta hai. `InpDDLock` false = purana (sab band + aaj band).
+- **⚠️ Ankush ko bataya:** $81 account par $500 DD kabhi nahi aayega — usse pehle broker ka stop-out. 7 trade tak (0.07 lot, −$60) khula loss ~−$210 = account khatm. $500 tabhi matlab ka jab account bada ho.
+
+## SUPERTREND GRID v2.00 — nayi strategy, hedge ki jagah grid (29 Oct 2026)
+
+- **Ankush:** hedge wala achha nahi chal raha (demo ~$98 → ~$81). Supertrend se entry wahi, baaki badlo.
+- **Niyam (Ankush ke saath tay):**
+  - Entry: **M1** Supertrend (ATR 10, ×3, band candle) ki disha, nayi M1 candle par **0.01**.
+  - Grid: pehli entry se har **$10** ulta → usi disha me ek aur 0.01, **kul 7 trade** tak.
+  - Basket: kul profit **+$2** → **$1 lock**, phir sabse unche profit se **$1 peeche** trailing. Fixed TP nahi. Lock ka SL server par bhi (sab trade par ek hi price, avg + lock / lots).
+  - **Max DD $40** (basket) → sab band, aaj band (RESUME se hatao).
+  - Band hone ke baad **5 min cooldown**, phir M1 Supertrend ki mojooda disha me naya basket.
+  - Din ka target: din ki shuruaat ke balance ka **1%**.
+  - Pehle jaisa: news filter (USD ±30), manual close ginti, dashboard, PAUSE/RESUME, CLOSE ALL. Naya Magic **26102901**, GV prefix `STG2_`.
+- **⚠️ Ankush ko bataya:** $10 gap par 3 trade (−$20) ke baad price ~−$23 par hi loss −$40 → Max DD $40 me grid asal me ~3 trade tak; 7 trade tak −$210 khula loss (account ~$81).
+- **Pending (baad me):** 5 min me $30 ek-tarfa chaal → ulti disha me basket jitne lot ka ek trade, TP $5 — Ankush ne abhi rok diya.
+- **Baaki:** VPS par compile (yahan compile nahi) · Strategy Tester real ticks · demo.
 
 ## SUPERTREND HEDGE v1.19 — poora code review (28 Oct 2026)
 
