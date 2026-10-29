@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.8.4 — AUTO ANALYZE: Gemini ne roka to bina AI wala order 👻 me likho; Report Card me 'AI ne haan kaha' vs '🚫 AI ne roka' (AI filter ka live test)
    v10.8.3 — 20 AGENT VOTE: BUY JEET % hamesha hara, SELL JEET % hamesha laal
    v10.8.2 — Signals page ka TOTAL ANALYSIS card abhi ke liye band
    v10.8.1 — ANALYSIS aur 20 AGENT VOTE ek hi bracket me, hari dim-dim chamakti border
@@ -105,7 +106,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.8.3';
+const VERSION = '10.8.4';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */

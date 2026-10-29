@@ -2314,7 +2314,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.8.3';
+const VERSION = '10.8.4';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -10508,6 +10508,10 @@ async function autoAnalyze(){
       return leg;
     });
     const good = d.mtf.legs.filter(L => L.ok);
+    /* v10.8.4 (A2): Gemini ne roka (NO TRADE / bharosa kam) — bina AI wala Level Engine order 👻 me likho (order nahi jaata),
+       taaki Report Card bataye ki AI ka filter sach me fayda deta hai ya nahi */
+    const aiNo = String(ai.signal).toUpperCase() !== 'TRADE' || conf < c.minConf;
+    if(aiNo && LVL.on && (g.mode === 'UP' || g.mode === 'DOWN')){ try{ mtfShadow(sym, sets, R, g, c, d, {aiRej: true, conf}) }catch(e){} }
     d.mtf.lvl = !!lv; d.mtf.a5 = a5; d.mtf.a15 = a15;
     { const h4 = sets[1].bars.slice(-4); d.mtf.hr = Math.max(...h4.map(x => x.h)) - Math.min(...h4.map(x => x.l)) }   /* v10.6.10 (T2) */
     if(good.length){
@@ -10733,8 +10737,8 @@ async function mtfSendMkt(){
    ya −gap (averaging). Spread nahi gina — asli se thoda behtar dikhega. */
 /* v10.6.6 (N2): purana/rest NO TRADE pe bhi Level Engine ke order "👻 shadow" me likho (AI nahi, order nahi) —
    Report Card me naya vs purana vs rest ka live hisaab, taaki backtest wala fayda asli me pakka ho */
-function mtfShadow(sym, sets, R, g, c, d){
-  const mode = g.dir, specs = mtfLegs(mode), a5 = R['5min'].atr, b5 = sets[2].bars, mv = c.live - b5[b5.length - 4].c;
+function mtfShadow(sym, sets, R, g, c, d, extra){
+  const mode = g.dir || g.mode, specs = mtfLegs(mode), a5 = R['5min'].atr, b5 = sets[2].bars, mv = c.live - b5[b5.length - 4].c;
   const c2 = Object.assign({}, c, {hi: 0, lo: 0, legMin: 0, minConf: 0, chase: a5 > 0 && (mode === 'UP' ? mv > 1.5 * a5 : -mv > 1.5 * a5)});
   const lv = lvlLegs(sym, sets, R, {mode}, specs, c2);
   const legs = specs.map((L, i) => { const b = lv[i] && lv[i].best; if(!b) return null;
@@ -10742,6 +10746,7 @@ function mtfShadow(sym, sets, R, g, c, d){
   if(!legs.length) return;
   const rec = {at: d.at, sym, mode, conf: 0, tp: d.mtf.tp, gap: d.mtf.gap, lvl: true, warn: 0, a5, a15: R['15min'].atr,
     legs: legs.map(L => ({dir: L.dir, kind: L.kind, entry: L.entry, zone: true})), sent: false, res: null, cat: g.cat, shadow: true};
+  if(extra) Object.assign(rec, extra);
   S.mtfLog = [rec].concat((S.mtfLog || []).filter(x => x.at !== rec.at)).slice(0, 80);
   save(); mtfRcRender();
 }
@@ -10789,10 +10794,13 @@ function mtfRcCat(LA){
   const done = LA.filter(r => r.res && (r.res.r === 'WIN' || r.res.r === 'AVG'));
   const G = [
     ['🟢 Naya trend (asli order)', r => !r.shadow && r.cat === 'naya' && !r.rev && !r.mkt],
+    ['🤖 AI ne haan kaha · bharosa 80%+', r => !r.shadow && r.cat === 'naya' && !r.rev && !r.mkt && r.conf >= 80],
+    ['🤖 AI ne haan kaha · bharosa 80% se kam', r => !r.shadow && r.cat === 'naya' && !r.rev && !r.mkt && r.conf < 80],
+    ['🚫 AI ne roka (👻, bina AI order)', r => r.shadow && r.aiRej],
     ['🔄 ULTA bheje (v10.7.1)', r => !r.shadow && r.rev],
     ['⚡ ABHI ENTRY (market, v10.7.2)', r => !r.shadow && r.mkt],
-    ['👻 Purana trend (NO TRADE)', r => r.shadow && r.cat === 'purana'],
-    ['👻 Rest (NO TRADE)', r => r.shadow && r.cat === 'rest'],
+    ['👻 Purana trend (NO TRADE)', r => r.shadow && r.cat === 'purana' && !r.aiRej],
+    ['👻 Rest (NO TRADE)', r => r.shadow && r.cat === 'rest' && !r.aiRej],
     ['v10.6.5 tak (purane niyam)', r => !r.shadow && !r.cat]
   ];
   const rows = G.map(([lab, f]) => {
@@ -10807,7 +10815,7 @@ function mtfRcCat(LA){
   if(!rows) return '';
   return `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0 0 8px">
     <b class="small">🧪 Naya trend niyam ka live test · +TP pehle</b>${rows}
-    <p class="hint" style="margin:6px 0 0">Backtest me naya trend ~91%, purana/rest ~80%. 👻 = NO TRADE tha, order nahi gaya — sirf hisaab (RESULT CHECK me inka bhi 1 credit). 5 se kam = grey.</p></div>`;
+    <p class="hint" style="margin:6px 0 0">Backtest me naya trend ~91%, purana/rest ~80% (backtest bina AI ke tha). 🚫 AI ne roka = Gemini ne NO TRADE / kam bharosa kaha, bina AI wala order sirf hisaab me — agar ye bhi ~utna hi jeete jitna "AI ne haan kaha", to AI filter se fayda nahi. 👻 = NO TRADE tha, order nahi gaya — sirf hisaab (RESULT CHECK me inka bhi 1 credit). 5 se kam = grey.</p></div>`;
 }
 let mtfRcBusy = false;
 async function mtfRcCheck(){
@@ -10850,7 +10858,7 @@ function mtfRcRender(){
       const t = r.res ? tag[r.res.r] : tag.OPEN;
       const lg = r.legs.map((x, i) => `<span style="color:${x.dir === 'BUY' ? 'var(--up)' : 'var(--dn)'}${r.res && r.res.leg === i ? ';font-weight:800' : ''}">${x.dir[0]}${x.kind === 'LIMIT' ? 'L' : x.kind === 'MARKET' ? 'M' : 'S'} ${fmt(r.sym, x.entry)}</span>`).join(' · ');
       return `<div style="border-bottom:1px dashed var(--line);padding:7px 0;font-size:11.5px">
-        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.shadow ? '👻 ' + (r.cat === 'purana' ? 'purana' : 'rest') + ' · ' + r.mode : r.mode + ' · ' + r.conf + '%'}${r.sent ? (r.rev ? ' · 🔄 ULTA' : r.mkt ? ' · ⚡ ABHI' : ' · 🚀') : ''}${r.warn > 0 ? ' · <b style="color:var(--gold)">⚠</b>' : ''}</span>
+        <div style="display:flex;gap:8px"><b class="mono">${SPECS[r.sym] ? SPECS[r.sym].n : r.sym}</b><span>${r.shadow ? (r.aiRej ? '🚫 AI ne roka' : '👻 ' + (r.cat === 'purana' ? 'purana' : 'rest')) + ' · ' + r.mode : r.mode + ' · ' + r.conf + '%'}${r.sent ? (r.rev ? ' · 🔄 ULTA' : r.mkt ? ' · ⚡ ABHI' : ' · 🚀') : ''}${r.warn > 0 ? ' · <b style="color:var(--gold)">⚠</b>' : ''}</span>
           <span class="mono" style="margin-left:auto;color:var(--mut)">${t12(r.at)}</span></div>
         <div style="display:flex;gap:8px;margin-top:3px"><span class="mono">${lg}</span><b style="margin-left:auto;color:${t[1]};white-space:nowrap">${t[0]}</b></div>
         ${r.res && r.res.maeA != null ? `<div style="color:var(--mut);margin-top:2px">${r.lvl ? '📐 ' : ''}Bharne ke baad ulta ${r.res.maeA}× ATR${r.res.flip ? ' · stop turant palta' : ''}${r.res.endAt && r.res.fillAt ? ' · ' + Math.round((r.res.endAt - r.res.fillAt) / 60000) + ' min me nateeja' : ''}</div>` : ''}</div>`;
