@@ -17,8 +17,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
-| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.02** | `vps-ea/SUPERTREND GRID v2.02.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.03** | `vps-ea/SUPERTREND GRID v2.03.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.03 — LOCK+TP round 7 6 5 4 3 (29 Oct 2026)
+
+- **Ankush:** DD par pehle round 7 Sell (basket jitni), sab TP $5; market aur neeche → sab band → agle round 6, phir 5, 4, 3, phir wapas 7 — 7 6 5 4 3, 7 6 5 4 3 ...
+- **Badlav:** mode 2 LOCK+TP me har round ek kam (`InpLockMinTrades` 3 tak), phir basket jitni se dobara. Round GV `LOCKK`. Status: "LOCK+TP round k".
+- **⚠️ Hisaab (Ankush ko bataya), 7 Buy:** har $5 neeche wale round me net = (Sell k − 7) × $5 → 7: 0 · 6: −5 · 5: −10 · 4: −15 · 3: −20 → ek poora chakkar ($25 neeche) ≈ **−$50** aur. Kam Sell = basket ki disha me khula exposure → market palte to tezi se wapas, na palte to DD badhta. Basket ka apna exit lock me nahi — CLOSE ALL.
 
 ## SUPERTREND GRID v2.02 — DD par 3 vikalp (29 Oct 2026)
 
