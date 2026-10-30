@@ -2349,7 +2349,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.9.0';
+const VERSION = '10.9.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -10496,7 +10496,7 @@ async function autoAnalyze(){
     const sets = [];
     for(const tf of MTF_TFS){
       $('shotState').textContent = tf.l + ' la raha hoon…';
-      note(`${sp.n} · ${tf.l} candles aa rahi hain (${sets.length + 1}/4 · 1 credit)…`);
+      note(`${sp.n} · ${tf.l} candles aa rahi hain (${sets.length + 1}/4 · ${feedOk() ? '📡 MT5, credit nahi' : '1 credit'})…`);
       const bars = await getSeries(sym, tf.id, tf.n);
       if(!bars || bars.length < 60) throw new Error(tf.l + ' ki kaafi candles nahi mili');
       sets.push({tf, bars, read: mtfRead(bars)});
