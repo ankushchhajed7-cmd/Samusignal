@@ -18,7 +18,18 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
+| UT Bot Dual (UT Bot buy copy 4/300 + sell copy 6/1, multi-pair, fixed SL/TP) | **1.00** | `vps-ea/UT Bot Dual v1.00.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## UT Bot Dual v1.00 — naya EA (30 Oct 2026)
+
+- **Idea:** Trade4Wealth (Amar Mandekar) video — TradingView "UT Bot Alerts" (QuantNomad) chart par 2 baar: **BUY copy Key 4 / ATR 300** (sirf Buy), **SELL copy Key 6 / ATR 1** (sirf Sell). Video me Nifty/Bank Nifty options; exit rule video me nahi tha.
+- **Ankush ke faisle:** exit = **fixed SL/TP (A)**; **saare pair** ek chart se.
+- **Logic:** UT Bot ATR trailing stop (ATR = RMA, Pine jaisa). BUY = close trailing stop ke upar cross; SELL = neeche cross. Sirf **band candle** par (repaint nahi). EA start par purana signal trade nahi karta. Dono copy ek hi candle par fire → CONFLICT, skip.
+- **Verify:** Python me Pine-style reference se match — 2000 bar, 3 setting, **0 mismatch**.
+- **Default settings:** TF M5 · pairs `EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD,USDCHF,NZDUSD,EURJPY,GBPJPY,XAUUSD` · suffix `auto` (chart symbol se, Exness "m") · lot 0.01 · SL/TP mode **Money: SL $2 / TP $3** (Pips mode: 20/30, gold 1 pip = 0.10) · 1 trade per pair · max 10 total · magic 2610301.
+- **Filters (default OFF):** EMA 200 trend, ADX 14 ≥ 20, session hour (server time). **Daily max loss $** (0 = off) — sirf nayi trade rokta hai.
+- **Baaki / dhyaan:** SELL copy (ATR 1) bahut tez hai — whipsaw zyada; BUY copy (ATR 300) dheemi. Demo / Strategy Tester me har pair ka result dekh kar filter ON/OFF tay karna hai.
 
 ## SUPERTREND GRID v2.08 — lock trade par TP (30 Oct 2026)
 
