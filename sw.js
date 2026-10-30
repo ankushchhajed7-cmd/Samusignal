@@ -1,5 +1,6 @@
 /* ============================================================
    SamuSignal — service worker
+   v10.9.0 — Chart page: '✍️ Chart pe khud order' — LIMIT / STOP ki jagah chart pe tap (galat jagah = line nahi), MARKET bhi; baaki PERSONAL FX ke niyam
    v10.8.7 — 20 AGENT VOTE: 'BUY 8  SELL 5  HOLD 7' (hara / laal / grey)
    v10.8.6 — Gemini tez: 3.x model pe thinking 'low', har sawaal 45 sec seema, dheema model chhod ke agla
    v10.8.5 — AUTO ANALYZE: 15m ADX 30+ pe ⭐ mazboot trend (Q3)
@@ -109,7 +110,7 @@
    wahan CACHE_TAG bhi 'samusignal-v' + VERSION hi banta hai.
    ============================================================ */
 
-const VERSION = '10.8.7';
+const VERSION = '10.9.0';
 const CACHE   = 'samusignal-v' + VERSION.replace(/\./g, '-');   /* samusignal-v9-9-2 */
 
 /* App shell — inke bina app offline nahi chalega */
@@ -121,7 +122,8 @@ const SHELL = [
   './icon-512.png',
   './icon-maskable-512.png',
   './favicon.png',
-  './apple-touch-icon.png'
+  './apple-touch-icon.png',
+  './vendor/lightweight-charts-4.2.0.js'
 ];
 
 /* Ye hosts kabhi cache nahi karne — live data aur API calls hain */
