@@ -11,9 +11,9 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
-| AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.00** | `vps-ea/AMC GOLD MASTER v1.00.mq5` |
+| AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.01** | `vps-ea/AMC GOLD MASTER v1.01.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
-| Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
+| Investor Account Watcher (INVESTOR-ID repo) | **1.06** | `vps-ea/Investor Account Watcher v1.06.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
@@ -460,3 +460,12 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 - **Magic 20261030.** Extra suraksha default OFF: day loss %, day target %, max spread.
 - **Dhyan:** 1% risk vs ~$10 avg jeet (10k par) — ek pura SL ≈ 10 jeet. Pehle DEMO.
 - **Baaki:** GrowthMasters ka SL buffer feed offset ki wajah se pakka nahi (0.30 andaza); 1–2 hafte aur data se pura-SL ki dar dekhni hai.
+
+
+## AMC GOLD MASTER v1.01 — Cockpit dashboard + journal (30 Oct 2026)
+
+- **Ankush:** v1.00 VPS par laga diya; dashboard SUPERTREND GRID wala **Cockpit** jaisa chahiye, aur tracking rakhni hai ki EA kaise chal raha hai (aage badlav ke liye).
+- **Panel (Cockpit, 960 px design, chart me fit):** IST ghadi + server + session · SIGNAL (chalti candle ki disha = agla trade + countdown) · MASTER CAUTION (SL laga = laal blink + chart ke beech flash + awaaz, click = OK; jeet / din poora = hara) · TRADE P&L (side, lot, peak) · DAILY (x/5 trade) · LOCK (pakka $) · RISK / TRADE · RISK GAUGE (khula loss vs 1 trade risk, 20 khane) · lights TRADES / SPREAD / ALGO / TIME / LOCK / DAY · status + PAUSE / CLOSE ALL (REAL par confirm) · ENTRY/SL/TP ya BAL/EQ.
+- **Journal:** `MQL5\Files\AMC_GM_journal_<acc>.csv` — START (settings), har candle ENTRY (candle O/H/L/C, SL doori, spread, risk) ya SKIP (kaaran), LOCK, CLOSE (SL/TP/lock, peak, worst, kitni der), PAUSE/RESUME. Push notification (InpPush).
+- **Investor Account Watcher v1.06:** journal file ko GitHub `INVESTOR-ID/data/<acc>/AMC_GM_journal_<acc>.csv` par bhejta hai (badle to, har 5 min) — Claude yahin se padh ke analysis karega. Watcher aur AMC **same terminal** me hon (MQL5\Files same).
+- Strategy v1.00 jaisi hi (koi badlav nahi). Magic 20261030.
