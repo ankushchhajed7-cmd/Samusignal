@@ -1495,6 +1495,41 @@ body.ds-gold .brand .brandWord{height:24px}
     <button class="tvx hide" id="tvClose" onclick="chartBig()">✕ CLOSE</button>
   </div>
 
+  <!-- v10.9.0: ✍️ chart pe khud order — sirf ENTRY ki jagah aap chuno, baaki sab PERSONAL FX ke niyam -->
+  <div class="card" id="kmCard">
+    <p class="ttl">✍️ Chart pe khud order <span class="sp" id="kmSym">—</span></p>
+    <p class="hint" style="margin:0 0 10px">Upar CHART ANALYSIS wala pair. Aap sirf <b>LIMIT / STOP ki jagah</b> chart pe tap karke chuno (ya MARKET). Lot, TP / SL, lock, pending expiry — sab <b style="color:var(--gold)">PERSONAL FX</b> ke apne niyam.</p>
+    <button class="btn gold" id="kmOpen" onclick="kmStart()">✍️ CHART KHOLO</button>
+    <div id="kmBody" class="hide">
+      <div class="grid2" style="margin-bottom:8px">
+        <button class="btn" id="kmB" onclick="kmSet('dir','BUY')">BUY ▲</button>
+        <button class="btn" id="kmS" onclick="kmSet('dir','SELL')">SELL ▼</button>
+      </div>
+      <div class="chips" id="kmKinds" style="margin-bottom:8px">
+        <button class="chip" data-k="LIMIT" onclick="kmSet('kind','LIMIT')">LIMIT</button>
+        <button class="chip" data-k="STOP" onclick="kmSet('kind','STOP')">STOP</button>
+        <button class="chip" data-k="MARKET" onclick="kmSet('kind','MARKET')">MARKET</button>
+      </div>
+      <div class="chips" id="kmTfs" style="margin-bottom:8px">
+        <button class="chip" data-t="5min" onclick="kmSet('tf','5min')">5m</button>
+        <button class="chip" data-t="15min" onclick="kmSet('tf','15min')">15m</button>
+        <button class="chip" data-t="1h" onclick="kmSet('tf','1h')">1H</button>
+      </div>
+      <div id="kmChart" style="height:340px;position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line)"></div>
+      <p class="hint" id="kmHow" style="margin:8px 0 0">—</p>
+      <div id="kmEntryRow" style="display:flex;gap:6px;align-items:center;margin-top:8px">
+        <button class="btn ghost sm" style="width:auto;padding:0 14px" onclick="kmNudge(-1)">−</button>
+        <input class="mono" id="kmEntry" type="number" inputmode="decimal" placeholder="Entry — chart pe tap karo" onchange="kmTyped()" style="flex:1;padding:9px;font-size:15px">
+        <button class="btn ghost sm" style="width:auto;padding:0 14px" onclick="kmNudge(1)">+</button>
+      </div>
+      <div id="kmMsg" style="margin-top:8px;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;border:1px solid var(--line)">—</div>
+      <div class="grid2" style="margin-top:10px">
+        <button class="btn gold" id="kmSend" onclick="kmSend()" disabled>🚀 PERSONAL FX ko bhejo</button>
+        <button class="btn ghost" onclick="kmLoad(true)">⟳ Live / chart</button>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <p class="ttl">1 · Screenshot <span class="sp" id="shotState">—</span></p>
     <button class="btn gold" onclick="shotIn.click()">📸 SCREENSHOT DAALO</button>
@@ -2314,7 +2349,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.8.7';
+const VERSION = '10.9.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -9703,7 +9738,7 @@ function pfxUrl(path){
 }
 /* v10.7.3: order apni key se (POST ki random key ki jagah) — key me order ki kism, jo EA MT5 comment me likhta hai
    ("PFXA" + key) aur Watcher GitHub pe le jaata hai. Isse har trade pehchaan me aata hai:
-   -SN = 🚀 normal LIMIT/STOP · -SU = 🔄 ULTA · -SA = ⚡ ABHI (market) · -SO = baaki (screenshot wala).
+   -SN = 🚀 normal LIMIT/STOP · -SU = 🔄 ULTA · -SA = ⚡ ABHI (market) · -SO = baaki (screenshot wala) · -SK = ✍️ khud (v10.9.0).
    20 akshar (Firebase push key jitni) — comment 31 ki seema me. */
 function pfxKey(tag){
   const r = Array.from(crypto.getRandomValues(new Uint8Array(9)), x => (x % 36).toString(36)).join('');
@@ -10753,6 +10788,144 @@ async function mtfSendMkt(){
   toast(`Gaya — ${pair} ${dir} MARKET`);
   if(S.tgAuto) tgSend(`⚡ <b>SamuSignal → PERSONAL FX · ABHI ENTRY</b>\n\n<b>${pair}</b>\n` + sent.map(x => '• ' + x).join('\n') +
     `\nLive <code>${fmt(sym, live)}</code> · lot EA input\n⏰ ${t12(now)}`, true);
+  pfxList(false); pfxStartPoll();
+}
+
+/* ================= v10.9.0 — ✍️ CHART PE KHUD ORDER =================
+   User sirf ENTRY ki jagah chunta hai (LIMIT / STOP chart pe tap, ya MARKET). Tap karte hi jaanch:
+     BUY LIMIT  = live se NEECHE · BUY STOP  = live se UPAR
+     SELL LIMIT = live se UPAR   · SELL STOP = live se NEECHE   (kam se kam KM_MIN_PIPS door)
+   Galat jagah = line lagti hi nahi (laal sandesh). Baad me bhaav entry paar kar jaaye = laal, bhejna band.
+   Order PERSONAL FX ko wahi raaste (key tag -SK): lot, TP/SL, lock, expiry — EA / app ke niyam, kuch nahi badla.
+   Chart: TradingView Lightweight Charts (vendor/, Apache-2.0), data getSeries (MT5 feed, nahi to TwelveData). */
+const KM_MIN_PIPS = 3, KM_IST = 19800;
+let KM = {dir: 'BUY', kind: 'LIMIT', tf: LS.get('kmTf', '15min'), entry: null, live: null, liveAt: 0, sym: null, bars: [], busy: false},
+    KMC = null, KMS = null, KMLINE = null, KMLIVE = null, KMT = null;
+function kmLib(){
+  if(window.LightweightCharts) return Promise.resolve(true);
+  return new Promise(res => { const sc = document.createElement('script'); sc.src = 'vendor/lightweight-charts-4.2.0.js';
+    sc.onload = () => res(true); sc.onerror = () => res(false); document.head.appendChild(sc) });
+}
+async function kmStart(){
+  $('kmBody').classList.remove('hide'); $('kmOpen').classList.add('hide');
+  if(!(await kmLib())){ kmMsg('bad', 'Chart library load nahi hui — internet / ⟳ Update dekho'); return }
+  if(!KMC){
+    const el = $('kmChart'), p = n => String(n).padStart(2, '0');
+    const tf = t => { const d = new Date(t * 1000); return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1) + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) };
+    KMC = LightweightCharts.createChart(el, {autoSize: true, layout: {background: {color: '#0b0b0d'}, textColor: '#b9b2a2', fontSize: 11},
+      grid: {vertLines: {color: '#1d1b16'}, horzLines: {color: '#1d1b16'}}, rightPriceScale: {borderColor: '#3a3326'},
+      timeScale: {borderColor: '#3a3326', timeVisible: true, secondsVisible: false, rightOffset: 6,
+        tickMarkFormatter: (t, k) => { const d = new Date(t * 1000); return k <= 2 ? p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1) : p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) }},
+      crosshair: {mode: 0}, localization: {locale: 'en-GB', timeFormatter: tf}});
+    KMS = KMC.addCandlestickSeries({upColor: '#16E27E', downColor: '#ff4d57', borderVisible: false, wickUpColor: '#16E27E', wickDownColor: '#ff4d57'});
+    KMC.subscribeClick(prm => { if(!prm || !prm.point || KM.kind === 'MARKET') return; const pr = KMS.coordinateToPrice(prm.point.y); if(pr > 0) kmPut(pr, 'tap') });
+  }
+  kmPaint(); await kmLoad(true);
+  if(!KMT) KMT = setInterval(() => { if(!document.hidden && !$('kmBody').classList.contains('hide') && !$('pgChart').classList.contains('hide')) kmLoad(false) }, 10000);
+}
+/* candles + live. Har 10 sec sirf MT5 feed pe (credit nahi); TwelveData pe sirf ⟳ dabane par */
+async function kmLoad(force){
+  const sym = S.pair, sp = SPECS[sym]; if(!sp || !KMS || KM.busy) return;
+  if(!force && !feedOk() && KM.sym === sym) return;
+  KM.busy = true;
+  try{
+    if(KM.sym !== sym){ KM.sym = sym; KM.entry = null; KM.bars = [] }
+    $('kmSym').textContent = sp.n + ' · ' + {'5min': '5m', '15min': '15m', '1h': '1H'}[KM.tf] + (feedOk() ? ' · 📡 MT5' : ' · TwelveData');
+    const bars = await getSeries(sym, KM.tf, 150);
+    KM.bars = bars.map(b => ({time: Math.floor((b.ts ? b.ts * 1000 : mtfTime(b.t)) / 1000) + KM_IST, open: b.o, high: b.h, low: b.l, close: b.c}))
+      .filter(b => isFinite(b.time)).sort((a, b) => a.time - b.time).filter((b, i, a) => !i || b.time > a[i - 1].time);
+    const fresh = force || !KMS._done;
+    KMS.applyOptions({priceFormat: {type: 'custom', minMove: Math.pow(10, -sp.d), formatter: v => (+v).toFixed(sp.d)}});
+    KMS.setData(KM.bars);
+    if(fresh){ KMC.priceScale('right').applyOptions({autoScale: true}); KMC.timeScale().setVisibleLogicalRange({from: Math.max(0, KM.bars.length - 90), to: KM.bars.length + 5}); KMS._done = true }
+    const lp = await getPrice(sym);
+    KM.live = lp > 0 ? lp : (KM.bars.length ? KM.bars[KM.bars.length - 1].close : null); KM.liveAt = Date.now();
+  }catch(e){ kmMsg('bad', 'Data nahi aaya — ' + (e.message || e)) }
+  KM.busy = false; kmPaint();
+}
+/* jaanch: entry is order type ke liye sahi jagah hai? */
+function kmCheck(e){
+  const sp = SPECS[KM.sym || S.pair], L = KM.live;
+  if(!(L > 0)) return {ok: false, why: 'Live bhaav nahi hai — ⟳ dabao'};
+  if(KM.kind === 'MARKET') return {ok: true};
+  if(!(e > 0)) return {ok: false, why: `${KM.dir} ${KM.kind} ki jagah chart pe tap karo`};
+  const minD = KM_MIN_PIPS * sp.pip, below = KM.kind === 'LIMIT' ? KM.dir === 'BUY' : KM.dir === 'SELL';
+  const d = e - L;
+  if(below && d > -minD) return {ok: false, why: `❌ ${KM.dir} ${KM.kind} live (${fmt(KM.sym, L)}) se NEECHE hi lagta hai${d < 0 ? ` — kam se kam ${KM_MIN_PIPS} pip` : ''}. Neeche tap karo.`};
+  if(!below && d < minD) return {ok: false, why: `❌ ${KM.dir} ${KM.kind} live (${fmt(KM.sym, L)}) se UPAR hi lagta hai${d > 0 ? ` — kam se kam ${KM_MIN_PIPS} pip` : ''}. Upar tap karo.`};
+  return {ok: true};
+}
+function kmPut(e, how){
+  const sp = SPECS[KM.sym || S.pair]; if(!sp) return;
+  e = +(+e).toFixed(sp.d);
+  const c = kmCheck(e);
+  if(!c.ok){ kmMsg('bad', c.why + (KM.entry ? ' (pichhla bhaav rakha)' : '')); kmPaint(true); return }     /* galat = line nahi lagti */
+  KM.entry = e; kmPaint();
+}
+function kmNudge(k){ const sp = SPECS[KM.sym || S.pair]; if(!sp || KM.kind === 'MARKET') return; kmPut((KM.entry || KM.live || 0) + k * sp.pip, 'nudge') }
+function kmTyped(){ const v = parseFloat($('kmEntry').value); if(v > 0) kmPut(v, 'type'); else kmPaint() }
+function kmSet(k, v){
+  KM[k] = v; if(k === 'tf'){ LS.set('kmTf', v); KMS && (KMS._done = false); kmLoad(true); return }
+  if(KM.entry && !kmCheck(KM.entry).ok){ KM.entry = null; kmMsg('bad', `${KM.dir} ${KM.kind} ke liye pichhli jagah galat thi — hata di. Dobara tap karo.`); kmPaint(true); return }
+  kmPaint();
+}
+function kmMsg(t, txt){ const el = $('kmMsg'); if(!el) return; el.style.color = t === 'ok' ? '#16E27E' : t === 'bad' ? '#ff6b73' : 'var(--gold)';
+  el.style.borderColor = t === 'ok' ? 'rgba(22,226,126,.6)' : t === 'bad' ? 'rgba(255,77,87,.6)' : 'var(--line)'; el.textContent = txt }
+function kmPaint(keepMsg){
+  const sym = KM.sym || S.pair, sp = SPECS[sym]; if(!sp) return;
+  $('kmB').className = 'btn' + (KM.dir === 'BUY' ? ' g' : ' ghost'); $('kmS').className = 'btn' + (KM.dir === 'SELL' ? ' r' : ' ghost');
+  document.querySelectorAll('#kmKinds [data-k]').forEach(b => b.classList.toggle('on', b.dataset.k === KM.kind));
+  document.querySelectorAll('#kmTfs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === KM.tf));
+  $('kmEntryRow').style.display = KM.kind === 'MARKET' ? 'none' : 'flex';
+  const below = KM.kind === 'LIMIT' ? KM.dir === 'BUY' : KM.dir === 'SELL';
+  $('kmHow').innerHTML = KM.kind === 'MARKET' ? `<b>${KM.dir} MARKET</b> — abhi ke bhaav pe (PERSONAL FX broker ke bhaav pe bharega)`
+    : `<b>${KM.dir} ${KM.kind}</b> — chart pe live se <b>${below ? 'NEECHE' : 'UPAR'}</b> tap karo (kam se kam ${KM_MIN_PIPS} pip)`;
+  if(KMS){
+    if(KMLIVE){ KMS.removePriceLine(KMLIVE); KMLIVE = null } if(KMLINE){ KMS.removePriceLine(KMLINE); KMLINE = null }
+    if(KM.live > 0) KMLIVE = KMS.createPriceLine({price: KM.live, color: '#5aa9ff', lineWidth: 1, lineStyle: 3, axisLabelVisible: true, title: 'LIVE'});
+    if(KM.entry && KM.kind !== 'MARKET'){ const ok = kmCheck(KM.entry).ok;
+      KMLINE = KMS.createPriceLine({price: KM.entry, color: ok ? '#d6b46a' : '#ff4d57', lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: KM.dir + ' ' + KM.kind}) }
+  }
+  const inp = $('kmEntry'); if(inp && document.activeElement !== inp){ inp.value = KM.entry ? fmt(sym, KM.entry) : ''; inp.step = sp.pip }
+  const c = kmCheck(KM.entry), ready = c.ok && (KM.kind === 'MARKET' || KM.entry > 0);
+  $('kmSend').disabled = !ready;
+  if(keepMsg) return;
+  if(ready){
+    if(KM.kind === 'MARKET') kmMsg('ok', `✓ ${KM.dir} MARKET · live ${fmt(sym, KM.live)} — bhejne ke liye taiyaar`);
+    else { const d = KM.entry - KM.live; kmMsg('ok', `✓ ${KM.dir} ${KM.kind} @ ${fmt(sym, KM.entry)} — live se ${(Math.abs(d) / sp.pip).toFixed(1)} pip ${d < 0 ? 'neeche' : 'upar'} (${money(distToDollars(sym, KM.live, 0.01, d))} / 0.01 lot)`) }
+  }else kmMsg(KM.entry ? 'bad' : 'wait', KM.entry ? '⚠ Bhaav entry ke paar chala gaya — ab ye jagah galat hai. Dobara tap karo.' : c.why);
+}
+async function kmSend(){
+  const sym = KM.sym, sp = SPECS[sym]; if(!sp) return;
+  if(!pfxBase()){ toast('Pehle Settings me Firebase URL daalo'); openSheet('setSheet'); return }
+  const p = await getPrice(sym); if(p > 0){ KM.live = p; KM.liveAt = Date.now() }       /* bhejne se pehle taaza bhaav pe dobara jaanch */
+  const c = kmCheck(KM.entry);
+  if(!c.ok || (KM.kind !== 'MARKET' && !(KM.entry > 0))){ kmPaint(); alert('Order nahi bheja — ' + (c.why || 'entry nahi')); return }
+  const pair = sp.n, live = KM.live, type = KM.dir + KM.kind, e = KM.kind === 'MARKET' ? 0 : KM.entry;
+  const dup = pfxLastList.find(o => o.pair === pair && (o.status === 'NEW' || o.status === 'PLACED') && Date.now() - o.at < PFX_EXP_MIN * 60000);
+  const acc = await pfxPickAcct(); if(acc === null) return;
+  const msg = `✍️ KHUD ORDER — ${pair} ${KM.dir} ${KM.kind}${e ? ' @ ' + fmt(sym, e) : ''}\nLive ${fmt(sym, live)}\n` + (pfxAcctTxt(acc) ? pfxAcctTxt(acc) + '\n' : '') +
+    `\nLot, TP/SL, lock: PERSONAL FX ke niyam` + (KM.kind !== 'MARKET' ? `\nPending ${PFX_EXP_MIN} min me na bhare to hat jayega` : '') +
+    (dup ? `\n\n⚠ ${pair} ka ek order pehle se "${(PFX_ST[dup.status] || [dup.status])[0]}" hai (${t12(dup.at)}) — EA purana pending hata dega` : '') + `\n\nPERSONAL FX ko bhejein?`;
+  if(!confirm(msg)) return;
+  const now = Date.now(), batch = 'B' + now.toString(36), sent = [];
+  try{
+    for(const a of (acc.length ? acc : [null])){
+      const body = {id: now + sent.length, pair, type, entry: e ? +(+e).toFixed(sp.d) : 0, live: +(+live).toFixed(sp.d), at: now, exp: PFX_EXP_MIN,
+        status: 'NEW', src: 'SamuSignal ' + VERSION + ' KHUD', batch, leg: 1, legs: 1};
+      if(a) body.acct = a.login;
+      const r = await pfxPut('K', body);
+      if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Firebase rules ne mana kiya — write permission do' : 'HTTP ' + r.status);
+      sent.push(`${KM.dir} ${KM.kind}${e ? ' @ ' + body.entry : ''}` + (acc.length > 1 ? ' (' + pfxAcctName(a) + ')' : ''));
+    }
+  }catch(err){
+    logAdd('PERSONAL FX bhejna fail: ' + err.message);
+    alert(sent.length ? `Sirf ${sent.length} gaya (${sent.join(', ')}) — baaki fail: ${err.message}` : 'Order nahi gaya — ' + err.message);
+    if(!sent.length) return;
+  }
+  logAdd(`PERSONAL FX ko bheja (✍️ KHUD): ${pair} ${sent.join(' + ')}${acc.length === 1 ? ' → ' + pfxAcctName(acc[0]) : ''}`);
+  toast(`Gaya — ${pair} ${KM.dir} ${KM.kind}`);
+  if(S.tgAuto) tgSend(`✍️ <b>SamuSignal → PERSONAL FX · KHUD ORDER</b>\n\n<b>${pair}</b>\n` + sent.map(x => '• ' + x).join('\n') + `\nLive <code>${fmt(sym, live)}</code> · lot EA input\n⏰ ${t12(now)}`, true);
   pfxList(false); pfxStartPoll();
 }
 
