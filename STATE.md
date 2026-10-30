@@ -11,6 +11,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
+| AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.00** | `vps-ea/AMC GOLD MASTER v1.00.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
 | Investor Account Watcher (INVESTOR-ID repo) | **1.04** | `vps-ea/Investor Account Watcher v1.04.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
@@ -450,3 +451,12 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 - [ ] 2–3 hafte Report Card bharne do, phir dekho WIN% (kis mode / pair / samay me achha).
 - [ ] Kavach ke 14 purane FAIL (C, F, H, I, Q group) v10.3.0 se pehle ke hain — test purane niyam maante hain, app ke naye niyam alag. Alag se dekhna hai.
 - [ ] EA restart ke beech batch ka dusra order aaye to wo pehle ko replace kar sakta hai (rare) — zarurat padi to order comment me batch id daalna.
+
+
+## AMC GOLD MASTER v1.00 (30 Oct 2026)
+
+- **Kahan se:** GrowthMasters (Ankush ne kharida) ke 4 din / 20 trade (account 434151546, magic 20261014) ka observation.
+- **Rules:** har M5 candle khulte hi (pehle 30 sec) entry, sirf jab apna trade khula na ho · pichhli candle hari = BUY, laal = SELL, doji (body < 0.10) skip · SL = pichhli candle low/high ± 0.30 (min 1.00, 10.00 se bada = skip) · TP = SL x 1.5 · lot = balance ka 1% risk · lock: profit $2 par SL +$1, phir har +$1 par lock +$1 (fixed $, GrowthMasters jaisa; `InpLockPerLot` ON = 0.01 lot ke hisaab) · din me max 5 trade (server 00:00 se).
+- **Magic 20261030.** Extra suraksha default OFF: day loss %, day target %, max spread.
+- **Dhyan:** 1% risk vs ~$10 avg jeet (10k par) — ek pura SL ≈ 10 jeet. Pehle DEMO.
+- **Baaki:** GrowthMasters ka SL buffer feed offset ki wajah se pakka nahi (0.30 andaza); 1–2 hafte aur data se pura-SL ki dar dekhni hai.
