@@ -1514,6 +1514,7 @@ body.ds-gold .brand .brandWord{height:24px}
         <button class="chip" data-t="5min" onclick="kmSet('tf','5min')">5m</button>
         <button class="chip" data-t="15min" onclick="kmSet('tf','15min')">15m</button>
         <button class="chip" data-t="1h" onclick="kmSet('tf','1h')">1H</button>
+        <button class="chip" onclick="kmFit()" title="Chart theek karo">⤢ Theek karo</button>
       </div>
       <div id="kmChart" style="height:340px;position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line)"></div>
       <p class="hint" id="kmHow" style="margin:8px 0 0">—</p>
@@ -2349,7 +2350,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.9.1';
+const VERSION = '10.9.2';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -10829,12 +10830,15 @@ async function kmLoad(force){
   if(!force && !feedOk() && KM.sym === sym) return;
   KM.busy = true;
   try{
-    if(KM.sym !== sym){ KM.sym = sym; KM.entry = null; KM.bars = [] }
+    const symNew = KM.sym !== sym;
+    if(symNew){ KM.sym = sym; KM.entry = null; KM.bars = [] }
     $('kmSym').textContent = sp.n + ' · ' + {'5min': '5m', '15min': '15m', '1h': '1H'}[KM.tf] + (feedOk() ? ' · 📡 MT5' : ' · TwelveData');
     const bars = await getSeries(sym, KM.tf, 150);
     KM.bars = bars.map(b => ({time: Math.floor((b.ts ? b.ts * 1000 : mtfTime(b.t)) / 1000) + KM_IST, open: b.o, high: b.h, low: b.l, close: b.c}))
       .filter(b => isFinite(b.time)).sort((a, b) => a.time - b.time).filter((b, i, a) => !i || b.time > a[i - 1].time);
-    const fresh = force || !KMS._done;
+    /* v10.9.2: naya pair (jaise EURUSD -> BTC) pe bhi scale reset — pehle ungli se khincha chart auto scale band kar deta tha,
+       BTC (77000) ki candles 0-2 wale paimane ke bahar = khaali chart */
+    const fresh = force || !KMS._done || symNew;
     KMS.applyOptions({priceFormat: {type: 'custom', minMove: Math.pow(10, -sp.d), formatter: v => (+v).toFixed(sp.d)}});
     KMS.setData(KM.bars);
     if(fresh){ KMC.priceScale('right').applyOptions({autoScale: true}); KMC.timeScale().setVisibleLogicalRange({from: Math.max(0, KM.bars.length - 90), to: KM.bars.length + 5}); KMS._done = true }
@@ -10862,6 +10866,8 @@ function kmPut(e, how){
   if(!c.ok){ kmMsg('bad', c.why + (KM.entry ? ' (pichhla bhaav rakha)' : '')); kmPaint(true); return }     /* galat = line nahi lagti */
   KM.entry = e; kmPaint();
 }
+function kmFit(){ if(!KMC || !KM.bars.length) return; KMC.priceScale('right').applyOptions({autoScale: true});
+  KMC.timeScale().setVisibleLogicalRange({from: Math.max(0, KM.bars.length - 90), to: KM.bars.length + 5}) }
 function kmNudge(k){ const sp = SPECS[KM.sym || S.pair]; if(!sp || KM.kind === 'MARKET') return; kmPut((KM.entry || KM.live || 0) + k * sp.pip, 'nudge') }
 function kmTyped(){ const v = parseFloat($('kmEntry').value); if(v > 0) kmPut(v, 'type'); else kmPaint() }
 function kmSet(k, v){
