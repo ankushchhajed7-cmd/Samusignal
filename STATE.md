@@ -17,8 +17,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
-| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.07** | `vps-ea/SUPERTREND GRID v2.07.mq5` |
+| SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SUPERTREND GRID v2.08 — lock trade par TP (30 Oct 2026)
+
+- **Live (demo $10,000, v2.07):** 3 Buy × 0.05 (4007.155 / 3997.126 / 3987.119, $10 grid sahi) → 3977.8 par khula loss −$300 → **DD LOCK**: 3 Sell × 0.05 (`STG_LOCK`), bina TP. Lock −$300 par laga → Ankush ki setting me Max DD 300 lagti hai (default 500).
+- **Ankush:** TP dikhna chahiye.
+- **Fix:** default `InpDDMode` ab **LOCK+TP** (har ulti trade TP $5 = 5.00 price, round 7 6 5 4 3). Pehle se khuli lock trade bina TP ho (purana version / mode badla) to EA TP laga deta hai; price TP ke paar ho to band.
 
 ## SUPERTREND GRID v2.07 — Cockpit dashboard (29 Oct 2026)
 
