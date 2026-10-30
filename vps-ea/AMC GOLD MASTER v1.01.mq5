@@ -17,6 +17,9 @@
 //|    band trade (result, peak, worst, kitni der) - aage badlav ke   |
 //|    liye. Experts log me bhi.                                      |
 //|  - Push notification (InpPush) SL / jeet / din poora par          |
+//|  - FIX: 'lock fail code 10011' - SL modify bahut jaldi-jaldi      |
+//|    (har tick + 0.5 sec timer) server mana karta tha. Ab ek modify |
+//|    ke baad 1 sec, fail ke baad 3 sec ruk kar hi agla modify        |
 //|  - Strategy wahi v1.00 wali (koi badlav nahi)                     |
 //| v1.00 (30-Oct-2026) - pehla build                                |
 //|  GrowthMasters (purchased) ke 4 din / 20 trade ke observation se |
@@ -111,6 +114,7 @@ ulong    gPkTicket  = 0;
 double   gPeak      = 0;
 double   gWorst     = 0;
 double   gLockNow   = 0;
+uint     gModNextMs = 0;     // agla SL modify isse pehle nahi (ms)
 
 // panel
 double   g_U        = 1.0;
@@ -413,16 +417,21 @@ void ManageLock()
       bool better   = (sl == 0) || (isBuy ? nsl > sl + _Point / 2 : nsl < sl - _Point / 2);
       bool inProfit = isBuy ? nsl > op : nsl < op;
       if(!better || !inProfit) continue;
+      if(GetTickCount() < gModNextMs) continue;          // server ko saans lene do
 
       if(trade.PositionModify(t, nsl, tp))
       {
+         gModNextMs = GetTickCount() + 1000;
          gLockNow = MathAbs(nsl - op) * vol * mpp;
          Print(EA_NAME, " LOCK #", t, " profit $", DoubleToString(profit, 2), " -> pakka $", DoubleToString(lockM, 2),
                " | SL ", DoubleToString(nsl, _Digits));
          Journal("LOCK", isBuy ? "BUY" : "SELL", vol, px, nsl, tp, lockM, StringFormat("profit $%.2f", profit));
       }
       else
-         Print(EA_NAME, " lock fail #", t, " code ", trade.ResultRetcode());
+      {
+         gModNextMs = GetTickCount() + 3000;
+         Print(EA_NAME, " lock fail #", t, " code ", trade.ResultRetcode(), " - 3 sec baad dobara");
+      }
    }
 }
 

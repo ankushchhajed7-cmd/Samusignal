@@ -15,6 +15,9 @@
 //|           data/<acc>/<file> ban ke jaata hai (file badle to,     |
 //|           max har JournalPushMin minute). Input JournalFiles me  |
 //|           naam, {acc} = account number. Trading nahi chhuta.     |
+//|           FIX: GhPut 'http=409' (kai Watcher ek hi repo me ek saath |
+//|           likhte hain, branch aage badh jaati hai) - ab 409 par     |
+//|           taaza sha lekar 3 baar tak dobara koshish.               |
 //|   v1.05 - SAMU REPORT ke liye: har band trade ke saath magic,     |
 //|           comment, SL, TP aur WORST P/L (trade me sabse bura =   |
 //|           DD). Account equity har 15 min (+ beech ka sabse neecha |
@@ -201,7 +204,22 @@ bool GhGetSha(const string path, string &sha)
    return false;
 }
 
+bool GhPutOnce(const string path, const string contentJson, const string msg, int &httpCode);
+
 bool GhPut(const string path, const string contentJson, const string msg)
+{
+   int code = 0;
+   for(int attempt = 0; attempt < 4; attempt++)
+   {
+      if(GhPutOnce(path, contentJson, msg, code)) return true;
+      if(code != 409 && code != 422) return false;
+      Sleep(400 + MathRand() % 900);           // doosra Watcher likh raha tha - thoda ruk kar taaza sha
+   }
+   PrintFormat("GhPut FAIL %s : http=%d (4 koshish ke baad, agli baar phir)", path, code);
+   return false;
+}
+
+bool GhPutOnce(const string path, const string contentJson, const string msg, int &httpCode)
 {
    string sha;
    GhGetSha(path, sha);
@@ -219,7 +237,9 @@ bool GhPut(const string path, const string contentJson, const string msg)
    string url = API + GitHubOwner + "/" + GitHubRepo + "/contents/" + path;
    ResetLastError();
    int code = WebRequest("PUT", url, Headers(), 15000, data, result, rh);
+   httpCode = code;
    if(code == 200 || code == 201) return true;
+   if(code == 409 || code == 422) return false;   // GhPut dobara koshish karega (log nahi bharte)
 
    PrintFormat("GhPut FAIL %s : http=%d lastErr=%d resp=%s",
                path, code, GetLastError(), CharArrayToString(result, 0, 160));
@@ -823,6 +843,7 @@ int OnInit()
    gAcc = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
    Print("Investor Watcher v1.06 starting for account ", MaskLogin(gAcc));
    JournalInit();      // v1.06
+   MathSrand((uint)GetTickCount() + (uint)AccountInfoInteger(ACCOUNT_LOGIN));
    Print("Reminder: Tools > Options > Expert Advisors > allow WebRequest for: https://api.github.com");
 
    ArrayResize(gPos, 0);
