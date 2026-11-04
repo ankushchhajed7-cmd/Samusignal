@@ -2079,14 +2079,21 @@ body.ds-gold .brand .brandWord{height:24px}
     </div>
     <button class="btn gold sm" style="width:auto;padding:9px 13px" onclick="forceUpdate()">🔄 Update</button>
   </div>
-  <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo"></div>
+  <div style="border:1px solid var(--gold);border-radius:10px;padding:10px 12px;margin-bottom:14px">
+    <b style="color:var(--gold)">🔑 SAMUSIGNAL AI (naya app) ke liye keys</b>
+    <p class="hint" style="margin:4px 0 8px">TwelveData + Gemini + Firebase URL + Auth — ek code me. Naye app ki Settings me "SamuSignal se keys paste" me daalo. Chat / WhatsApp me mat bhejna.</p>
+    <div class="grid2"><button class="btn gold sm" type="button" onclick="saiCopy()">📋 Keys copy</button><button class="btn ghost sm" type="button" onclick="saiOpen()">🚀 Naya app kholo</button></div>
+  </div>
+  <div style="margin-bottom:10px"><label>TwelveData API Key</label><input id="setKey" type="password" placeholder="apna key paste karo">
+    <div class="grid2" style="margin-top:6px"><button class="btn ghost sm" type="button" onclick="keyCopy('setKey','TwelveData key')">📋 Copy</button><span></span></div></div>
   <p class="hint" style="margin-bottom:14px">Free key: <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> — 800 calls/day, 8 per minute.</p>
   <div style="margin-bottom:6px"><label>📡 Data source (v10.7.0)</label>
     <select id="setDataSrc"><option value="auto">Auto — MT5 feed (VPS) taaza ho to wahi, warna TwelveData</option><option value="td">Sirf TwelveData</option></select></div>
   <p class="hint" id="feedState" style="margin-bottom:14px">—</p>
   <p class="ttl">AI Analysis</p>
   <div style="margin-bottom:10px"><label>Gemini API key</label>
-    <input id="setGKey" type="password" placeholder="AIza..."></div>
+    <input id="setGKey" type="password" placeholder="AIza...">
+    <div class="grid2" style="margin-top:6px"><button class="btn ghost sm" type="button" onclick="keyCopy('setGKey','Gemini key')">📋 Copy</button><span></span></div></div>
   <div class="sw" id="swGAuto" onclick="toggleSw(this,'gAuto')">
     <div class="tg"></div>
     <div>Analyze ke baad khud chalao<small>Har analysis pe ek AI call — quota dekhte rehna</small></div>
@@ -2350,7 +2357,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.9.2';
+const VERSION = '10.9.3';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -2358,6 +2365,33 @@ function fbAuthShow(b){
   el.type = show ? 'text' : 'password';
   if(b) b.textContent = show ? '🙈 Chhupao' : '👁 Dikhao';
 }
+/* v10.9.3: 📋 copy — clipboard API, na chale to purana tarika, wo bhi na chale to text dikhao (lamba dabakar copy) */
+async function copyTxt(v, what, el){
+  try{ await navigator.clipboard.writeText(v); toast(what + ' copy ho gaya'); return true }catch(e){}
+  try{
+    const t = document.createElement('textarea');
+    t.value = v; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select(); t.setSelectionRange(0, v.length);
+    const ok = document.execCommand('copy'); t.remove();
+    if(ok){ toast(what + ' copy ho gaya'); return true }
+  }catch(e){}
+  if(el){ el.type = 'text'; el.focus(); el.select(); toast('Copy nahi hua — text dikh raha hai, lamba dabakar copy karo') }
+  else prompt(what + ' — lamba dabakar copy karo:', v);
+  return false;
+}
+function keyCopy(id, what){
+  const el = $(id), v = el ? (el.value || '').trim() : '';
+  if(!v){ toast(what + ' khaali hai'); return }
+  copyTxt(v, what, el);
+}
+/* SAMUSIGNAL AI ke liye saari keys ek code me: "SAI1:" + base64(JSON) */
+function saiCode(){
+  const g = (id, d) => { const el = $(id); return ((el && el.value) || d || '').trim() };
+  const j = {tdKey: g('setKey', S.key), gKey: g('setGKey', S.gKey), fbUrl: g('setFb', S.fbUrl), fbAuth: g('setFbAuth', S.fbAuth)};
+  return btoa(unescape(encodeURIComponent(JSON.stringify(j)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function saiCopy(){ copyTxt('SAI1:' + saiCode(), 'Keys code') }
+function saiOpen(){ window.open('https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/#keys=' + saiCode(), '_blank', 'noopener') }
 async function fbAuthCopy(){
   const el = $('setFbAuth'); if(!el) return;
   const v = (el.value || '').trim();
