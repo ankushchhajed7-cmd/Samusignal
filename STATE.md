@@ -20,7 +20,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND HEDGE (M5 Supertrend + 2x hedge cycle, gold) | **1.19** | `vps-ea/SUPERTREND HEDGE v1.19.mq5` |
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
-| SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.02** | `vps-ea/SamuSignal News Pusher v1.02.mq5` |
+| SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
 
 ## SUPERTREND GRID v2.08 — lock trade par TP (30 Oct 2026)
