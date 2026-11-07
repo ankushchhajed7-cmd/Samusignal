@@ -10,6 +10,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
+| COT1 EA (geraked, demo-safe) | **1.2** | `vps-ea/COT1 v1.2.mq5` |
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
 | AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.01** | `vps-ea/AMC GOLD MASTER v1.01.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
@@ -471,3 +472,9 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 - **Journal:** `MQL5\Files\AMC_GM_journal_<acc>.csv` — START (settings), har candle ENTRY (candle O/H/L/C, SL doori, spread, risk) ya SKIP (kaaran), LOCK, CLOSE (SL/TP/lock, peak, worst, kitni der), PAUSE/RESUME. Push notification (InpPush).
 - **Investor Account Watcher v1.06:** journal file ko GitHub `INVESTOR-ID/data/<acc>/AMC_GM_journal_<acc>.csv` par bhejta hai (badle to, har 5 min) — Claude yahin se padh ke analysis karega. Watcher aur AMC **same terminal** me hon (MQL5\Files same).
 - Strategy v1.00 jaisi hi (koi badlav nahi). Magic 20261030.
+
+## COT1 v1.2 (geraked/metatrader5, single-file VPS build)
+- Weekly CFTC COT pair EA (Mon/Tue 03:00+), original MIT code by geraked, review: ankushchhajed7-cmd/metatrader5 STATE.md.
+- Include files + COT1 ek hi file me jod diye (VPS Helper sirf .mq5 deploy karta hai). SuperTrend filter hata diya (default me off tha).
+- Defaults demo-safe: Risk 0.5, Grid=false, IgnoreTP=false.
+- Compile VPS Helper se check karna. Allow DLL imports ON (WinINet). Strategy Tester me nahi chalta.
