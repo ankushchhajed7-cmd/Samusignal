@@ -7,7 +7,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **5.9** | `vps-ea/PERSONAL FX v5.9 - GRID.mq5` |
+| PERSONAL FX EA | **7.3** | `vps-ea/PERSONAL FX v7.3 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
@@ -471,3 +471,8 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 - **Journal:** `MQL5\Files\AMC_GM_journal_<acc>.csv` — START (settings), har candle ENTRY (candle O/H/L/C, SL doori, spread, risk) ya SKIP (kaaran), LOCK, CLOSE (SL/TP/lock, peak, worst, kitni der), PAUSE/RESUME. Push notification (InpPush).
 - **Investor Account Watcher v1.06:** journal file ko GitHub `INVESTOR-ID/data/<acc>/AMC_GM_journal_<acc>.csv` par bhejta hai (badle to, har 5 min) — Claude yahin se padh ke analysis karega. Watcher aur AMC **same terminal** me hon (MQL5\Files same).
 - Strategy v1.00 jaisi hi (koi badlav nahi). Magic 20261030.
+
+## PERSONAL FX v7.3 — News filter (app pending)
+- App ka pending (comment "PFXA", abhi nahi bhara) — us pair ki currency (base / profit; gold = USD) ki HIGH news se 30 min pehle CANCEL, app me status "CANCELLED - news se pehle hataya: USD CPI m/m 19:00 IST", phone push.
+- News se 30 min pehle se 15 min baad tak naya app PENDING nahi lagta (SKIP "news: ..."). MARKET / pair trade / chalu trade / haath ke order ko haath nahi.
+- Inputs: NewsCancelPending=true, NewsBeforeMin=30, NewsAfterMin=15, NewsWithMedium=false. MT5 ka calendar (free), har minute taaza.
