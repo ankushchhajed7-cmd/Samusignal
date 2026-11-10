@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
-//|                                    PERSONAL FX v7.2 - GRID.mq5    |
-//|     PERSONAL FX v7.2 — MANUAL ENTRY + MARTINGALE GRID SYSTEM     |
+//|                                    PERSONAL FX v7.3 - GRID.mq5    |
+//|     PERSONAL FX v7.3 — MANUAL ENTRY + MARTINGALE GRID SYSTEM     |
 //|  Manual trade -> auto $TP -> loss gap -> same-side grid add ->  |
 //|  basket average-price TP. Clean build: dashboard + daily limits  |
 //|  + grid engine only (breakeven/trailing/autopilot/recovery/news  |
@@ -975,7 +975,7 @@ void ManageMartingaleGrids()
          double slLimit  = BasketSL_Usd*(firstLot/0.01);
          if(firstLot > 0 && totalPL <= -slLimit)
          {
-            Print("PERSONAL FX v7.2 BASKET SL: ", sym, " | ", cnt, " trades | P/L $", DoubleToString(totalPL,2),
+            Print("PERSONAL FX v7.3 BASKET SL: ", sym, " | ", cnt, " trades | P/L $", DoubleToString(totalPL,2),
                   " <= -$", DoubleToString(slLimit,2), " (pehla lot ", DoubleToString(firstLot,2), ") -> sab band");
             CloseSymbolTrades(sym);
             g_GAdds[gi] = 0;
@@ -2307,9 +2307,9 @@ void BuildPanel()
    Rect("PFX_B4",  x+PW-2, y, 2, 100, QT_BORDER);
 
    Rect("PFX_TITLE_BG", x, y, PW, SC(32), QT_AMBER);
-   Lbl ("PFX_TITLE",   (Strategy==STRAT_3_SCALP ? "PERSONAL FX v7.2 - STRATEGY 3  |  SCALP +$"+DoubleToString(S3_TP_Usd,2)+" TP / -$"+DoubleToString(S3_SL_Usd,2)+" SL  |  NO GRID / MARTINGALE"
-                       : Strategy==STRAT_2_SL ? "PERSONAL FX v7.2 - STRATEGY 2  |  $"+DoubleToString(S2_SL_Usd,2)+" SL + $"+DoubleToString(Grid_TP_Dollar,2)+" TP + LOCK  |  NO GRID / MARTINGALE"
-                                             : "PERSONAL FX v7.2 - STRATEGY 1  |  MARTINGALE GRID  |  MANUAL + APP ENTRY + $ BASKET TP + OCO"),
+   Lbl ("PFX_TITLE",   (Strategy==STRAT_3_SCALP ? "PERSONAL FX v7.3 - STRATEGY 3  |  SCALP +$"+DoubleToString(S3_TP_Usd,2)+" TP / -$"+DoubleToString(S3_SL_Usd,2)+" SL  |  NO GRID / MARTINGALE"
+                       : Strategy==STRAT_2_SL ? "PERSONAL FX v7.3 - STRATEGY 2  |  $"+DoubleToString(S2_SL_Usd,2)+" SL + $"+DoubleToString(Grid_TP_Dollar,2)+" TP + LOCK  |  NO GRID / MARTINGALE"
+                                             : "PERSONAL FX v7.3 - STRATEGY 1  |  MARTINGALE GRID  |  MANUAL + APP ENTRY + $ BASKET TP + OCO"),
         x+SC(12), y+SC(7), C'0,0,0', fs+1, QFONT);
    LblR("PFX_TITLE_R", "F6 BUY    F7 SELL    F8 CLOSE ALL", x+PW-SC(12), y+SC(8), C'0,0,0', fs);
 
@@ -2609,5 +2609,5 @@ void Edit(string n,string t,int x,int y,int w,int h,color bg,color fg,int f)
 }
 
 //+------------------------------------------------------------------+
-//|  END PERSONAL FX v7.2 — STRATEGY 1 GRID / 2 SL / 3 SCALP + APP     |
+//|  END PERSONAL FX v7.3 — STRATEGY 1 GRID / 2 SL / 3 SCALP + APP     |
 //+------------------------------------------------------------------+
