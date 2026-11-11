@@ -21,8 +21,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
-| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.00** | `vps-ea/SAMUSIGNAL AI AUTO v1.00.mq5`, `vps-scanner/scanner.mjs` |
+| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.01** | `vps-ea/SAMUSIGNAL AI AUTO v1.01.mq5`, `vps-scanner/scanner.mjs` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMUSIGNAL AI AUTO v1.01 — Inputs ke naam saaf (11 Nov 2026)
+- MT5 input ka note naam ki jagah dikhata hai — v1.00 me FirebaseAuth "News Pusher / Data Feed EA wala hi" aur TP / SL dono "$ per 0.01 lot" dikhte the. Ab: "FirebaseAuth (News Pusher wala hi)", "TP $ (0.01 lot par)", "SL $ (0.01 lot par)" ... Kaam me koi badlav nahi.
+- VPS par chalu (11 Nov 22:36 IST, demo 434476133, XAUUSDm M15 chart). Scanner install ho gaya (test: 28 pair, AI 5, sahmat 2). Pehle 2 signal (22:46) spread filter se SKIP (18 / 21 pts > 9 / 10). User faisla: spread 25% hi rahega (A) — 2-3 din dekhna kitne trade lagte hain.
+- config.json fix (scanner): Notepad me quote / comma chhoote to bhi keys padh leta hai.
 
 ## SAMUSIGNAL AI AUTO v1.00 + VPS Scanner v1.00 — AI sahmat par auto LIMIT (11 Nov 2026, DEMO)
 - User ki strategy: XAUUSD / BTCUSD chhod kar sirf AI sahmat; TP $0.25 / SL $1.50 (0.01 lot); 1 pair 1 trade (band hone par naya); jitne pair sahmat sab; High news 60 min pehle - 60 min baad naya order nahi + EA ke pending cancel; spread filter; din me 4 loss ya $5 profit -> din band (chalu trade TP / SL tak chalte hain); LIMIT 60 min. User ke faisle: rasta B (VPS scanner), LIMIT, 0.01, chalu trade chalne do, DEMO.
