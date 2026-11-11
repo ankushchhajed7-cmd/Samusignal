@@ -21,8 +21,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
-| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.02** | `vps-ea/SAMUSIGNAL AI AUTO v1.02.mq5`, `vps-scanner/scanner.mjs` |
+| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.03** | `vps-ea/SAMUSIGNAL AI AUTO v1.03.mq5`, `vps-scanner/scanner.mjs` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMUSIGNAL AI AUTO v1.03 — Dashboard poori screen (12 Nov 2026)
+- v1.02 VPS par compile + chal gaya; user: "full screen show hona chahiye". Ab PanelScale = 0 (default) = chart ke size se apne aap (min(W/960, H/640)), beech me; FullScreen=true par CHART_SHOW=false + background dashboard jaisa (EA hatane / mini par wapas). CHARTEVENT_CHART_CHANGE par dobara size. Mini patti = poori chaudai, upar.
+- Bug fix: TimeToString(.., TIME_SECONDS / TIME_MINUTES) sirf "hh:mi(:ss)" deta hai — v1.02 me StringSubstr(11) se beech ki IST ghadi aur server time khaali the. Meter ka bada ank sui ke neeche (cy+42).
+- Spread ka pakka hal ab **v1.04**.
 
 ## SAMUSIGNAL AI AUTO v1.02 — Dashboard "Twin Gauge" (design 4) (11 Nov 2026)
 - User ne 6 design me se **4 (Twin Gauge)** chuna (canvas: claude.ai/artifact/Qtj8HhVKd25Q9gPoxhSoRB). "Baaki mat banana" — sirf ye panel; trade ke niyam me koi badlav NAHI.
