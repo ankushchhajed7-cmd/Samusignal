@@ -21,7 +21,18 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
+| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.00** | `vps-ea/SAMUSIGNAL AI AUTO v1.00.mq5`, `vps-scanner/scanner.mjs` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMUSIGNAL AI AUTO v1.00 + VPS Scanner v1.00 — AI sahmat par auto LIMIT (11 Nov 2026, DEMO)
+- User ki strategy: XAUUSD / BTCUSD chhod kar sirf AI sahmat; TP $0.25 / SL $1.50 (0.01 lot); 1 pair 1 trade (band hone par naya); jitne pair sahmat sab; High news 60 min pehle - 60 min baad naya order nahi + EA ke pending cancel; spread filter; din me 4 loss ya $5 profit -> din band (chalu trade TP / SL tak chalte hain); LIMIT 60 min. User ke faisle: rasta B (VPS scanner), LIMIT, 0.01, chalu trade chalne do, DEMO.
+- **Scanner** `vps-scanner/scanner.mjs` (Node 22, `C:\SamuScanner`, Task Scheduler har 1 min, har 15m slot me ek scan, candle ke 25 sec baad): app ka engine GitHub Pages (`SAMUSIGNAL-AI/src/{symbols,data,engine,ai}.js`) se har 6 ghante taaza (app badle to scanner bhi), MT5 feed se 15m + 1H, Grade A/B + 15m/1H saath, top 5 par `aiCheck` (60 min cache, roz `aiPerDay` 300), sahmat + bharosa >= 70 -> `/samuai/auto/sig/<a+base36 ms>` {sym, dir, entry, sl, grade, conf, why, live, at, exp}. Ek signal 2 din tak dobara nahi. Halat `/samuai/auto/scan`. EA ki `/samuai/auto/state` padhta hai: busy / news pair par AI nahi; EA 10 min chup ya din band -> scan chhodta hai. Khud ka naya version raw GitHub se (6 ghante). Keys sirf VPS ki `config.json` me. `--test` = likhta nahi, dikhata hai.
+- **Install**: `vps-scanner/install.ps1` (ek line PowerShell): portable Node v22.11.0, config.json Notepad me (gKey + fbAuth user khud), task "SamuScanner", test scan.
+- **EA** `SAMUSIGNAL AI AUTO v1.00.mq5` (magic 7310001, comment "SSA"+sig id): har 5 sec `/samuai/auto/sig?orderBy="$key"&limitToLast=30`; jis par `st` nahi use nipatata: PLACED / SKIP (wajah) / ERROR, pending hatane par CANCELLED / EXPIRED. TP / SL doori = $ / (OrderCalcProfit se $ per price per lot x 0.01). Spread > TP doori ka 25% -> SKIP. BUY LIMIT entry ask se neeche hona chahiye (warna SKIP). Din = broker server din, EA ke deals se (loss = DEAL_PROFIT < 0 wala exit). Har 30 sec `/samuai/auto/state` {t, stop, why, losses, net, open, pend, busy[], news[], status} (balance / login NAHI). Push: lagaya / bhara / TP-SL + aaj ka hisaab / din band / news cancel. REAL account par AllowReal=false -> koi order nahi.
+- Test (yahan): scanner nakli Firebase + nakli Gemini ke saath — sahmat signal likha, ek slot me ek hi scan. EA ka compile yahan nahi hota -> VPS Helper card me compile result dekhna.
+### Baaki
+- VPS par install + DEMO chart par EA lagana (user). 1-2 hafte demo nateeja, phir REAL ke liye alag "Final".
+- Spread asal hisaab me: paper ($0.25) me spread nahi tha; demo se asli tasveer milegi.
 
 ## SUPERTREND GRID v2.08 — lock trade par TP (30 Oct 2026)
 
