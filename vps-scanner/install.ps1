@@ -51,9 +51,13 @@ if (-not (Test-Path $cfg)) {
   "exclude": ["XAUUSD", "BTCUSD"]
 }
 '@
+    $tpl = $tpl -replace "`r?`n", "`r`n"     # purane Notepad me har cheez alag line me dikhe
     Set-Content -Path $cfg -Value $tpl -Encoding ASCII
+} else {
+    $old = Get-Content -Path $cfg -Raw
+    if ($old -notmatch "`r`n") { Set-Content -Path $cfg -Value ($old -replace "`n", "`r`n") -Encoding ASCII -NoNewline }
 }
-Write-Host '3/5  config.json Notepad me khul rahi hai:' -ForegroundColor Cyan
+Write-Host '3/5  config.json Notepad me khul rahi hai (pehle se bhari ho to bas jaanch ke band karo):' -ForegroundColor Cyan
 Write-Host '     YAHAN_GEMINI_KEY  -> SamuSignal app wali Gemini key'
 Write-Host '     YAHAN_FIREBASE_AUTH -> News Pusher / Data Feed EA wala FirebaseAuth'
 Write-Host '     Save (Ctrl+S) karke Notepad BAND karo - phir install aage chalega.'
