@@ -39,8 +39,20 @@ const readJson = (f, d) => { try{ return JSON.parse(fs.readFileSync(f, 'utf8')) 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 /* ---------- config ---------- */
-const CFG = readJson(path.join(DIR, 'config.json'), null);
-if(!CFG){ log('config.json nahi mili / galat JSON — install.ps1 dobara chalao'); process.exit(1) }
+/* config.json: Notepad me haath se badalne par quote / comma chhoot jaaye to bhi keys nikaal lo (key kabhi log me nahi) */
+function readCfg(){
+  const f = path.join(DIR, 'config.json');
+  let t; try{ t = fs.readFileSync(f, 'utf8').replace(/^\uFEFF/, '') }catch(e){ log('config.json nahi mili (C:\\SamuScanner\\config.json) — install.ps1 dobara chalao'); return null }
+  try{ return JSON.parse(t) }catch(e){
+    const pos = (String(e.message).match(/position (\d+)/) || [])[1];
+    const pick = k => { const m = t.match(new RegExp('["\u201c\u201d]?' + k + '["\u201c\u201d]?\\s*:\\s*["\u201c\u201d]?\\s*([^"\u201c\u201d,\\s}]+)')); return m ? m[1] : '' };
+    const o = {gKey: pick('gKey'), fbAuth: pick('fbAuth')}; const u = pick('fbUrl'); if(/^https?:/.test(u)) o.fbUrl = u;
+    if(o.gKey){ log('config.json ki banawat thodi galat' + (pos ? ' (jagah ' + pos + ')' : '') + ' — phir bhi keys padh li. Fursat me Notepad me theek kar lena.'); return o }
+    log('config.json galat JSON' + (pos ? ' (jagah ' + pos + ')' : '') + ' — Notepad me dekho: har key "..." quotes me, line ke aakhir comma'); return null;
+  }
+}
+const CFG = readCfg();
+if(!CFG) process.exit(1);
 const C = Object.assign({fbUrl: 'https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app', fbAuth: '', gKey: '', gModel: '',
   minConf: 70, topN: 5, aiPerDay: 300, exclude: ['XAUUSD', 'BTCUSD']}, CFG);
 if(!C.gKey || /YAHAN/.test(C.gKey)){ log('config.json me gKey (Gemini key) daalo'); process.exit(1) }
