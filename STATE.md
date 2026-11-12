@@ -7,7 +7,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **7.3** | `vps-ea/PERSONAL FX v7.3 - GRID.mq5` |
+| PERSONAL FX EA | **7.4** | `vps-ea/PERSONAL FX v7.4 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
@@ -522,3 +522,7 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 - App ka pending (comment "PFXA", abhi nahi bhara) — us pair ki currency (base / profit; gold = USD) ki HIGH news se 30 min pehle CANCEL, app me status "CANCELLED - news se pehle hataya: USD CPI m/m 19:00 IST", phone push.
 - News se 30 min pehle se 15 min baad tak naya app PENDING nahi lagta (SKIP "news: ..."). MARKET / pair trade / chalu trade / haath ke order ko haath nahi.
 - Inputs: NewsCancelPending=true, NewsBeforeMin=30, NewsAfterMin=15, NewsWithMedium=false. MT5 ka calendar (free), har minute taaza.
+
+## PERSONAL FX v7.4 — App pending par 15m trend jaanch (12 Nov 2026, REAL)
+- Wajah: 12 Nov AI AUTO demo (v1.04, trend jaanch + samay) ~19/19 TP (+$4.63), jabki REAL (app 🚀 pending) 7 TP / 1 SL (GBPCHF -1.50) + EURNZD BUY -1.14 chalu. User ne sirf sujhaav 1 Final kiya: "15m trend palte to app ka pending cancel" (trade samay REAL me NAHI).
+- App pending (comment "PFXA", abhi nahi bhara): BUY_LIMIT / BUY_STOP ke liye aakhri band 15m close < EMA21 aur EMA21[1] < EMA21[2] -> CANCEL (SELL ulta). Har 10 sec. App status "CANCELLED - #tk trend palta: ...", push "PERSONAL FX TREND". Bhejte waqt hi palta ho to SKIP "trend: ...". Inputs AppTrendRecheck=true, AppTrendEMA=21. MARKET / pair trade / chalu trade / haath ke order ko haath nahi.
