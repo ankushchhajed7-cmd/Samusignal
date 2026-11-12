@@ -21,8 +21,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
-| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.03** | `vps-ea/SAMUSIGNAL AI AUTO v1.03.mq5`, `vps-scanner/scanner.mjs` |
+| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.04** | `vps-ea/SAMUSIGNAL AI AUTO v1.04.mq5`, `vps-scanner/scanner.mjs` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMUSIGNAL AI AUTO v1.04 — Trade samay + 15m trend jaanch (12 Nov 2026)
+- Wajah: CADJPY BUY LIMIT 112.164 (demo, 11 Nov ~23:45 IST bhara) — signal ke baad M5 par trend neeche palat gaya, LIMIT girte bhaav me bhar gaya (~-$0.91, SL nahi laga tab tak). User ne sirf sujhaav A (trend jaanch) Final kiya + trade samay.
+- (1) `TradeWindows` = "07:00-17:00,20:00-22:00" (IST). Bahar: naya signal SKIP ("trading samay ke bahar (agla 20:00 IST)"), EA ke saare pending CANCEL (samay khatam), chalu trade apne TP / SL tak. Firebase state stop=true -> scanner AI nahi poochhta. Dashboard: "SAMAY BAHAR" + "naya trade 20:00 IST se" / "trade samay 17:00 IST tak".
+- (2) `TrendRecheck` (15m EMA `TrendEMA`=21, band candle): BUY pending cancel jab aakhri band 15m close < EMA aur EMA neeche jhuka (EMA[1] < EMA[2]); SELL ulta. Har 10 sec jaanch (15m candle band hone par badalta hai); signal ke waqt hi aisa ho to SKIP "trend: ...". iMA handle har symbol ka cache. Data taiyar na ho to rok nahi.
+- (3) `MaxSpreadPctOfTP` default 25 -> **60** (user). News rok 60 min pehle / baad alag se wahi chalta hai. Badlav SIRF is naye EA me (PERSONAL FX nahi chhua).
+- B (tez girawat), C (LIMIT 30 min), D (raat JPY) NAHI bane. Spread ka pakka hal ab **v1.05**.
 
 ## SAMUSIGNAL AI AUTO v1.03 — Dashboard poori screen (12 Nov 2026)
 - v1.02 VPS par compile + chal gaya; user: "full screen show hona chahiye". Ab PanelScale = 0 (default) = chart ke size se apne aap (min(W/960, H/640)), beech me; FullScreen=true par CHART_SHOW=false + background dashboard jaisa (EA hatane / mini par wapas). CHARTEVENT_CHART_CHANGE par dobara size. Mini patti = poori chaudai, upar.
