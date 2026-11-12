@@ -1,10 +1,11 @@
 # ==================================================================
-#  SamuSignal VPS Helper v1.00  -  Ankush New Vision
+#  SamuSignal VPS Helper v1.03  -  Ankush New Vision
 # ------------------------------------------------------------------
 #  KAAM (har 2 min, Task Scheduler se, chhupa hua):
 #   1. GitHub (main branch) pe naya commit? -> copytrade-ea ki .mq5
 #      files VPS ke har MT5 terminal ke MQL5\Experts me daalta hai.
 #   2. Har terminal ki MetaEditor se compile karta hai, errors padhta hai.
+#      .ex5 (bina source wale EA) seedha copy hote hain - compile nahi.
 #   3. Report (compile result, terminal ka login, Experts log ki aakhri
 #      lines, VPS ki RAM) likhta hai:
 #        <Common>\Files\SamuCopy\vps.json
@@ -18,6 +19,11 @@
 #    Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 #
 #  CHANGELOG
+#   v1.03 (12-Nov-2026) .ex5 files bhi (vps-ea / copytrade-ea me rakhi .ex5
+#                       seedha har terminal ke MQL5\Experts me copy, compile
+#                       nahi). Naya helper version aate hi ek baar poora
+#                       deploy dobara jaanchta hai (warna usi commit ki .ex5
+#                       chhoot jaati).
 #   v1.02 (01-Oct-2026) vps-ea folder bhi (FXBridgeEA wagairah).
 #   v1.01 (30-Sep-2026) FIX: vps.json 32 MB ban rahi thi - Windows PowerShell 5
 #                       Get-Content ki lines ke saath chhupi PSProvider/PSDrive
@@ -26,10 +32,10 @@
 #   v1.00 (30-Sep-2026) Pehla build.
 # ==================================================================
 
-$HelperVer     = '1.02'
+$HelperVer     = '1.03'
 $Repo          = 'ankushchhajed7-cmd/samusignal'
 $Branch        = 'main'
-$DeployFolders = @('copytrade-ea', 'vps-ea') # repo ke in folders ki .mq5 VPS pe jaayengi
+$DeployFolders = @('copytrade-ea', 'vps-ea') # repo ke in folders ki .mq5 / .ex5 VPS pe jaayengi
 $SelfRepoPath  = 'vps-helper/SamuVpsHelper.ps1'
 $LogTail       = 12                         # har terminal ke Experts log ki kitni lines
 
@@ -180,7 +186,7 @@ try {
 
     $termSig = ($terms | ForEach-Object { $_.Id }) -join ','
     $folderSig = $DeployFolders -join ','
-    $need = $commit -and (($state['commit'] -ne $commit) -or ($state['terms'] -ne $termSig) -or ($state['folders'] -ne $folderSig))
+    $need = $commit -and (($state['commit'] -ne $commit) -or ($state['terms'] -ne $termSig) -or ($state['folders'] -ne $folderSig) -or ($state['hv'] -ne $HelperVer))
 
     if ($need) {
         $tree = Invoke-RestMethod -Uri ("https://api.github.com/repos/$Repo/git/trees/" + $commit + "?recursive=1") -Headers $Headers -UseBasicParsing
@@ -205,7 +211,7 @@ try {
         # ---- EA files ----
         $files = @($blobs | Where-Object {
             $p = $_.path
-            ($p -like '*.mq5') -and (@($DeployFolders | Where-Object { $p -like ($_ + '/*') }).Count -gt 0) })
+            (($p -like '*.mq5') -or ($p -like '*.ex5')) -and (@($DeployFolders | Where-Object { $p -like ($_ + '/*') }).Count -gt 0) })
         $allOk = $true
         foreach ($f in $files) {
             $name = Split-Path $f.path -Leaf
@@ -224,8 +230,26 @@ try {
                     continue
                 }
             }
+            $isEx5 = $name -like '*.ex5'
             foreach ($t in $terms) {
                 $key = 'cmp|' + $t.Id + '|' + $name
+                if ($isEx5) {
+                    # bina source wala EA: sirf copy, compile nahi
+                    $dst = Join-Path $t.Dir ('MQL5\Experts\' + $name)
+                    if ($state[$key] -eq $f.sha -and (Test-Path -LiteralPath $dst)) { continue }
+                    try {
+                        Copy-Item -LiteralPath $cache -Destination $dst -Force
+                        $r = [ordered]@{ ok = $true; ne = 0; nw = 0; at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); msg = @('ex5 copy hui (compile ki zarurat nahi)') }
+                        $state[$key] = $f.sha
+                        Log ('EX5 copy OK: ' + $name + ' -> ' + $t.Name)
+                    } catch {
+                        $r = [ordered]@{ ok = $false; ne = 1; nw = 0; at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); msg = @('ex5 copy nahi hui: ' + $_.Exception.Message) }
+                        Log ('EX5 copy ERROR: ' + $name + ' -> ' + $t.Name + ' - ' + $_.Exception.Message)
+                    }
+                    $state['res|' + $t.Id + '|' + $name] = $r
+                    Save-State $state
+                    continue
+                }
                 $dst = Join-Path $t.Dir ('MQL5\Experts\' + $name)
                 $ex5 = [IO.Path]::ChangeExtension($dst, '.ex5')
                 if ($state[$key] -eq $f.sha -and (Test-Path -LiteralPath $ex5)) { continue }
@@ -250,6 +274,7 @@ try {
         if ($allOk) { $state['commit'] = $commit }
         $state['terms'] = $termSig
         $state['folders'] = $folderSig
+        if ($allOk) { $state['hv'] = $HelperVer }
         $state['files'] = @($files | ForEach-Object { Split-Path $_.path -Leaf })
         Save-State $state
     }
