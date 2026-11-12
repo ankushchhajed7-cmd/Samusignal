@@ -22,7 +22,16 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
 | SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.04** | `vps-ea/SAMUSIGNAL AI AUTO v1.04.mq5`, `vps-scanner/scanner.mjs` |
+| BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
+| VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## VPS Helper v1.03 + BotFlow.ex5 (12 Nov 2026)
+- User ne `BotFlow.ex5` (compiled EA, source nahi) VPS par bhejne ko kaha. Helper ab tak sirf `.mq5` uthata tha -> v1.03: `vps-ea/` aur `copytrade-ea/` ki `.ex5` bhi har MT5 terminal ke `MQL5\Experts` me **seedha copy** (compile nahi). COPY tab "VPS Helper" card me "ex5 copy hui" dikhega.
+- Helper ka naya version aate hi agli baari ek baar poora deploy dobara jaanchta hai (`state.hv`), taaki usi commit ki .ex5 chhoot na jaaye. Isliye merge ke baad BotFlow pahunchne me ~4-6 min lag sakte hain (pehle helper khud update, phir copy).
+- Faisla: repo PUBLIC hai — user ne kaha phir bhi public repo me hi daalo.
+- Helper chart pe EA nahi lagata — BotFlow chart pe lagana manual. Ex5 ke andar ka code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
+- **Baaki:** BotFlow ki inputs / behaviour samajhna (demo / Strategy Tester se).
 
 ## SAMUSIGNAL AI AUTO v1.04 — Trade samay + 15m trend jaanch (12 Nov 2026)
 - Wajah: CADJPY BUY LIMIT 112.164 (demo, 11 Nov ~23:45 IST bhara) — signal ke baad M5 par trend neeche palat gaya, LIMIT girte bhaav me bhar gaya (~-$0.91, SL nahi laga tab tak). User ne sirf sujhaav A (trend jaanch) Final kiya + trade samay.
