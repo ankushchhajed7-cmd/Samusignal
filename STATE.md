@@ -21,7 +21,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
-| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.07** | `vps-ea/SAMUSIGNAL AI AUTO v1.07.mq5`, `vps-scanner/scanner.mjs` |
+| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.08** | `vps-ea/SAMUSIGNAL AI AUTO v1.08.mq5`, `vps-scanner/scanner.mjs` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
@@ -32,6 +32,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Faisla: repo PUBLIC hai — user ne kaha phir bhi public repo me hi daalo.
 - Helper chart pe EA nahi lagata — BotFlow chart pe lagana manual. Ex5 ke andar ka code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
 - **Baaki:** BotFlow ki inputs / behaviour samajhna (demo / Strategy Tester se).
+
+## SAMUSIGNAL AI AUTO v1.08 — Strategy 1 / 2 (13 Nov 2026)
+- User: "PERSONAL FX ki Strategy 4 isme Strategy 2 ke roop me; abhi wala Strategy 1".
+- Input `Strategy` (default **1** = abhi wala, TP $0.25 / SL $1.50). **2** = 1 + RECOVERY, v7.5 S4 ka port: `S2Debt()` (aaj ke is Magic ke band deal, loss jodo / baad ki jeet ghatao), `S2Adx()` (M15 ADX14), `S2Manage()` har second: SL backup, badhaya hua (SL profit me) → TP $0.50 + lock +$0.20 @ +$0.30; aam trade yogya (bharne ke ≤15 min + ADX ≥25 + baaki ghata > 0) → +$0.25 par SL +$0.10 (ya +$0.20) aur TP $0.50, warna $0.25 par band; broker TP yogya par $0.50.
+- Inputs S2_BigTP_Usd 0.50, S2_LockAt 0.30, S2_LockTo 0.20, S2_PreLock 0.10, S2_FastMin 15, S2_AdxMin 25. Push "SAMUSIGNAL AI AUTO S2: ..." sirf recovery / lock par (TP / SL push pehle jaisa OnTradeTransaction se).
+- Dashboard news dabbe me line: "STRATEGY 2 RECOVERY: ON - baaki ghata $x" / "taiyaar" / "STRATEGY 1".
+- Spread wala sujhaav ab v1.09.
 
 ## SAMUSIGNAL AI AUTO v1.07 — Bade akshar (13 Nov 2026)
 - User (v1.06 screenshot): "sahi hai, par words itne baarik ki dikhte nahi" (Toolbox khula = aadhi oonchai).
