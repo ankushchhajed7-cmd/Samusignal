@@ -7,7 +7,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **7.4** | `vps-ea/PERSONAL FX v7.4 - GRID.mq5` |
+| PERSONAL FX EA | **7.5** | `vps-ea/PERSONAL FX v7.5 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
@@ -526,3 +526,12 @@ Screenshot wala tareeka pehle jaisa (ek direction) — badla nahi.
 ## PERSONAL FX v7.4 — App pending par 15m trend jaanch (12 Nov 2026, REAL)
 - Wajah: 12 Nov AI AUTO demo (v1.04, trend jaanch + samay) ~19/19 TP (+$4.63), jabki REAL (app 🚀 pending) 7 TP / 1 SL (GBPCHF -1.50) + EURNZD BUY -1.14 chalu. User ne sirf sujhaav 1 Final kiya: "15m trend palte to app ka pending cancel" (trade samay REAL me NAHI).
 - App pending (comment "PFXA", abhi nahi bhara): BUY_LIMIT / BUY_STOP ke liye aakhri band 15m close < EMA21 aur EMA21[1] < EMA21[2] -> CANCEL (SELL ulta). Har 10 sec. App status "CANCELLED - #tk trend palta: ...", push "PERSONAL FX TREND". Bhejte waqt hi palta ho to SKIP "trend: ...". Inputs AppTrendRecheck=true, AppTrendEMA=21. MARKET / pair trade / chalu trade / haath ke order ko haath nahi.
+
+## PERSONAL FX v7.5 — STRATEGY 4: scalp + RECOVERY (13 Nov 2026, REAL, user Final)
+- User ka idea: ek SL (-$1.50) ke baad kuch jeetne wale trade $0.25 ki jagah $0.50 tak jaayein, 2-3 aise trade se ghata cover. User ke faisle: lock +$0.30 par -> +$0.20 pakka; sirf SL ke baad (recovery); seedha REAL; naya **Strategy 4** (1 / 2 / 3 wahi).
+- Paper data (11-12 Nov, 24 pfx TP): 17 (71%) +$0.50 tak gaye; ADX >= 25: 7 / 8; 10 min me TP: 11 / 14. Isi se "yogya" niyam.
+- `Strategy = 4` (STRAT_4_RECOVER): aam = S3 jaisa (S4_TP_Usd 0.25, S4_SL_Usd 1.50, no grid, broker SL / TP + software backup).
+- Baaki ghata `S4Debt()`: aaj (server din) ke saare closing deal (allowed symbols) kram se — loss jodo, baad ki jeet ghatao (0 tak). > 0 = recovery. History se nikalta hai (restart me bhi sahi). Panel "RECOVERY ON: baaki $x".
+- Recovery me "abhi yogya" trade (umar <= S4_FastMin 15 min, band 15m ADX(14) >= S4_AdxMin 25): broker TP $0.50 (S4_BigTP_Usd) par rakha jaata hai; +$0.25 chhoote hi SL +$0.10 (S4_PreLock_Usd), +$0.30 (S4_LockAt_Usd) par SL +$0.20 (S4_LockTo_Usd); $0.50 par band. Yogya na rahe (15 min nikle / ADX kam) -> broker TP wapas $0.25. Modify na ho paaye to $0.25 par band (surakshit).
+- "Badhaya hua" trade ki pehchan = SL profit me (stateless). Push: "PERSONAL FX S4: ... RECOVERY ...", "S4 LOCK".
+- Compile yahan nahi hota; VPS Helper card dekhna. User ko REAL par Strategy 3 -> 4 khud badalna hai (S4_SL default 1.50).
