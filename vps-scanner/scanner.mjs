@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.01   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.02   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -15,6 +15,7 @@
    code (candlerules.js) -> signal /candle/sig/<key>, Auto Paper ON ho to /candle/paper/<key> + nateeja
    (TP / SL / candle close, spread ke saath). Heartbeat /candle/vps. Push: AI AUTO EA (v1.12+) /candle/sig
    padh kar phone par bhejta hai. KOI ASLI ORDER NAHI (MT5 sirf app ke 🚀 button se).
+   v1.02 — Candle PAPER ka TP candle ke hisaab se (candlerules dynTp: body ka 50%, $0.10–$1.00); asli EA wahi $0.25.
    Keys sirf is VPS ki config.json me (GitHub me kabhi nahi).
    Chalao:  node scanner.mjs          (Task Scheduler)
             node scanner.mjs --test   (abhi ek scan, Firebase me signal NAHI likhta, sab dikhata hai)
@@ -23,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.01';
+const VER = '1.02';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -234,7 +235,8 @@ async function candleTick(M, X){
       const L = X.live[n] || {}, spread = L.sp > 0 ? +L.sp : 0, k = kOf(sym);
       await put('candle/sig/' + key, {sym, n, dir: sg.dir, tf, at: sg.at, next: sg.next, why: sg.why, rsi: isFinite(sg.rsi) ? +sg.rsi.toFixed(1) : null,
         t: Math.floor(now / 1000), sendSec: M.R.sendWindowMs(tf) / 1000, v: VER}).catch(e => log('candle sig: ' + e.message));
-      if(cfg.autoPaper) await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: M.R.DEF.tp, sl: M.R.DEF.sl,
+      const tpUsd = typeof M.R.dynTp === 'function' ? M.R.dynTp(sg, k) : M.R.DEF.tp;   /* v1.02: TP candle ke hisaab se */
+      if(cfg.autoPaper) await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: M.R.DEF.sl,
         lot: M.R.DEF.lot, maxCandles: M.R.DEF.maxCandles, auto: true, src: 'vps', done: false}).catch(e => log('candle paper: ' + e.message));
       CS.last = n + ' ' + sg.dir + ' ' + tf + 'm';
       log('🕯 candle: ' + n + ' ' + sg.dir + ' ' + tf + 'm (' + sg.why + ')' + (cfg.autoPaper ? ' + paper' : ''));

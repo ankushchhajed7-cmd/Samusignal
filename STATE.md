@@ -56,6 +56,9 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Helper chart pe EA nahi lagata — BotFlow chart pe lagana manual. Ex5 ke andar ka code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
 - **Baaki:** BotFlow ki inputs / behaviour samajhna (demo / Strategy Tester se).
 
+## VPS Scanner v1.02 — Candle paper TP candle ke hisaab se (14 Nov 2026)
+- Paper record ka `tp` = `candlerules.dynTp(sg, k)` (signal candle body ka 50%, $0.10–$1.00); purana candlerules ho to $0.25. Asli EA wahi.
+
 ## 🕯️ CANDLE app band ho tab bhi — VPS Scanner v1.01 + AI AUTO EA v1.12 push (14 Nov 2026)
 - User: Candle page (Strategy 5) app band hone par bhi signal + paper + phone push → option A + "push chahiye".
 - **Scanner v1.01** (`vps-scanner/scanner.mjs`): ENG_FILES me `candlerules.js` (app ka hi code, Pages se). Har run (Task Scheduler har 1 min) me 15m AI scan ke saath `candleLoop` (~54 sec, scan lamba ho to tab tak): app ka `/candle/cfg` {pairs, tf, autoPaper} padh kar har nayi band candle ke ≥4 sec baad (feed ki candle 25 sec tak intezaar) `signal()` → `/candle/sig/<c+next36+NAME+tf>` {sym, n, dir, tf, at, next, why, rsi, t, sendSec}; autoPaper ON ho to `/candle/paper/<key>` (spread live se, k = pipUsd) + har 15 sec `paperResolve` (TP / SL / CANDLE CLOSE, 6 ghante = DATA NAHI). Heartbeat `/candle/vps` {t, v, tf, pairs, paper, last} har min. Safai din me ek baar: sig 3 din, paper 60 din. Data Feed band (weekend) = kuch nahi. KOI ORDER NAHI. Scanner khud ko GitHub se 6 ghante me update karta hai.
