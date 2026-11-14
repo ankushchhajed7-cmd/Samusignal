@@ -25,6 +25,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.12** | `vps-ea/SAMUSIGNAL AI AUTO v1.12.mq5`, `vps-scanner/scanner.mjs` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
+| Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
 
@@ -42,6 +43,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - `S4Debt()` me candle (PFXN) deal nahi jude — Strategy 4 ka recovery hisaab alag. F8 / daily target close-all me candle trade bhi band.
 - Panel title ke daayein "S5 CANDLE +$0.25/-$1.50". Strategy 1–4 me koi badlav nahi.
 - Compile yahan nahi hota (bracket jaanch PASS); VPS Helper card dekhna. VPS par `Strategy` input wahi rakho (4). MT5 > Allow WebRequest me Firebase URL pehle se.
+
+## Btc_V1_Licence_420841723.ex5 VPS par (14 Nov 2026)
+- User ne `Btc_V1_Licence_420841723.ex5` (compiled EA, source nahi) VPS Helper se bhejne ko kaha -> `vps-ea/Btc_V1_Licence_420841723.ex5` (naam wahi). File ke andar "Copyright 2026,Telegram-@SuccessZonee" / "www.Btcv1.in" likha hai; naam me 420841723 shayad licence wala account number.
+- Helper v1.03 isse har MT5 terminal ke `MQL5\Experts` me seedha copy karega (compile nahi). COPY tab "VPS Helper" card me "ex5 copy hui" dikhega.
+- Chart pe lagana manual. Code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
 
 ## Gold_Sl_Tp.ex5 VPS par (13 Nov 2026)
 - User ne `Gold_Sl_Tp.ex5` (compiled EA, source nahi) VPS Helper se bhejne ko kaha -> `vps-ea/Gold_Sl_Tp.ex5` me rakha (naam wahi, badla nahi). File ke andar "Alox Software" / "1.03" likha hai.
