@@ -7,7 +7,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **7.5** | `vps-ea/PERSONAL FX v7.5 - GRID.mq5` |
+| PERSONAL FX EA | **7.6** | `vps-ea/PERSONAL FX v7.6 - GRID.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
@@ -26,6 +26,16 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## PERSONAL FX v7.6 — STRATEGY 5: CANDLE (SAMUSIGNAL AI Candle page) (14 Nov 2026, branch feature-personalfx-v7.6)
+- User: upar wali Strategy (abhi 4) waise hi chale; sirf SAMUSIGNAL AI ke 🕯️ Candle page se MT5 button wala trade **Strategy 5** par jaaye. Final: TP $0.25, SL $1.50, lot 0.01, candle band hote hi trade band (option a).
+- App order me `strat:"CANDLE"`, `tf:1|5` -> EA comment `PFXN<tf><key>`. `IsCandlePos()` -> `IsOurPos()` se bahar (grid / S1–S4 / recovery nahi chhoote). `ManageCandleTrades()` har second (OnTimer + OnTick).
+- Niyam (0.01 lot pe, lot ke saath badhta): broker TP +$`S5_TP_Usd` (0.25) / SL -$`S5_SL_Usd` (1.50) + software backup; `S5_MaxCandles` (1) candle band hote hi (server time, `S5_CloseEarlySec` 0) jo bhi P/L, band. Lot `S5_Lot` (0.01, FixedLot se alag). Ek pair pe ek hi candle trade. Na grid, na recovery, na lock.
+- Order `S5_MaxOrderAgeSec` (15) sec se purana -> STALE (pehle 10 min tha, candle ke liye bahut). Candle order dusre app pending (PFXA) ko `AppReplaceOld` se NAHI hatata; grid state nahi banata; "grid pehle se chal raha" wali rok nahi.
+- Band hone par (`OnTradeTransaction` -> `S5OnDealOut`): wajah (TP / SL / CANDLE CLOSE / CLOSE ALL / HAATH SE) + P/L (commission milake) -> push + Firebase `orders/<key>` {status CLOSED, res, pl, closed}.
+- `S4Debt()` me candle (PFXN) deal nahi jude — Strategy 4 ka recovery hisaab alag. F8 / daily target close-all me candle trade bhi band.
+- Panel title ke daayein "S5 CANDLE +$0.25/-$1.50". Strategy 1–4 me koi badlav nahi.
+- Compile yahan nahi hota (bracket jaanch PASS); VPS Helper card dekhna. VPS par `Strategy` input wahi rakho (4). MT5 > Allow WebRequest me Firebase URL pehle se.
 
 ## Gold_Sl_Tp.ex5 VPS par (13 Nov 2026)
 - User ne `Gold_Sl_Tp.ex5` (compiled EA, source nahi) VPS Helper se bhejne ko kaha -> `vps-ea/Gold_Sl_Tp.ex5` me rakha (naam wahi, badla nahi). File ke andar "Alox Software" / "1.03" likha hai.
