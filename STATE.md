@@ -23,8 +23,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
 | SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.11** | `vps-ea/SAMUSIGNAL AI AUTO v1.11.mq5`, `vps-scanner/scanner.mjs` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
+| Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## Gold_Sl_Tp.ex5 VPS par (13 Nov 2026)
+- User ne `Gold_Sl_Tp.ex5` (compiled EA, source nahi) VPS Helper se bhejne ko kaha -> `vps-ea/Gold_Sl_Tp.ex5` me rakha (naam wahi, badla nahi). File ke andar "Alox Software" / "1.03" likha hai.
+- Helper v1.03 isse har MT5 terminal ke `MQL5\Experts` me seedha copy karega (compile nahi). COPY tab "VPS Helper" card me "ex5 copy hui" dikhega.
+- Chart pe lagana manual. Code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
+- **Baaki:** inputs / behaviour samajhna (demo / Strategy Tester se).
 
 ## VPS Helper v1.03 + BotFlow.ex5 (12 Nov 2026)
 - User ne `BotFlow.ex5` (compiled EA, source nahi) VPS par bhejne ko kaha. Helper ab tak sirf `.mq5` uthata tha -> v1.03: `vps-ea/` aur `copytrade-ea/` ki `.ex5` bhi har MT5 terminal ke `MQL5\Experts` me **seedha copy** (compile nahi). COPY tab "VPS Helper" card me "ex5 copy hui" dikhega.
