@@ -22,7 +22,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
-| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.11** | `vps-ea/SAMUSIGNAL AI AUTO v1.11.mq5`, `vps-scanner/scanner.mjs` |
+| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.12** | `vps-ea/SAMUSIGNAL AI AUTO v1.12.mq5`, `vps-scanner/scanner.mjs` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
@@ -55,6 +55,12 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Faisla: repo PUBLIC hai — user ne kaha phir bhi public repo me hi daalo.
 - Helper chart pe EA nahi lagata — BotFlow chart pe lagana manual. Ex5 ke andar ka code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
 - **Baaki:** BotFlow ki inputs / behaviour samajhna (demo / Strategy Tester se).
+
+## 🕯️ CANDLE app band ho tab bhi — VPS Scanner v1.01 + AI AUTO EA v1.12 push (14 Nov 2026)
+- User: Candle page (Strategy 5) app band hone par bhi signal + paper + phone push → option A + "push chahiye".
+- **Scanner v1.01** (`vps-scanner/scanner.mjs`): ENG_FILES me `candlerules.js` (app ka hi code, Pages se). Har run (Task Scheduler har 1 min) me 15m AI scan ke saath `candleLoop` (~54 sec, scan lamba ho to tab tak): app ka `/candle/cfg` {pairs, tf, autoPaper} padh kar har nayi band candle ke ≥4 sec baad (feed ki candle 25 sec tak intezaar) `signal()` → `/candle/sig/<c+next36+NAME+tf>` {sym, n, dir, tf, at, next, why, rsi, t, sendSec}; autoPaper ON ho to `/candle/paper/<key>` (spread live se, k = pipUsd) + har 15 sec `paperResolve` (TP / SL / CANDLE CLOSE, 6 ghante = DATA NAHI). Heartbeat `/candle/vps` {t, v, tf, pairs, paper, last} har min. Safai din me ek baar: sig 3 din, paper 60 din. Data Feed band (weekend) = kuch nahi. KOI ORDER NAHI. Scanner khud ko GitHub se 6 ghante me update karta hai.
+- **AI AUTO EA v1.12**: `PollCandle()` har PollSec — `/candle/sig` aakhri 8; naya (≤ 2 min purana) → push "CANDLE: XAUUSD BUY | 1m candle 21:47 IST | MT5 button N sec" (ya "paper me juda"). EA shuru hone par purane ka push nahi. Input `CandlePushOn` (true). Trade niyam wahi.
+- Mock Firebase se jaancha: heartbeat + sig + paper + purane paper ka nateeja PUT hue.
 
 ## SAMUSIGNAL AI AUTO v1.11 — Spread $0.20 + spike guard 2× (13 Nov 2026)
 - User Final "$0.20 + 2 guna". (A) `MaxSpreadUsd` 0.20: spread ki keemat (spr × k × 0.01) > $0.20 → SKIP; 60% wala niyam sirf MaxSpreadUsd=0 par. (B) `SpikeMult` 2.0: `SpreadSample()` har 10 s 28 pair (cache Resolve), EMA /180 (~30 min), 60 namoone (10 min) baad guard; 30 min gap = reset; purana bhaav (>120 s) chhodo. Abhi ka spread > 2× aam → SKIP "spread spike". (C) PLACED me "spread N pts $x". Dashboard SPREAD dabba "MAX $0.20 + SPIKE 2x", aakhri $.
