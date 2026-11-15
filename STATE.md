@@ -56,6 +56,9 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Helper chart pe EA nahi lagata — BotFlow chart pe lagana manual. Ex5 ke andar ka code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
 - **Baaki:** BotFlow ki inputs / behaviour samajhna (demo / Strategy Tester se).
 
+## VPS Scanner v1.03 — Candle paper me SL ki tulna (15 Nov 2026)
+- Naye paper me `slDyn` (candlerules.dynSl: body ka 100%, $0.20–$1.50). Nateeja `paperVariants` se: `p.v` = {A SL $1.50, B candle SL, C break-even 60%, D B+C}; `res / pl` = A. App Record me tulna table. Asli EA wahi ($0.25 / $1.50).
+
 ## VPS Scanner v1.02 — Candle paper TP candle ke hisaab se (14 Nov 2026)
 - Paper record ka `tp` = `candlerules.dynTp(sg, k)` (signal candle body ka 50%, $0.10–$1.00); purana candlerules ho to $0.25. Asli EA wahi.
 
