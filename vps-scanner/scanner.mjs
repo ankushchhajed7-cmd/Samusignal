@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.07   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.08   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -26,6 +26,8 @@
    v1.06 — har paper par 4 PUSHTI likhi jaati hain (p.cf, candlerules.confirms; 1 MIN ki badi TF = 5 MIN, 5 MIN ki = 15 MIN).
    Sirf naapne ke liye — signal / paper niyam wahi.
    v1.07 — har paper ka 'sabse gehra ghata' (mae $) bhi likha jaata hai (book hone se pehle trade kitna neeche gaya).
+   v1.08 — BAZAAR KA MAUSAM (candlerules.weather): har minute har ON pair ka G / Y / R -> /candle/wx/<NAME>, aur har
+   paper par p.wx (sirf naap; trade niyam wahi). News: /feed/news/cal, 1 ghante ki candles: /feed/bars/1h.
    Keys sirf is VPS ki config.json me (GitHub me kabhi nahi).
    Chalao:  node scanner.mjs          (Task Scheduler)
             node scanner.mjs --test   (abhi ek scan, Firebase me signal NAHI likhta, sab dikhata hai)
@@ -34,7 +36,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.07';
+const VER = '1.08';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -226,10 +228,28 @@ async function candleTick(M, X){
   const kOf = sym => M.S.pipUsd(sym, 0.01, rates) / M.S.SPECS[sym].pip;
   const bars = async (sym, t) => {
     const key = sym + '|' + t; if(X.bars[key] && now - X.bars[key].at < 1500) return X.bars[key].v;
-    const str = await get('feed/bars/' + (t === 15 ? '15min' : t === 5 ? '5min' : '1min') + '/' + M.S.SPECS[sym].n);
+    const str = await get('feed/bars/' + (t === 60 ? '1h' : t === 15 ? '15min' : t === 5 ? '5min' : '1min') + '/' + M.S.SPECS[sym].n);
     const v = typeof str === 'string' && str ? str.split(';').map(x => { const a = x.split(',').map(Number); return {t: a[0] * 1000, o: a[1], h: a[2], l: a[3], c: a[4]} }).filter(b => b.c > 0) : [];
     X.bars[key] = {at: now, v}; return v;
   };
+  /* --- v1.08: bazaar ka mausam — har minute har pair ek baar --- */
+  CS.wx = CS.wx || {}; CS.spAvg = CS.spAvg || {};
+  const c1 = Math.floor(now / 60000) * 60000;
+  if(typeof M.R.weather === 'function' && now - c1 >= 4000){
+    if(!X.news || now - X.newsAt > 300000){ const j = await get('feed/news/cal').catch(() => null); X.news = (j && Array.isArray(j.list)) ? j.list : (X.news || []); X.newsAt = now }
+    for(const sym of pairs){
+      const n = M.S.SPECS[sym].n;
+      if(CS.wx[n] && CS.wx[n].m === c1) continue;
+      try{
+        const L = X.live[n] || {}, sp = L.sp > 0 ? +L.sp : 0, sa = CS.spAvg[n] || {a: 0, k: 0};
+        const ratio = sa.k >= 10 && sa.a > 0 ? sp / sa.a : 0;
+        if(sp > 0){ sa.a = sa.k ? sa.a + (sp - sa.a) / 30 : sp; sa.k++; CS.spAvg[n] = sa }
+        const w = M.R.weather({b1: M.R.closedBars(await bars(sym, 1), 1, now), b1h: M.R.closedBars(await bars(sym, 60), 60, now), now, news: X.news, sym, spreadRatio: ratio});
+        CS.wx[n] = {c: w.c, why: w.why, m: c1};
+        await put('candle/wx/' + n, {c: w.c, why: w.why, t: Math.floor(now / 1000)}).catch(() => {});
+      }catch(e){ log('mausam ' + n + ': ' + e.message) }
+    }
+  }
   /* --- naya signal: candle band hone ke >= 4 sec baad, har pair ek baar; v1.04: 1 MIN + 5 MIN dono --- */
   for(const tf of [1, 5]){
   const tfMs = tf * 60000, closeT = Math.floor(now / tfMs) * tfMs;
@@ -256,7 +276,8 @@ async function candleTick(M, X){
       if(cfg.autoPaper && CS.reset105 && !busyPaper){
         let cf = null;                                                  /* v1.06: 4 pushti (sirf naap) */
         if(typeof M.R.confirms === 'function'){ try{ const ht = tf === 5 ? 15 : 5; cf = M.R.confirms(sg, b, M.R.closedBars(await bars(sym, ht), ht, now)) }catch(e){ cf = M.R.confirms(sg, b, null) } }
-        await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: paperSl, hold: true, cf,
+        const wx = CS.wx && CS.wx[n] ? {c: CS.wx[n].c, why: CS.wx[n].why} : null;   /* v1.08: mausam (sirf naap) */
+        await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: paperSl, hold: true, cf, wx,
           maxCandles: tf === 5 ? 72 : (M.R.DEF.holdMaxMin || 200), lot: M.R.DEF.lot, auto: true, src: 'vps', done: false}).catch(e => log('candle paper: ' + e.message));
         if(X.open) X.open.add(sym + '|' + tf);
       }
