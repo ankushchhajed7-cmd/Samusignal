@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.03   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.04   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -18,6 +18,7 @@
    v1.02 — Candle PAPER ka TP candle ke hisaab se (candlerules dynTp: body ka 50%, $0.10–$1.00); asli EA wahi $0.25.
    v1.03 — Candle paper me SL ki TULNA: har trade ke 4 nateeje p.v = {A abhi wala SL $1.50, B SL candle ke hisaab se
    (body ka 100%, $0.20–$1.50), C break-even (TP ki taraf 60% = SL entry par), D B+C}; p.res / p.pl = A. Asli EA wahi.
+   v1.04 — Candle paper 1 MIN aur 5 MIN DONO par saath-saath (user); push sirf app me chune tf ka.
    Keys sirf is VPS ki config.json me (GitHub me kabhi nahi).
    Chalao:  node scanner.mjs          (Task Scheduler)
             node scanner.mjs --test   (abhi ek scan, Firebase me signal NAHI likhta, sab dikhata hai)
@@ -26,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.03';
+const VER = '1.04';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -206,8 +207,8 @@ async function candleTick(M, X){
   if(!X.cfg || now - X.cfgAt > 20000){ X.cfg = await get('candle/cfg').catch(() => null); X.cfgAt = now }
   const cfg = X.cfg;
   const pairs = cfg ? Object.values(cfg.pairs || {}).filter(p => M.S.SPECS[p]) : [];
-  const tf = cfg && +cfg.tf === 5 ? 5 : 1, tfMs = tf * 60000;
-  if(now - (X.hbAt || 0) > 60000){ X.hbAt = now; await put('candle/vps', {t: Math.floor(now / 1000), v: VER, tf, pairs: pairs.length, paper: !!(cfg && cfg.autoPaper), last: CS.last || ''}).catch(e => log('candle heartbeat: ' + e.message)) }
+  const pushTf = cfg && +cfg.tf === 5 ? 5 : 1;
+  if(now - (X.hbAt || 0) > 60000){ X.hbAt = now; await put('candle/vps', {t: Math.floor(now / 1000), v: VER, tf: pushTf, tfs: [1, 5], pairs: pairs.length, paper: !!(cfg && cfg.autoPaper), last: CS.last || ''}).catch(e => log('candle heartbeat: ' + e.message)) }
   if(!pairs.length) return;
   const fs_ = await M.D.feedStatus(s); if(!fs_.ok) return;          // Data Feed band (weekend / VPS) -> kuch nahi
   if(!X.live || now - X.liveAt > 5000){ X.live = await get('feed/live').catch(() => ({})) || {}; X.liveAt = now }
@@ -219,8 +220,9 @@ async function candleTick(M, X){
     const v = typeof str === 'string' && str ? str.split(';').map(x => { const a = x.split(',').map(Number); return {t: a[0] * 1000, o: a[1], h: a[2], l: a[3], c: a[4]} }).filter(b => b.c > 0) : [];
     X.bars[key] = {at: now, v}; return v;
   };
-  /* --- naya signal: candle band hone ke >= 4 sec baad, har pair ek baar --- */
-  const closeT = Math.floor(now / tfMs) * tfMs;
+  /* --- naya signal: candle band hone ke >= 4 sec baad, har pair ek baar; v1.04: 1 MIN + 5 MIN dono --- */
+  for(const tf of [1, 5]){
+  const tfMs = tf * 60000, closeT = Math.floor(now / tfMs) * tfMs;
   if(now - closeT >= 4000){
     for(const sym of pairs){
       const n = M.S.SPECS[sym].n, dk = n + '|' + tf;
@@ -235,8 +237,8 @@ async function candleTick(M, X){
       if(CS.seen[key]) continue;
       CS.seen[key] = now;
       const L = X.live[n] || {}, spread = L.sp > 0 ? +L.sp : 0, k = kOf(sym);
-      await put('candle/sig/' + key, {sym, n, dir: sg.dir, tf, at: sg.at, next: sg.next, why: sg.why, rsi: isFinite(sg.rsi) ? +sg.rsi.toFixed(1) : null,
-        t: Math.floor(now / 1000), sendSec: M.R.sendWindowMs(tf) / 1000, v: VER}).catch(e => log('candle sig: ' + e.message));
+      if(tf === pushTf) await put('candle/sig/' + key, {sym, n, dir: sg.dir, tf, at: sg.at, next: sg.next, why: sg.why, rsi: isFinite(sg.rsi) ? +sg.rsi.toFixed(1) : null,
+        t: Math.floor(now / 1000), sendSec: M.R.sendWindowMs(tf) / 1000, v: VER}).catch(e => log('candle sig: ' + e.message));   /* push sirf chune tf ka */
       const tpUsd = typeof M.R.dynTp === 'function' ? M.R.dynTp(sg, k) : M.R.DEF.tp;   /* v1.02: TP candle ke hisaab se */
       const slDyn = typeof M.R.dynSl === 'function' ? M.R.dynSl(sg, k) : M.R.DEF.sl;   /* v1.03: candle wala SL (tulna B / D) */
       if(cfg.autoPaper) await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: M.R.DEF.sl, slDyn,
@@ -244,12 +246,13 @@ async function candleTick(M, X){
       CS.last = n + ' ' + sg.dir + ' ' + tf + 'm';
       log('🕯 candle: ' + n + ' ' + sg.dir + ' ' + tf + 'm (' + sg.why + ')' + (cfg.autoPaper ? ' + paper' : ''));
     }
-    for(const k of Object.keys(CS.seen)) if(now - CS.seen[k] > 864e5) delete CS.seen[k];
   }
+  }
+  for(const k of Object.keys(CS.seen)) if(now - CS.seen[k] > 864e5) delete CS.seen[k];
   /* --- paper ka nateeja (har ~15 sec) --- */
   if(now - (X.resAt || 0) > 15000){
     X.resAt = now;
-    const list = await get('candle/paper', 'orderBy=%22%24key%22&limitToLast=60').catch(() => null);
+    const list = await get('candle/paper', 'orderBy=%22%24key%22&limitToLast=80').catch(() => null);
     for(const [key, p] of Object.entries(list || {})){
       if(!p || p.done || !M.S.SPECS[p.sym]) continue;
       if(now - p.next > 6 * 3600e3){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: 'DATA NAHI', pl: null})).catch(() => {}); continue }
