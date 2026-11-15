@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.02   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.03   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -16,6 +16,8 @@
    (TP / SL / candle close, spread ke saath). Heartbeat /candle/vps. Push: AI AUTO EA (v1.12+) /candle/sig
    padh kar phone par bhejta hai. KOI ASLI ORDER NAHI (MT5 sirf app ke 🚀 button se).
    v1.02 — Candle PAPER ka TP candle ke hisaab se (candlerules dynTp: body ka 50%, $0.10–$1.00); asli EA wahi $0.25.
+   v1.03 — Candle paper me SL ki TULNA: har trade ke 4 nateeje p.v = {A abhi wala SL $1.50, B SL candle ke hisaab se
+   (body ka 100%, $0.20–$1.50), C break-even (TP ki taraf 60% = SL entry par), D B+C}; p.res / p.pl = A. Asli EA wahi.
    Keys sirf is VPS ki config.json me (GitHub me kabhi nahi).
    Chalao:  node scanner.mjs          (Task Scheduler)
             node scanner.mjs --test   (abhi ek scan, Firebase me signal NAHI likhta, sab dikhata hai)
@@ -24,7 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.02';
+const VER = '1.03';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -236,7 +238,8 @@ async function candleTick(M, X){
       await put('candle/sig/' + key, {sym, n, dir: sg.dir, tf, at: sg.at, next: sg.next, why: sg.why, rsi: isFinite(sg.rsi) ? +sg.rsi.toFixed(1) : null,
         t: Math.floor(now / 1000), sendSec: M.R.sendWindowMs(tf) / 1000, v: VER}).catch(e => log('candle sig: ' + e.message));
       const tpUsd = typeof M.R.dynTp === 'function' ? M.R.dynTp(sg, k) : M.R.DEF.tp;   /* v1.02: TP candle ke hisaab se */
-      if(cfg.autoPaper) await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: M.R.DEF.sl,
+      const slDyn = typeof M.R.dynSl === 'function' ? M.R.dynSl(sg, k) : M.R.DEF.sl;   /* v1.03: candle wala SL (tulna B / D) */
+      if(cfg.autoPaper) await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: M.R.DEF.sl, slDyn,
         lot: M.R.DEF.lot, maxCandles: M.R.DEF.maxCandles, auto: true, src: 'vps', done: false}).catch(e => log('candle paper: ' + e.message));
       CS.last = n + ' ' + sg.dir + ' ' + tf + 'm';
       log('🕯 candle: ' + n + ' ' + sg.dir + ' ' + tf + 'm (' + sg.why + ')' + (cfg.autoPaper ? ' + paper' : ''));
@@ -250,7 +253,15 @@ async function candleTick(M, X){
     for(const [key, p] of Object.entries(list || {})){
       if(!p || p.done || !M.S.SPECS[p.sym]) continue;
       if(now - p.next > 6 * 3600e3){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: 'DATA NAHI', pl: null})).catch(() => {}); continue }
-      let r; try{ r = M.R.paperResolve(p, await bars(p.sym, +p.tf === 5 ? 5 : 1), now) }catch(e){ continue }
+      let b5; try{ b5 = await bars(p.sym, +p.tf === 5 ? 5 : 1) }catch(e){ continue }
+      if(typeof M.R.paperVariants === 'function'){                    /* v1.03: 4 tareeke ek saath */
+        const r = M.R.paperVariants(p, b5, now);
+        if(r.done && r.v.A){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: r.v.A.res, pl: r.v.A.pl, entry: r.entry, v: r.v})).catch(e => log('candle res: ' + e.message));
+          log('🕯 paper ' + key + ' -> A ' + r.v.A.pl + ' B ' + (r.v.B || {}).pl + ' C ' + (r.v.C || {}).pl + ' D ' + (r.v.D || {}).pl) }
+        else if(r.entry !== undefined && p.entry !== r.entry) await put('candle/paper/' + key, Object.assign(p, {entry: r.entry})).catch(() => {});
+        continue;
+      }
+      const r = M.R.paperResolve(p, b5, now);
       if(r.done){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: r.res, pl: r.pl, entry: r.entry, exitT: r.exitT})).catch(e => log('candle res: ' + e.message)); log('🕯 paper ' + key + ' -> ' + r.res + ' ' + r.pl) }
       else if(r.entry !== undefined && p.entry !== r.entry) await put('candle/paper/' + key, Object.assign(p, {entry: r.entry})).catch(() => {});
     }
