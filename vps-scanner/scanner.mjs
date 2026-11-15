@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.05   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.06   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -23,6 +23,8 @@
    Pehli baar chalte hi purana /candle/paper EK BAAR mitata hai (naya hisaab isi niyam se).
    HOLD (user): paper trade SL $10 tak chalta hai; pehli candle TP / close fayde me = book; dusri candle se +$0.05 chhoote
    ya kisi candle ka close fayde me = book. Ek pair + tf par ek hi paper trade jab tak pehle ka nateeja na aaye.
+   v1.06 — har paper par 4 PUSHTI likhi jaati hain (p.cf, candlerules.confirms; 1 MIN ki badi TF = 5 MIN, 5 MIN ki = 15 MIN).
+   Sirf naapne ke liye — signal / paper niyam wahi.
    Keys sirf is VPS ki config.json me (GitHub me kabhi nahi).
    Chalao:  node scanner.mjs          (Task Scheduler)
             node scanner.mjs --test   (abhi ek scan, Firebase me signal NAHI likhta, sab dikhata hai)
@@ -31,7 +33,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.05';
+const VER = '1.06';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -223,7 +225,7 @@ async function candleTick(M, X){
   const kOf = sym => M.S.pipUsd(sym, 0.01, rates) / M.S.SPECS[sym].pip;
   const bars = async (sym, t) => {
     const key = sym + '|' + t; if(X.bars[key] && now - X.bars[key].at < 1500) return X.bars[key].v;
-    const str = await get('feed/bars/' + (t === 5 ? '5min' : '1min') + '/' + M.S.SPECS[sym].n);
+    const str = await get('feed/bars/' + (t === 15 ? '15min' : t === 5 ? '5min' : '1min') + '/' + M.S.SPECS[sym].n);
     const v = typeof str === 'string' && str ? str.split(';').map(x => { const a = x.split(',').map(Number); return {t: a[0] * 1000, o: a[1], h: a[2], l: a[3], c: a[4]} }).filter(b => b.c > 0) : [];
     X.bars[key] = {at: now, v}; return v;
   };
@@ -251,7 +253,9 @@ async function candleTick(M, X){
       if(cfg.autoPaper && CS.reset105 && !X.openAt){ const l0 = await get('candle/paper', 'orderBy=%22%24key%22&limitToLast=80').catch(() => null); X.open = new Set(Object.values(l0 || {}).filter(q => q && !q.done).map(q => q.sym + '|' + q.tf)); X.openAt = now }
       const busyPaper = X.open && X.open.has(sym + '|' + tf);           /* v1.05: pehle wala trade abhi chal raha */
       if(cfg.autoPaper && CS.reset105 && !busyPaper){
-        await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: paperSl, hold: true,
+        let cf = null;                                                  /* v1.06: 4 pushti (sirf naap) */
+        if(typeof M.R.confirms === 'function'){ try{ const ht = tf === 5 ? 15 : 5; cf = M.R.confirms(sg, b, M.R.closedBars(await bars(sym, ht), ht, now)) }catch(e){ cf = M.R.confirms(sg, b, null) } }
+        await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: paperSl, hold: true, cf,
           maxCandles: tf === 5 ? 72 : (M.R.DEF.holdMaxMin || 200), lot: M.R.DEF.lot, auto: true, src: 'vps', done: false}).catch(e => log('candle paper: ' + e.message));
         if(X.open) X.open.add(sym + '|' + tf);
       }
