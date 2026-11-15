@@ -62,6 +62,9 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Helper chart pe EA nahi lagata — BotFlow chart pe lagana manual. Ex5 ke andar ka code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
 - **Baaki:** BotFlow ki inputs / behaviour samajhna (demo / Strategy Tester se).
 
+## VPS Scanner v1.07 — Candle paper ka sabse gehra ghata (15 Nov 2026)
+- Nateeja likhte waqt `mae` (candlerules.paperResolve se) bhi. Sirf naap.
+
 ## VPS Scanner v1.06 — Candle paper par 4 pushti likhna (15 Nov 2026)
 - Naye paper me `cf` = candlerules.confirms(sg, band candles, badi TF band candles) — 1 MIN ki badi TF 5 MIN, 5 MIN ki 15 MIN (`feed/bars/15min`). Sirf naap; signal / paper niyam wahi.
 
