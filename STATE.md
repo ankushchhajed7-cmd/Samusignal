@@ -26,8 +26,20 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
+| EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit) | **1.00** | `vps-ea/EMA20 M5 SCALPING v1.00.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## EMA20 M5 SCALPING v1.00 — naya EA (15 Nov 2026, branch feature-ema20-m5-v1.00)
+- Strategy: Tanisha Garg "The Best 5-Minute Scalping Strategy" (youtu.be/KjPH6Fv1T6M), Hindi captions se padhi. Video Indian market (NIFTY) ke liye tha; user ne forex ke liye kaha.
+- BUY: (1) M5 green candle EMA 20 ko neeche se cross karke upar close — is pe trade nahi. (2) agli 2 candle me pehli RED jo EMA ke upar close ho (beech me EMA ke neeche close = cancel). (3) red candle ke high (+0.2 pip + spread) pe BUY STOP — koi bhi baad wali candle tode, high toot-te hi entry.
+- SELL: bilkul ulta (user ka faisla; video me sirf buy).
+- Exit: M5 candle EMA ke ulta close = trade band (video ka SL, rally ride). Hard SL (user ka faisla): setup low/high -1 pip, min 3 / max 20 pip. Fixed TP default off (`TP_RR`).
+- Pending delete: candle EMA ke ulta close (`CancelOnEmaClose`), `ExpiryBars` (0 = off), ya trade khulte hi usi pair ke saare pending.
+- Pairs: ek chart pe lagao; `PairsCSV` khaali = 8 major currency ke 28 pair apne aap (Exness "m" suffix bhi), gold/BTC nahi. Lot 0.01 (user ka faisla), spread max 3 pip, `MaxOpenTotal` 10, magic 2026520.
+- Verify: Python simulation (same rules) EURUSD M5, 29 Oct–16 Nov 2026 (Twelve Data, weekdays): 86 trade, 30% jeet, avg jeet +10.5 / haar -3.6 pip, net +54 pip (1 pip spread maan kar). Chhota sample — sirf ek pair, pehle DEMO / Strategy Tester.
+- Compile yahan nahi hota (bracket jaanch PASS); VPS Helper card dekhna.
+- **Baaki:** Strategy Tester multi-pair result; slope / trend filter (sim me EMA slope filter se thoda behtar: 57 trade, 35%, +62 pip) — user decide kare.
 
 ## SamuSignal Data Feed v1.01 — nayi candle kisi bhi pair pe (14 Nov 2026)
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
