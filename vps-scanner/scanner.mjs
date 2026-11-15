@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.04   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.05   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -19,6 +19,10 @@
    v1.03 — Candle paper me SL ki TULNA: har trade ke 4 nateeje p.v = {A abhi wala SL $1.50, B SL candle ke hisaab se
    (body ka 100%, $0.20–$1.50), C break-even (TP ki taraf 60% = SL entry par), D B+C}; p.res / p.pl = A. Asli EA wahi.
    v1.04 — Candle paper 1 MIN aur 5 MIN DONO par saath-saath (user); push sirf app me chune tf ka.
+   v1.05 — (user Final) Candle paper: TP candle ke hisaab se + SL $10, sirf yahi ek jaanch (4-tareeke tulna band).
+   Pehli baar chalte hi purana /candle/paper EK BAAR mitata hai (naya hisaab isi niyam se).
+   HOLD (user): paper trade SL $10 tak chalta hai; pehli candle TP / close fayde me = book; dusri candle se +$0.05 chhoote
+   ya kisi candle ka close fayde me = book. Ek pair + tf par ek hi paper trade jab tak pehle ka nateeja na aaye.
    Keys sirf is VPS ki config.json me (GitHub me kabhi nahi).
    Chalao:  node scanner.mjs          (Task Scheduler)
             node scanner.mjs --test   (abhi ek scan, Firebase me signal NAHI likhta, sab dikhata hai)
@@ -27,7 +31,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.04';
+const VER = '1.05';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -208,7 +212,10 @@ async function candleTick(M, X){
   const cfg = X.cfg;
   const pairs = cfg ? Object.values(cfg.pairs || {}).filter(p => M.S.SPECS[p]) : [];
   const pushTf = cfg && +cfg.tf === 5 ? 5 : 1;
-  if(now - (X.hbAt || 0) > 60000){ X.hbAt = now; await put('candle/vps', {t: Math.floor(now / 1000), v: VER, tf: pushTf, tfs: [1, 5], pairs: pairs.length, paper: !!(cfg && cfg.autoPaper), last: CS.last || ''}).catch(e => log('candle heartbeat: ' + e.message)) }
+  if(!TEST && !CS.reset105){                                      /* v1.05: user — purana paper data saaf, ek hi baar */
+    try{ const r = await fetch(url('candle/paper'), {method: 'DELETE'}); if(r.ok){ CS.reset105 = now; X.resetAt = now; saveState(); log('🕯 purana candle paper saaf (v1.05 naya hisaab)') } }catch(e){ log('candle reset: ' + e.message) }
+  }
+  if(now - (X.hbAt || 0) > 60000){ X.hbAt = now; await put('candle/vps', {t: Math.floor(now / 1000), v: VER, tf: pushTf, tfs: [1, 5], pairs: pairs.length, paper: !!(cfg && cfg.autoPaper), last: CS.last || '', reset: CS.reset105 || 0}).catch(e => log('candle heartbeat: ' + e.message)) }
   if(!pairs.length) return;
   const fs_ = await M.D.feedStatus(s); if(!fs_.ok) return;          // Data Feed band (weekend / VPS) -> kuch nahi
   if(!X.live || now - X.liveAt > 5000){ X.live = await get('feed/live').catch(() => ({})) || {}; X.liveAt = now }
@@ -240,11 +247,16 @@ async function candleTick(M, X){
       if(tf === pushTf) await put('candle/sig/' + key, {sym, n, dir: sg.dir, tf, at: sg.at, next: sg.next, why: sg.why, rsi: isFinite(sg.rsi) ? +sg.rsi.toFixed(1) : null,
         t: Math.floor(now / 1000), sendSec: M.R.sendWindowMs(tf) / 1000, v: VER}).catch(e => log('candle sig: ' + e.message));   /* push sirf chune tf ka */
       const tpUsd = typeof M.R.dynTp === 'function' ? M.R.dynTp(sg, k) : M.R.DEF.tp;   /* v1.02: TP candle ke hisaab se */
-      const slDyn = typeof M.R.dynSl === 'function' ? M.R.dynSl(sg, k) : M.R.DEF.sl;   /* v1.03: candle wala SL (tulna B / D) */
-      if(cfg.autoPaper) await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: M.R.DEF.sl, slDyn,
-        lot: M.R.DEF.lot, maxCandles: M.R.DEF.maxCandles, auto: true, src: 'vps', done: false}).catch(e => log('candle paper: ' + e.message));
+      const paperSl = M.R.DEF.paperSl || 10;                          /* v1.05: SL $10 (user) */
+      if(cfg.autoPaper && CS.reset105 && !X.openAt){ const l0 = await get('candle/paper', 'orderBy=%22%24key%22&limitToLast=80').catch(() => null); X.open = new Set(Object.values(l0 || {}).filter(q => q && !q.done).map(q => q.sym + '|' + q.tf)); X.openAt = now }
+      const busyPaper = X.open && X.open.has(sym + '|' + tf);           /* v1.05: pehle wala trade abhi chal raha */
+      if(cfg.autoPaper && CS.reset105 && !busyPaper){
+        await put('candle/paper/' + key, {id: key, sym, dir: sg.dir, tf, next: sg.next, at: now, spread, k, tp: tpUsd, sl: paperSl, hold: true,
+          maxCandles: tf === 5 ? 72 : (M.R.DEF.holdMaxMin || 200), lot: M.R.DEF.lot, auto: true, src: 'vps', done: false}).catch(e => log('candle paper: ' + e.message));
+        if(X.open) X.open.add(sym + '|' + tf);
+      }
       CS.last = n + ' ' + sg.dir + ' ' + tf + 'm';
-      log('🕯 candle: ' + n + ' ' + sg.dir + ' ' + tf + 'm (' + sg.why + ')' + (cfg.autoPaper ? ' + paper' : ''));
+      log('🕯 candle: ' + n + ' ' + sg.dir + ' ' + tf + 'm (' + sg.why + ')' + (cfg.autoPaper ? (busyPaper ? ' (paper nahi — pehla trade chalu)' : ' + paper') : ''));
     }
   }
   }
@@ -253,19 +265,14 @@ async function candleTick(M, X){
   if(now - (X.resAt || 0) > 15000){
     X.resAt = now;
     const list = await get('candle/paper', 'orderBy=%22%24key%22&limitToLast=80').catch(() => null);
+    if(list){ X.open = new Set(Object.values(list).filter(q => q && !q.done).map(q => q.sym + '|' + q.tf)); X.openAt = now }
     for(const [key, p] of Object.entries(list || {})){
       if(!p || p.done || !M.S.SPECS[p.sym]) continue;
-      if(now - p.next > 6 * 3600e3){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: 'DATA NAHI', pl: null})).catch(() => {}); continue }
+      if(now - p.next > 7 * 3600e3){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: 'DATA NAHI', pl: null})).catch(() => {}); continue }
       let b5; try{ b5 = await bars(p.sym, +p.tf === 5 ? 5 : 1) }catch(e){ continue }
-      if(typeof M.R.paperVariants === 'function'){                    /* v1.03: 4 tareeke ek saath */
-        const r = M.R.paperVariants(p, b5, now);
-        if(r.done && r.v.A){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: r.v.A.res, pl: r.v.A.pl, entry: r.entry, v: r.v})).catch(e => log('candle res: ' + e.message));
-          log('🕯 paper ' + key + ' -> A ' + r.v.A.pl + ' B ' + (r.v.B || {}).pl + ' C ' + (r.v.C || {}).pl + ' D ' + (r.v.D || {}).pl) }
-        else if(r.entry !== undefined && p.entry !== r.entry) await put('candle/paper/' + key, Object.assign(p, {entry: r.entry})).catch(() => {});
-        continue;
-      }
+      /* v1.05: sirf ek niyam (p.sl = $10, p.tp = candle) */
       const r = M.R.paperResolve(p, b5, now);
-      if(r.done){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: r.res, pl: r.pl, entry: r.entry, exitT: r.exitT})).catch(e => log('candle res: ' + e.message)); log('🕯 paper ' + key + ' -> ' + r.res + ' ' + r.pl) }
+      if(r.done){ await put('candle/paper/' + key, Object.assign(p, {done: true, res: r.res, pl: r.pl, entry: r.entry, exitT: r.exitT, n: r.n || 1})).catch(e => log('candle res: ' + e.message)); if(X.open) X.open.delete(p.sym + '|' + p.tf); log('🕯 paper ' + key + ' -> ' + r.res + ' ' + r.pl + (r.n ? ' (' + r.n + ' candle)' : '')) }
       else if(r.entry !== undefined && p.entry !== r.entry) await put('candle/paper/' + key, Object.assign(p, {entry: r.entry})).catch(() => {});
     }
   }

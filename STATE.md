@@ -62,6 +62,9 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Helper chart pe EA nahi lagata — BotFlow chart pe lagana manual. Ex5 ke andar ka code dekha nahi ja sakta -> pehle DEMO, "Allow DLL imports" band.
 - **Baaki:** BotFlow ki inputs / behaviour samajhna (demo / Strategy Tester se).
 
+## VPS Scanner v1.05 — Candle paper SL $10 + hold + ek pair ek trade, purana data ek baar saaf (15 Nov 2026)
+- User Final. Pehli baar chalte hi `/candle/paper` DELETE (ek baar, `ST.cdl.reset105`; heartbeat me `reset`). Naya paper {tp candle, sl 10, hold true, maxCandles 1m 200 / 5m 72}; nateeja `paperResolve` hold niyam (PROFIT BOOK / TP / SL / TIME, `n` candle). `X.open` — sym|tf ka chalu paper ho to naya nahi. 4-tareeke tulna band. Asli EA wahi.
+
 ## VPS Scanner v1.04 — Candle paper 1 MIN + 5 MIN dono (15 Nov 2026)
 - Har run me tf 1 aur 5 dono ke liye signal jaanch + paper (key ke aakhir me tf); `/candle/sig` (push) sirf app ke `cfg.tf` wale ka. Heartbeat me `tfs: [1, 5]`. Resolve 80 aakhri.
 
