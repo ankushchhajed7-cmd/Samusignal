@@ -8,6 +8,8 @@
 //|         30 min pehle se 30 min baad tak naya trade nahi. Input   |
 //|         NewsCloseOpen = true ho to us beech chalu trade bhi band.|
 //|         Dashboard me SAMAY + NEWS line.                          |
+//|         DIN KA TARGET $2 (user): aaj +$2 = us din naya trade nahi |
+//|         (chalu trade apne niyam se). Din = server din (05:30 IST).|
 //|  v1.01: DASHBOARD 'Matrix Terminal' (user ka sample) + PAUSE /   |
 //|         CLOSE ALL (2 baar dabao) button.                         |
 //|         SIRF 1 MIN (user: 5 MIN hatao) - app ka 5 MIN button EA   |
@@ -96,7 +98,7 @@ input bool   NewsWithMedium   = false;     // Medium news bhi
 input bool   NewsCloseOpen    = false;     // News ke us beech chalu trade bhi band kar do?
 
 input group "========== DIN KI SEEMA (0 = band) =========="
-input double DayTargetUsd     = 0;         // Din ka profit $ itna = us din naya trade nahi
+input double DayTargetUsd     = 2.0;       // v1.02: din ka profit $ itna = us din naya trade nahi (0 = band)
 input double DayLossUsd       = 0;         // Din ka ghata $ itna = us din naya trade nahi
 
 input group "========== DUSRA =========="

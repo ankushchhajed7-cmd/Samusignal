@@ -34,6 +34,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 ## SAMUSIGNAL CANDLE EA v1.02 — trade samay + news filter (16 Nov 2026)
 - User: v1.01 VPS par lag gaya. "News filter? Trading time 7 AM–5 PM aur 8 PM–10 PM; beech me news ho to news ke 30 min pehle aur 30 min baad koi trade nahi."
 - `TradeWindows` "07:00-17:00,20:00-22:00" (IST): bahar naya signal jaancha hi nahi jaata; chalu trade apne niyam se. `NewsOn` + `NewsBeforeMin` 30 / `NewsAfterMin` 30 (MT5 calendar, High; pair ki dono currency; BTCUSD = USD). `NewsCloseOpen` (default false) = us beech chalu trade bhi band — user se poochha hai.
+- User: "daily target $2" → `DayTargetUsd` 2.0 (pehle 0): aaj ka band P/L ≥ +$2 = us din naya trade nahi; din = server din (Exness UTC → 05:30 IST se). `DayLossUsd` abhi 0.
 - Dashboard: SAMAY (andar / bahar, agla) + NEWS (ruke pair ya agli High news) line; STATUS / app me "samay ke bahar". Code AI AUTO v1.12 wala (WinParse / InWindow / NewsLoad / NewsBlockCur / NextNewsLoad).
 
 ## SAMUSIGNAL CANDLE EA v1.01 + Scanner v1.09 — sirf 1 MIN, Matrix Terminal dashboard (16 Nov 2026)
