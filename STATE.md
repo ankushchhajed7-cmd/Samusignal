@@ -26,9 +26,19 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
-| EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit) | **1.00** | `vps-ea/EMA20 M5 SCALPING v1.00.mq5` |
+| EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## EMA20 M5 SCALPING v1.01 — galat entry fix + trailing SL (16 Nov 2026, branch feature-ema20-m5-v1.01)
+- User report (Monday subah, screenshot): saare trade loss me (-$9), entry galat. GBPCAD buy 1.88601 jabki red candle high ~1.8862 tha — high toote bina entry. Trade candle khulne ke time (:00 sec) pe, server 00:15–02:15 (Asian).
+- Wajah (v1.00 bug): `PlaceEntry` me Buy Stop ki doori broker stop-level se kam ho to `else if(ask - price <= MaxChase)` — ask price se NEECHE hone par bhi sach — seedha MARKET trade. Plus Buy Stop Ask pe chalta tha (rollover spread spike), aur dusre pair ka iMA nayi candle pe 1 candle purana mil sakta tha.
+- Fix: broker pending band. "Virtual stop": red high (+0.2 pip) ko BID tode tabhi market entry; spread > MaxSpread to wait; break se 1 pip (`MaxChasePips`) zyada door to skip. EMA EA khud 300 candle se nikalta hai. Start pe purane v1.00 pending delete.
+- Session (naya): server 07:00–24:00 (Exness = GMT, IST 12:30 PM – 5:30 AM). 00–07 me naya trade nahi (exit/trail chalu). Sim (EURUSD weekdays): Asian 00–07 akela 21 trade, -22 pip.
+- Trailing SL (user ne maanga — "jaise profit badhe SL upar khiske"): `TrailStartPips` 15 -> SL entry+1 pip (breakeven), phir price se `TrailDistancePips` 10 pip peeche, `TrailStepPips` 1. SL kabhi peeche nahi.
+- Sim note (chhota sample, EURUSD 2 hafte): bina trail 07–24 = 64 trade, +71 pip; trail 15/10 = +27 pip; trail 10/10 = +10 pip. Trail bade winner jaldi kaat deta hai — default 15/10 rakha; user chahe to `UseTrail=false`.
+- Magic wahi (2026520) — v1.00 ke chalu trade bhi v1.01 manage karega. VPS: chart se v1.00 hatao, v1.01 lagao.
+- **Baaki:** demo par 2-3 din dekhna; ek currency (jaise AUD) ke kai pair ek saath khulna — limit chahiye ya nahi, user decide kare.
 
 ## EMA20 M5 SCALPING v1.00 — naya EA (15 Nov 2026, branch feature-ema20-m5-v1.00)
 - Strategy: Tanisha Garg "The Best 5-Minute Scalping Strategy" (youtu.be/KjPH6Fv1T6M), Hindi captions se padhi. Video Indian market (NIFTY) ke liye tha; user ne forex ke liye kaha.
