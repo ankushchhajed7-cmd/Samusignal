@@ -2,6 +2,7 @@
 //|                                  SAMUSIGNAL CANDLE EA v1.08.mq5  |
 //|                                           Ankush New Vision      |
 //+------------------------------------------------------------------+
+//|  (dobara bheja 17 Nov: VPS par Navigator me nahi aaya tha)      |
 //|  v1.08 (user Final): LOCK + TRAIL - fayda +$0.15 (LockAtUsd)     |
 //|         hote hi SL +$0.10 (LockToUsd) par pakka, phir SL bhaav ke |
 //|         peechhe $0.05 (TrailGapUsd) chalta hai. Fixed TP ki jagah  |
