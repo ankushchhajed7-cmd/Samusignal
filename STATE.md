@@ -23,13 +23,19 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
 | SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.12** | `vps-ea/SAMUSIGNAL AI AUTO v1.12.mq5`, `vps-scanner/scanner.mjs` (v1.09) |
-| SAMUSIGNAL CANDLE EA (app Candle page / Strategy 5 ka apna EA — naye $100 DEMO par; sirf app me ON pair, sirf 1 MIN; samay 07-17 + 20-22 IST; High news ±30 min naya trade nahi; ek saath max 3; VPS paper jaisa niyam; Matrix Terminal dashboard + PAUSE / CLOSE ALL; REAL par AllowReal=false se band) | **1.02** | `vps-ea/SAMUSIGNAL CANDLE EA v1.02.mq5` |
+| SAMUSIGNAL CANDLE EA (app Candle page / Strategy 5 ka apna EA — naye $100 DEMO par; sirf app me ON pair, sirf 1 MIN; samay 07-17 + 20-22 IST; High news ±30 min naya trade nahi; floating −$2 = pair din bhar band; ek saath max 3; VPS paper jaisa niyam; Matrix Terminal dashboard + PAUSE / CLOSE ALL; REAL par AllowReal=false se band) | **1.03** | `vps-ea/SAMUSIGNAL CANDLE EA v1.03.mq5` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMUSIGNAL CANDLE EA v1.03 — pair din bhar band (16 Nov 2026)
+- User: "koi pair $2 se zyada floating me jaaye to us trade ka jo hoga wo hoga (TP le lega), par us pura din wo pair phir trade nahi lega".
+- `BlockPairLossUsd` 2.0 (0.01 lot par; 0 = band): `Manage()` me trade P/L ≤ −$2 → `BlockPair` (GlobalVariable `SSC_BLK_<login>_<NAME>` = server din ka shuru; EA restart par bhi yaad) + LOG / alert / push ek baar. `Open()` me `PairBlocked` = SKIP. Chalu trade ko nahi chhoota (TP / book / TIME / SL wahi). Din = server din (05:30 IST).
+- Dashboard me "AAJ BAND" line; `/candle/ea/state` me `blk`.
+- User (saath me): "uski jagah dusra pair app me auto ON ho jaaye, notification deke". `AutoReplace` (true) + `ReserveOrder`: band pair ki jagah pehla pair jiski koi currency chalu (band nahi) pair se na takraye, broker me ho, XAU nahi → `/candle/cfg` `pairs` me PATCH + `/candle/cfg/auto/<NAME>` {d (din), for, t} + push. Ek band pair = din me ek badla (`SSC_REP_<login>_<NAME>`). `AutoExpire()` har 60 sec: pichhle din ke `auto` pair `pairs` se hata kar `auto/<NAME>` DELETE + push. App (SAMUSIGNAL-AI v1.34.0) ab `/candle/cfg` PATCH karta hai (auto na mite) aur Firebase ke pairs ko maanta hai.
 
 ## VPS Scanner v1.10 — TP ka naap (16 Nov 2026)
 - User "① naap Final": paper me `body`; nateeje par `mfe` / `mfe1` + `tv` = SAMUSIGNAL-AI `candlerules.tpVariants` (TP 30 / 50 / 75 / 100%, 50% par lock → 100%, book 25%); lambe wale baad me (`tvp`, 7 ghante tak). Sirf naap — paper ka asli niyam / EA nahi badla. Mock harness se jaancha.
