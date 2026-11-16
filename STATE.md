@@ -27,7 +27,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
-| EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
+| EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), session 07-24; v1.02: SL $5 / TP $2 har pair, $ trailing from $0.50, EMA exit off) | **1.02** | `vps-ea/EMA20 M5 SCALPING v1.02.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
 
@@ -39,6 +39,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Comment = VPS paper wali key (`c` + next ms base36 + NAME + tf) → app paper se tulna. Firebase: `/candle/ea/state` (30 sec), `/candle/ea/trades/<key>` (khula / band). Push: khula / band. Chart par bade hare akshar me haal. Magic 7320001.
 - App SAMUSIGNAL-AI v1.31.0 (Candle 1.10.0): Live me EA line, Record me "🤖 CANDLE EA (Demo)" + trades.
 - Compile VPS Helper par hoga (yahan MetaEditor nahi) — pehli baar Experts / Journal tab ke errors dekhne hain.
+
+## EMA20 M5 SCALPING v1.02 — $5 SL, $2 TP, $ trailing (16 Nov 2026, branch feature-ema20-m5-v1.02)
+- User report (shaam): v1.01 me bhi profit book nahi hota, sirf chhote loss (-$0.15 se -$0.92) — account total -$28.45 (v1.00 + v1.01). Wajah: EMA close exit + chhota hard SL.
+- User ka faisla: har pair pe SL $5, TP $2, trailing $0.50 profit se shuru.
+- Build: `UseMoneySL`=true, `MoneySL` 5, `MoneyTP` 2 (tick value se har pair ki doori). Trailing $ me: `TrailStartUSD` 0.50 -> SL entry + `TrailLockUSD` 0.10, phir `TrailDistanceUSD` 0.50 peeche, step $0.05. `EmaCloseExit` default false (input se on ho sakta hai). Pip wale SL/RR inputs `UseMoneySL=false` par.
+- Sim (EURUSD M5, 2 hafte, 1 pip spread, $5≈50 pip / $2≈20 pip): TP $2 + SL $5, EMA exit off, bina trail = 16 trade, 81% jeet, +$9.40. Saath me trail $0.50/$0.50 = 33 trade, 73% jeet, -$5.69 (M5 candle ka shor $0.50 trail ko jaldi hit karta hai; bar-level sim mota andaaza hai). User ko bataya — `UseTrail` se on/off.
+- Dhyaan: SL $5 vs TP $2 = jeet 72%+ chahiye break-even ke liye.
+- **Baaki:** demo par UseTrail true vs false compare.
 
 ## EMA20 M5 SCALPING v1.01 — galat entry fix + trailing SL (16 Nov 2026, branch feature-ema20-m5-v1.01)
 - User report (Monday subah, screenshot): saare trade loss me (-$9), entry galat. GBPCAD buy 1.88601 jabki red candle high ~1.8862 tha — high toote bina entry. Trade candle khulne ke time (:00 sec) pe, server 00:15–02:15 (Asian).
