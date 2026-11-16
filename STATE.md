@@ -31,6 +31,9 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
 
+## VPS Scanner v1.10 — TP ka naap (16 Nov 2026)
+- User "① naap Final": paper me `body`; nateeje par `mfe` / `mfe1` + `tv` = SAMUSIGNAL-AI `candlerules.tpVariants` (TP 30 / 50 / 75 / 100%, 50% par lock → 100%, book 25%); lambe wale baad me (`tvp`, 7 ghante tak). Sirf naap — paper ka asli niyam / EA nahi badla. Mock harness se jaancha.
+
 ## SAMUSIGNAL CANDLE EA v1.02 — trade samay + news filter (16 Nov 2026)
 - User: v1.01 VPS par lag gaya. "News filter? Trading time 7 AM–5 PM aur 8 PM–10 PM; beech me news ho to news ke 30 min pehle aur 30 min baad koi trade nahi."
 - `TradeWindows` "07:00-17:00,20:00-22:00" (IST): bahar naya signal jaancha hi nahi jaata; chalu trade apne niyam se. `NewsOn` + `NewsBeforeMin` 30 / `NewsAfterMin` 30 (MT5 calendar, High; pair ki dono currency; BTCUSD = USD). `NewsCloseOpen` (default false) = us beech chalu trade bhi band — user se poochha hai.
