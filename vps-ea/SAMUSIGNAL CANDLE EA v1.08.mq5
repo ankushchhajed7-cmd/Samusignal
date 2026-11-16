@@ -2,7 +2,7 @@
 //|                                  SAMUSIGNAL CANDLE EA v1.08.mq5  |
 //|                                           Ankush New Vision      |
 //+------------------------------------------------------------------+
-//|  (dobara bheja 17 Nov: VPS par Navigator me nahi aaya tha)      |
+//|  (17 Nov: VPS disk bhari thi - dobara bheja; "Label" fix)       |
 //|  v1.08 (user Final): LOCK + TRAIL - fayda +$0.15 (LockAtUsd)     |
 //|         hote hi SL +$0.10 (LockToUsd) par pakka, phir SL bhaav ke |
 //|         peechhe $0.05 (TrailGapUsd) chalta hai. Fixed TP ki jagah  |
@@ -1292,7 +1292,7 @@ void MxBtn(string n, string t, int x, int y, int w, int h, color fg, color bg)
 // ek line: baayein label (jaise STATUS), daayein "> value"
 void Row(int &y, int rh, int x0, int xv, string id, string key, string val, color vc)
 {
-   MxTxt(LBL+"K"+id, key, x0, y, MX_GRN);
+   MxTxt(LBL+"K"+id, (key == "" ? " " : key), x0, y, MX_GRN);   // khaali = MT5 "Label" likh deta hai
    MxTxt(LBL+"V"+id, (key == "" ? "" : "\x25B8 ") + val, xv, y, vc);
    y += rh;
 }
