@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.08   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.09   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -26,6 +26,7 @@
    v1.06 — har paper par 4 PUSHTI likhi jaati hain (p.cf, candlerules.confirms; 1 MIN ki badi TF = 5 MIN, 5 MIN ki = 15 MIN).
    Sirf naapne ke liye — signal / paper niyam wahi.
    v1.07 — har paper ka 'sabse gehra ghata' (mae $) bhi likha jaata hai (book hone se pehle trade kitna neeche gaya).
+   v1.09 — SIRF 1 MIN (user): Candle signal / paper / push sirf 1 MIN par; 5 MIN hataya (app ka cfg.tf ab nahi dekhta).
    v1.08 — BAZAAR KA MAUSAM (candlerules.weather): har minute har ON pair ka G / Y / R -> /candle/wx/<NAME>, aur har
    paper par p.wx (sirf naap; trade niyam wahi). News: /feed/news/cal, 1 ghante ki candles: /feed/bars/1h.
    Keys sirf is VPS ki config.json me (GitHub me kabhi nahi).
@@ -36,7 +37,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.08';
+const VER = '1.09';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -216,11 +217,11 @@ async function candleTick(M, X){
   if(!X.cfg || now - X.cfgAt > 20000){ X.cfg = await get('candle/cfg').catch(() => null); X.cfgAt = now }
   const cfg = X.cfg;
   const pairs = cfg ? Object.values(cfg.pairs || {}).filter(p => M.S.SPECS[p]) : [];
-  const pushTf = cfg && +cfg.tf === 5 ? 5 : 1;
+  const pushTf = 1;                                                /* v1.09 (user): sirf 1 MIN — 5 MIN hataya */
   if(!TEST && !CS.reset105){                                      /* v1.05: user — purana paper data saaf, ek hi baar */
     try{ const r = await fetch(url('candle/paper'), {method: 'DELETE'}); if(r.ok){ CS.reset105 = now; X.resetAt = now; saveState(); log('🕯 purana candle paper saaf (v1.05 naya hisaab)') } }catch(e){ log('candle reset: ' + e.message) }
   }
-  if(now - (X.hbAt || 0) > 60000){ X.hbAt = now; await put('candle/vps', {t: Math.floor(now / 1000), v: VER, tf: pushTf, tfs: [1, 5], pairs: pairs.length, paper: !!(cfg && cfg.autoPaper), last: CS.last || '', reset: CS.reset105 || 0}).catch(e => log('candle heartbeat: ' + e.message)) }
+  if(now - (X.hbAt || 0) > 60000){ X.hbAt = now; await put('candle/vps', {t: Math.floor(now / 1000), v: VER, tf: pushTf, tfs: [1], pairs: pairs.length, paper: !!(cfg && cfg.autoPaper), last: CS.last || '', reset: CS.reset105 || 0}).catch(e => log('candle heartbeat: ' + e.message)) }
   if(!pairs.length) return;
   const fs_ = await M.D.feedStatus(s); if(!fs_.ok) return;          // Data Feed band (weekend / VPS) -> kuch nahi
   if(!X.live || now - X.liveAt > 5000){ X.live = await get('feed/live').catch(() => ({})) || {}; X.liveAt = now }
@@ -251,7 +252,7 @@ async function candleTick(M, X){
     }
   }
   /* --- naya signal: candle band hone ke >= 4 sec baad, har pair ek baar; v1.04: 1 MIN + 5 MIN dono --- */
-  for(const tf of [1, 5]){
+  for(const tf of [1]){
   const tfMs = tf * 60000, closeT = Math.floor(now / tfMs) * tfMs;
   if(now - closeT >= 4000){
     for(const sym of pairs){
