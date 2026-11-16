@@ -812,10 +812,13 @@ void Panel()
 {
    if(!PanelOn) return;
    int cw = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS), ch = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
-   int tw = 0, th = 0;
+   uint tw0 = 0, th0 = 0;                                  // TextGetSize uint maangta hai (int = compile error)
    TextSetFont(MX_FONT, -FontPx*10);                      // asli pixel (screen DPI ke saath)
-   TextGetSize("DRAWDOWN__", tw, th);
-   int rh = (int)MathMax(14, th*1.45), x0 = (int)MathMax(10, th), xv = x0 + tw, lineW = (int)MathMax(100, cw - 2*x0);
+   TextGetSize("DRAWDOWN__", tw0, th0);
+   int tw = (int)tw0, th = (int)th0;
+   if(tw <= 0) tw = FontPx*10;
+   if(th <= 0) th = FontPx*2;
+   int rh = (int)MathMax(14.0, th*1.45), x0 = (int)MathMax(10.0, (double)th), xv = x0 + tw, lineW = (int)MathMax(100.0, (double)(cw - 2*x0));
    MxRect(LBL+"BG", 0, 0, cw, ch, MX_BG, MX_BG);          // poori chart kaali
 
    int y = (int)(rh*0.6);
@@ -851,8 +854,8 @@ void Panel()
       int idx = (b0 > 0 ? (int)(((long)b0 - ((long)openT - (long)openT % 60))/60) + 1 : 0);
       double p = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
       double tpP = PositionGetDouble(POSITION_TP), opP = PositionGetDouble(POSITION_PRICE_OPEN);
-      double k = UsdPerPriceLot(sym) * PositionGetDouble(POSITION_VOLUME);
-      string tpTxt = (k > 0 && tpP > 0 ? "   TP "+DoubleToString(MathAbs(tpP - opP)*k, 2) : "");
+      double kk = UsdPerPriceLot(sym) * PositionGetDouble(POSITION_VOLUME);
+      string tpTxt = (kk > 0 && tpP > 0 ? "   TP "+DoubleToString(MathAbs(tpP - opP)*kk, 2) : "");
       Row(y, rh, x0, xv, "T"+IntegerToString(shown), shown == 0 ? "TRADE" : "",
           Name6(sym)+" "+(PositionGetInteger(POSITION_TYPE)==POSITION_TYPE_BUY ? "BUY " : "SELL")+"  lot "+DoubleToString(PositionGetDouble(POSITION_VOLUME),2)
           +"   P&L "+Usd(p)+"   candle "+IntegerToString(idx)+"/"+IntegerToString(HoldMax1)+tpTxt, p >= 0 ? MX_GRN : MX_RED);
@@ -882,7 +885,7 @@ void Panel()
    }
    if(g_LogN == 0) MxTxt(LBL+"LG0", "LOG   "+IstNow()+"  shuru - "+g_Status, x0, y - 6*rh, MX_DIM);
 
-   int bh = (int)(rh*1.5), bw = (int)(tw*1.3), by = (int)MathMax(y + rh/2, ch - bh - x0);
+   int bh = (int)(rh*1.5), bw = (int)(tw*1.3), by = (int)MathMax((double)(y + rh/2), (double)(ch - bh - x0));
    bool armed = (g_CallArm > 0 && TimeLocal() - g_CallArm < 5);
    MxBtn(BT_PAUSE, IsPaused() ? "[ RESUME ]" : "[ PAUSE ]", x0, by, bw, bh, IsPaused() ? MX_AMB : MX_GRN, MX_BG);
    MxBtn(BT_CALL, armed ? "[ PAKKA? ]" : "[ CLOSE ALL ]", x0 + bw + x0, by, bw, bh, MX_RED, armed ? C'70,10,10' : MX_BG);

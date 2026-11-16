@@ -35,6 +35,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - User: v1.00 VPS par chal gaya (Firebase OK, app ke pair padhe) par panel ki lines ek dusre par chadh rahi thi; phir: "5 MIN hatao, sirf 1 MIN" + sample screenshot "Matrix Terminal" jaisa dashboard.
 - EA v1.01: sirf M1 (cfg.tf nahi dekhta, HoldMax5 hataya). Dashboard poori chart par kaala: `root@candle-ea:~$ ./run --pairs … --tf M1` + IST ghadi, alert patti (naya trade / band 90 sec, ulta rang blink), STATUS / PAIRS / TRADE (3 tak: P&L, candle x/200, TP $) / DAILY [####....] / SLOTS / RULES, BALANCE · EQUITY · FIREBASE · APP · ALGO, LOG (aakhri 6), [ PAUSE ] (GlobalVariable `SSC_PAUSE_<login>`, naya trade nahi) aur [ CLOSE ALL ] (5 sec me 2 baar). Font Consolas, akshar ka size screen DPI se naapa (TextGetSize).
 - Scanner v1.09: Candle signal / paper / push sirf 1 MIN (`tfs: [1]`).
+- Fix (v1.01 hi): VPS par compile nahi hua — `TextGetSize` ko `uint` chahiye, `int` diya tha. Ab uint + cast; ek naam (k) bhi alag kiya.
 
 ## SAMUSIGNAL CANDLE EA v1.00 — naya EA (16 Nov 2026)
 - User: "Candle strategy bahut sahi chal rahi hai, iska EA banao" → naya $100 DEMO, ek saath 3 trade, sirf app me ON pair (app se manage).
