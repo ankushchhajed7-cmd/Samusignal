@@ -23,13 +23,19 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
 | SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.12** | `vps-ea/SAMUSIGNAL AI AUTO v1.12.mq5`, `vps-scanner/scanner.mjs` (v1.09) |
-| SAMUSIGNAL CANDLE EA (app Candle page / Strategy 5 ka apna EA — naye $100 DEMO par; sirf app me ON pair, sirf 1 MIN; ek saath max 3; VPS paper jaisa niyam; Matrix Terminal dashboard + PAUSE / CLOSE ALL; REAL par AllowReal=false se band) | **1.01** | `vps-ea/SAMUSIGNAL CANDLE EA v1.01.mq5` |
+| SAMUSIGNAL CANDLE EA (app Candle page / Strategy 5 ka apna EA — naye $100 DEMO par; sirf app me ON pair, sirf 1 MIN; samay 07-17 + 20-22 IST; High news ±30 min naya trade nahi; ek saath max 3; VPS paper jaisa niyam; Matrix Terminal dashboard + PAUSE / CLOSE ALL; REAL par AllowReal=false se band) | **1.02** | `vps-ea/SAMUSIGNAL CANDLE EA v1.02.mq5` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMUSIGNAL CANDLE EA v1.02 — trade samay + news filter (16 Nov 2026)
+- User: v1.01 VPS par lag gaya. "News filter? Trading time 7 AM–5 PM aur 8 PM–10 PM; beech me news ho to news ke 30 min pehle aur 30 min baad koi trade nahi."
+- `TradeWindows` "07:00-17:00,20:00-22:00" (IST): bahar naya signal jaancha hi nahi jaata; chalu trade apne niyam se. `NewsOn` + `NewsBeforeMin` 30 / `NewsAfterMin` 30 (MT5 calendar, High; pair ki dono currency; BTCUSD = USD). `NewsCloseOpen` (default false) = us beech chalu trade bhi band — user se poochha hai.
+- User: "daily target $2" → `DayTargetUsd` 2.0 (pehle 0): aaj ka band P/L ≥ +$2 = us din naya trade nahi; din = server din (Exness UTC → 05:30 IST se). `DayLossUsd` abhi 0.
+- Dashboard: SAMAY (andar / bahar, agla) + NEWS (ruke pair ya agli High news) line; STATUS / app me "samay ke bahar". Code AI AUTO v1.12 wala (WinParse / InWindow / NewsLoad / NewsBlockCur / NextNewsLoad).
 
 ## SAMUSIGNAL CANDLE EA v1.01 + Scanner v1.09 — sirf 1 MIN, Matrix Terminal dashboard (16 Nov 2026)
 - User: v1.00 VPS par chal gaya (Firebase OK, app ke pair padhe) par panel ki lines ek dusre par chadh rahi thi; phir: "5 MIN hatao, sirf 1 MIN" + sample screenshot "Matrix Terminal" jaisa dashboard.
