@@ -14,6 +14,8 @@
 //|     LIMIT / STOP 5 min me na bhare = cancel.                    |
 //|   - Ek saath 6 tak (seedhi hataayi); $3 net tak trade, phir din |
 //|     band + TARGET LOCK; din ka loss $12 = din band.             |
+//|   - HAATH KA TRADE: wahi SL / TP ($6 / $0.50 @0.02), LOCK, WAPSI;|
+//|     uska fayda / ghata din ke $3 target / $12 loss me (ManualInDay).|
 //|   - +$0.30 par LOCK (SL +$0.10), trail nahi; chhota BOOK band; |
 //|     trade -$2 tak gaya to wapas $0 par band; TIME 300 wahi.     |
 //|  v1.09 (user Final, 17 Nov):                                     |
@@ -201,6 +203,7 @@ input double TrailTpBodyPct   = 100;       // Trail chalu ho to door ka TP = bod
 input group "========== HAATH KA TRADE (v1.04) =========="
 input bool   ManageManual     = true;      // Haath se liya trade (magic 0) bhi isi niyam se sambhalo
 input int    ManualSlots      = 1;         // Manual ka alag slot (EA ke MaxOpen me nahi gina)
+input bool   ManualInDay      = true;      // v1.10: haath ke trade ka fayda / ghata din ke target ($3) / loss ($12) me gino
 input double ManualTpBodyPct  = 60;        // v1.06: Manual TP = pichhli band candle ki body ka itna % (pehle 50)
 
 input group "========== PAIR DIN BHAR BAND (v1.03) =========="
@@ -847,13 +850,14 @@ int CurMax()
    int v = (int)StringToInteger(p[st]);
    return (v > 0 ? v : MaxOpen);
 }
+bool InDay(long mg){ return (mg == Magic || (ManageManual && ManualInDay && mg == 0)); }   // v1.10
 double FloatPl()
 {
    double f = 0;
    for(int i=PositionsTotal()-1;i>=0;i--)
    {
       ulong t = PositionGetTicket(i);
-      if(t==0 || PositionGetInteger(POSITION_MAGIC)!=Magic) continue;
+      if(t==0 || !InDay(PositionGetInteger(POSITION_MAGIC))) continue;   // v1.10: haath ka bhi
       f += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
    }
    return f;
@@ -881,7 +885,7 @@ void DoTargetLock()
    for(int i=PositionsTotal()-1;i>=0;i--)
    {
       ulong t = PositionGetTicket(i);
-      if(t==0 || PositionGetInteger(POSITION_MAGIC)!=Magic) continue;
+      if(t==0 || !InDay(PositionGetInteger(POSITION_MAGIC))) continue;   // v1.10: haath ka bhi
       fl += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP); n++;
    }
    if(n == 0){ if(StringFind(g_LockTxt, "intezaar") >= 0) g_LockTxt = ""; return; }
@@ -902,7 +906,7 @@ void DoTargetLock()
    for(int i=PositionsTotal()-1;i>=0;i--)
    {
       ulong t = PositionGetTicket(i);
-      if(t==0 || PositionGetInteger(POSITION_MAGIC)!=Magic) continue;
+      if(t==0 || !InDay(PositionGetInteger(POSITION_MAGIC))) continue;   // v1.10: haath ka bhi
       CloseIt(t, "TARGET LOCK"); c++;
    }
    g_LockTxt = "LOCK: "+IntegerToString(c)+" trade band";
@@ -1200,6 +1204,7 @@ void OnTradeTransaction(const MqlTradeTransaction &tr, const MqlTradeRequest &rq
          string m0 = "Haath ka trade "+Name6(HistoryDealGetString(tr.deal, DEAL_SYMBOL))+" "+why0+" "+(pl0>=0?"+":"")+DoubleToString(pl0,2)+"$";
          AddLog(m0); SetAlert(m0);
          if(PushOn) SendNotification("CANDLE EA: "+m0);
+         DayStats(); PublishState();                                     // v1.10: din ke hisaab me
       }
       return;
    }
@@ -1212,6 +1217,7 @@ void OnTradeTransaction(const MqlTradeTransaction &tr, const MqlTradeRequest &rq
          string mm = "Haath ka trade "+Name6(HistoryDealGetString(tr.deal, DEAL_SYMBOL))+" "+GetWhy(pidm)+" "+(plm>=0?"+":"")+DoubleToString(plm,2)+"$";
          AddLog(mm); SetAlert(mm);
          if(PushOn) SendNotification("CANDLE EA: "+mm);
+         DayStats(); PublishState();                                     // v1.10
          return;
       }
    }
@@ -1271,7 +1277,8 @@ void DayStats()
    for(int i=0;i<n;i++)
    {
       ulong d = HistoryDealGetTicket(i);
-      if(d==0 || HistoryDealGetInteger(d, DEAL_MAGIC)!=Magic) continue;
+      if(d==0 || !InDay(HistoryDealGetInteger(d, DEAL_MAGIC))) continue;   // v1.10: haath ka bhi
+      { long dty = HistoryDealGetInteger(d, DEAL_TYPE); if(dty != DEAL_TYPE_BUY && dty != DEAL_TYPE_SELL) continue; }   // deposit / balance nahi
       double pr = HistoryDealGetDouble(d, DEAL_PROFIT) + HistoryDealGetDouble(d, DEAL_SWAP) + HistoryDealGetDouble(d, DEAL_COMMISSION);
       g_DayPl += pr;
       long en = HistoryDealGetInteger(d, DEAL_ENTRY);
