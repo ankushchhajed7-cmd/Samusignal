@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.10   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.11   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -26,6 +26,8 @@
    v1.06 — har paper par 4 PUSHTI likhi jaati hain (p.cf, candlerules.confirms; 1 MIN ki badi TF = 5 MIN, 5 MIN ki = 15 MIN).
    Sirf naapne ke liye — signal / paper niyam wahi.
    v1.07 — har paper ka 'sabse gehra ghata' (mae $) bhi likha jaata hai (book hone se pehle trade kitna neeche gaya).
+   v1.11 — SURAKSHIT LIKHNA: engine / apna naya version / state.json pehle .tmp me, poora likh jaane par hi asli file
+   badalti hai (16 Nov raat disk bhari thi -> scanner.mjs 0 byte ho gayi thi, AI AUTO ko signal band).
    v1.10 — TP KI TULNA (user '① naap Final', sirf naap): paper me signal candle ki body; nateeja aane par p.mfe / p.mfe1
    (sabse zyada fayda) + p.tv = candlerules.tpVariants (TP 30 / 50 / 75 / 100%, 50% par lock + 100%, book 25%). Lambe
    wale (T100 / TR) baad me poore hon to p.tvp = true rehta hai, har 15 sec phir jaanch (7 ghante tak).
@@ -40,7 +42,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.10';
+const VER = '1.11';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -87,7 +89,9 @@ const unlock = () => { try{ fs.unlinkSync(LOCK_F) }catch(e){} };
 
 const ST = readJson(STATE_F, {});
 ST.seen = ST.seen || {}; ST.ai = ST.ai || {}; ST.ls = ST.ls || {}; ST.aiDay = ST.aiDay || {d: '', n: 0};
-const saveState = () => { try{ fs.writeFileSync(STATE_F, JSON.stringify(ST)) }catch(e){ log('state.json likh nahi paaye: ' + e.message) } };
+/* v1.11: pehle .tmp, poora likha to hi badlo (disk bhari ho to purani file salamat) */
+function safeWrite(f, data){ const tmp = f + '.tmp'; try{ fs.writeFileSync(tmp, data); fs.renameSync(tmp, f) }catch(e){ try{ fs.unlinkSync(tmp) }catch(_){} throw e } }
+const saveState = () => { try{ safeWrite(STATE_F, JSON.stringify(ST)) }catch(e){ log('state.json likh nahi paaye: ' + e.message) } };
 
 /* app ka engine localStorage maangta hai (Gemini band-model yaad) — file me rakho */
 globalThis.localStorage = {
@@ -105,12 +109,12 @@ async function refreshCode(){
   try{
     const got = {};
     for(const f of ENG_FILES){ const t = await getText(PAGES + f); if(!/export /.test(t)) throw new Error(f + ' galat'); got[f] = t }
-    for(const f of ENG_FILES) fs.writeFileSync(path.join(ENG_DIR, f), got[f]);
+    for(const f of ENG_FILES) safeWrite(path.join(ENG_DIR, f), got[f]);
     ST.engAt = Date.now(); log('engine taaza kiya (GitHub Pages)');
   }catch(e){ if(!old) throw new Error('engine download nahi hua: ' + e.message); log('engine update fail (purana chalega): ' + e.message) }
   try{
     const t = await getText(SELF_RAW), me = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8');
-    if(/SAMUSIGNAL AI AUTO — VPS Scanner/.test(t) && t !== me){ fs.writeFileSync(fileURLToPath(import.meta.url), t); log('scanner ka naya version utara (agli baar se)') }
+    if(/SAMUSIGNAL AI AUTO — VPS Scanner/.test(t) && t !== me){ safeWrite(fileURLToPath(import.meta.url), t); log('scanner ka naya version utara (agli baar se)') }
   }catch(e){}
 }
 

@@ -22,14 +22,20 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
-| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.12** | `vps-ea/SAMUSIGNAL AI AUTO v1.12.mq5`, `vps-scanner/scanner.mjs` (v1.09) |
+| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $5 profit = band; REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.12** | `vps-ea/SAMUSIGNAL AI AUTO v1.12.mq5`, `vps-scanner/scanner.mjs` (v1.11) |
 | SAMUSIGNAL CANDLE EA (app Candle page / Strategy 5 ka apna EA — naye $100 DEMO par; sirf app me ON pair, sirf 1 MIN; 24 ghante (sirf news rok); lock +$0.15 → SL +$0.10 + trail $0.05; High news ±30 min naya trade nahi; floating −$2 = pair din bhar band + badla pair auto; ek saath max 3 + haath ka 1 slot (haath ka trade bhi isi niyam se); VPS paper jaisa niyam; Matrix Terminal dashboard + PAUSE / CLOSE ALL; REAL par AllowReal=false se band) | **1.08** | `vps-ea/SAMUSIGNAL CANDLE EA v1.08.mq5` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
-| VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy) | **1.03** | `vps-helper/SamuVpsHelper.ps1` |
+| VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek) | **1.04** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## VPS Helper v1.04 + Scanner v1.11 — disk bhari thi, scanner.mjs 0 byte (17 Nov 2026)
+- 16 Nov raat VPS C: drive bhar gayi (288 KB free). Scanner apna naya version likhte waqt `C:\SamuScanner\scanner.mjs` 0 byte (23:20) → 17 Nov subah se AI AUTO ko signal / candle push / VPS paper band ("SCANNER CHUP!"). User ne Tester / Crashes / WebInstall / Recycle Bin saaf karke 3.59 GB kiya.
+- Helper v1.04 `Repair-Scanner()` har run (2 min) me: scanner.mjs < 10 KB ya marker nahi → GitHub raw se `.fix` me laakar jaanch ke badalta hai; `engine\*.js` < 300 byte / `export ` nahi → GitHub Pages se. Disk < 50 MB ho to nahi. Log: "Scanner repair: ...".
+- Scanner v1.11 `safeWrite()`: engine / apna naya version / state.json pehle `.tmp`, poora likha to hi rename (disk bhari ho to purani file salamat).
+- Helper khud ko agle run se naya leta hai (abhi purane EA dobara compile me busy) → repair ~15–30 min me.
 
 ## SAMUSIGNAL CANDLE EA v1.08 — LOCK + TRAIL (16 Nov 2026)
 - User: "0.10 lock karo aur wahan se trail" → sujhaav ($0.15 par lock → SL +$0.10, trail $0.05, door ka TP body 100%) → "Final, TIME 200 bhi rakho".
