@@ -1,5 +1,5 @@
 # ==================================================================
-#  SamuSignal VPS Helper v1.03  -  Ankush New Vision
+#  SamuSignal VPS Helper v1.04  -  Ankush New Vision
 # ------------------------------------------------------------------
 #  KAAM (har 2 min, Task Scheduler se, chhupa hua):
 #   1. GitHub (main branch) pe naya commit? -> copytrade-ea ki .mq5
@@ -19,6 +19,12 @@
 #    Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 #
 #  CHANGELOG
+#   v1.04 (17-Nov-2026) SCANNER REPAIR: 16 Nov raat VPS ki C: disk bhar gayi
+#                       thi, scanner apna naya version likhte waqt
+#                       C:\SamuScanner\scanner.mjs 0 byte ho gayi -> AI AUTO ko
+#                       signal band. Ab har run me jaanch: scanner.mjs (ya
+#                       engine\*.js) khaali / adhoori ho to GitHub se sahi
+#                       file laakar rakhta hai (disk me 50 MB se kam ho to nahi).
 #   v1.03 (12-Nov-2026) .ex5 files bhi (vps-ea / copytrade-ea me rakhi .ex5
 #                       seedha har terminal ke MQL5\Experts me copy, compile
 #                       nahi). Naya helper version aate hi ek baar poora
@@ -32,7 +38,7 @@
 #   v1.00 (30-Sep-2026) Pehla build.
 # ==================================================================
 
-$HelperVer     = '1.03'
+$HelperVer     = '1.04'
 $Repo          = 'ankushchhajed7-cmd/samusignal'
 $Branch        = 'main'
 $DeployFolders = @('copytrade-ea', 'vps-ea') # repo ke in folders ki .mq5 / .ex5 VPS pe jaayengi
@@ -159,6 +165,55 @@ function Compile-File($t, [string]$dst) {
     return $res
 }
 
+# ---------- v1.04: VPS scanner repair ----------
+$ScanDir   = 'C:\SamuScanner'
+$ScanRaw   = 'https://raw.githubusercontent.com/ankushchhajed7-cmd/samusignal/main/vps-scanner/scanner.mjs'
+$ScanPages = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/'
+$ScanEng   = @('symbols.js', 'data.js', 'engine.js', 'ai.js', 'candlerules.js')
+function Test-GoodFile([string]$f, [int]$minLen, [string[]]$must) {
+    if (-not (Test-Path -LiteralPath $f)) { return $false }
+    if ((Get-Item -LiteralPath $f).Length -lt $minLen) { return $false }
+    $t = [IO.File]::ReadAllText($f)
+    foreach ($m in $must) { if ($t.IndexOf($m) -lt 0) { return $false } }
+    return $true
+}
+function Fix-File([string]$url, [string]$dst, [int]$minLen, [string[]]$must) {
+    $tmp = $dst + '.fix'
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $tmp -Headers $Headers -UseBasicParsing
+        if (Test-GoodFile $tmp $minLen $must) {
+            Move-Item -LiteralPath $tmp -Destination $dst -Force
+            Log ('Scanner repair: ' + (Split-Path $dst -Leaf) + ' GitHub se dobara rakhi')
+            return $true
+        }
+        Log ('Scanner repair: ' + (Split-Path $dst -Leaf) + ' download theek nahi aaya')
+    } catch { Log ('Scanner repair ERROR: ' + (Split-Path $dst -Leaf) + ' - ' + $_.Exception.Message) }
+    Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    return $false
+}
+function Repair-Scanner {
+    if (-not (Test-Path -LiteralPath $ScanDir)) { return }
+    try {
+        $drv = Get-PSDrive -Name $ScanDir.Substring(0, 1) -ErrorAction SilentlyContinue
+        if ($drv -and $drv.Free -lt 50MB) { Log 'Scanner repair: disk me 50 MB se kam jagah - pehle jagah khaali karo'; return }
+    } catch {}
+    $sf = Join-Path $ScanDir 'scanner.mjs'
+    if (-not (Test-GoodFile $sf 10000 @('VPS Scanner v', 'Promise.all([pMain'))) {
+        Log 'Scanner repair: scanner.mjs khaali / adhoori mili'
+        [void](Fix-File $ScanRaw $sf 10000 @('VPS Scanner v', 'Promise.all([pMain'))
+    }
+    $ed = Join-Path $ScanDir 'engine'
+    if (Test-Path -LiteralPath $ed) {
+        foreach ($e in $ScanEng) {
+            $ef = Join-Path $ed $e
+            if (-not (Test-GoodFile $ef 300 @('export '))) {
+                Log ('Scanner repair: engine\' + $e + ' khaali / adhoori mili')
+                [void](Fix-File ($ScanPages + $e) $ef 300 @('export '))
+            }
+        }
+    }
+}
+
 # ==================================================================
 $state = Load-State
 $ghErr = ''
@@ -172,6 +227,8 @@ try {
             Set-Content -LiteralPath $LogF -Value $keep -Encoding UTF8
         }
     } catch {}
+
+    try { Repair-Scanner } catch { Log ('Scanner repair error: ' + $_.Exception.Message) }   # v1.04
 
     $terms = @(Get-Terminals)
 
