@@ -23,7 +23,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
 | SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $3 profit = band + TARGET LOCK (v1.13); REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.13** | `vps-ea/SAMUSIGNAL AI AUTO v1.13.mq5`, `vps-scanner/scanner.mjs` (v1.11) |
-| SAMUSIGNAL CANDLE EA (app Candle page / Strategy 5 ka apna EA — naye $100 DEMO par; sirf app me ON pair, sirf 1 MIN; 24 ghante (sirf news rok); lock +$0.15 → SL +$0.10 + trail $0.05; High news ±30 min naya trade nahi; floating −$2 = pair din bhar band + badla pair auto; ek saath max 3 + haath ka 1 slot (haath ka trade bhi isi niyam se); VPS paper jaisa niyam; Matrix Terminal dashboard + PAUSE / CLOSE ALL; REAL par AllowReal=false se band) | **1.08** | `vps-ea/SAMUSIGNAL CANDLE EA v1.08.mq5` |
+| SAMUSIGNAL CANDLE EA (app Candle page / Strategy 5 ka apna EA — naye $100 DEMO par; sirf app me ON pair, sirf 1 MIN; 24 ghante (sirf news rok); lock +$0.15 → SL +$0.10 + trail $0.05; High news ±30 min naya trade nahi; floating −$2 = pair din bhar band + badla pair auto; ek saath max 3 + haath ka 1 slot (haath ka trade bhi isi niyam se); VPS paper jaisa niyam; Matrix Terminal dashboard + PAUSE / CLOSE ALL; REAL par AllowReal=false se band) | **1.09** | `vps-ea/SAMUSIGNAL CANDLE EA v1.09.mq5` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
@@ -36,6 +36,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Helper v1.04 `Repair-Scanner()` har run (2 min) me: scanner.mjs < 10 KB ya marker nahi → GitHub raw se `.fix` me laakar jaanch ke badalta hai; `engine\*.js` < 300 byte / `export ` nahi → GitHub Pages se. Disk < 50 MB ho to nahi. Log: "Scanner repair: ...".
 - Scanner v1.11 `safeWrite()`: engine / apna naya version / state.json pehle `.tmp`, poora likha to hi rename (disk bhari ho to purani file salamat).
 - Helper khud ko agle run se naya leta hai (abhi purane EA dobara compile me busy) → repair ~15–30 min me.
+
+## SAMUSIGNAL CANDLE EA v1.09 — AUTO PICK + seedhi slot 8/6/4 + target $3 lock + BOOK $0.10 + TIME 300 (17 Nov 2026)
+- User: (a) min profit badhao + TIME 300; (b) app ke fix pair ki jagah EA khud har minute sabse achha pair chune; (c) $3 target me $0-1: 8 trade, $1-2: 6, $2-3: 4, $3 = sab band → "864" (Final).
+- AUTO PICK (`AutoPick` true, `PickList` 15 pair, XAU nahi): `PickScan()` har server minute ke 2-20 sec me ek baar — har pair ki taaza band M1 candle par `Signal()`; chalu / aaj band / news wale bahar; TP (body 100%, $0.15-1.00) < `PickTpSpread` 2× spread = bahar; score = taakat (body/avg10, max 4x → 40) + TP/spread (max 10x → 30) + 5m EMA9/21 saath 15 + 15m saath 15; < `PickMinScore` 40 = bahar; bada score pehle; `PickOneCurDir` (EA + haath ke chalu trade ki currency-disha, jaise EUR+ / USD−, dobara nahi). Key wahi format, Firebase trade me `why` "AUTO 72 (taakat…)". AutoReplace / AutoExpire AUTO PICK me band. App ke ON pair sirf paper.
+- Seedhi slot: `SlotSteps` "8,6,4", `StepUsd` 1 → `CurMax()` (din ka band net). Slot ghate to chalu trade band nahi.
+- `DayTargetUsd` 2 → 3 + `TargetLock` (AI AUTO v1.13 jaisa): `TgtHit()` din me pehli baar target → din band (sticky) + push; `DoTargetLock()` har 250 ms: net + floating ≥ target → sab band "TARGET LOCK", kam → intezaar push ek baar.
+- `Book_Usd` 0.05 → 0.10; naya `BookCloseUsd` 0.10 (candle band par fayda ≥ $0.10 tabhi BOOK; pehle $0.004). `HoldMax1` 200 → 300.
+- `FloatStopUsd` 0 (band) — sujhaav −$5, user ne abhi chalu nahi kaha.
+- Dashboard: AUTO PICK line (aakhri jaanch, top 4 score), SLOTS "x / CurMax (seedhi 8,6,4)", 8 trade tak (log chhota). State me `auto`, `pick`, `target`, `steps`, `max` = CurMax.
 
 ## SAMUSIGNAL CANDLE EA v1.08 — LOCK + TRAIL (16 Nov 2026)
 - User: "0.10 lock karo aur wahan se trail" → sujhaav ($0.15 par lock → SL +$0.10, trail $0.05, door ka TP body 100%) → "Final, TIME 200 bhi rakho".
