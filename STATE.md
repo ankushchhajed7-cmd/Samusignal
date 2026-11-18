@@ -14,7 +14,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
 | AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.01** | `vps-ea/AMC GOLD MASTER v1.01.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
-| Investor Account Watcher (INVESTOR-ID repo) | **1.08** | `vps-ea/Investor Account Watcher v1.08.mq5` |
+| Investor Account Watcher (INVESTOR-ID repo) | **1.09** | `vps-ea/Investor Account Watcher v1.09.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
@@ -31,6 +31,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread OFF (original me spread filter nahi tha); news filter ±30 min USD High (v1.01); Gold Luxe dashboard + PAUSE / CLOSE buttons (v1.01); H1 trail SL optional OFF; HEDGING account) | **1.03** | `vps-ea/SAMU GOLD KILLER v1.03.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek) | **1.04** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## Investor Account Watcher v1.09 — token safai (18 Nov 2026, main → VPS Helper)
+- v1.08 log: length 93 par bhi "type=ANJAAN" (github_pat_ nahi mila) → paste me '_' ya koi akshar badal raha tha.
+- Wajah ki kahani: user INVESTOR-ID app se logout → login; tab token naya / regenerate hua → 1546 ka purana token band (≈18:00 IST se 401). 464208541 Watcher doosre token se chalta raha.
+- v1.09: token me sirf A-Z a-z 0-9 _ rakhta hai (baaki nishan → '_', chhupe nishan hatao), Experts me pehle 11 akshar print ("github_pat_" — raaz nahi). Compile 0 errors, 0 warnings.
 
 ## Investor Account Watcher v1.08 — token ki shuruaat khud theek (18 Nov 2026, main → VPS Helper)
 - v1.07 log: naya token length 93 par "type=ANJAAN shuruaat" → keyboard ne "Github_pat_" (bada G) kar diya tha.
