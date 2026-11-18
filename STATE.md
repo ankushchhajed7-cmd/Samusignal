@@ -29,8 +29,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
 | SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread OFF (original me spread filter nahi tha); news filter ±30 min USD High (v1.01); Gold Luxe dashboard + PAUSE / CLOSE buttons (v1.01); H1 trail SL optional OFF; HEDGING account) | **1.03** | `vps-ea/SAMU GOLD KILLER v1.03.mq5` |
-| VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek) | **1.04** | `vps-helper/SamuVpsHelper.ps1` |
+| VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek; v1.05: Watcher token heal) | **1.05** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## VPS Helper v1.05 — TOKEN HEAL (18 Nov 2026 raat, main)
+- 1546 Watcher 401 (≈18:00 se): user ke phone → remote paste me token bigadta raha, aur jo token daala wo bhi band tha. VPS ke Firefox se GitHub "Access temporarily restricted" (VPS IP par bahut API traffic).
+- Hal bina user ke: helper har 10 min VPS ke sab terminal (.chr / .set / MQL5\Files / Common) me GitHub token dhoondhta hai, GitHub se jaanchta hai (INVESTOR-ID push = OK), aur sahi token har Watcher terminal ke MQL5\Files\investor_token.txt + Common\Files\IW_gh_token.txt me rakhta hai (sirf jahan kharab / khaali). Watcher v1.07+ 401 par har 60 sec file dobara padhta hai → khud theek.
+- Haal GitHub par: INVESTOR-ID `data/_vps/heal.json` (token nahi, sirf ginti / kaunse terminal theek hue).
 
 ## Investor Account Watcher v1.09 — token safai (18 Nov 2026, main → VPS Helper)
 - v1.08 log: length 93 par bhi "type=ANJAAN" (github_pat_ nahi mila) → paste me '_' ya koi akshar badal raha tha.

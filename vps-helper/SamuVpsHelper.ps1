@@ -1,5 +1,5 @@
 # ==================================================================
-#  SamuSignal VPS Helper v1.04  -  Ankush New Vision
+#  SamuSignal VPS Helper v1.05  -  Ankush New Vision
 # ------------------------------------------------------------------
 #  KAAM (har 2 min, Task Scheduler se, chhupa hua):
 #   1. GitHub (main branch) pe naya commit? -> copytrade-ea ki .mq5
@@ -19,6 +19,16 @@
 #    Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 #
 #  CHANGELOG
+#   v1.05 (18-Nov-2026) TOKEN HEAL (Investor Account Watcher ka 401):
+#                       VPS ke sab MT5 terminal (chart profile .chr, presets
+#                       .set, MQL5\Files, Common\Files) me GitHub token
+#                       dhoondhta hai, har ek ko GitHub se jaanchta hai, jo
+#                       INVESTOR-ID me likh sakta hai (push) wahi token har
+#                       terminal ke MQL5\Files\investor_token.txt aur
+#                       Common\Files\IW_gh_token.txt me rakhta hai (sirf
+#                       jahan kharab / khaali ho). Watcher 60 sec me khud
+#                       utha leta hai - phone se paste ki zarurat nahi.
+#                       Token kabhi log / report me nahi. Har 10 min.
 #   v1.04 (17-Nov-2026) SCANNER REPAIR: 16 Nov raat VPS ki C: disk bhar gayi
 #                       thi, scanner apna naya version likhte waqt
 #                       C:\SamuScanner\scanner.mjs 0 byte ho gayi -> AI AUTO ko
@@ -38,7 +48,7 @@
 #   v1.00 (30-Sep-2026) Pehla build.
 # ==================================================================
 
-$HelperVer     = '1.04'
+$HelperVer     = '1.05'
 $Repo          = 'ankushchhajed7-cmd/samusignal'
 $Branch        = 'main'
 $DeployFolders = @('copytrade-ea', 'vps-ea') # repo ke in folders ki .mq5 / .ex5 VPS pe jaayengi
@@ -214,6 +224,95 @@ function Repair-Scanner {
     }
 }
 
+
+# ---------- v1.05 TOKEN HEAL (Investor Account Watcher) ----------
+$HealRepo  = 'ankushchhajed7-cmd/INVESTOR-ID'
+$HealFile  = 'investor_token.txt'
+$HealCommon = Join-Path $TermRoot 'Common\Files\IW_gh_token.txt'
+function Test-GhToken([string]$tok) {
+    # 2 = likh sakta hai (push), 1 = sirf padh sakta, 0 = kharab / 401
+    try {
+        $h = @{ 'User-Agent' = 'SamuVpsHelper'; 'Accept' = 'application/vnd.github+json'; 'Authorization' = ('Bearer ' + $tok) }
+        $r = Invoke-RestMethod -Uri ("https://api.github.com/repos/$HealRepo") -Headers $h -UseBasicParsing -TimeoutSec 15
+        if ($r.permissions -and $r.permissions.push) { return 2 }
+        return 1
+    } catch { return 0 }
+}
+function Get-TokCandidates([string]$text) {
+    $out = @()
+    if (-not $text) { return $out }
+    foreach ($m in [regex]::Matches($text, 'github_pat_[A-Za-z0-9_]{60,}')) { $out += $m.Value }
+    foreach ($m in [regex]::Matches($text, '(?<![A-Za-z0-9_])ghp_[A-Za-z0-9]{36}(?![A-Za-z0-9])')) { $out += $m.Value }
+    return $out
+}
+function Write-TokFile([string]$path, [string]$tok) {
+    $dir = Split-Path -Parent $path
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [IO.File]::WriteAllText($path, $tok, (New-Object Text.ASCIIEncoding))
+}
+function Heal-Tokens($terms) {
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    if ($state['healAt'] -and ($now - [long]$state['healAt']) -lt 600) { return }
+    $state['healAt'] = $now
+    # 1. sab jagah se token ikattha (kahan mila - sirf ginti log hogi)
+    $cands = New-Object System.Collections.ArrayList
+    $files = @()
+    if (Test-Path -LiteralPath $HealCommon) { $files += $HealCommon }
+    foreach ($t in $terms) {
+        foreach ($sub in @('MQL5\Profiles', 'MQL5\Presets', 'MQL5\Files')) {
+            $d = Join-Path $t.Dir $sub
+            if (-not (Test-Path -LiteralPath $d)) { continue }
+            $files += @(Get-ChildItem -LiteralPath $d -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { ($_.Extension -in @('.chr', '.set', '.txt', '.tpl')) -and $_.Length -lt 2MB } | ForEach-Object { $_.FullName })
+        }
+    }
+    foreach ($f in $files) {
+        try { foreach ($c in (Get-TokCandidates (Read-Text $f))) { if (-not $cands.Contains($c)) { [void]$cands.Add($c) } } } catch {}
+    }
+    if ($cands.Count -eq 0) { Log 'Token heal: VPS par koi GitHub token nahi mila'; return }
+    # 2. jaancho - pehle wo jo abhi Common me hai
+    $good = ''
+    $nBad = 0
+    foreach ($c in @($cands | Select-Object -First 25)) {
+        $r = Test-GhToken $c
+        if ($r -eq 2) { $good = $c; break } else { $nBad++ }
+    }
+    if (-not $good) { Log ('Token heal: ' + $cands.Count + ' token mile, koi bhi INVESTOR-ID me likh nahi sakta (sab 401 / sirf padhne wale)'); $state['heal'] = 'koi sahi token nahi'; return }
+    # 3. jahan kharab / khaali ho wahan sahi token rakho
+    $fixed = @()
+    $cur = ''
+    if (Test-Path -LiteralPath $HealCommon) { $cur = (Read-Text $HealCommon).Trim() }
+    if ($cur -ne $good) { try { Write-TokFile $HealCommon $good; $fixed += 'Common' } catch { Log ('Token heal: Common me likh nahi paya - ' + $_.Exception.Message) } }
+    foreach ($t in $terms) {
+        $tf = Join-Path $t.Dir ('MQL5\Files\' + $HealFile)
+        $old = ''
+        if (Test-Path -LiteralPath $tf) { $old = (Read-Text $tf).Trim() }
+        if ($old -eq $good) { continue }
+        # sirf un terminal me jahan Investor Watcher laga hai / file pehle se hai / login hai
+        $hasWatcher = (Test-Path -LiteralPath $tf) -or (@(Get-ChildItem -LiteralPath (Join-Path $t.Dir 'MQL5\Profiles') -Recurse -Filter '*.chr' -ErrorAction SilentlyContinue |
+            Where-Object { (Read-Text $_.FullName) -match 'Investor Account Watcher' }).Count -gt 0)
+        if (-not $hasWatcher) { continue }
+        if ($old -and (Test-GhToken $old) -eq 2) { continue }      # uska apna token bhi chalta hai - mat chhedo
+        try { Write-TokFile $tf $good; $fixed += ($t.Name + '/' + $t.Login.Substring([Math]::Max(0, $t.Login.Length - 4))) } catch { Log ('Token heal: ' + $t.Name + ' me likh nahi paya - ' + $_.Exception.Message) }
+    }
+    $msg = 'Token heal: ' + $cands.Count + ' token mile, sahi token mila (' + $nBad + ' kharab chhode)'
+    if ($fixed.Count -gt 0) { $msg += '; theek kiya: ' + ($fixed -join ', ') } else { $msg += '; sab jagah pehle se sahi' }
+    Log $msg
+    $state['heal'] = $msg
+    # 4. GitHub par chhoti report (token nahi, sirf haal) - Claude dekh sake
+    try {
+        $body = [ordered]@{ at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); helper = $HelperVer; found = $cands.Count; bad = $nBad; fixed = @($fixed); msg = $msg } | ConvertTo-Json -Compress
+        $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($body))
+        $h = @{ 'User-Agent' = 'SamuVpsHelper'; 'Accept' = 'application/vnd.github+json'; 'Authorization' = ('Bearer ' + $good) }
+        $url = "https://api.github.com/repos/$HealRepo/contents/data/_vps/heal.json"
+        $sha = $null
+        try { $sha = (Invoke-RestMethod -Uri $url -Headers $h -UseBasicParsing -TimeoutSec 15).sha } catch {}
+        $put = [ordered]@{ message = 'vps token heal'; content = $b64; branch = 'main' }
+        if ($sha) { $put.sha = $sha }
+        Invoke-RestMethod -Method Put -Uri $url -Headers $h -Body ($put | ConvertTo-Json -Compress) -ContentType 'application/json' -UseBasicParsing -TimeoutSec 20 | Out-Null
+    } catch {}
+}
+
 # ==================================================================
 $state = Load-State
 $ghErr = ''
@@ -231,6 +330,8 @@ try {
     try { Repair-Scanner } catch { Log ('Scanner repair error: ' + $_.Exception.Message) }   # v1.04
 
     $terms = @(Get-Terminals)
+
+    try { Heal-Tokens $terms; Save-State $state } catch { Log ('Token heal error: ' + $_.Exception.Message) }   # v1.05
 
     # ---- GitHub: naya commit? ----
     try {
