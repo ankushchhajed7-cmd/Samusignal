@@ -605,7 +605,7 @@ void Btn(string n, int x, int y, int w, int h, string txt, color txtc, color bg,
    ObjectSetInteger(0, nm, OBJPROP_YSIZE, h);
    ObjectSetString(0, nm, OBJPROP_TEXT, txt);
    ObjectSetString(0, nm, OBJPROP_FONT, "Segoe UI Semibold");
-   ObjectSetInteger(0, nm, OBJPROP_FONTSIZE, FS(1.15));
+   ObjectSetInteger(0, nm, OBJPROP_FONTSIZE, FS(1.1));
    ObjectSetInteger(0, nm, OBJPROP_COLOR, txtc);
    ObjectSetInteger(0, nm, OBJPROP_BGCOLOR, bg);
    ObjectSetInteger(0, nm, OBJPROP_BORDER_COLOR, border);
@@ -665,8 +665,8 @@ void Panel()
    if(gW < 200 || gH < 150) return;
    gDpi = (double)TerminalInfoInteger(TERMINAL_SCREEN_DPI);
    if(gDpi < 72) gDpi = 96;
-   gU = MathMin(gW / 100.0, gH / 58.0);                      // 100 unit chauda, 58 unit uncha
-   int m = PX(3);                                             // bahar ka margin
+   gU = MathMin(gW / 100.0, gH / 62.0);                      // 100 unit chauda, 62 unit uncha
+   int m = PX(2.6);                                           // bahar ka margin
    int W = gW, H = gH;
    int CW = W - 2 * m;                                        // content width
 
@@ -684,28 +684,28 @@ void Panel()
 
    // ---------- background + gold frame ----------
    Rect("bg", 0, 0, W, H, C_BG, C_BG);
-   Rect("frame", PX(1.2), PX(1.2), W - 2 * PX(1.2), H - 2 * PX(1.2), C_BG, C_LINE);
+   Rect("frame", PX(1.0), PX(1.0), W - 2 * PX(1.0), H - 2 * PX(1.0), C_BG, C_LINE);
 
    // ---------- header ----------
-   int y = PX(3.2);
-   Lbl("t1", m, y, Spaced("SAMU GOLD KILLER") + "    ·    " + Spaced(_Symbol), "Segoe UI", FS(1.25), C_GOLD);
-   Lbl("eq", m - PX(0.2), y + PX(2.2), Money(eq), "Georgia", FS(5.2), C_GOLD);
-   Lbl("t2", m, y + PX(9.0), "Equity  ·  Balance " + Money(bal) + "  ·  Floating " + Money(flt, true) + "  ·  " + AccountInfoString(ACCOUNT_COMPANY) + " #" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)),
-       "Segoe UI", FS(1.3), C_MUTED);
+   int y = PX(2.8);
+   Lbl("t1", m, y, Spaced("SAMU GOLD KILLER") + "    ·    " + Spaced(_Symbol), "Segoe UI", FS(1.2), C_GOLD);
+   Lbl("eq", m - PX(0.2), y + PX(1.9), Money(eq), "Georgia", FS(4.4), C_GOLD);
+   Lbl("t2", m, y + PX(7.7), "Equity  ·  Balance " + Money(bal) + "  ·  Floating " + Money(flt, true) + "  ·  " + AccountInfoString(ACCOUNT_COMPANY) + " #" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)),
+       "Segoe UI", FS(1.25), C_MUTED);
    datetime ist = TimeGMT() + 19800;
    MqlDateTime it; TimeToStruct(ist, it);
    string days[7] = {"SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"};
    string mons[12] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
    int rx = W - m;
-   Rect("vline", W - m - PX(24), y, 1, PX(10.5), C_LINE, C_LINE);
-   Lbl("clk", rx, y + PX(0.4), StringFormat("%02d:%02d", it.hour, it.min), "Georgia", FS(4.0), C_CREAM, 1);
-   Lbl("day", rx, y + PX(6.0), Spaced("IST · " + days[it.day_of_week] + " " + IntegerToString(it.day) + " " + mons[it.mon - 1]), "Segoe UI", FS(1.15), C_GOLD, 1);
-   Lbl("srv", rx, y + PX(8.1), "Server " + TimeToString(TimeTradeServer(), TIME_MINUTES) + "  ·  v1.02", "Segoe UI", FS(1.15), C_MUTED, 1);
-   y += PX(12.0);
+   Rect("vline", W - m - PX(22), y, 1, PX(9.2), C_LINE, C_LINE);
+   Lbl("clk", rx, y + PX(0.2), StringFormat("%02d:%02d", it.hour, it.min), "Georgia", FS(3.4), C_CREAM, 1);
+   Lbl("day", rx, y + PX(5.2), Spaced("IST · " + days[it.day_of_week] + " " + IntegerToString(it.day) + " " + mons[it.mon - 1]), "Segoe UI", FS(1.1), C_GOLD, 1);
+   Lbl("srv", rx, y + PX(7.2), "Server " + TimeToString(TimeTradeServer(), TIME_MINUTES) + "  ·  v1.02", "Segoe UI", FS(1.1), C_MUTED, 1);
+   y += PX(10.2);
    Rect("hr1", m, y, CW, 1, C_LINE, C_LINE);
+   y += PX(1.2);
 
    // ---------- status banner ----------
-   y += PX(1.4);
    string bTitle = "Status", bMsg = "All clear  ·  BUY + SELL grid chalu  ·  TP $" + DoubleToString(BasketTP_USD, 0) + " per side";
    color  bClr = C_GREEN, bBorder = C'40,70,52';
    double ddLimit = MaxLossUSD > 0 ? MaxLossUSD : 0;
@@ -718,66 +718,66 @@ void Panel()
    else if(paused)                 { bTitle = "Paused"; bMsg = "Naya pending band  ·  khule trade ka $" + DoubleToString(BasketTP_USD, 0) + " TP chalu  ·  RESUME dabao"; bClr = C_AMBER; bBorder = C_GOLD2; }
    else if(newsBlock)              { bTitle = "News"; bMsg = newsText; bClr = C_AMBER; bBorder = C_GOLD2; }
    else if(!SpreadOk())            { bTitle = "Spread"; bMsg = StringFormat("Spread $%.2f > $%.2f  ·  naya pending ruka", sp, MaxSpreadUSD); bClr = C_AMBER; bBorder = C_GOLD2; }
-   Rect("ban", m, y, CW, PX(4.2), C_BANNER, bBorder);
-   Lbl("banT", m + PX(1.6), y + PX(0.8), bTitle, "Georgia", FS(2.0), bClr);
-   Lbl("banM", m + PX(16), y + PX(1.3), bMsg, "Segoe UI", FS(1.35), C_CREAM);
-   y += PX(6.4);
+   Rect("ban", m, y, CW, PX(3.6), C_BANNER, bBorder);
+   Lbl("banT", m + PX(1.4), y + PX(0.6), bTitle, "Georgia", FS(1.8), bClr);
+   Lbl("banM", m + PX(14), y + PX(1.05), bMsg, "Segoe UI", FS(1.3), C_CREAM);
+   y += PX(5.0);
 
    // ---------- 4 stat columns ----------
    int cw = CW / 4;
    string cl[4] = {"BUY GRID", "SELL GRID", "TODAY", "CYCLES"};
    for(int i = 0; i < 4; i++)
    {
-      Lbl("cl" + IntegerToString(i), m + i * cw + (i ? PX(1.6) : 0), y, Spaced(cl[i]), "Segoe UI", FS(1.15), C_GOLD);
-      if(i > 0) Rect("cv" + IntegerToString(i), m + i * cw, y, 1, PX(7.2), C_LINE, C_LINE);
+      Lbl("cl" + IntegerToString(i), m + i * cw + (i ? PX(1.6) : 0), y, Spaced(cl[i]), "Segoe UI", FS(1.1), C_GOLD);
+      if(i > 0) Rect("cv" + IntegerToString(i), m + i * cw, y, 1, PX(6.4), C_LINE, C_LINE);
    }
-   int vy = y + PX(1.9), sy = y + PX(5.5);
+   int vy = y + PX(1.7), sy = y + PX(4.9);
    int c0 = m, c1 = m + cw + PX(1.6), c2 = m + 2 * cw + PX(1.6), c3 = m + 3 * cw + PX(1.6);
-   Lbl("c0", c0, vy, Money(b.profit, true), "Georgia", FS(2.8), b.profit >= 0 ? C_GREEN : C_RED);
-   Lbl("c0b", c0, sy, StringFormat("%d trades  ·  %.2f lot", b.count, b.lots), "Segoe UI", FS(1.15), C_MUTED);
-   Lbl("c1", c1, vy, Money(s.profit, true), "Georgia", FS(2.8), s.profit >= 0 ? C_GREEN : C_RED);
-   Lbl("c1b", c1, sy, StringFormat("%d trades  ·  %.2f lot", s.count, s.lots), "Segoe UI", FS(1.15), C_MUTED);
-   Lbl("c2", c2, vy, Money(todayPL, true), "Georgia", FS(2.8), todayPL >= 0 ? C_GREEN : C_RED);
-   Lbl("c2b", c2, sy, "aaj band trades ka P/L", "Segoe UI", FS(1.15), C_MUTED);
-   Lbl("c3", c3, vy, IntegerToString(todayCycles) + " / $" + DoubleToString(BasketTP_USD, 0), "Georgia", FS(2.8), C_CREAM);
-   Lbl("c3b", c3, sy, "aaj band baskets", "Segoe UI", FS(1.15), C_MUTED);
-   y += PX(9.4);
+   Lbl("c0", c0, vy, Money(b.profit, true), "Georgia", FS(2.5), b.profit >= 0 ? C_GREEN : C_RED);
+   Lbl("c0b", c0, sy, StringFormat("%d trades  ·  %.2f lot", b.count, b.lots), "Segoe UI", FS(1.1), C_MUTED);
+   Lbl("c1", c1, vy, Money(s.profit, true), "Georgia", FS(2.5), s.profit >= 0 ? C_GREEN : C_RED);
+   Lbl("c1b", c1, sy, StringFormat("%d trades  ·  %.2f lot", s.count, s.lots), "Segoe UI", FS(1.1), C_MUTED);
+   Lbl("c2", c2, vy, Money(todayPL, true), "Georgia", FS(2.5), todayPL >= 0 ? C_GREEN : C_RED);
+   Lbl("c2b", c2, sy, "aaj band trades ka P/L", "Segoe UI", FS(1.1), C_MUTED);
+   Lbl("c3", c3, vy, IntegerToString(todayCycles) + " / $" + DoubleToString(BasketTP_USD, 0), "Georgia", FS(2.5), C_CREAM);
+   Lbl("c3b", c3, sy, "aaj band baskets", "Segoe UI", FS(1.1), C_MUTED);
+   y += PX(8.0);
 
-   // ---------- bars ----------
+   // ---------- bars: BUY | SELL (aadha-aadha), phir drawdown ----------
    double bf = b.count > 0 ? MathMax(0, b.profit) / BasketTP_USD : 0;
    double sf = s.count > 0 ? MathMax(0, s.profit) / BasketTP_USD : 0;
    double ddBase = ddLimit > 0 ? ddLimit : MathMax(1.0, bal * 0.10);
    double df = MathMax(0, -worstSide) / ddBase;
-   int bh = MathMax(PX(0.55), 3);
-   Lbl("b1l", m, y, StringFormat("BUY basket   %s of $%.0f", Money(b.profit, true), BasketTP_USD), "Segoe UI", FS(1.3), C_CREAM);
-   Lbl("b1r", W - m, y, StringFormat("%.0f%%", bf * 100), "Segoe UI", FS(1.3), C_MUTED, 1);
-   Bar("b1", m, y + PX(2.2), CW, bh, bf, C_GOLD);
-   y += PX(3.6);
-   Lbl("b2l", m, y, StringFormat("SELL basket   %s of $%.0f", Money(s.profit, true), BasketTP_USD), "Segoe UI", FS(1.3), C_CREAM);
-   Lbl("b2r", W - m, y, StringFormat("%.0f%%", sf * 100), "Segoe UI", FS(1.3), C_MUTED, 1);
-   Bar("b2", m, y + PX(2.2), CW, bh, sf, C_GOLD);
-   y += PX(3.6);
+   int bh = MathMax(PX(0.5), 3);
+   int hw = CW / 2 - PX(1.5), sx = m + CW / 2 + PX(1.5);
+   Lbl("b1l", m, y, StringFormat("BUY basket   %s of $%.0f", Money(b.profit, true), BasketTP_USD), "Segoe UI", FS(1.25), C_CREAM);
+   Lbl("b1r", m + hw, y, StringFormat("%.0f%%", bf * 100), "Segoe UI", FS(1.25), C_MUTED, 1);
+   Bar("b1", m, y + PX(2.0), hw, bh, bf, C_GOLD);
+   Lbl("b2l", sx, y, StringFormat("SELL basket   %s of $%.0f", Money(s.profit, true), BasketTP_USD), "Segoe UI", FS(1.25), C_CREAM);
+   Lbl("b2r", sx + hw, y, StringFormat("%.0f%%", sf * 100), "Segoe UI", FS(1.25), C_MUTED, 1);
+   Bar("b2", sx, y + PX(2.0), hw, bh, sf, C_GOLD);
+   y += PX(3.4);
    Lbl("b3l", m, y, ddLimit > 0 ? StringFormat("Drawdown of $%.0f (MaxLoss)   ·   aaj sabse bura %s", ddLimit, Money(worstFloat))
-                                 : StringFormat("Drawdown of $%.0f (10%% balance · MaxLoss OFF)   ·   aaj sabse bura %s", ddBase, Money(worstFloat)), "Segoe UI", FS(1.3), C_CREAM);
-   Lbl("b3r", W - m, y, StringFormat("%.0f%%", df * 100), "Segoe UI", FS(1.3), C_MUTED, 1);
-   Bar("b3", m, y + PX(2.2), CW, bh, df, C_RED);
-   y += PX(4.0);
+                                 : StringFormat("Drawdown of $%.0f (10%% balance · MaxLoss OFF)   ·   aaj sabse bura %s", ddBase, Money(worstFloat)), "Segoe UI", FS(1.25), C_CREAM);
+   Lbl("b3r", W - m, y, StringFormat("%.0f%%", df * 100), "Segoe UI", FS(1.25), C_MUTED, 1);
+   Bar("b3", m, y + PX(2.0), CW, bh, df, C_RED);
+   y += PX(3.6);
 
    // ---------- info line ----------
    string nb = (b.pendTicket ? DoubleToString(b.pendPrice, _Digits) : "-");
    string ns = (s.pendTicket ? DoubleToString(s.pendPrice, _Digits) : "-");
    Lbl("info", m, y, StringFormat("%d / %d trades  ·  %.2f lot  ·  next BUY L%d %.2f @ %s  ·  next SELL L%d %.2f @ %s",
                                   b.count + s.count, MaxLevels * 2, b.lots + s.lots, b.count + 1, LevelLot(b.count + 1), nb, s.count + 1, LevelLot(s.count + 1), ns),
-       "Segoe UI", FS(1.2), C_MUTED);
-   Lbl("info2", W - m, y, StringFormat("Spread %.2f  ·  News %s", sp, newsBlock ? "BLOCK" : "clear"), "Segoe UI", FS(1.2), C_MUTED, 1);
-   y += PX(2.6);
+       "Segoe UI", FS(1.15), C_MUTED);
+   Lbl("info2", W - m, y, StringFormat("Spread %.2f  ·  News %s", sp, newsBlock ? "BLOCK" : "clear"), "Segoe UI", FS(1.15), C_MUTED, 1);
+   y += PX(2.3);
    Rect("hr2", m, y, CW, 1, C_LINE, C_LINE);
-   y += PX(1.4);
+   y += PX(1.2);
 
    // ---------- lower: trade table (left) + details (right) ----------
-   int btnH = PX(3.6);
+   int btnH = PX(3.4);
    int yBtn = H - m - btnH;
-   int lowTop = y, lowBot = yBtn - PX(1.6);
+   int lowTop = y, lowBot = yBtn - PX(1.4);
    int tblW = (int)(CW * 0.62);
    int rpX = m + tblW + PX(2.0), rpW = W - m - rpX;
    Rect("tbl", m, lowTop, tblW, lowBot - lowTop, C_PANEL, C_LINE);
@@ -786,16 +786,16 @@ void Panel()
    // table
    int tx = m + PX(1.4), tw = tblW - PX(2.8);
    int cx0 = tx, cx1 = tx + (int)(tw * 0.08), cx2 = tx + (int)(tw * 0.22), cx3 = tx + (int)(tw * 0.36), cx4 = tx + (int)(tw * 0.58), cxR = tx + tw;
-   int ty0 = lowTop + PX(1.2);
-   Lbl("th0", cx0, ty0, "#", "Segoe UI", FS(1.1), C_GOLD);
-   Lbl("th1", cx1, ty0, Spaced("TYPE"), "Segoe UI", FS(1.1), C_GOLD);
-   Lbl("th2", cx2, ty0, Spaced("LOT"), "Segoe UI", FS(1.1), C_GOLD);
-   Lbl("th3", cx3, ty0, Spaced("PRICE"), "Segoe UI", FS(1.1), C_GOLD);
-   Lbl("th4", cx4, ty0, Spaced("OPEN IST"), "Segoe UI", FS(1.1), C_GOLD);
-   Lbl("th5", cxR, ty0, Spaced("P&L"), "Segoe UI", FS(1.1), C_GOLD, 1);
-   Rect("thl", tx, ty0 + PX(2.0), tw, 1, C_LINE, C_LINE);
-   double rowH = 2.15;
-   int maxRows = (int)MathMax(1, MathFloor((lowBot - (ty0 + PX(2.6)) - PX(0.6)) / (rowH * gU)));
+   int ty0 = lowTop + PX(1.0);
+   Lbl("th0", cx0, ty0, "#", "Segoe UI", FS(1.05), C_GOLD);
+   Lbl("th1", cx1, ty0, Spaced("TYPE"), "Segoe UI", FS(1.05), C_GOLD);
+   Lbl("th2", cx2, ty0, Spaced("LOT"), "Segoe UI", FS(1.05), C_GOLD);
+   Lbl("th3", cx3, ty0, Spaced("PRICE"), "Segoe UI", FS(1.05), C_GOLD);
+   Lbl("th4", cx4, ty0, Spaced("OPEN IST"), "Segoe UI", FS(1.05), C_GOLD);
+   Lbl("th5", cxR, ty0, Spaced("P&L"), "Segoe UI", FS(1.05), C_GOLD, 1);
+   Rect("thl", tx, ty0 + PX(1.9), tw, 1, C_LINE, C_LINE);
+   double rowH = 2.0;
+   int maxRows = (int)MathMax(1, MathFloor((lowBot - (ty0 + PX(2.4)) - PX(0.4)) / (rowH * gU)));
    maxRows = MathMin(maxRows, 30);
 
    int rows = 0;
@@ -826,65 +826,64 @@ void Panel()
    for(int r = 0; r < 30; r++)
    {
       string rn = "r" + IntegerToString(r) + "_";
-      int ry = ty0 + PX(2.7) + (int)(r * rowH * gU);
+      int ry = ty0 + PX(2.4) + (int)(r * rowH * gU);
       if(r < shown)
       {
-         Lbl(rn + "0", cx0, ry, "#" + IntegerToString(r + 1), "Consolas", FS(1.25), C_MUTED);
-         Lbl(rn + "1", cx1, ry, ty[r] == POSITION_TYPE_BUY ? "BUY" : "SELL", "Consolas", FS(1.25), ty[r] == POSITION_TYPE_BUY ? C_GREEN : C_RED);
-         Lbl(rn + "2", cx2, ry, DoubleToString(lt[r], 2), "Consolas", FS(1.25), C_CREAM);
-         Lbl(rn + "3", cx3, ry, DoubleToString(pr[r], _Digits), "Consolas", FS(1.25), C_CREAM);
-         Lbl(rn + "4", cx4, ry, IstHM(ot[r]), "Consolas", FS(1.25), C_MUTED);
-         Lbl(rn + "5", cxR, ry, Money(pl[r], true), "Consolas", FS(1.25), pl[r] >= 0 ? C_GREEN : C_RED, 1);
+         Lbl(rn + "0", cx0, ry, "#" + IntegerToString(r + 1), "Consolas", FS(1.2), C_MUTED);
+         Lbl(rn + "1", cx1, ry, ty[r] == POSITION_TYPE_BUY ? "BUY" : "SELL", "Consolas", FS(1.2), ty[r] == POSITION_TYPE_BUY ? C_GREEN : C_RED);
+         Lbl(rn + "2", cx2, ry, DoubleToString(lt[r], 2), "Consolas", FS(1.2), C_CREAM);
+         Lbl(rn + "3", cx3, ry, DoubleToString(pr[r], _Digits), "Consolas", FS(1.2), C_CREAM);
+         Lbl(rn + "4", cx4, ry, IstHM(ot[r]), "Consolas", FS(1.2), C_MUTED);
+         Lbl(rn + "5", cxR, ry, Money(pl[r], true), "Consolas", FS(1.2), pl[r] >= 0 ? C_GREEN : C_RED, 1);
       }
       else
          for(int c = 0; c < 6; c++) ObjectDelete(0, "SGK_" + rn + IntegerToString(c));
    }
-   if(rows == 0) Lbl("tnone", cx0, ty0 + PX(2.7), "Koi khula trade nahi  ·  pending lage hain, price palatne ka intezaar", "Segoe UI", FS(1.25), C_MUTED);
+   if(rows == 0) Lbl("tnone", cx0, ty0 + PX(2.4), "Koi khula trade nahi  ·  pending lage hain, price palatne ka intezaar", "Segoe UI", FS(1.2), C_MUTED);
    else ObjectDelete(0, "SGK_tnone");
-   if(more) Lbl("tmore", cx0, ty0 + PX(2.7) + (int)(shown * rowH * gU), "+ " + IntegerToString(rows - shown) + " aur trades", "Segoe UI", FS(1.2), C_GOLD);
+   if(more) Lbl("tmore", cx0, ty0 + PX(2.4) + (int)(shown * rowH * gU), "+ " + IntegerToString(rows - shown) + " aur trades (sabse purane upar)", "Segoe UI", FS(1.15), C_GOLD);
    else ObjectDelete(0, "SGK_tmore");
 
-   // right details panel
+   // right details panel (sabse zaroori upar)
    int px0 = rpX + PX(1.4), px1 = rpX + rpW - PX(1.4);
-   int ry0 = lowTop + PX(1.2);
-   Lbl("rpT", px0, ry0, Spaced("DETAILS"), "Segoe UI", FS(1.1), C_GOLD);
-   Rect("rpl", px0, ry0 + PX(2.0), px1 - px0, 1, C_LINE, C_LINE);
-   string kL[11], kV[11]; color kC[11];
-   kL[0] = "Next BUY";     kV[0] = StringFormat("L%d  %.2f  @ %s", b.count + 1, LevelLot(b.count + 1), nb); kC[0] = C_GREEN;
-   kL[1] = "Next SELL";    kV[1] = StringFormat("L%d  %.2f  @ %s", s.count + 1, LevelLot(s.count + 1), ns); kC[1] = C_RED;
-   kL[2] = "BUY avg";      kV[2] = b.count ? DoubleToString(b.avg, _Digits) : "-";  kC[2] = C_CREAM;
-   kL[3] = "SELL avg";     kV[3] = s.count ? DoubleToString(s.avg, _Digits) : "-";  kC[3] = C_CREAM;
-   kL[4] = "Grid / Pending"; kV[4] = StringFormat("$%.2f / $%.2f  (x%.1f)", MinGridGap, PendingDistance, LotMultiplier); kC[4] = C_CREAM;
-   kL[5] = "Spread";       kV[5] = StringFormat("%.2f%s", sp, MaxSpreadUSD > 0 ? StringFormat("  (max %.2f)", MaxSpreadUSD) : "  (filter off)"); kC[5] = C_CREAM;
-   kL[6] = "News";         kV[6] = newsBlock ? "BLOCK" : (UseNewsFilter ? "Clear" : "Off"); kC[6] = newsBlock ? C_AMBER : C_GREEN;
-   kL[7] = "";             kV[7] = newsText;  kC[7] = C_MUTED;
-   kL[8] = "Max levels";   kV[8] = MaxLevels > 0 ? IntegerToString(MaxLevels) + " per side" : "unlimited"; kC[8] = C_CREAM;
-   kL[9] = "Max loss";     kV[9] = MaxLossUSD > 0 ? "$" + DoubleToString(MaxLossUSD, 0) + " per side" : "OFF"; kC[9] = MaxLossUSD > 0 ? C_CREAM : C_AMBER;
-   kL[10] = "Magic";       kV[10] = IntegerToString(MagicNumber) + (paused ? "  ·  PAUSED" : ""); kC[10] = paused ? C_AMBER : C_MUTED;
-   double kh = 2.25;
-   int kRows = (int)MathFloor((lowBot - (ry0 + PX(2.7)) - PX(0.4)) / (kh * gU));
-   for(int i = 0; i < 11; i++)
+   int ry0 = lowTop + PX(1.0);
+   Lbl("rpT", px0, ry0, Spaced("DETAILS"), "Segoe UI", FS(1.05), C_GOLD);
+   Rect("rpl", px0, ry0 + PX(1.9), px1 - px0, 1, C_LINE, C_LINE);
+   string kL[10], kV[10]; color kC[10];
+   kL[0] = "Next BUY";       kV[0] = StringFormat("L%d  %.2f  @ %s", b.count + 1, LevelLot(b.count + 1), nb); kC[0] = C_GREEN;
+   kL[1] = "Next SELL";      kV[1] = StringFormat("L%d  %.2f  @ %s", s.count + 1, LevelLot(s.count + 1), ns); kC[1] = C_RED;
+   kL[2] = "News";           kV[2] = newsBlock ? "BLOCK" : (UseNewsFilter ? "Clear" : "Off"); kC[2] = newsBlock ? C_AMBER : C_GREEN;
+   kL[3] = "";               kV[3] = newsText;  kC[3] = C_MUTED;
+   kL[4] = "Spread";         kV[4] = StringFormat("%.2f%s", sp, MaxSpreadUSD > 0 ? StringFormat("  (max %.2f)", MaxSpreadUSD) : "  (filter off)"); kC[4] = C_CREAM;
+   kL[5] = "Max loss";       kV[5] = MaxLossUSD > 0 ? "$" + DoubleToString(MaxLossUSD, 0) + " per side" : "OFF"; kC[5] = MaxLossUSD > 0 ? C_CREAM : C_AMBER;
+   kL[6] = "Max levels";     kV[6] = MaxLevels > 0 ? IntegerToString(MaxLevels) + " per side" : "unlimited"; kC[6] = C_CREAM;
+   kL[7] = "Grid / Pending"; kV[7] = StringFormat("$%.2f / $%.2f  x%.1f", MinGridGap, PendingDistance, LotMultiplier); kC[7] = C_CREAM;
+   kL[8] = "Avg BUY / SELL"; kV[8] = (b.count ? DoubleToString(b.avg, _Digits) : "-") + " / " + (s.count ? DoubleToString(s.avg, _Digits) : "-"); kC[8] = C_CREAM;
+   kL[9] = "Magic";          kV[9] = IntegerToString(MagicNumber) + (paused ? "  ·  PAUSED" : ""); kC[9] = paused ? C_AMBER : C_MUTED;
+   double kh = 2.0;
+   int kRows = (int)MathFloor((lowBot - (ry0 + PX(2.4)) - PX(0.3)) / (kh * gU));
+   for(int i = 0; i < 10; i++)
    {
       string kn = "k" + IntegerToString(i);
-      int ky = ry0 + PX(2.7) + (int)(i * kh * gU);
+      int ky = ry0 + PX(2.4) + (int)(i * kh * gU);
       if(i < kRows)
       {
-         if(i == 7)   // news text: poori line, chhota
+         if(i == 3)   // news text: poori line, chhota
          {
-            Lbl(kn + "l", px0, ky, kV[i], "Segoe UI", FS(1.05), kC[i]);
+            Lbl(kn + "l", px0, ky, kV[i], "Segoe UI", FS(1.0), kC[i]);
             ObjectDelete(0, "SGK_" + kn + "v");
          }
          else
          {
-            Lbl(kn + "l", px0, ky, kL[i], "Segoe UI", FS(1.25), C_MUTED);
-            Lbl(kn + "v", px1, ky, kV[i], "Segoe UI", FS(1.25), kC[i], 1);
+            Lbl(kn + "l", px0, ky, kL[i], "Segoe UI", FS(1.2), C_MUTED);
+            Lbl(kn + "v", px1, ky, kV[i], "Segoe UI", FS(1.2), kC[i], 1);
          }
       }
       else { ObjectDelete(0, "SGK_" + kn + "l"); ObjectDelete(0, "SGK_" + kn + "v"); }
    }
 
    // ---------- buttons ----------
-   int bw = PX(15);
+   int bw = PX(14);
    Btn("PAUSE", m, yBtn, bw, btnH, paused ? "RESUME" : "PAUSE", C_GOLD, C_BG, C_GOLD);
    Btn("CALL", W - m - bw, yBtn, bw, btnH, "CLOSE ALL", C_CREAM, C'122,40,32', C'122,40,32');
    Btn("CSELL", W - m - 2 * bw - PX(1.2), yBtn, bw, btnH, "CLOSE SELL", C_CREAM, C'30,26,20', C_GOLD2);
