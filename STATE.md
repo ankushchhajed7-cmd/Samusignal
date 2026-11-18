@@ -14,7 +14,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
 | AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.01** | `vps-ea/AMC GOLD MASTER v1.01.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
-| Investor Account Watcher (INVESTOR-ID repo) | **1.06** | `vps-ea/Investor Account Watcher v1.06.mq5` |
+| Investor Account Watcher (INVESTOR-ID repo) | **1.07** | `vps-ea/Investor Account Watcher v1.07.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
@@ -31,6 +31,12 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread OFF (original me spread filter nahi tha); news filter ±30 min USD High (v1.01); Gold Luxe dashboard + PAUSE / CLOSE buttons (v1.01); H1 trail SL optional OFF; HEDGING account) | **1.03** | `vps-ea/SAMU GOLD KILLER v1.03.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek) | **1.04** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## Investor Account Watcher v1.07 — token fix (18 Nov 2026, main → VPS Helper)
+- Dikkat: 434151546 par GhPut 401 "Bad credentials". Wajah: v1.06 pehle MQL5\Files\investor_token.txt (purana kharab token) padhta tha, Inputs ka naya token andekha; Inputs me file ka naam badalne par wapas aa jaata tha.
+- v1.07: Inputs ka token PEHLE; bhara ho to file me bhi save. Start par GitHub token jaanch (OK / 401 / 403 / 404 / WebRequest band) Experts + chart Comment me. 401 par doosra token aazmata hai; har 60 sec file dobara padhta hai (file me naya token save = bina restart chalu). 401 log 5 min me 1 line.
+- Compile: 0 errors, 0 warnings (INVESTOR-ID compile-mq5).
+- Test: v1.06 chart se hatao → v1.07 lagao → Inputs me token → Experts: "token source=input, length 93" + "jaanch = OK" → 15 min me INVESTOR-ID data/434151546/report.json ka updatedAt naya.
 
 ## SAMU GOLD KILLER v1.03 — dashboard door se padhne layak (18 Nov 2026, branch feature-samu-gold-killer-v1.03)
 - v1.02 full screen bana par laptop par akshar bahut bareek (6pt) — door se nahi dikhte. Ankush: "clear, bold, green highlighted, door se bhi dikhe".
