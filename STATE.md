@@ -28,8 +28,18 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
+| SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread; H1 trail SL optional OFF; HEDGING account) | **1.00** | `vps-ea/SAMU GOLD KILLER v1.00.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek) | **1.04** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMU GOLD KILLER v1.00 — naya EA (18 Nov 2026, branch feature-samu-gold-killer-v1.00)
+- Source: InstaForex MT4 account 72929366 ("GOLD KILLER @superforexbot", magic 666888) — INVESTOR-ID repo ke Strategy Scan (2267 trades) + 3 ghante Live Record (har tick + har order/SL) se rules nikale, simulator se match kiye: lot 27/27, pending lagna 21/22 (2 sec), fill 23/27 (3 sec / $0.10), basket $30 3/4. Seller video ki settings (Grid 80, trailing step 5, lot ×1.3) bhi match.
+- Rules: dono side hamesha chalu; pending = Ask + $0.80 (SELL: Bid − $0.80), market ki taraf hi khiskta hai (min $0.05); naya level tabhi jab pending price pichhle (sabse neeche BUY / sabse upar SELL) se ≥ $0.80 door; lot = 0.01 × 1.3^(level−1) 2 decimal; side ka floating ≥ $30 → us side ke sab trade band + pending delete → turant naya 0.01 pending.
+- Safety (original me nahi): MaxLevels 22 (level 22 = 2.47 lot), MaxLossUSD 0 (off), MaxSpreadUSD 0 (off). Original EA 22 level tak bina SL gaya hai — account $5000 bonus se shuru tha.
+- Andaaza / OFF: H1 trailing SL (1-trade basket; record me pichhli H1 candle high/low par khiska, history me sirf aadha match) — `UseH1TrailSL=false`.
+- Distance $ me (InstaForex GOLD 2 digit 80 points = $0.80) — XAUUSDm (3 digit) par bhi same.
+- Compile check: INVESTOR-ID `compile-mq5.yml` (GitHub Windows MT5 MetaEditor).
+- Baaki: Strategy Tester (XAUUSDm, Every tick real) $5000+ par; spread $0.80 se kam hone ka asar dekhna.
 
 ## VPS Helper v1.04 + Scanner v1.11 — disk bhari thi, scanner.mjs 0 byte (17 Nov 2026)
 - 16 Nov raat VPS C: drive bhar gayi (288 KB free). Scanner apna naya version likhte waqt `C:\SamuScanner\scanner.mjs` 0 byte (23:20) → 17 Nov subah se AI AUTO ko signal / candle push / VPS paper band ("SCANNER CHUP!"). User ne Tester / Crashes / WebInstall / Recycle Bin saaf karke 3.59 GB kiya.
