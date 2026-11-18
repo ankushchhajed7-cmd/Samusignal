@@ -28,9 +28,17 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
-| SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread OFF (original me spread filter nahi tha); news filter ±30 min USD High (v1.01); Gold Luxe dashboard + PAUSE / CLOSE buttons (v1.01); H1 trail SL optional OFF; HEDGING account) | **1.03** | `vps-ea/SAMU GOLD KILLER v1.03.mq5` |
+| SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread OFF (original me spread filter nahi tha); news filter ±30 min USD High (v1.01); Gold Luxe dashboard + PAUSE / CLOSE buttons (v1.01); H1 trail SL optional OFF; v1.04: nayi basket sirf IST 09:00-10:30 + 22:30-00:30, raat 9 ke baad High USD / Fed news ho to us raat OFF; HEDGING account) | **1.04** | `vps-ea/SAMU GOLD KILLER v1.04.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek; v1.05: Watcher token heal) | **1.05** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMU GOLD KILLER v1.04 — Trade Time + raat ki news (18 Nov 2026, main → VPS Helper)
+- Wajah: 18 Nov ~21:45–22:15 IST ~$35 giravat, BUY basket L16 (~2.2 lot), equity DD $1,496 (14.5%), phir +$91 par band.
+- 2 mahine ke H1 data (InstaForex 72929366): sabse tez 18:30–21:30 IST ($22–26/ghanta, p90 $51), 06:30–08:30 ($18–21); shaant 02:30 ($9), 09:30 ($13), 15:30–16:30 ($12), 22:30–00:30 ($13–16).
+- User ka faisla: nayi basket sirf 09:00–10:30 aur 22:30–00:30 IST. Raat 21:00–03:00 IST me koi HIGH USD ya Fed (FOMC / Fed Chair / Powell / Federal Funds / Interest Rate Decision) news → us din raat OFF. ±30 min news filter waisa hi. Bahar: khuli basket level jodti + $30 TP; L1 pending hat jaata.
+- Baaki sujhaav (badhta gap, multiplier 1.2 / max lot 0.10, DD Reducer, gehri basket ka jaldi TP, −10% suraksha) — user: "abhi sirf Time + News"; baad me.
+- Inputs: UseTradeTime, Session1, Session2, NightNewsSkip, NightNewsFrom, NightNewsTo, FedWords. Dashboard: banner OFF TIME / RAAT OFF, DETAILS "Trade time".
+- Compile 0 errors, 0 warnings.
 
 ## VPS Helper v1.05 — TOKEN HEAL (18 Nov 2026 raat, main)
 - 1546 Watcher 401 (≈18:00 se): user ke phone → remote paste me token bigadta raha, aur jo token daala wo bhi band tha. VPS ke Firefox se GitHub "Access temporarily restricted" (VPS IP par bahut API traffic).
