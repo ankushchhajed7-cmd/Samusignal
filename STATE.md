@@ -29,8 +29,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
 | SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread OFF (original me spread filter nahi tha); news filter ±30 min USD High (v1.01); Gold Luxe dashboard + PAUSE / CLOSE buttons (v1.01); H1 trail SL optional OFF; v1.04: nayi basket sirf IST 09:00-10:30 + 22:30-00:30, raat 9 ke baad High USD / Fed news ho to us raat OFF; HEDGING account) | **1.04** | `vps-ea/SAMU GOLD KILLER v1.04.mq5` |
+| SAMU Universal EA (SAMU-BACKTEST-LAB repo: strategy JSON `MQL5\Files\step-basket.json` padhta hai, na mile to built-in Step Basket; Supertrend M15 pehla trade + $5 step grid, lot table, preset A/B/C, daily +1% / −5%, 07:00 IST reset; Gold Luxe dashboard + PAUSE / CLOSE ALL; trade log CSV; chart XAUUSDm **M1**) | **1.00** | `vps-ea/SAMU Universal EA v1.00.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek; v1.05: Watcher token heal) | **1.05** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMU Universal EA v1.00 — VPS Helper se pehli baar (19 Nov 2026, main → VPS Helper)
+- Source repo: **SAMU-BACKTEST-LAB** (`ea/SAMU Universal EA v1.00.mq5`); yahan sirf deploy copy. Rules = Backtest Lab engine (`docs/ENGINE-RULES.md` wahan).
+- Helper JSON copy nahi karta → `MQL5\Files\step-basket.json` na ho to EA built-in Step Basket (preset B) se chalta hai, banner pe likha aata hai.
+- Compile pehli baar VPS pe ho raha hai (cloud me MT5 nahi tha) → result COPY tab → VPS Helper me dekhna; error ho to SAMU-BACKTEST-LAB me v1.01.
+- Chart: XAUUSDm **M1**, Magic 770100 (default). Pehle demo / Strategy Tester; live se pehle app ke backtest se milana.
 
 ## SAMU GOLD KILLER v1.04 — Trade Time + raat ki news (18 Nov 2026, main → VPS Helper)
 - Wajah: 18 Nov ~21:45–22:15 IST ~$35 giravat, BUY basket L16 (~2.2 lot), equity DD $1,496 (14.5%), phir +$91 par band.
