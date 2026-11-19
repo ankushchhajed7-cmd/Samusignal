@@ -1,0 +1,14 @@
+name: Candle research (exit backtest)
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-de58b3c2-9qoj0z]
+    paths: ['research/**']
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backtest (Yahoo 1m, 7 din, 17 pair)
+        run: python3 research/candle_backtest.py
