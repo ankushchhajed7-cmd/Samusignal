@@ -223,6 +223,8 @@ def main():
     sigs = {p: signals(p, b) for p, b in data.items()}
     total = sum(len(v) for v in sigs.values())
     first = min(b[0][0] for b in data.values()); last = max(b[-1][0] for b in data.values())
+    for p, v in sigs.items():
+        print(f"SIG {p}: {len(v)} | HTF {sum(1 for s in v if s['htf'])}")
     print(f"SIGNALS: {total} | HTF (15m+1h saath): {sum(1 for v in sigs.values() for s in v if s['htf'])} | "
           f"{time.strftime('%d %b %H:%M', time.gmtime(first))} -> {time.strftime('%d %b %H:%M', time.gmtime(last))} UTC")
 
@@ -240,6 +242,16 @@ def main():
         pols.append((f"STRUCT TP {r}R T{tm}", {"kind": "struct", "tp": r, "time": tm}))
         pols.append((f"STRUCT TP {r}R T{tm} BE.5", {"kind": "struct", "tp": r, "time": tm, "lock_at": .5, "lock_to": .05}))
 
+    # v2: jeetne wale ke aas-paas baarik jaanch (lock / wapsi alag-alag, SL / TIME / TP)
+    for tp in (.2, .25, .35, .5):
+        for sl in (2, 2.5, 3, 4, 5):
+            for tm in (150, 200, 300, 450):
+                pols.append((f"FINE TP {tp} SL {sl} T{tm}", {"kind": "usd", "tp": tp, "sl": sl, "time": tm}))
+    for tp in (.25, .5):
+        pols.append((f"FINE TP {tp} SL 3 T300 +lock.15>.05", {"kind": "usd", "tp": tp, "sl": 3, "time": 300, "lock_at": .15, "lock_to": .05}))
+        pols.append((f"FINE TP {tp} SL 3 T300 +lock.20>.10", {"kind": "usd", "tp": tp, "sl": 3, "time": 300, "lock_at": .20, "lock_to": .10}))
+        pols.append((f"FINE TP {tp} SL 3 T300 +wapsi-1", {"kind": "usd", "tp": tp, "sl": 3, "time": 300, "rec": 1 / 3}))
+        pols.append((f"FINE TP {tp} SL 3 T300 +wapsi-2", {"kind": "usd", "tp": tp, "sl": 3, "time": 300, "rec": 2 / 3}))
     for tp, sl, tm in [(.25, 3, 300), (.5, 3, 300), (1, 1, 60), (1.5, 1.5, 60), (1, 2, 60), (2, 2, 300)]:
         k = "usd" if sl == 3 else "atr"
         pols.append((f"FADE {k.upper()} TP {tp} SL {sl} T{tm}", {"kind": k, "tp": tp, "sl": sl, "time": tm, "fade": True}))
@@ -311,6 +323,23 @@ def main():
         fa = f"n {a['n']} net {a['net']:+.2f} win {a['win']:.0f}%" if a else "-"
         fb = f"n {b['n']} net {b['net']:+.2f} win {b['win']:.0f}%" if b else "-"
         print(f"STAB {flt} | {name:42} | 1st: {fa} | 2nd: {fb}")
+    print("\n=== FINE (HTF) sab ===")
+    for r in sorted([r for r in rows if r[1] == "HTF" and r[0].startswith("FINE")], key=lambda r: -r[2]["net"]):
+        print("FINE", line(*r))
+    for nm in ("FINE TP 0.25 SL 3 T300", "FINE TP 0.5 SL 3 T300"):
+        print(f"\n=== PER PAIR (HTF) {nm} ===")
+        for p, ss in sigs.items():
+            res, busy_until = [], -1
+            for s in ss:
+                if not s["htf"] or s["i"] < busy_until:
+                    continue
+                r = simulate(p, data[p], s, P[nm])
+                if r is None:
+                    continue
+                res.append(r); busy_until = s["i"] + 1 + r[1]
+            st = stats(res)
+            if st:
+                print(f"PP {p}: n {st['n']} win {st['win']:.1f}% net {st['net']:+.2f} PF {st['pf'] if st['pf']!=float('inf') else 99:.2f} avgL {st['al']:+.2f}")
     # per-pair for best HTF policy
     good = [r for r in rows if r[1] == "HTF" and r[2]["n"] >= 80]
     if good:
