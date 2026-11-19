@@ -29,9 +29,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
 | SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread OFF (original me spread filter nahi tha); news filter ±30 min USD High (v1.01); Gold Luxe dashboard + PAUSE / CLOSE buttons (v1.01); H1 trail SL optional OFF; v1.04: nayi basket sirf IST 09:00-10:30 + 22:30-00:30, raat 9 ke baad High USD / Fed news ho to us raat OFF; HEDGING account) | **1.04** | `vps-ea/SAMU GOLD KILLER v1.04.mq5` |
-| SAMU Universal EA (SAMU-BACKTEST-LAB repo: strategy JSON `MQL5\Files\step-basket.json` padhta hai, na mile to built-in Step Basket; Supertrend M15 pehla trade + $5 step grid, lot table, preset A/B/C, daily +1% / −5%, 07:00 IST reset; Gold Luxe dashboard + PAUSE / CLOSE ALL; trade log CSV; chart XAUUSDm **M1**) | **1.00** | `vps-ea/SAMU Universal EA v1.00.mq5` |
+| SAMU Universal EA (SAMU-BACKTEST-LAB repo: strategy JSON `MQL5\Files\step-basket.json` padhta hai, na mile to built-in Step Basket; Supertrend M15 pehla trade + $5 step grid, lot table, preset A/B/C, daily +1% / −5%, 07:00 IST reset; Gold Luxe dashboard + PAUSE / CLOSE ALL; v1.01: purane account pe safe — Own P/L mode ($1000 allocated), margin guard 300%, magic clash check; trade log CSV; chart XAUUSDm **M1**) | **1.01** | `vps-ea/SAMU Universal EA v1.01.mq5` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek; v1.05: Watcher token heal) | **1.05** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
+
+## SAMU Universal EA v1.01 — purane account pe safe (19 Nov 2026, main → VPS Helper)
+- User: VPS pe naya account add karne ki jagah nahi → purane $1000 account pe (doosre EAs ke saath) chart lagayenge.
+- **InpOwnMode = true** (default): daily +1% / −5% aur basket SL 1% sirf is EA ke trades + `InpAllocBalance` ($1000) se; doosre EAs ka P/L asar nahi.
+- **InpMinMarginLevel = 300**: trade ke baad margin level 300% se neeche → nayi trade nahi. **Magic clash**: 770100 pe doosre EA / symbol ki trade (khuli ya 30 din) → trade band + laal banner.
+- Chart: XAUUSDm **M1**, Hedging account. v1.00 file bhi pada hai (compile hoga), lagana **v1.01** hai.
 
 ## SAMU Universal EA v1.00 — VPS Helper se pehli baar (19 Nov 2026, main → VPS Helper)
 - Source repo: **SAMU-BACKTEST-LAB** (`ea/SAMU Universal EA v1.00.mq5`); yahan sirf deploy copy. Rules = Backtest Lab engine (`docs/ENGINE-RULES.md` wahan).
