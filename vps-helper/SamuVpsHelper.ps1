@@ -46,12 +46,18 @@
 #                       details bhi JSON me likh deta hai. Ab sirf saada text.
 #                       Report 200 KB se badi ho to logs chhote karke likhta hai.
 #   v1.00 (30-Sep-2026) Pehla build.
+#   v1.06 (19-Nov-2026) STRATEGY JSON: repo ke vps-files/ folder ki .json
+#                       har terminal ke MQL5\Files me copy (compile nahi).
+#                       GitHub pe file badle tabhi dobara copy. Pehla:
+#                       vps-files/step-basket.json = Step Basket $10 FINAL
+#                       (SAMU Universal EA v1.04 yahi padhta hai).
 # ==================================================================
 
-$HelperVer     = '1.05'
+$HelperVer     = '1.06'
 $Repo          = 'ankushchhajed7-cmd/samusignal'
 $Branch        = 'main'
 $DeployFolders = @('copytrade-ea', 'vps-ea') # repo ke in folders ki .mq5 / .ex5 VPS pe jaayengi
+$FilesFolder   = 'vps-files'                # v1.06: is folder ki .json -> har terminal ka MQL5\Files
 $SelfRepoPath  = 'vps-helper/SamuVpsHelper.ps1'
 $LogTail       = 12                         # har terminal ke Experts log ki kitni lines
 
@@ -429,11 +435,53 @@ try {
                 Save-State $state
             }
         }
+        # ---- v1.06: strategy JSON -> MQL5\Files ----
+        $jfiles = @($blobs | Where-Object { ($_.path -like ($FilesFolder + '/*.json')) -and (($_.path.Substring($FilesFolder.Length + 1)) -notmatch '/') })
+        foreach ($f in $jfiles) {
+            $name = Split-Path $f.path -Leaf
+            $cache = Join-Path $SrcDir ('files_' + $name)
+            if ($state['src|' + $f.path] -ne $f.sha -or -not (Test-Path -LiteralPath $cache)) {
+                try {
+                    $tmp = $cache + '.tmp'
+                    Invoke-WebRequest -Uri ("https://raw.githubusercontent.com/$Repo/$commit/" + (Enc-Path $f.path)) -OutFile $tmp -Headers $Headers -UseBasicParsing
+                    $txt = [IO.File]::ReadAllText($tmp)
+                    $null = $txt | ConvertFrom-Json
+                    Move-Item -LiteralPath $tmp -Destination $cache -Force
+                    $state['src|' + $f.path] = $f.sha
+                    Log ('GitHub se aaya: ' + $name)
+                } catch {
+                    $allOk = $false
+                    $ghErr = 'JSON nahi aaya / galat: ' + $name + ' - ' + $_.Exception.Message
+                    Log $ghErr
+                    Remove-Item -LiteralPath ($cache + '.tmp') -Force -ErrorAction SilentlyContinue
+                    continue
+                }
+            }
+            foreach ($t in $terms) {
+                $key = 'json|' + $t.Id + '|' + $name
+                $dst = Join-Path $t.Dir ('MQL5\Files\' + $name)
+                if ($state[$key] -eq $f.sha -and (Test-Path -LiteralPath $dst)) { continue }
+                try {
+                    $fd = Join-Path $t.Dir 'MQL5\Files'
+                    if (-not (Test-Path -LiteralPath $fd)) { New-Item -ItemType Directory -Path $fd -Force | Out-Null }
+                    Copy-Item -LiteralPath $cache -Destination $dst -Force
+                    $r = [ordered]@{ ok = $true; ne = 0; nw = 0; at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); msg = @('JSON MQL5\Files me copy hui (EA chart se hata ke dobara lagao)') }
+                    $state[$key] = $f.sha
+                    Log ('JSON copy OK: ' + $name + ' -> ' + $t.Name)
+                } catch {
+                    $r = [ordered]@{ ok = $false; ne = 1; nw = 0; at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); msg = @('JSON copy nahi hui: ' + $_.Exception.Message) }
+                    Log ('JSON copy ERROR: ' + $name + ' -> ' + $t.Name + ' - ' + $_.Exception.Message)
+                }
+                $state['res|' + $t.Id + '|' + $name] = $r
+                Save-State $state
+            }
+        }
+
         if ($allOk) { $state['commit'] = $commit }
         $state['terms'] = $termSig
         $state['folders'] = $folderSig
         if ($allOk) { $state['hv'] = $HelperVer }
-        $state['files'] = @($files | ForEach-Object { Split-Path $_.path -Leaf })
+        $state['files'] = @(@($files) + @($jfiles) | ForEach-Object { Split-Path $_.path -Leaf })
         Save-State $state
     }
 } catch {
