@@ -326,8 +326,9 @@ def main():
     print("\n=== FINE (HTF) sab ===")
     for r in sorted([r for r in rows if r[1] == "HTF" and r[0].startswith("FINE")], key=lambda r: -r[2]["net"]):
         print("FINE", line(*r))
-    for nm in ("FINE TP 0.25 SL 3 T300", "FINE TP 0.5 SL 3 T300"):
+    for nm in ("FINE TP 0.25 SL 3 T300", "FINE TP 0.35 SL 4 T450", "FINE TP 0.2 SL 4 T450", "NOW v1.10: TP .25 SL 3 lock .15>.05 wapsi-1 T300"):
         print(f"\n=== PER PAIR (HTF) {nm} ===")
+        tot_x = 0.0; n_x = 0
         for p, ss in sigs.items():
             res, busy_until = [], -1
             for s in ss:
@@ -340,6 +341,9 @@ def main():
             st = stats(res)
             if st:
                 print(f"PP {p}: n {st['n']} win {st['win']:.1f}% net {st['net']:+.2f} PF {st['pf'] if st['pf']!=float('inf') else 99:.2f} avgL {st['al']:+.2f}")
+                if p != "AUDCAD":
+                    tot_x += st["net"]; n_x += st["n"]
+        print(f"PPX {nm}: AUDCAD ke bina n {n_x} net {tot_x:+.2f}")
     # per-pair for best HTF policy
     good = [r for r in rows if r[1] == "HTF" and r[2]["n"] >= 80]
     if good:
