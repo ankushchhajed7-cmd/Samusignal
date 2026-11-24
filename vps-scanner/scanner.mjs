@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.11   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.12   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -26,6 +26,8 @@
    v1.06 — har paper par 4 PUSHTI likhi jaati hain (p.cf, candlerules.confirms; 1 MIN ki badi TF = 5 MIN, 5 MIN ki = 15 MIN).
    Sirf naapne ke liye — signal / paper niyam wahi.
    v1.07 — har paper ka 'sabse gehra ghata' (mae $) bhi likha jaata hai (book hone se pehle trade kitna neeche gaya).
+   v1.12 — CANDLE BAND (user 24 Nov: "kaafi safal nahi, app se Candle option hata do"): CANDLE_ON = false →
+   candleLoop nahi chalta — na /candle/sig, na paper, na phone push. AI AUTO scan pehle jaisa.
    v1.11 — SURAKSHIT LIKHNA: engine / apna naya version / state.json pehle .tmp me, poora likh jaane par hi asli file
    badalti hai (16 Nov raat disk bhari thi -> scanner.mjs 0 byte ho gayi thi, AI AUTO ko signal band).
    v1.10 — TP KI TULNA (user '① naap Final', sirf naap): paper me signal candle ki body; nateeja aane par p.mfe / p.mfe1
@@ -42,7 +44,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.11';
+const VER = '1.12';
+const CANDLE_ON = false;   /* v1.12 (user 24 Nov): Candle (Strategy 5) band — app se hataya, safal nahi */
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
@@ -334,6 +337,7 @@ async function candleTick(M, X){
   }
 }
 async function candleLoop(isMainDone){
+  if(!CANDLE_ON) return;                                   // v1.12: Candle band
   let M; try{ M = await candleMods() }catch(e){ log('candle: engine nahi mila — ' + e.message); return }
   const X = {bars: {}};
   do{
