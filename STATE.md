@@ -2,6 +2,11 @@
 
 Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, aur kya baaki hai.
 
+## VPS Helper v1.07 — scanner bhi Helper se VPS par (25 Nov 2026)
+- User: "VPS Helper se VPS pe bhi bhej dena" (Scanner v1.13 / FX SENTINEL).
+- Naye commit par: `vps-scanner/scanner.mjs` ka blob sha `state['scan']` se alag -> raw (usi commit) se `C:\SamuScanner\scanner.mjs` (Fix-File: pehle .fix, jaanch, phir badlo) + `engine\*.js` GitHub Pages se taaza (`?v=` cache tod). `$ScanEng` me `sentinelrules.js` (repair bhi). Log: "Scanner deploy: ...".
+- Pehle scanner sirf khud 6 ghante me update leta tha. Ab merge ke ~2 min (helper khud update) + ~2 min (deploy) me VPS par; scanner agle minute se naya.
+
 ## Scanner v1.13 — 🛡️ FX SENTINEL auto paper, app band ho tab bhi (25 Nov 2026)
 - User: SAMUSIGNAL-AI ke naye Sentinel page (7 major + XAUUSD, score 0–100) ka paper auto trade app band hone par bhi + roz raat 9:55 IST report.
 - `vps-scanner/scanner.mjs` v1.13: ENG_FILES me `sentinelrules.js` (SAMUSIGNAL-AI Pages se, page ka hi code). `sentinelRun()` har run (har 1 min) me, AI AUTO `main()` + candle ke saath-saath (EA chup ho tab bhi):
@@ -39,7 +44,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
 | SAMU GOLD KILLER ("GOLD KILLER V10" MT4 EA ka MT5 clone — BUY + SELL dono grid: market se $0.80 door BUY/SELL STOP, $0.05 step trail, naya level pichhle se ≥ $0.80, lot 0.01 × 1.3, side basket $30 profit = band; safety MaxLevels 22 / MaxLoss / MaxSpread OFF (original me spread filter nahi tha); news filter ±30 min USD High (v1.01); Gold Luxe dashboard + PAUSE / CLOSE buttons (v1.01); H1 trail SL optional OFF; v1.04: nayi basket sirf IST 09:00-10:30 + 22:30-00:30, raat 9 ke baad High USD / Fed news ho to us raat OFF; HEDGING account) | **1.04** | `vps-ea/SAMU GOLD KILLER v1.04.mq5` |
 | SAMU Universal EA (SAMU-BACKTEST-LAB repo: strategy JSON `MQL5\Files\step-basket.json` padhta hai, na mile to built-in Step Basket; Supertrend M15 pehla trade + $5 step grid, lot table, preset A/B/C, daily +1% / −5%, 07:00 IST reset; Gold Luxe dashboard + PAUSE / CLOSE ALL; v1.01: purane account pe safe — Own P/L mode ($1000 allocated), margin guard 300%, magic clash check; v1.02: dashboard laptop DPI pe theek + sirf EA ka P/L; v1.03: **default PAPER mode** (koi asli order nahi, InpLiveTrading=false); trade log CSV; chart XAUUSDm **M1**; v1.04: Friday stop + news filter; strategy JSON `vps-files/step-basket.json` = Step Basket $10 FINAL) | **1.04** | `vps-ea/SAMU Universal EA v1.04.mq5`, `vps-files/step-basket.json` |
-| VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek; v1.05: Watcher token heal; v1.06: `vps-files/*.json` -> har terminal ka `MQL5\Files`) | **1.06** | `vps-helper/SamuVpsHelper.ps1` |
+| VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek; v1.05: Watcher token heal; v1.06: `vps-files/*.json` -> har terminal ka `MQL5\Files`; v1.07: naya `vps-scanner/scanner.mjs` turant VPS par + engine taaza) | **1.07** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
 
 ## SAMU Universal EA v1.04 + Helper v1.06 — Step Basket $10 FINAL (19 Nov 2026, main → VPS Helper)

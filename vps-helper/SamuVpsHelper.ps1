@@ -1,5 +1,5 @@
 # ==================================================================
-#  SamuSignal VPS Helper v1.05  -  Ankush New Vision
+#  SamuSignal VPS Helper v1.07  -  Ankush New Vision
 # ------------------------------------------------------------------
 #  KAAM (har 2 min, Task Scheduler se, chhupa hua):
 #   1. GitHub (main branch) pe naya commit? -> copytrade-ea ki .mq5
@@ -19,6 +19,12 @@
 #    Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 #
 #  CHANGELOG
+#   v1.07 (25-Nov-2026) SCANNER DEPLOY (user: "VPS Helper se VPS pe bhi bhej do"):
+#                       repo ki vps-scanner/scanner.mjs badle (naya commit) to
+#                       turant C:\SamuScanner\scanner.mjs badalta hai (pehle
+#                       scanner khud 6 ghante me leta tha) + engine\*.js (ab
+#                       sentinelrules.js bhi - FX SENTINEL auto paper) GitHub
+#                       Pages se taaza. Log: "Scanner deploy: ...".
 #   v1.05 (18-Nov-2026) TOKEN HEAL (Investor Account Watcher ka 401):
 #                       VPS ke sab MT5 terminal (chart profile .chr, presets
 #                       .set, MQL5\Files, Common\Files) me GitHub token
@@ -53,7 +59,7 @@
 #                       (SAMU Universal EA v1.04 yahi padhta hai).
 # ==================================================================
 
-$HelperVer     = '1.06'
+$HelperVer     = '1.07'
 $Repo          = 'ankushchhajed7-cmd/samusignal'
 $Branch        = 'main'
 $DeployFolders = @('copytrade-ea', 'vps-ea') # repo ke in folders ki .mq5 / .ex5 VPS pe jaayengi
@@ -185,7 +191,7 @@ function Compile-File($t, [string]$dst) {
 $ScanDir   = 'C:\SamuScanner'
 $ScanRaw   = 'https://raw.githubusercontent.com/ankushchhajed7-cmd/samusignal/main/vps-scanner/scanner.mjs'
 $ScanPages = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/'
-$ScanEng   = @('symbols.js', 'data.js', 'engine.js', 'ai.js', 'candlerules.js')
+$ScanEng   = @('symbols.js', 'data.js', 'engine.js', 'ai.js', 'candlerules.js', 'sentinelrules.js')   # v1.07: + sentinelrules
 function Test-GoodFile([string]$f, [int]$minLen, [string[]]$must) {
     if (-not (Test-Path -LiteralPath $f)) { return $false }
     if ((Get-Item -LiteralPath $f).Length -lt $minLen) { return $false }
@@ -370,6 +376,24 @@ try {
                 $state['self'] = $self.sha
             }
             Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+        }
+
+        # ---- v1.07: VPS scanner deploy (naya scanner.mjs turant + engine taaza) ----
+        $scanBlob = $blobs | Where-Object { $_.path -eq 'vps-scanner/scanner.mjs' } | Select-Object -First 1
+        if ($scanBlob -and (Test-Path -LiteralPath $ScanDir) -and ($state['scan'] -ne $scanBlob.sha)) {
+            try {
+                $sfile = Join-Path $ScanDir 'scanner.mjs'
+                if (Fix-File ("https://raw.githubusercontent.com/$Repo/$commit/vps-scanner/scanner.mjs") $sfile 10000 @('VPS Scanner v', 'Promise.all([pMain')) {
+                    $state['scan'] = $scanBlob.sha
+                    Log 'Scanner deploy: naya scanner.mjs VPS par rakha'
+                    $edir = Join-Path $ScanDir 'engine'
+                    if (Test-Path -LiteralPath $edir) {
+                        $vq = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+                        foreach ($e in $ScanEng) { [void](Fix-File ($ScanPages + $e + '?v=' + $vq) (Join-Path $edir $e) 300 @('export ')) }
+                        Log 'Scanner deploy: engine files GitHub Pages se taaza'
+                    }
+                }
+            } catch { Log ('Scanner deploy ERROR: ' + $_.Exception.Message) }
         }
 
         # ---- EA files ----
