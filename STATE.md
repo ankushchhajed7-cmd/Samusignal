@@ -2,6 +2,14 @@
 
 Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, aur kya baaki hai.
 
+## Scanner v1.13 — 🛡️ FX SENTINEL auto paper, app band ho tab bhi (25 Nov 2026)
+- User: SAMUSIGNAL-AI ke naye Sentinel page (7 major + XAUUSD, score 0–100) ka paper auto trade app band hone par bhi + roz raat 9:55 IST report.
+- `vps-scanner/scanner.mjs` v1.13: ENG_FILES me `sentinelrules.js` (SAMUSIGNAL-AI Pages se, page ka hi code). `sentinelRun()` har run (har 1 min) me, AI AUTO `main()` + candle ke saath-saath (EA chup ho tab bhi):
+  1) chalu paper ka nateeja (`evalTrade` 15m bars, bid + spread) -> `/sentinel/paper/<id>`; 2) har nayi 15m candle ke 25 sec baad `runScan` (feed 15m + 1h, quotes, MT5 cal + Forex Factory High news) -> `canOpen` -> naya paper (risk $ = `pipUsd`); Gemini (config ki gKey, Google Search) sirf `nearSetup` + 30 min me ek baar, `ST.aiDay` ki roz seema me; `/sentinel/radar`; 3) `/sentinel/daily/<IST din>` = `dayReport` (badla ho tab); 4) heartbeat `/sentinel/vps`; 5) safai din me ek baar (paper 60 din, daily 120 din).
+- Setting app se `/sentinel/cfg` (minScore, rr, lot, maxOpen, dayLoss, expiryMin, ai). KOI ASLI ORDER NAHI.
+- Jaancha: nakli Firebase + nakli Gemini ke saath do run — 3 paper, XAUUSD PENDING -> TP 1.8R $2.66, daily sahi.
+- VPS par apne aap (scanner 6 ghante me khud ko update karta hai). Turant: `Remove-Item C:\SamuScanner\engine\engine.js` -> agle run engine + naya scanner, uske agle run se Sentinel.
+
 ## Abhi ka version
 
 | Cheez | Version | File |
@@ -23,7 +31,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | SUPERTREND GRID (M1 Supertrend + $10 grid basket, gold; hedge EA ki jagah) | **2.08** | `vps-ea/SUPERTREND GRID v2.08.mq5` |
 | FX Bars Pusher (FX-TRADER-SKILL- repo, XAUUSD M5 bars GitHub `data` branch par bhejta hai, koi trade nahi; token EA input me, WebRequest me api.github.com allow karna) | **1.00** | `vps-ea/FX Bars Pusher v1.00.mq5` |
 | SamuSignal News Pusher (SAMUSIGNAL-AI ke NEWS page ke liye: MT5 Economic Calendar ka asli number -> Firebase `/feed/news`, koi trade nahi; Data Feed wale terminal pe, WebRequest me Firebase URL) | **1.03** | `vps-ea/SamuSignal News Pusher v1.03.mq5` |
-| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $3 profit = band + TARGET LOCK (v1.13); REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.13** | `vps-ea/SAMUSIGNAL AI AUTO v1.13.mq5`, `vps-scanner/scanner.mjs` (v1.12) |
+| SAMUSIGNAL AI AUTO (VPS scanner ke "AI sahmat" signal par LIMIT; TP $0.25 / SL $1.50; XAU / BTC nahi; 1 pair 1 trade; news 60/60 min; din: 4 loss ya $3 profit = band + TARGET LOCK (v1.13); REAL par AllowReal=false se band) + `vps-scanner/` (Node, app ka engine) | **1.13** | `vps-ea/SAMUSIGNAL AI AUTO v1.13.mq5`, `vps-scanner/scanner.mjs` (v1.13 — + 🛡️ FX SENTINEL auto paper) |
 | SAMUSIGNAL CANDLE EA (app Candle page / Strategy 5 ka apna EA — naye $100 DEMO par; sirf app me ON pair, sirf 1 MIN; 24 ghante (sirf news rok); lock +$0.15 → SL +$0.10 + trail $0.05; High news ±30 min naya trade nahi; floating −$2 = pair din bhar band + badla pair auto; ek saath max 3 + haath ka 1 slot (haath ka trade bhi isi niyam se); VPS paper jaisa niyam; Matrix Terminal dashboard + PAUSE / CLOSE ALL; REAL par AllowReal=false se band) | **1.12** | `vps-ea/SAMUSIGNAL CANDLE EA v1.12.mq5` |
 | BotFlow (bahar ka EA, sirf .ex5 — source nahi; VPS Helper seedha copy karta hai) | — | `vps-ea/BotFlow.ex5` |
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |

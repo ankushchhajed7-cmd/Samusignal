@@ -1,5 +1,5 @@
 /* ==================================================================
-   SAMUSIGNAL AI AUTO — VPS Scanner v1.12   (Ankush New Vision)
+   SAMUSIGNAL AI AUTO — VPS Scanner v1.13   (Ankush New Vision)
    ------------------------------------------------------------------
    KAAM (Task Scheduler se har 1 min chalta hai, har nayi 15m candle par ek scan):
     1. App wala hi engine (GitHub Pages: SAMUSIGNAL-AI/src/*.js) — har 6 ghante taaza.
@@ -26,6 +26,12 @@
    v1.06 — har paper par 4 PUSHTI likhi jaati hain (p.cf, candlerules.confirms; 1 MIN ki badi TF = 5 MIN, 5 MIN ki = 15 MIN).
    Sirf naapne ke liye — signal / paper niyam wahi.
    v1.07 — har paper ka 'sabse gehra ghata' (mae $) bhi likha jaata hai (book hone se pehle trade kitna neeche gaya).
+   v1.13 — 🛡️ FX SENTINEL AUTO PAPER (app band ho tab bhi, user 25 Nov): app ke Sentinel page wala hi code
+   (GitHub Pages: SAMUSIGNAL-AI/src/sentinelrules.js) har run me: chalu paper trade ka nateeja (15m bars, har minute),
+   har nayi 15m candle ke 25 sec baad 8 pair (7 major + XAUUSD) scan -> score >= minScore + koi rok nahi -> PAPER trade
+   (BUY / SELL LIMIT, structure SL, TP = RR). Setting app se (/sentinel/cfg). Firebase: /sentinel/vps (heartbeat har min),
+   /sentinel/radar, /sentinel/paper/<id>, /sentinel/daily/<IST din> (roz raat 9:55 ka report isi se). Gemini (news bias)
+   sirf jab koi setup kareeb ho, 30 min me ek baar. KOI ASLI ORDER NAHI. AI AUTO scan / EA se alag (EA chup ho tab bhi chalta hai).
    v1.12 — CANDLE BAND (user 24 Nov: "kaafi safal nahi, app se Candle option hata do"): CANDLE_ON = false →
    candleLoop nahi chalta — na /candle/sig, na paper, na phone push. AI AUTO scan pehle jaisa.
    v1.11 — SURAKSHIT LIKHNA: engine / apna naya version / state.json pehle .tmp me, poora likh jaane par hi asli file
@@ -44,13 +50,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const VER = '1.12';
+const VER = '1.13';
+const SEN_ON = true;       /* v1.13: 🛡️ FX SENTINEL auto paper */
 const CANDLE_ON = false;   /* v1.12 (user 24 Nov): Candle (Strategy 5) band — app se hataya, safal nahi */
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEST = process.argv.includes('--test');
 const PAGES = 'https://ankushchhajed7-cmd.github.io/SAMUSIGNAL-AI/src/';
 const SELF_RAW = 'https://raw.githubusercontent.com/ankushchhajed7-cmd/samusignal/main/vps-scanner/scanner.mjs';
-const ENG_FILES = ['symbols.js', 'data.js', 'engine.js', 'ai.js', 'candlerules.js'];   /* v1.01: + candlerules (Candle page ka hi code) */
+const ENG_FILES = ['symbols.js', 'data.js', 'engine.js', 'ai.js', 'candlerules.js', 'sentinelrules.js'];   /* v1.01: + candlerules; v1.13: + sentinelrules (Sentinel page ka hi code) */
 const ENG_DIR = path.join(DIR, 'engine');
 const STATE_F = path.join(DIR, 'state.json');
 const LOG_F = path.join(DIR, 'scanner.log');
@@ -347,6 +354,121 @@ async function candleLoop(isMainDone){
   }while((Date.now() - T0 < 54000 || !isMainDone()) && Date.now() - T0 < 9 * 60e3);
 }
 
+/* ==================================================================
+   v1.13 🛡️ FX SENTINEL — auto paper (app band ho tab bhi)
+   ================================================================== */
+const SN = ST.sen = ST.sen || {};
+const FF = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+async function senEvents(get){
+  const ev = [];
+  const j = await get('feed/news/cal').catch(() => null);
+  if(j && Array.isArray(j.list) && Date.now() - j.at * 1000 < 40 * 60e3) j.list.forEach(x => ev.push({t: x.t * 1000, cur: x.cur || 'USD', imp: x.imp, title: x.title}));
+  if(!SN.ff || Date.now() - SN.ff.at > 3 * 3600e3){
+    try{ const r = await fetch(FF, {cache: 'no-store'}); const a = r.ok ? await r.json() : null;
+      if(Array.isArray(a) && a.length) SN.ff = {at: Date.now(), list: a.filter(x => x.impact === 'High').map(x => ({t: Date.parse(x.date), cur: x.country, imp: 'High', title: x.title}))} }catch(e){}
+  }
+  ((SN.ff && SN.ff.list) || []).forEach(x => { if(isFinite(x.t) && !ev.some(e => e.cur === x.cur && Math.abs(e.t - x.t) < 5 * 60e3)) ev.push(x) });
+  return ev.filter(e => e.imp === 'High');
+}
+async function senAsk(R){
+  const models = [C.gModel, 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-3.5-flash'].filter((x, i, a) => x && a.indexOf(x) === i), errs = [];
+  for(const m of models){
+    const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 45000);
+    try{
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(C.gKey)}`, {method: 'POST', headers: {'Content-Type': 'application/json'}, signal: ac.signal,
+        body: JSON.stringify({contents: [{parts: [{text: R.AI_PROMPT}]}], tools: [{google_search: {}}], generationConfig: {temperature: 0.2, maxOutputTokens: 700}})});
+      const j = await r.json().catch(() => ({}));
+      if(!r.ok){ errs.push(((j.error && j.error.message) || 'HTTP ' + r.status).split(C.gKey).join('***').slice(0, 80)); continue }
+      const txt = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(x => x.text || '').join('');
+      const b = R.parseCurBias(txt); if(!b){ errs.push(m + ': format galat'); continue }
+      const sum = b.sum; delete b.sum;
+      return {at: Date.now(), bias: b, sum, model: m};
+    }catch(e){ errs.push(e.name === 'AbortError' ? m + ' slow' : String(e.message).slice(0, 80)) }finally{ clearTimeout(tm) }
+  }
+  throw new Error(errs[0] || 'Gemini fail');
+}
+async function sentinelRun(){
+  if(!SEN_ON) return;
+  const sec = t => Math.floor(t / 1000);
+  try{
+    await codeReady();
+    const imp = f => import(pathToFileURL(path.join(ENG_DIR, f)).href + '?t=' + (ST.engAt || 0));
+    const Sy = await imp('symbols.js'), D = await imp('data.js'), R = await imp('sentinelrules.js');
+    const s = {fbUrl: C.fbUrl, fbAuth: C.fbAuth, gKey: C.gKey, gModel: C.gModel};
+    const url = (p, q) => { const u = D.fbUrl(s, p); return q ? u + (u.includes('?') ? '&' : '?') + q : u };
+    const get = async (p, q) => { const r = await fetch(url(p, q), {cache: 'no-store'}); if(!r.ok) throw new Error('Firebase GET ' + p + ' HTTP ' + r.status); return r.json() };
+    const put = async (p, v) => { if(TEST){ console.log('SENTINEL PUT (test — likha NAHI)', p, JSON.stringify(v).slice(0, 240)); return }
+      const r = await fetch(url(p), {method: 'PUT', body: JSON.stringify(v), headers: {'Content-Type': 'application/json'}}); if(!r.ok) throw new Error('Firebase PUT ' + p + ' HTTP ' + r.status) };
+    const now = Date.now(), slot = Math.floor(now / R.M15);
+    const hb = o => put('sentinel/vps', Object.assign({t: sec(Date.now()), v: VER, rv: R.SEN_VERSION, scanAt: SN.scanAt || 0, last: SN.last || '', open: SN.open || 0, why: ''}, o)).catch(e => log('🛡 heartbeat: ' + e.message));
+    const fsx = await D.feedStatus(s, true);
+    if(!fsx.ok){ await hb({why: 'MT5 Data Feed बंद — ' + (fsx.why || '')}); return }
+    const cfg = Object.assign({}, R.DEF_CFG, (await get('sentinel/cfg').catch(() => null)) || {});
+    const trades = Object.values((await get('sentinel/paper', 'orderBy=%22%24key%22&limitToLast=300')) || {}).filter(t => t && t.sym && Sy.SPECS[t.sym]);
+    const A15 = await D.feedAllBars(s, '15min');
+
+    /* 1) chalu paper ka nateeja — har run (har minute) */
+    for(const t of trades){
+      if(t.done) continue;
+      const a = A15[R.nameOf(t.sym)]; if(!a || !a.bars) continue;
+      const was = R.applyEval(t, R.evalTrade(t, a.bars, now), now);
+      if(was !== null || t.state === 'OPEN'){
+        await put('sentinel/paper/' + t.id, t).catch(e => log('🛡 paper: ' + e.message));
+        if(was !== null) log(`🛡 ${R.nameOf(t.sym)} ${t.type}: ${was} -> ${t.state}${t.done ? ' ' + t.r + 'R $' + t.usd : ''}`);
+      }
+    }
+
+    /* 2) scan — har nayi 15m candle ke 25 sec baad ek baar */
+    if(TEST || (SN.slot !== slot && now - slot * R.M15 >= 25000)){
+      SN.slot = slot;
+      const A1 = await D.feedAllBars(s, '1h');
+      const q = await D.quotes(s, R.SEN_PAIRS).catch(() => ({}));
+      const rates = {}; Object.entries(q).forEach(([k, v]) => { if(v && v.p > 0) rates[k] = v.p });
+      const events = await senEvents(get);
+      const base = {A15, A1, q, events, history: trades.filter(t => t.done), cfg, now};
+      const fresh = () => cfg.ai && SN.ai && Date.now() - SN.ai.at < 3600e3 ? SN.ai : null;
+      let res = R.runScan(Object.assign({bias: fresh() ? fresh().bias : null}, base));
+      const today = new Date().toISOString().slice(0, 10);
+      if(ST.aiDay.d !== today) ST.aiDay = {d: today, n: 0};
+      if(cfg.ai && R.nearSetup(res.list, cfg) && (!SN.ai || now - SN.ai.at > 30 * 60e3) && ST.aiDay.n < C.aiPerDay){
+        try{ ST.aiDay.n++; SN.ai = await senAsk(R); SN.aiErr = ''; res = R.runScan(Object.assign({bias: SN.ai.bias}, base)); log('🛡 Gemini news bias: ' + (SN.ai.sum || '').slice(0, 80)) }
+        catch(e){ SN.aiErr = String(e.message || e).slice(0, 80); log('🛡 Gemini: ' + SN.aiErr) }
+      }
+      const opened = [];
+      for(const r of res.list){
+        if(!r.ok) continue;
+        const why = R.canOpen(r, trades, cfg, now, R.todayUsd(trades, now));
+        if(why){ r.skip = why; continue }
+        const risk = r.order.dist / Sy.SPECS[r.sym].pip * Sy.pipUsd(r.sym, cfg.lot, rates);
+        const t = R.newTrade(r, cfg, now, risk, fresh() ? fresh().sum : '', 'vps');
+        trades.push(t); r.taken = t.id; opened.push(R.nameOf(r.sym) + ' ' + t.type + ' ' + r.score);
+        await put('sentinel/paper/' + t.id, t).catch(e => log('🛡 naya paper: ' + e.message));
+      }
+      const ai = fresh();
+      await put('sentinel/radar', {at: now, v: VER, list: res.list.map(R.slimRadar), cs: res.cs, ai: ai ? {at: ai.at, sum: ai.sum || '', bias: ai.bias} : null, aiErr: SN.aiErr || ''}).catch(e => log('🛡 radar: ' + e.message));
+      SN.scanAt = sec(now); SN.last = opened.length ? opened.join(', ') : 'koi setup nahi';
+      log(`🛡 sentinel scan: top ${res.list.slice(0, 3).map(r => R.nameOf(r.sym) + ' ' + (r.dir || '-') + ' ' + r.score).join(' · ')} · naye paper ${opened.length}${opened.length ? ' (' + opened.join(', ') + ')' : ''}`);
+      if(TEST) res.list.forEach(r => console.log(`  ${R.nameOf(r.sym)} ${r.dir || '-'} ${r.score} ${r.ok ? 'OK' : ''} ${r.blocks[0] || r.skip || ''}`));
+    }
+
+    /* 3) aaj (IST) ka hisaab — /sentinel/daily/<din> (roz raat 9:55 ka report) */
+    const day = R.dayKeyIST(now), rep = R.dayReport(trades, day), h = JSON.stringify(rep);
+    if(SN.dayH !== h){ SN.dayH = h; await put('sentinel/daily/' + day, Object.assign(rep, {at: sec(now), v: VER})).catch(e => log('🛡 daily: ' + e.message)) }
+    SN.open = trades.filter(t => !t.done).length;
+    await hb({});
+
+    /* 4) safai: din me ek baar — paper 60 din, daily 120 din */
+    const dk = new Date().toISOString().slice(0, 10);
+    if(!TEST && SN.prune !== dk){
+      SN.prune = dk;
+      try{ const j = await get('sentinel/paper', 'shallow=true');
+        for(const id of Object.keys(j || {})){ const t = parseInt(id.slice(2, 10), 36); if(t && now - t > 60 * 864e5) await fetch(url('sentinel/paper/' + id), {method: 'DELETE'}) } }catch(e){}
+      try{ const j = await get('sentinel/daily', 'shallow=true');
+        for(const d of Object.keys(j || {})){ const t = Date.parse(d); if(t && now - t > 120 * 864e5) await fetch(url('sentinel/daily/' + d), {method: 'DELETE'}) } }catch(e){}
+    }
+  }catch(e){ log('🛡 sentinel GALTI: ' + (e && e.message || e)) }
+}
+
 let mainDone = false;
 const pMain = main().catch(e => log('GALTI: ' + (e && e.stack || e))).finally(() => { mainDone = true });
-Promise.all([pMain, candleLoop(() => mainDone)]).finally(() => { saveState(); unlock() });
+Promise.all([pMain, candleLoop(() => mainDone), sentinelRun()]).finally(() => { saveState(); unlock() });
