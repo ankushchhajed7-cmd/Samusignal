@@ -14,7 +14,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
 | AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.01** | `vps-ea/AMC GOLD MASTER v1.01.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
-| AurumX Clone (real slippage test) | **1.00** | `vps-ea/AurumX Clone v1.00.mq5` |
+| AurumX Clone (real slippage test) | **1.01** | `vps-ea/AurumX Clone v1.01.mq5` |
 | Investor Account Watcher (INVESTOR-ID repo) | **1.11** | `vps-ea/Investor Account Watcher v1.11.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
@@ -76,6 +76,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - 1546 Watcher 401 (≈18:00 se): user ke phone → remote paste me token bigadta raha, aur jo token daala wo bhi band tha. VPS ke Firefox se GitHub "Access temporarily restricted" (VPS IP par bahut API traffic).
 - Hal bina user ke: helper har 10 min VPS ke sab terminal (.chr / .set / MQL5\Files / Common) me GitHub token dhoondhta hai, GitHub se jaanchta hai (INVESTOR-ID push = OK), aur sahi token har Watcher terminal ke MQL5\Files\investor_token.txt + Common\Files\IW_gh_token.txt me rakhta hai (sirf jahan kharab / khaali). Watcher v1.07+ 401 par har 60 sec file dobara padhta hai → khud theek.
 - Haal GitHub par: INVESTOR-ID `data/_vps/heal.json` (token nahi, sirf ginti / kaunse terminal theek hue).
+
+## AurumX Clone v1.01 — SL asli fill se + max loss (25 Nov 2026, main → VPS Helper)
+- Exness demo (MT5Trial7) par owner: loss $0.50 se bada. Wajah: v1.00 SL maange gaye STOP price se lagata tha; fill aage hone par loss = 0.50 + slippage; upar se Exness spread ~$0.25 (Vantage $0.11).
+- v1.01: fill hote hi SL = asli fill ∓ $0.50 (AurumX jaisa); price pehle hi us SL ke paar ho to turant band (`SL_FILL`); `InpMaxLossUsd` 0.70 — floating loss itna ho to turant band (`MAXLOSS`); dashboard TRADE card par is trade ka entry slippage.
+- Log reason me ab MAXLOSS / SL_FILL bhi. Compile yahan nahi hua — VPS Helper dekhna.
 
 ## AurumX Clone v1.00 — real slippage test (25 Nov 2026, main → VPS Helper)
 - Wajah: Vantage demo 26209579 ka AurumX scalper demo par +$130 / 10.8 h, par SAMU Backtest Lab (research/aurumx) me slippage $0.05/side par clone minus. Owner ne raasta 2 chuna: 1 din real account par 0.01 se naapna.
