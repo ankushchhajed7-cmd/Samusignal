@@ -7,7 +7,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **7.6** | `vps-ea/PERSONAL FX v7.6 - GRID.mq5` |
+| PERSONAL FX EA | **7.7** | `vps-ea/PERSONAL FX v7.7 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -238,6 +238,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v7.7 — STRATEGY 6: HEDGE LADDER (25 Nov 2026, user Final)
+- `Strategy = 6` (`STRAT_6_HEDGE`). `S6ManageSymbol()` ManageMartingaleGrids se. MAIN = pair ka sabse purana non-hedge trade; HEDGE = comment `PFX6H` (Magic).
+- Koi hedge nahi: main TP `S6_TP_Usd` ($3) × lot/0.01 broker pe + software backup (0.02 → $6).
+- Ulti chaal `S6_Gap_Usd` ($3 @0.01 lot → price) main open se / sabse door hedge se → naya `S6_HedgeLot` (0.01) hedge. `S6_MaxHedges` 0 = seema nahi (MaxOpenTrades + margin check rehta hai).
+- Hedge khule: main ka broker TP hata (0). Sab milake ≥ `S6_BasketTP_Usd` (+$5, main ghate me) ya ≥ `S6_CycleTP_Usd` (+$3, main faayde me) → main + saare hedge band. `S6_BasketSL_Usd` 0 = OFF.
+- Lock `S6_LockUsd` ($1): aakhri 2 hedge milake (GV `PFX6P_<magic>_<sym>` = naye hedge ka ticket) > $1 → wapas ≤ $1 par dono band, phir `PFX6U` = 1 (naya hedge khulne tak sab akele). Baaki har hedge akela: > $1 armed (GV `PFX6A_<ticket>`), wapas ≤ $1 → band. Saare hedge band → main ka $6 TP wapas.
+- OnInit: netting account par Alert (HEDGING chahiye). Push har hedge / lock / basket / cycle par.
 
 ## PERSONAL FX v7.6 — STRATEGY 5: CANDLE (SAMUSIGNAL AI Candle page) (14 Nov 2026, branch feature-personalfx-v7.6)
 - User: upar wali Strategy (abhi 4) waise hi chale; sirf SAMUSIGNAL AI ke 🕯️ Candle page se MT5 button wala trade **Strategy 5** par jaaye. Final: TP $0.25, SL $1.50, lot 0.01, candle band hote hi trade band (option a).
