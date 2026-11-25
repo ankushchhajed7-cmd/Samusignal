@@ -14,7 +14,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
 | AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.01** | `vps-ea/AMC GOLD MASTER v1.01.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
-| Investor Account Watcher (INVESTOR-ID repo) | **1.09** | `vps-ea/Investor Account Watcher v1.09.mq5` |
+| Investor Account Watcher (INVESTOR-ID repo) | **1.11** | `vps-ea/Investor Account Watcher v1.11.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
 | ARADHAYA SCALPER (multi engine gold scalper + manager; v1.00 LIVE NA chalayein) | **2.04** | `vps-ea/ARADHAYA SCALPER v2.04.mq5` |
@@ -75,6 +75,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - 1546 Watcher 401 (≈18:00 se): user ke phone → remote paste me token bigadta raha, aur jo token daala wo bhi band tha. VPS ke Firefox se GitHub "Access temporarily restricted" (VPS IP par bahut API traffic).
 - Hal bina user ke: helper har 10 min VPS ke sab terminal (.chr / .set / MQL5\Files / Common) me GitHub token dhoondhta hai, GitHub se jaanchta hai (INVESTOR-ID push = OK), aur sahi token har Watcher terminal ke MQL5\Files\investor_token.txt + Common\Files\IW_gh_token.txt me rakhta hai (sirf jahan kharab / khaali). Watcher v1.07+ 401 par har 60 sec file dobara padhta hai → khud theek.
 - Haal GitHub par: INVESTOR-ID `data/_vps/heal.json` (token nahi, sirf ginti / kaunse terminal theek hue).
+
+## Investor Account Watcher v1.11 — TICK RECORD (25 Nov 2026, main → VPS Helper)
+- Wajah: Vantage demo 26209579 par "AurumX" (magic 2026) — 749 trade / 10.7 ghante, median 5 sec, 0.01 lot, +$129. Iski entry samajhne ke liye M1 kaafi nahi, tick chahiye.
+- Naye inputs: `TickRecord` (true), `TickSymbols` (khaali = chart symbol), `TickBackfillHours` (24).
+- Har poore ghante ke tick (COPY_TICKS_INFO: ms, bid, ask) MT5 ki tick history se → `INVESTOR-ID/data/<acc>/ticks/<SYM>_<YYYYMMDD>_<HH>.csv` (server time; header me GMT offset). Ek timer me ek file, fail ho to agli baar wahi ghanta; state `MQL5\Files\IW_ticks_<acc>.txt`.
+- Bada upload (>300 KB) ke liye WebRequest timeout 60 s. Yahan compile nahi ho saka (MetaEditor nahi) — VPS Helper ka compile result dekhna.
+- Lagana: Vantage chart par v1.10 hata ke v1.11 (sirf usi terminal par; baaki terminal v1.10 hi rahen to tick nahi jaayenge).
 
 ## Investor Account Watcher v1.09 — token safai (18 Nov 2026, main → VPS Helper)
 - v1.08 log: length 93 par bhi "type=ANJAAN" (github_pat_ nahi mila) → paste me '_' ya koi akshar badal raha tha.
