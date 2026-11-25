@@ -14,6 +14,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | BTCGOLD EA (BTC EA ki gold copy, Buster trailing) | **1.02** | `vps-ea/BTCGOLD EA v1.02.mq5` |
 | AMC GOLD MASTER (GrowthMasters jaisa M5 gold EA) | **1.01** | `vps-ea/AMC GOLD MASTER v1.01.mq5` |
 | BTC Trailing Manager (Buster ke liye) | **1.03** | `vps-ea/BTC Trailing Manager v1.03.mq5` |
+| AurumX Clone (real slippage test) | **1.00** | `vps-ea/AurumX Clone v1.00.mq5` |
 | Investor Account Watcher (INVESTOR-ID repo) | **1.11** | `vps-ea/Investor Account Watcher v1.11.mq5` |
 | MEXA SCALP Signal EA (MEXA-SCALP repo, sirf signal + push, koi trade nahi) | **1.00** | `vps-ea/MEXA SCALP Signal EA v1.00.mq5` |
 | MEXA SCALP Trade EA (MEXA-SCALP repo, AUTO TRADE — cooldown + M15 trend filter + profit lock, demo / Strategy Tester) | **1.02** | `vps-ea/MEXA SCALP Trade EA v1.02.mq5` |
@@ -75,6 +76,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - 1546 Watcher 401 (≈18:00 se): user ke phone → remote paste me token bigadta raha, aur jo token daala wo bhi band tha. VPS ke Firefox se GitHub "Access temporarily restricted" (VPS IP par bahut API traffic).
 - Hal bina user ke: helper har 10 min VPS ke sab terminal (.chr / .set / MQL5\Files / Common) me GitHub token dhoondhta hai, GitHub se jaanchta hai (INVESTOR-ID push = OK), aur sahi token har Watcher terminal ke MQL5\Files\investor_token.txt + Common\Files\IW_gh_token.txt me rakhta hai (sirf jahan kharab / khaali). Watcher v1.07+ 401 par har 60 sec file dobara padhta hai → khud theek.
 - Haal GitHub par: INVESTOR-ID `data/_vps/heal.json` (token nahi, sirf ginti / kaunse terminal theek hue).
+
+## AurumX Clone v1.00 — real slippage test (25 Nov 2026, main → VPS Helper)
+- Wajah: Vantage demo 26209579 ka AurumX scalper demo par +$130 / 10.8 h, par SAMU Backtest Lab (research/aurumx) me slippage $0.05/side par clone minus. Owner ne raasta 2 chuna: 1 din real account par 0.01 se naapna.
+- Niyam (Lab clone jaise, `fast` rule ke bina): side = M1 close vs EMA100; STOP order $0.60 door, har 3 s price ke peeche; SL $0.50; trail 0.40/0.40; TP nahi; 1 trade; 0.01 lot; magic 260001.
+- Suraksha: din ka loss $3 → sab band; max 40 trade/din; spread > $0.20 → nayi order nahi; reset 07:00 IST; PAUSE / CLOSE ALL.
+- Log: `MQL5\Files\AurumX_Clone_<acc>.csv` (req vs fill, entry + SL exit slippage). Watcher input `JournalFiles = AurumX_Clone_{acc}.csv` → GitHub.
+- Gold Luxe full-screen dashboard (TREND / TRADE / TODAY / SLIPPAGE cards, DD-of-limit / trades / spread bars, aakhri 10 trade table).
+- Yahan compile nahi ho saka — VPS Helper ka compile result dekhna.
+- DHYAN: Exness standard XAUUSDm spread ~$0.26 > $0.20 → order nahi lagega; test ke liye InpMaxSpread 0.30 (nuksan ki sambhavna zyada).
 
 ## Investor Account Watcher v1.11 — TICK RECORD (25 Nov 2026, main → VPS Helper)
 - Wajah: Vantage demo 26209579 par "AurumX" (magic 2026) — 749 trade / 10.7 ghante, median 5 sec, 0.01 lot, +$129. Iski entry samajhne ke liye M1 kaafi nahi, tick chahiye.
