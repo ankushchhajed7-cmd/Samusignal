@@ -92,7 +92,7 @@ def indicators(b15):
     return adx, atr
 
 
-def run_cycle(bars, start, d, bsl, max_hours, cap=False):
+def run_cycle(bars, start, d, bsl, max_hours, cap=False, fb=True, space=0.0, reentry=True):
     """d=+1 main BUY, -1 main SELL. Depth D = how far price moved AGAINST the main (trigger side)."""
     mid0 = bars[start][1]
     s = SPREAD
@@ -124,6 +124,7 @@ def run_cycle(bars, start, d, bsl, max_hours, cap=False):
                     for n in range(max(1, int(prevD // GAP)), int(D // GAP) + 2):
                         if n in occ: continue
                         trig = R.get(n, n * GAP)
+                        if space and any(abs(h["o"] - trig) < space for h in H): continue
                         if prevD < trig <= D and (n not in R or seen.get(n)):
                             uid[0] += 1; H.append({"lvl": n, "o": trig, "armed": False, "id": uid[0]}); occ.add(n)
                             R.pop(n, None); seen.pop(n, None)
@@ -132,7 +133,7 @@ def run_cycle(bars, start, d, bsl, max_hours, cap=False):
                     if D < n * GAP:                    # price went back above the level -> exact level
                         R.pop(n); seen.pop(n, None); continue
                     if D < R[n]: seen[n] = True
-                    elif not seen.get(n) and D >= R[n] + 0.25 * GAP and n not in occ:
+                    elif fb and not seen.get(n) and D >= R[n] + 0.25 * GAP and n not in occ and not (space and any(abs(h["o"] - D) < space for h in H)):
                         uid[0] += 1; H.append({"lvl": n, "o": D, "armed": False, "id": uid[0]}); occ.add(n)
                         R.pop(n); seen.pop(n, None)
                 prevD = D
@@ -163,10 +164,10 @@ def run_cycle(bars, start, d, bsl, max_hours, cap=False):
                             banked += c
                             for h in (a, b):
                                 H.remove(h)
-                                if D > h["lvl"] * GAP and h is a: R[h["lvl"]] = min(D, h["lvl"] * GAP + 0.5 * GAP) if cap else D; seen[h["lvl"]] = False
+                                if reentry and D > h["lvl"] * GAP and h is a: R[h["lvl"]] = min(D, h["lvl"] * GAP + 0.5 * GAP) if cap else D; seen[h["lvl"]] = False
                     elif b["armed"] and pb <= LOCK:
                         banked += pb; H.remove(b)
-                        if D > b["lvl"] * GAP: R[b["lvl"]] = min(D, b["lvl"] * GAP + 0.5 * GAP) if cap else D; seen[b["lvl"]] = False
+                        if reentry and D > b["lvl"] * GAP: R[b["lvl"]] = min(D, b["lvl"] * GAP + 0.5 * GAP) if cap else D; seen[b["lvl"]] = False
             last_mid = target
     D = dep(last_mid)
     tot = -2 * D + sum(D - h["o"] - s for h in H)
@@ -204,8 +205,12 @@ def study(label, bars, start_min, max_hours):
     b15 = resample(bars, 15); adx, atr = indicators(b15)
     idx15 = {b[0]: i for i, b in enumerate(b15)}
     # --- v8.5 vs v8.6 fix (re-entry price never deeper than half a gap past its own level) ---
-    print("\n--- COMPARE: v8.5 (as running) vs v8.6-fix (re-entry capped at level + half gap) ---")
-    for cap in (False, True):
+    print("\n--- COMPARE variants ---")
+    VARS = [("v8.5 as running", dict()),
+            ("A no-market-reopen+space", dict(fb=False, space=0.5 * GAP)),
+            ("B A+cap", dict(fb=False, space=0.5 * GAP, cap=True)),
+            ("C exact level only+space", dict(fb=False, space=0.5 * GAP, reentry=False))]
+    for vname, kw in VARS:
         for bsl in (0, 30):
             rows = []; last_start = None
             for i, b in enumerate(bars):
@@ -217,10 +222,10 @@ def study(label, bars, start_min, max_hours):
                 if j is None or adx[j] is None: continue
                 last_start = t
                 for d in (1, -1):
-                    kind, pl, minf, dur = run_cycle(bars, i, d, bsl, max_hours, cap)
+                    kind, pl, minf, dur = run_cycle(bars, i, d, bsl, max_hours, **kw)
                     rows.append({"kind": kind, "pl": pl, "minf": minf, "dur": dur, "h": ist_hour(t), "adx": adx[j], "atr": atr[j], "dir": d})
-            summarize(("v8.6-fix" if cap else "v8.5") + (" BSL$30" if bsl else " BSL off"), rows)
-    for bsl in (0, 30):
+            summarize(vname[:16] + (" $30" if bsl else " off"), rows)
+    for bsl in ():
         rows = []; last_start = None
         for i, b in enumerate(bars):
             t = b[0]
