@@ -28,7 +28,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **8.1** | `vps-ea/PERSONAL FX v8.1 - GRID.mq5` |
+| PERSONAL FX EA | **8.2** | `vps-ea/PERSONAL FX v8.2 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -281,6 +281,10 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v8.2 — S6 SLOT: band hue bhaav par naya hedge (26 Nov 2026, user)
+- User: main BUY 3582.07, hedge 3579 / 3576 profit me band hue, phir wahan naya hedge nahi khula (seedha 3573 ... 3564 dikhe). Chahiye: jis bhaav par hedge band (TP / lock) hua, usi bhaav par us jagah ka naya hedge.
+- Slot n = main se n × gap. GV `PFX6N_<hedge>` = slot (purane hedge: sabse paas wala slot), `PFX6T_<main>_<n>` = trigger bhaav (band hone ka bhaav; kabhi na khula = level), `PFX6S_<main>_<n>` = bhaav trigger ke main wali taraf dikha. Trigger paar + dikha → us slot ka hedge (ek baar me sabse paas wala). Trigger se aadha gap se zyada aage → us baar nahi. `S6SlotsClear` main band par. v7.8 ka `PFX6L_` hata.
 
 ## PERSONAL FX v8.1 — S6 jodi lock +$1 par chalu (26 Nov 2026)
 - Demo: main BUY 3601.52, hedge 3580.50 + 3577.37 — bhaav 3577.4 ke paas se turant palta, jodi (aakhri 2) ka lock +$2 par chalu hona tha, kabhi nahi hua → dono atke (−$1.97, −$5.10). Fix: jodi ka arm = `S6_LockUsd` ($1) — naya hedge khulte waqt jodi ~+$3 hoti hai, isliye turant chalu; band milake +$1 par. Akele hedge ka arm `S6_LockArmUsd` ($2) wahi.
