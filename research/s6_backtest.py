@@ -207,7 +207,8 @@ def study(label, bars, start_min, max_hours):
     # --- v8.5 vs v8.6 fix (re-entry price never deeper than half a gap past its own level) ---
     print("\n--- COMPARE variants ---")
     VARS = [("v8.5 as running", dict()),
-            ("v8.6", dict(fb=False, space=0.5 * GAP, cap=True))]
+            ("v8.6", dict(fb=False, space=0.5 * GAP, cap=True)),
+            ("exact $3 levels", dict(fb=False, space=0.5 * GAP, reentry=False))]
     for vname, kw in VARS:
         for bsl in (0, 30, 60):
             rows = []; last_start = None
