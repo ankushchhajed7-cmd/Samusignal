@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **8.5** | `vps-ea/PERSONAL FX v8.5 - GRID.mq5` |
+| PERSONAL FX EA | **8.6** | `vps-ea/PERSONAL FX v8.6 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v8.6 — S6 bug fix: ek bhaav par kai hedge (26 Nov 2026, user Final)
+- Demo: main BUY 3581.069, 3 SELL ek hi bhaav 3574.090 par - v8.4/8.5 ka "market se dobara kholo" (re-entry bhaav nikal gaya to us pal ke bhaav par) kai slot ek saath khol deta tha.
+- Fix: (1) market re-open hata - sirf pending STOP; (2) khule hedge se aadhe gap (gold 1.5 pt) ke andar pending nahi; (3) 4b re-entry bhaav `S6SlotFree` + padhte waqt level ± aadha gap tak cap (agle level ke paar nahi); (4) `S6_BasketSL_Usd` 0 → 60 (user: 30 din me 2-3 baar lag sakta hai).
+- Real-gold backtest (`research/s6_backtest.py`, GitHub Actions `s6-research.yml`, GC=F 1m 7 din + 5m 60 din): "B" (= v8.6) SL $30 par +$3.78 / +$5.60 per cycle vs v8.5 +$3.58 / +$5.22; Basket SL v8.5 ka aadha. Bina SL ab bhi ~1% cycle atakte hain (−$180 se −$436) - isliye SL zaroori.
 
 ## PERSONAL FX v8.5 — S6_PendingAhead 3 → 5 (26 Nov 2026, user)
 - Seedhi chaal me ~5 hedge (~16.7 point) par basket +$5; spike me bhi 5 SELL STOP pehle se lage rahein.

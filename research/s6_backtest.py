@@ -207,11 +207,9 @@ def study(label, bars, start_min, max_hours):
     # --- v8.5 vs v8.6 fix (re-entry price never deeper than half a gap past its own level) ---
     print("\n--- COMPARE variants ---")
     VARS = [("v8.5 as running", dict()),
-            ("A no-market-reopen+space", dict(fb=False, space=0.5 * GAP)),
-            ("B A+cap", dict(fb=False, space=0.5 * GAP, cap=True)),
-            ("C exact level only+space", dict(fb=False, space=0.5 * GAP, reentry=False))]
+            ("v8.6", dict(fb=False, space=0.5 * GAP, cap=True))]
     for vname, kw in VARS:
-        for bsl in (0, 30):
+        for bsl in (0, 30, 60):
             rows = []; last_start = None
             for i, b in enumerate(bars):
                 t = b[0]
@@ -224,7 +222,7 @@ def study(label, bars, start_min, max_hours):
                 for d in (1, -1):
                     kind, pl, minf, dur = run_cycle(bars, i, d, bsl, max_hours, **kw)
                     rows.append({"kind": kind, "pl": pl, "minf": minf, "dur": dur, "h": ist_hour(t), "adx": adx[j], "atr": atr[j], "dir": d})
-            summarize(vname[:16] + (" $30" if bsl else " off"), rows)
+            summarize(vname[:16] + (" SL$%d" % bsl if bsl else " SL off"), rows)
     for bsl in ():
         rows = []; last_start = None
         for i, b in enumerate(bars):
