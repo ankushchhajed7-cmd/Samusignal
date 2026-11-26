@@ -28,7 +28,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **8.4** | `vps-ea/PERSONAL FX v8.4 - GRID.mq5` |
+| PERSONAL FX EA | **8.5** | `vps-ea/PERSONAL FX v8.5 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -281,6 +281,9 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v8.5 — S6_PendingAhead 3 → 5 (26 Nov 2026, user)
+- Seedhi chaal me ~5 hedge (~16.7 point) par basket +$5; spike me bhi 5 SELL STOP pehle se lage rahein.
 
 ## PERSONAL FX v8.4 — S6 neeche se band + upar khali nahi (26 Nov 2026, user "4b")
 - User: band sirf sabse neeche wala (6, 5, 4…); 5, 4, 3 band → bhaav neeche → pehle 3 (jahan band hua) phir 4, 5, 6.
