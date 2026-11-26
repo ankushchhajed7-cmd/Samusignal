@@ -2,6 +2,11 @@
 
 Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, aur kya baaki hai.
 
+## SAMU GOLD KILLER v1.08 — sirf naye app command se trade (26 Nov 2026)
+- User: "app ka button dabaye bina auto trade chalu ho gaya, aisa nahi hona chahiye". Kaaran: v1.07 lagate hi 18:43 ka purana START (MT5 GlobalVariable, 19:13 tak) wapas uth gaya -> SELL L1 0.01 18:56:37 (user ne mobile se band kiya, −$0.49).
+- `vps-ea/SAMU GOLD KILLER v1.08.mq5`: EA lagte / MT5 restart par purana START hamesha hat-ta; EA lagne se pehle ka app command ignore; GitHubToken input me ho to `SGK_tok_<magic>.txt` me bhi save (agle version par JODO CODE / OFFLINE nahi).
+- App OFFLINE (screenshot) ka kaaran: v1.07 token khaali -> JODO CODE ka intezaar. Chart par v1.08 + JODO CODE ek baar (ya token input me).
+
 ## SAMU GOLD KILLER v1.07 — START dabaya = trade lagega (26 Nov 2026)
 - User: app se scan karke START dabaya par MT5 me trade nahi laga; "RED ho ya GREEN, button dabaya to trade lagna hi chahiye".
 - Kaaran: 3 START (25 Nov 23:05, 26 Nov 13:17, 18:43) me EA ne OK diya par Shaant check ($5 / 30 min range) ne basket roki; ~21 ghante me range kabhi $5 se kam nahi hui -> 0 trade. VPS par abhi v1.05 chal raha.
@@ -56,7 +61,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Gold_Sl_Tp (bahar ka gold EA, sirf .ex5 — "Alox Software" v1.03; VPS Helper seedha copy karta hai) | 1.03 | `vps-ea/Gold_Sl_Tp.ex5` |
 | Btc_V1_Licence (bahar ka BTC EA, sirf .ex5 — "Telegram-@SuccessZonee / www.Btcv1.in"; VPS Helper seedha copy karta hai) | — | `vps-ea/Btc_V1_Licence_420841723.ex5` |
 | EMA20 M5 SCALPING (Tanisha Garg video: green EMA20 ke upar close -> agli 2 me red EMA ke upar -> red high pe BUY STOP; SELL ulta; saare forex pair ek chart se; 0.01 lot; hard SL + EMA close exit; v1.01: virtual stop (BID break), trailing SL, session 07-24) | **1.01** | `vps-ea/EMA20 M5 SCALPING v1.01.mq5` |
-| SAMU GOLD KILLER (app se START, JODO CODE, START = trade lagega, demo 1546) | **1.07** | `vps-ea/SAMU GOLD KILLER v1.07.mq5` |
+| SAMU GOLD KILLER (app se START, JODO CODE, START = trade lagega, sirf naye command se, demo 1546) | **1.08** | `vps-ea/SAMU GOLD KILLER v1.08.mq5` |
 | SAMU Universal EA (SAMU-BACKTEST-LAB repo: strategy JSON `MQL5\Files\step-basket.json` padhta hai, na mile to built-in Step Basket; Supertrend M15 pehla trade + $5 step grid, lot table, preset A/B/C, daily +1% / −5%, 07:00 IST reset; Gold Luxe dashboard + PAUSE / CLOSE ALL; v1.01: purane account pe safe — Own P/L mode ($1000 allocated), margin guard 300%, magic clash check; v1.02: dashboard laptop DPI pe theek + sirf EA ka P/L; v1.03: **default PAPER mode** (koi asli order nahi, InpLiveTrading=false); trade log CSV; chart XAUUSDm **M1**; v1.04: Friday stop + news filter; strategy JSON `vps-files/step-basket.json` = Step Basket $10 FINAL) | **1.04** | `vps-ea/SAMU Universal EA v1.04.mq5`, `vps-files/step-basket.json` |
 | VPS Helper (GitHub main -> VPS, .mq5 compile + .ex5 copy; v1.04: VPS scanner ki khaali / adhoori file khud theek; v1.05: Watcher token heal; v1.06: `vps-files/*.json` -> har terminal ka `MQL5\Files`; v1.07: naya `vps-scanner/scanner.mjs` turant VPS par + engine taaza) | **1.07** | `vps-helper/SamuVpsHelper.ps1` |
 | Kavach test | 256 test (26 pair test PASS; 14 purane FAIL v10.3.0 se chale aa rahe — neeche dekho) | `kavach.js` |
