@@ -1,0 +1,14 @@
+name: S6 research (gold hedge ladder backtest)
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-de58b3c2-9qoj0z]
+    paths: ['research/s6_backtest.py', '.github/workflows/s6-research.yml']
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backtest Strategy 6 on real gold (Yahoo GC=F 1m 7d + 5m 60d)
+        run: python3 -u research/s6_backtest.py
