@@ -28,7 +28,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **7.7** | `vps-ea/PERSONAL FX v7.7 - GRID.mq5` |
+| PERSONAL FX EA | **7.8** | `vps-ea/PERSONAL FX v7.8 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -281,6 +281,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v7.8 — S6 hedge level bug fix (26 Nov 2026)
+- Demo (v7.7 load ke baad haath ka BUY 0.02 XAU @3576.24): 16 SELL hedge har ~$1.2 par khule aur +$0.8–1.0 lock par band (+$13.88), aakhri 3552.86 par atka (−$29.9) — v7.7 me saare hedge band hone par `ref` = main entry ho jata tha aur bhaav main se $3 neeche hone se turant naya hedge.
+- Fix: hedge sirf main se tay level par (`idx = floor(doori / gap)`), pichla level GV `PFX6L_<main ticket>` me; naya hedge sirf naya level paar hone par; bhaav level se upar laute to level phir khula; ek level par ek hi khula hedge (gap/2). Main band (TP / cycle) par GV delete.
+- Naya input `S6_LockArmUsd` (default 1.0 = pehle jaisa): lock tabhi armed jab hedge (ya aakhri jodi) isse upar jaye; band `S6_LockUsd` par. Sujhav $2 (user Final baaki).
 
 ## PERSONAL FX v7.7 — STRATEGY 6: HEDGE LADDER (25 Nov 2026, user Final)
 - `Strategy = 6` (`STRAT_6_HEDGE`). `S6ManageSymbol()` ManageMartingaleGrids se. MAIN = pair ka sabse purana non-hedge trade; HEDGE = comment `PFX6H` (Magic).
