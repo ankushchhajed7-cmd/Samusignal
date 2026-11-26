@@ -28,7 +28,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **8.3** | `vps-ea/PERSONAL FX v8.3 - GRID.mq5` |
+| PERSONAL FX EA | **8.4** | `vps-ea/PERSONAL FX v8.4 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -281,6 +281,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v8.4 — S6 neeche se band + upar khali nahi (26 Nov 2026, user "4b")
+- User: band sirf sabse neeche wala (6, 5, 4…); 5, 4, 3 band → bhaav neeche → pehle 3 (jahan band hua) phir 4, 5, 6.
+- Hedge array gehrai (main se doori) ke kram me; band sirf sabse neeche wala: wo armed (+$2) → akela +$1; nahi → neeche ke 2 milake +$1 (jodi har baar, `pairUsed` hata). Upar wale ruko.
+- `S6SlotFree`: level se aage band hua → `PFX6T_<main>_<n>` = band bhaav (+ `PFX6S` seen); level se pehle band → theek level. Bhaav level se upar laut aaye → T hata (theek level).
+- Pending: khali level ka bhaav T (ya level) bhaav se aage → sabse paas ke 3 par STOP. Re-entry level ka bhaav peeche nikal gaya (seen ya ¼ gap) → turant market, upar wala pehle. Naya hedge push sabse naye (time) se.
+- Python sim (main 3571.48 → −14.5 → −6.5 → −16): band L4, L3, L2 (+$1 har); phir L2 @ 3564.48 (band bhaav), L3 / L4 / L5 apne level.
 
 ## PERSONAL FX v8.3 — S6 pakka sequence + PENDING STOP (26 Nov 2026, user Final)
 - v8.2 bug: jodi band par dono slot ka trigger ek hi bhaav → 2 SELL 3560.21 / 3560.15 (main 3568.81, chahiye 3565.81 / 3562.81 / 3559.81). v8.2 ka "band bhaav par" hata.
