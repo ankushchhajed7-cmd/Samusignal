@@ -92,7 +92,7 @@ def indicators(b15):
     return adx, atr
 
 
-def run_cycle(bars, start, d, bsl, max_hours):
+def run_cycle(bars, start, d, bsl, max_hours, cap=False):
     """d=+1 main BUY, -1 main SELL. Depth D = how far price moved AGAINST the main (trigger side)."""
     mid0 = bars[start][1]
     s = SPREAD
@@ -163,10 +163,10 @@ def run_cycle(bars, start, d, bsl, max_hours):
                             banked += c
                             for h in (a, b):
                                 H.remove(h)
-                                if D > h["lvl"] * GAP and h is a: R[h["lvl"]] = D; seen[h["lvl"]] = False
+                                if D > h["lvl"] * GAP and h is a: R[h["lvl"]] = min(D, h["lvl"] * GAP + 0.5 * GAP) if cap else D; seen[h["lvl"]] = False
                     elif b["armed"] and pb <= LOCK:
                         banked += pb; H.remove(b)
-                        if D > b["lvl"] * GAP: R[b["lvl"]] = D; seen[b["lvl"]] = False
+                        if D > b["lvl"] * GAP: R[b["lvl"]] = min(D, b["lvl"] * GAP + 0.5 * GAP) if cap else D; seen[b["lvl"]] = False
             last_mid = target
     D = dep(last_mid)
     tot = -2 * D + sum(D - h["o"] - s for h in H)
@@ -203,6 +203,23 @@ def study(label, bars, start_min, max_hours):
           f"{time.strftime('%Y-%m-%d %H:%M', time.gmtime(bars[0][0]))} -> {time.strftime('%Y-%m-%d %H:%M', time.gmtime(bars[-1][0]))} UTC")
     b15 = resample(bars, 15); adx, atr = indicators(b15)
     idx15 = {b[0]: i for i, b in enumerate(b15)}
+    # --- v8.5 vs v8.6 fix (re-entry price never deeper than half a gap past its own level) ---
+    print("\n--- COMPARE: v8.5 (as running) vs v8.6-fix (re-entry capped at level + half gap) ---")
+    for cap in (False, True):
+        for bsl in (0, 30):
+            rows = []; last_start = None
+            for i, b in enumerate(bars):
+                t = b[0]
+                if last_start is not None and t - last_start < start_min * 60: continue
+                if t > bars[-1][0] - 6 * 3600: break
+                k15 = t - t % 900 - 900
+                j = idx15.get(k15)
+                if j is None or adx[j] is None: continue
+                last_start = t
+                for d in (1, -1):
+                    kind, pl, minf, dur = run_cycle(bars, i, d, bsl, max_hours, cap)
+                    rows.append({"kind": kind, "pl": pl, "minf": minf, "dur": dur, "h": ist_hour(t), "adx": adx[j], "atr": atr[j], "dir": d})
+            summarize(("v8.6-fix" if cap else "v8.5") + (" BSL$30" if bsl else " BSL off"), rows)
     for bsl in (0, 30):
         rows = []; last_start = None
         for i, b in enumerate(bars):
