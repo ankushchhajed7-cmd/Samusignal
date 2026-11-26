@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **8.6** | `vps-ea/PERSONAL FX v8.6 - GRID.mq5` |
+| PERSONAL FX EA | **8.7** | `vps-ea/PERSONAL FX v8.7 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v8.7 — S6 LIVE app data (26 Nov 2026, user Final)
+- App: repo GRID-STARTAGY-2 (pehle GRID 2, wo account band) ab **S6 LIVE** PWA (LIVE · LADDER · RISK · HISTORY · SETUP).
+- EA (Strategy 6 + `S6_LiveOn` + app bridge on): Firebase `/personalfx/s6live/<S6_LiveKey>/` (FirebaseAuth): `hb` har 30 sec (balance, equity, currency, demo/real, S6 setting); `live/<pair>` har `S6_LivePushSec` (3) sec (main, har hedge level / bhaav / P/L / lock, pending, mpl / hpl / tot / banked / net, cycle DD, kitne hedge lage, bal / eq); `events` (har `S6Push` sandesh + naya cycle + cycle band); `cycles` (main band hone par: start / end UTC ms, nateeja — EA ka why ya deal reason TP / SL / HAATH SE / EA, P/L main + hedge, DD, hedge). Account number nahi.
+- User: balance / equity bhi dikhao. News niyam abhi nahi (alag Final).
 
 ## PERSONAL FX v8.6 — S6 bug fix: ek bhaav par kai hedge (26 Nov 2026, user Final)
 - Demo: main BUY 3581.069, 3 SELL ek hi bhaav 3574.090 par - v8.4/8.5 ka "market se dobara kholo" (re-entry bhaav nikal gaya to us pal ke bhaav par) kai slot ek saath khol deta tha.
