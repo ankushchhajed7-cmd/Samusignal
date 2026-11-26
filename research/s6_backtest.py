@@ -224,7 +224,7 @@ def study(label, bars, start_min, max_hours):
                     kind, pl, minf, dur = run_cycle(bars, i, d, bsl, max_hours, **kw)
                     rows.append({"kind": kind, "pl": pl, "minf": minf, "dur": dur, "h": ist_hour(t), "adx": adx[j], "atr": atr[j], "dir": d})
             summarize(vname[:16] + (" SL$%d" % bsl if bsl else " SL off"), rows)
-    for bsl in ():
+    for bsl in (60,):   # v8.6 detail by market condition
         rows = []; last_start = None
         for i, b in enumerate(bars):
             t = b[0]
@@ -236,10 +236,10 @@ def study(label, bars, start_min, max_hours):
             rng4 = max(x[2] for x in b15[max(0, j - 15):j + 1]) - min(x[3] for x in b15[max(0, j - 15):j + 1])
             last_start = t
             for d in (1, -1):
-                kind, pl, minf, dur = run_cycle(bars, i, d, bsl, max_hours)
+                kind, pl, minf, dur = run_cycle(bars, i, d, bsl, max_hours, cap=True, fb=False, space=0.5 * GAP)
                 rows.append({"kind": kind, "pl": pl, "minf": minf, "dur": dur, "h": ist_hour(t),
                              "adx": adx[j], "atr": atr[j], "rng4": rng4, "dir": d})
-        print(f"\n--- Basket SL {'OFF' if not bsl else '$'+str(bsl)} ---")
+        print(f"\n--- v8.6 detail, Basket SL {'OFF' if not bsl else '$'+str(bsl)} ---")
         summarize("ALL", rows)
         summarize("main BUY", [r for r in rows if r["dir"] == 1])
         summarize("main SELL", [r for r in rows if r["dir"] == -1])
@@ -266,6 +266,11 @@ def study(label, bars, start_min, max_hours):
             print(" filters:")
             summarize("ADX>=25 + ATR not low", [r for r in rows if r["adx"] >= 25 and r["atr"] >= aq1])
             summarize("ADX<20 + ATR low", [r for r in rows if r["adx"] < 20 and r["atr"] < aq1])
+            summarize("GREEN ADX>=25", [r for r in rows if r["adx"] >= 25])
+            summarize("YELLOW ADX 20-25", [r for r in rows if 20 <= r["adx"] < 25])
+            summarize("RED ADX<20", [r for r in rows if r["adx"] < 20])
+            summarize("RED2 ADX<20 + ATR low", [r for r in rows if r["adx"] < 20 and r["atr"] < aq1])
+            summarize("NOT RED2", [r for r in rows if not (r["adx"] < 20 and r["atr"] < aq1)])
 
 
 def main():
