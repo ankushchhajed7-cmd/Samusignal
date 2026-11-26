@@ -28,7 +28,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **7.8** | `vps-ea/PERSONAL FX v7.8 - GRID.mq5` |
+| PERSONAL FX EA | **7.9** | `vps-ea/PERSONAL FX v7.9 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -281,6 +281,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v7.9 — S6 CYCLE NET PROFIT $6 + lock arm $2 (26 Nov 2026, user Final)
+- `S6_CycleNetUsd` 6: `S6Realized()` = main khulne ke baad band hue hedge (orders comment `PFX6H` + Magic → position id → OUT deals, profit + swap + commission) + main P/L + khule hedge P/L ≥ $6 → main + saare hedge band, push "CYCLE NET". Naya cycle sirf user ke agle haath ke trade se.
+- Basket +$5 (main ghate me) / cycle +$3 (main faayde me, sirf khule) dono rahe — jo pehle pura ho.
+- `S6_LockArmUsd` default 1 → 2 (hedge / aakhri jodi +$2 paar kare tabhi lock, band +$1 par).
 
 ## PERSONAL FX v7.8 — S6 hedge level bug fix (26 Nov 2026)
 - Demo (v7.7 load ke baad haath ka BUY 0.02 XAU @3576.24): 16 SELL hedge har ~$1.2 par khule aur +$0.8–1.0 lock par band (+$13.88), aakhri 3552.86 par atka (−$29.9) — v7.7 me saare hedge band hone par `ref` = main entry ho jata tha aur bhaav main se $3 neeche hone se turant naya hedge.
