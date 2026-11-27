@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **9.3** | `vps-ea/PERSONAL FX v9.3 - GRID.mq5` |
+| PERSONAL FX EA | **9.2** (user Final; v9.3 = v9.2 + S6_NextOnlyDeeper, test ke liye) | `vps-ea/PERSONAL FX v9.2 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,10 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## S6 — user Final: v9.2 chalegi (27 Nov 2026)
+- Backtest round 7 / 8 (`research/s6_bt2.py`): lock 3/2/1 + $0.20 trailing aur "$3 par $2, phir $1 peeche" (dono "door wala pehle" aur "har hedge khud") - koi bhi v9.2 (lock +$1.20 → +$1, bina trailing) se behtar nahi: SL $60 par 1m $4.53 vs $5.50, 5m $5.52 vs $5.76; SL 2 → 28, 0 → 14. "Har hedge khud" har baar kamzor.
+- User: "9.2 Final". Chart par `PERSONAL FX v9.2 - GRID.mq5` (v9.3 rakhi hai; usme `S6_NextOnlyDeeper = false` = v9.2 jaisa).
 
 ## PERSONAL FX v9.3 — S6 naya hedge sirf pehle walon ke profit me hone par (27 Nov 2026, user)
 - User: "4000 BUY → 3997 pehla SELL; doosra tabhi jab pehla +$3 dikhe; teesra tabhi jab doosra +$3 aur pehla +$6" - bhaav main ki taraf lautte hue upar-upar SELL na khulein.
