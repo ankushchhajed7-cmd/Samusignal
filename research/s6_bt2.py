@@ -290,9 +290,9 @@ NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 sing
 V90 = dict(pairsl=None, arm=2.0)                       # v9.0 niyam (lock +2 -> +1, jodi +1, -$2 kat nahi)
 NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 VARS = [
-    ("v10.2 (A: sirf bug fix, theek $3 level)", dict(NEW1, keep1=False)),
-    ("v10.2 + B (SELL na ho to bhaav se $3)", dict(NEW1, keep1=False, pxreset=True)),
-    ("v9.0 (purana, tulna)", dict(V90)),
+    ("v10.2 (abhi: sirf sabse gehra akela)", dict(NEW1, keep1=False)),
+    ("C: har SELL khud +$1 + gehri jodi", dict(NEW1, keep1=False, nolifo=True, indpair=True)),
+    ("D: har SELL khud +$1 (jodi nahi)", dict(NEW1, keep1=False, nolifo=True)),
 ]
 
 
