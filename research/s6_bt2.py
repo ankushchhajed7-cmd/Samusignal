@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -161,6 +161,19 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                         if c["pairfill"] is not None and deepest_before is not None and trig > deepest_before:
                             if (trig - deepest_before) - 2 * s > c["pairfill"]:
                                 pair_id = uid
+                # ---- user 27 Nov: khali level par LIMIT bhi (bhaav main ki taraf laut kar level chhue to wahin) ----
+                if c["limit"] and not closed and D < prevD:
+                    occ = {h["n"] for h in H}
+                    for n in range(1, int((prevD + c["off"]) / GAP) + 2):
+                        if n in occ:
+                            continue
+                        L = lv(n)
+                        if not (D <= L < prevD):
+                            continue
+                        if c["space"] and any(abs(h["o"] - L) < c["space"] for h in H):
+                            continue
+                        uid += 1; used += 1
+                        H.append({"n": n, "o": L, "armed": False, "peak": -s, "id": uid}); occ.add(n); R.pop(n, None)
                 prevD = D
             last_mid = target
     D = s - d * (last_mid - mid0)
@@ -186,18 +199,11 @@ def summarize(name, rows):
 
 VARS = [
     ("V0  v9.0 (abhi)", dict()),
-    ("G   jodi -$2 par band", dict(pairsl=2.0)),
-    ("G1  jodi -$1 par band", dict(pairsl=1.0)),
-    ("G3  jodi -$3 par band", dict(pairsl=3.0)),
-    ("L12 arm 1.2 (trail nahi)", dict(arm=1.2)),
-    ("T1  trail arm1.2 dist0.2", dict(arm=1.2, trail=0.2)),
-    ("E   neeche ghate -> upar nahi", dict(guard=True)),
-    ("O10 pending 1.0 pehle", dict(off=1.0)),
-    ("G+L12", dict(pairsl=2.0, arm=1.2)),
-    ("G+E", dict(pairsl=2.0, guard=True)),
-    ("G+O10", dict(pairsl=2.0, off=1.0)),
-    ("G+L12+E", dict(pairsl=2.0, arm=1.2, guard=True)),
-    ("G+L12+O10", dict(pairsl=2.0, arm=1.2, off=1.0)),
+    ("v9.1 = G+L12", dict(pairsl=2.0, arm=1.2)),
+    ("A   level par hi dobara (STOP)", dict(reentry=False)),
+    ("LIM level par STOP+LIMIT", dict(reentry=False, limit=True)),
+    ("v9.1 + A", dict(pairsl=2.0, arm=1.2, reentry=False)),
+    ("v9.1 + LIM", dict(pairsl=2.0, arm=1.2, reentry=False, limit=True)),
 ]
 
 
