@@ -176,6 +176,12 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                             pair_id = b["id"]
                         if (pair_id == b["id"] and cb <= c["lock"]) or (c["pairsl"] is not None and pair_id != b["id"] and cb <= -c["pairsl"]):
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
+                        elif c["triple"] and len(H) >= 3 and pair_id != b["id"]:      # user 27 Nov raat: sab niyam saath - tikdi bhi
+                            z = H[-3]; c3 = (D - z["o"] - s) + cb
+                            if c3 > c["pair_arm"]:
+                                trip_id = b["id"]
+                            if trip_id == b["id"] and c3 <= c["lock"]:
+                                banked += c3; H.pop(); H.pop(); H.pop(); setR(b, D); setR(a, D); setR(z, D); trip_id = None; closed = True
                 elif H:
                     b = H[-1]; pb = hpl[-1]
                     keepb = c["keep1"] and b["n"] == 1             # user: 1 number SELL sirf cycle par
@@ -290,9 +296,10 @@ NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 sing
 V90 = dict(pairsl=None, arm=2.0)                       # v9.0 niyam (lock +2 -> +1, jodi +1, -$2 kat nahi)
 NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 VARS = [
-    ("v10.2 (A: sirf bug fix, theek $3 level)", dict(NEW1, keep1=False)),
-    ("v10.2 + B (SELL na ho to bhaav se $3)", dict(NEW1, keep1=False, pxreset=True)),
-    ("v9.0 (purana, tulna)", dict(V90)),
+    ("v10.2 (abhi: sirf sabse gehra akela)", dict(NEW1, keep1=False)),
+    ("C: har SELL khud +$1 + jodi", dict(NEW1, keep1=False, nolifo=True, indpair=True)),
+    ("E: har SELL khud +$1 + jodi + tikdi", dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)),
+    ("v10.2 + tikdi", dict(NEW1, keep1=False, triple=True)),
 ]
 
 

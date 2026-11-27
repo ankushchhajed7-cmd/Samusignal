@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.10.0** (🎯 BUY ya SELL? page) | `index.html`, `sw.js` |
-| PERSONAL FX EA | **10.2** (27 Nov raat: v10.1 + bug fix — SELL sab band + doosra BUY khula ho to bhi pending theek level par; v9.0 backup) | `vps-ea/PERSONAL FX v10.2 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
+| PERSONAL FX EA | **10.3** (27 Nov raat: har SELL apna lock +$1 + jodi + tikdi; v9.0 backup) | `vps-ea/PERSONAL FX v10.3 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,12 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v10.3 — S6 har SELL apna lock + jodi + tikdi (27 Nov 2026 raat, user "E Final")
+- Live (demo v10.2): main + doosra BUY @ 3640.09, SELL 3637.09 / 3634.09 / 3629.49 / 3626.54. Bhaav 3644 tak gaya -> chaaron ghate me (−$41). 20:39 par 1 / 2 number +$6.71 / +$3.71 lock chalu, par band nahi ho sakte the: v8.4 se sirf SABSE NEECHE wala akela band hota tha (upar wale ruko).
+- User: "koi niyam nahi hataya — jodi, tikdi, jo bhi zaroori, sab us waqt allow".
+- v10.3: (1) HAR hedge +$2 paar -> lock, +$1 par band (koi kram nahi). (2) Jodi wahi: sabse neeche wala khud +$2 na pahunche to aakhri 2 milake +$1 -> +$1 par band. (3) NAYA TIKDI: jodi chalu na ho to aakhri 3 milake +$1 paar -> +$1 par teeno (GV `PFX6Q_<magic>_<sym>`). Ek tick me ek kaam, phir agla tick.
+- Backtest round 19–20 (real gold, SL $60): E (ye) 1m $1.89/cycle SL 1 (v10.2: $1.67, SL 3), 5m $1.88/ghanta (1.76), 5m noise SL 4 (5); SL band karke 5m sabse bura −$7.6 (v10.2 −$229). "Har SELL khud, jodi bhi nahi" (D) bahut bura — jodi zaroori.
 
 ## SamuSignal app v10.10.0 — 🎯 BUY YA SELL? page (27 Nov 2026 raat, user Final)
 - User: SamuSignal app (AI app nahi) me optional page — trade se pehle analysis, 5-6 AI agent aapas me baat karke batayein abhi BUY ya SELL (high probability), scalping $1–2; MT5 button.
