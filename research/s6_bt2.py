@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -156,6 +156,8 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                             continue
                         if c["deeponly"] and H and trig <= max(h["o"] for h in H):   # N: sirf sabse gehre se aage
                             continue
+                        if c["allprofit"] is not None and any((D - h["o"] - s) < c["allprofit"] for h in H):   # P: saare khule profit me
+                            continue
                         deepest_before = max((h["o"] for h in H), default=None)
                         uid += 1; used += 1
                         nh = {"n": n, "o": trig, "armed": False, "peak": -s, "id": uid}
@@ -200,12 +202,12 @@ def summarize(name, rows):
 
 
 VARS = [
-    ("V0  v9.0 (abhi)", dict()),
-    ("v9.1 = G+L12", dict(pairsl=2.0, arm=1.2)),
-    ("N   sirf gehre se aage", dict(deeponly=True)),
-    ("N+L12", dict(deeponly=True, arm=1.2)),
-    ("v9.1 + N", dict(pairsl=2.0, arm=1.2, deeponly=True)),
-    ("v9.1 + E", dict(pairsl=2.0, arm=1.2, guard=True)),
+    ("V0  v9.0", dict()),
+    ("v9.1/9.2 = G+L12", dict(pairsl=2.0, arm=1.2)),
+    ("P0  saare khule > $0", dict(allprofit=0.0)),
+    ("P1  saare khule >= +$1", dict(allprofit=1.0)),
+    ("v9.2 + P0", dict(pairsl=2.0, arm=1.2, allprofit=0.0)),
+    ("v9.2 + P1", dict(pairsl=2.0, arm=1.2, allprofit=1.0)),
 ]
 
 
