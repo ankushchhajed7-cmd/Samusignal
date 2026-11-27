@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **8.9** | `vps-ea/PERSONAL FX v8.9 - GRID.mq5` |
+| PERSONAL FX EA | **9.0** | `vps-ea/PERSONAL FX v9.0 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v9.0 — S6 LIVE app ka 🩺 CHECK tab (27 Nov 2026, user "Yes")
+- User: "jo bhi problem ho wo sab check karne ka option G2 app me — MT5 / page kholne ki zaroorat na pade".
+- EA: `hb` ab har 15 sec (pehle 30), Strategy 6 na ho tab bhi (`S6LiveBase()` - app me "Strategy galat" dikhe). Naye field: `strat`, `ta` (Algo Trading), `ea` (EA ko trade ijazat), `conn`, `ping` (ms), `ml` (margin level %), `fm` (free margin), `liveOn`, `push`, `manual`, `errs` (aakhri 20: pending FAIL, TP modify fail, cycle band ADHURA, Firebase HTTP / WebRequest error, margin / MaxOpenTrades "nahi laga"), `haal` (aakhri 30 HAAL - khule / pakka / net / hedge, har 10 sec). `live/<pair>` me `sp` (spread). Trade niyam v8.9 jaise.
+- App (GRID-STARTAGY-2 v2.1.0): naya 🩺 CHECK tab + har tab ke upar 🟢 / 🔴 patti.
 
 ## PERSONAL FX v8.9 — S6 app data EA ko nahi rokta + Basket SL seedha $ (27 Nov 2026, user Final)
 - Demo (v8.7, app data se — feed-check `S6_*` lines): SELL main 3613.63, 29 hedge, user ne cycle profit (pakka ~$8 + khule ~+$1) dekha par +$6 net par band nahi hua; 08:32:53 ek jodi −$1.57 par band; DD −$67.39 par Basket SL nahi laga.
