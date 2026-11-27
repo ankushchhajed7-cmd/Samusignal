@@ -1,11 +1,11 @@
-# PERSONAL FX — Strategy 6 (Hedge Ladder): पूरा हाल — **अभी का EA v10.2** (27 Nov 2026 रात)
+# PERSONAL FX — Strategy 6 (Hedge Ladder): पूरा हाल — **अभी का EA v10.3** (27 Nov 2026 रात)
 
 नए Claude session / account के लिए handover। पहले ये file पढ़ो, फिर `STATE.md` (repo का पूरा इतिहास)।
 
 > **27 Nov शाम:** user ने कहा "v9.0 तक का सब रखो, उसके बाद के सारे बदलाव हटाओ"। v9.1 / v9.2 / v9.3 हटाए गए।
 > **27 Nov रात:** user का नया प्लान backtest (round 17) के बाद **Final** → **EA v10.1** बना।
 > नाम 10.1 क्यों: पुरानी v9.1 file पहले VPS पर जा चुकी हो सकती है। उसी नाम से नई file भेजें तो गड़बड़ होती, इसलिए 10.1 से नई गिनती।
-> **27 Nov रात:** v10.1 में bug मिला → **v10.2** (नीचे 3.11)। **अगला version: v10.3**।
+> **27 Nov रात:** v10.1 में bug मिला → **v10.2** (नीचे 3.11)। फिर SELL अटकने की वजह मिली → **v10.3** (नीचे 3.13)। **अगला version: v10.4**।
 
 ---
 
@@ -29,7 +29,7 @@
 ## 2. Repos और files
 | चीज़ | जगह |
 |---|---|
-| **EA (अभी का, आखिरी)** | `Samusignal/vps-ea/PERSONAL FX v10.2 - GRID.mq5` (v10.1 + bug fix) |
+| **EA (अभी का, आखिरी)** | `Samusignal/vps-ea/PERSONAL FX v10.3 - GRID.mq5` (v10.2 + हर SELL अपना lock + तिकड़ी) |
 | EA पिछला (backup, पुराने नियम) | `Samusignal/vps-ea/PERSONAL FX v9.0 - GRID.mq5` |
 | नए प्लान की बातचीत + backtest table | `Samusignal/S6_NEW_PLAN.md` |
 | इतिहास / हर version का कारण | `Samusignal/STATE.md` |
@@ -45,7 +45,7 @@
 
 1. **Main lot 0.01** (पहले 0.02)। अकेला हो तो TP **+$2** (4002)। `S6_TP_Usd` = 2 per 0.01।
 2. **SELL hedge:** 3997, 3994, 3991… हर $3 पर 0.01। Pending STOP आगे के 5 levels पर (v9.0 जैसा)।
-3. **हर SELL (1 नंबर भी) पर $1 नियम** (v9.0 जैसा): +$2 पार → lock, **+$1** पर बंद, सबसे दूर वाला पहले; जोड़ी +$1।
+3. **हर SELL (1 नंबर भी) पर $1 नियम:** +$2 पार → lock, **+$1** पर बंद — v10.3 से हर SELL अपना (कोई क्रम नहीं); जोड़ी (आखिरी 2) +$1; तिकड़ी (आखिरी 3) +$1।
 4. **दूसरा BUY 0.01 (नया):**
    - कब: SELL खुले हों और भाव लौटकर **main के भाव 4000** पर आए।
    - कैसे: EA 4000 पर BUY STOP (comment **"PFX6HB"**) रखता है। भरते ही दूसरा BUY।
@@ -92,6 +92,11 @@
    - वजह: SELL न हों और दूसरा BUY खुला हो तो EA $2 जाँचकर हर बार लौट जाता था, pending वाला हिस्सा चलता ही नहीं था।
    - Fix: लौटना सिर्फ़ बंद करने पर। दूसरा BUY खुला हो तो main अकेला TP पर बंद नहीं होता और broker TP नहीं लगता।
    - Backtest simulator में ये bug नहीं था, यानी round 17 का (B) = v10.2।
+13. **v10.3** (27 Nov रात, user "E Final"):
+   - Live में: 4 SELL (3637 / 3634 / 3629.5 / 3626.5) खुले, भाव 3644 गया → −$41। 3637 और 3634 वाले +$6.71 / +$3.71 (lock चालू) थे, पर **बंद नहीं हो सकते थे**, क्योंकि v8.4 से सिर्फ़ सबसे नीचे वाला अकेला बंद होता था।
+   - User: "कोई नियम नहीं हटाया — जोड़ी, तिकड़ी, जो ज़रूरी हो सब allow"।
+   - अब: (1) **हर SELL** +$2 → lock, +$1 पर बंद (ऊपर या नीचे, कोई क्रम नहीं); (2) **जोड़ी** (आखिरी 2 मिलाकर +$1) वही; (3) **तिकड़ी** नई: जोड़ी न बने तो आखिरी 3 मिलाकर +$1 → +$1 पर तीनों।
+   - Backtest round 20: 1m SL 3 → 1, 5m $/घंटा 1.76 → 1.88; SL बंद पर 5m सबसे बुरा −$229 → −$7.6। "जोड़ी भी नहीं" वाला (D) बहुत बुरा — जोड़ी ज़रूरी।
 12. **User का विचार (B), round 18 में कमज़ोर (SL 5m 2 → 11), EA में नहीं** (`S6_NEW_PLAN.md`): कोई SELL खुला न हो तो ladder अभी के भाव से $3 (3645.09 → 3642.09, 3639.09…), भाव main की तरफ़ आए तो ladder साथ ऊपर। Research में `pxreset=True`।
 
 ---
@@ -194,7 +199,7 @@ Backtest (research) में ये भी कमज़ोर निकले:
 6. अपना नया version भी GitHub से खुद ले लेता है।
 
 **नया EA version VPS पर भेजने का तरीका (हर बार):**
-1. नई file `vps-ea/PERSONAL FX v10.x - GRID.mq5` (अगला: v10.3) repo में commit → PR → **main में merge**।
+1. नई file `vps-ea/PERSONAL FX v10.x - GRID.mq5` (अगला: v10.4) repo में commit → PR → **main में merge**।
 2. ~2 min में Helper उसे हर terminal के `MQL5\Experts` में डालकर compile कर देगा।
 3. **Chart पर लगाना user का काम है।** Helper कभी trade नहीं करता, chart पर EA नहीं लगाता या हटाता, MT5 restart नहीं करता।
    - MT5 में Navigator → Expert Advisors → नया version chart पर लगाओ (inputs जाँचकर)।
@@ -215,8 +220,8 @@ Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 ---
 
 ## 7. बाकी काम / खुले सवाल
-1. **v10.2 chart पर लगाना** (user; v10.1 27 Nov रात से demo पर चल रहा है):
-   - v10.1 हटाओ, v10.2 लगाओ (खुले trades वैसे ही रहते हैं, EA उन्हें पकड़ लेता है)।
+1. **v10.3 chart पर लगाना** (user; v10.2 27 Nov रात demo पर चल रहा था):
+   - v10.2 हटाओ, v10.3 लगाओ (खुले trades वैसे ही रहते हैं, EA उन्हें पकड़ लेता है)।
    - Inputs जाँचो (ऊपर 3.7)।
    - Main 0.01 हाथ से।
    - चलता cycle (0.02 main वाला) पहले बंद होने दो, फिर बदलो।
