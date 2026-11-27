@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -153,6 +153,21 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
                         elif c["pairsl"] is not None and pair_id != b["id"] and cb <= -c["pairsl"]:
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
+                # ---- overlap ("close minus by plus"): sabse ghate wala hedge + profit wale hedge saath, kul >= +$0.5 ----
+                if c["overlap"] and not closed and len(H) >= 1:
+                    pl = {id(h): D - h["o"] - s for h in H}
+                    W = min(H, key=lambda h: pl[id(h)])
+                    if pl[id(W)] <= -c["ovmin"]:
+                        acc = pl[id(W)]; chosen = []
+                        for h in sorted((h for h in H if h is not W and pl[id(h)] > 0), key=lambda h: -pl[id(h)]):
+                            if acc >= 0.5:
+                                break
+                            chosen.append(h); acc += pl[id(h)]
+                        ok = acc >= 0.5 or (c["ovbank"] and banked + acc >= 0.5 and pl[id(W)] <= -3.0)   # B: pakke profit se bhi chuka sakte
+                        if ok:
+                            for h in [W] + chosen:
+                                H.remove(h); setR(h, D)
+                            banked += acc; closed = True; pair_id = None
                 # ---- re-entry back to exact level ----
                 if c["resetnh"] and not H:                  # user 27 Nov: koi hedge khula nahi -> sab pending theek $3 level par
                     R.clear()
@@ -223,10 +238,12 @@ def summarize(name, rows):
 SIMPLE = dict(nolifo=True, reentry=False, onlynet=True, pairfill=None)
 V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
 VARS = [
-    ("v9.2", dict(pairsl=2.0, arm=1.2)),
-    ("v9.2 + hedge nahi -> theek level", dict(pairsl=2.0, arm=1.2, resetnh=True)),
-    ("v9.3", dict(V93)),
-    ("v9.3 + hedge nahi -> theek level", dict(V93, resetnh=True)),
+    ("v9.2 (jodi -$2)", dict(pairsl=2.0, arm=1.2)),
+    ("L12 (jodi -$2 nahi)", dict(arm=1.2)),
+    ("L12 + overlap", dict(arm=1.2, overlap=True)),
+    ("L12 + overlap + pakka se", dict(arm=1.2, overlap=True, ovbank=True)),
+    ("v9.2 + overlap", dict(pairsl=2.0, arm=1.2, overlap=True)),
+    ("v9.2 + overlap + pakka se", dict(pairsl=2.0, arm=1.2, overlap=True, ovbank=True)),
 ]
 
 
