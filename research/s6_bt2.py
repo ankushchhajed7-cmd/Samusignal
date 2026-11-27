@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False, gap=3.0, recdd=None, rectgt=1.0, triple=False, help_start=None, help_step=2.0, help_tp=1.0)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -66,10 +66,13 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
     s = SPREAD
     mid0 = bars[start][1]
     end_t = bars[start][0] + max_hours * 3600
-    lv = lambda n: n * GAP - c["off"]
+    G = c["gap"]
+    lv = lambda n: n * G - c["off"]
+    minnet = 0.0
     H = []                      # {n, o, armed, peak, id}
     R = {}
-    banked = 0.0; pair_id = None; minf = 0.0; used = 0; uid = 0
+    banked = 0.0; pair_id = None; minf = 0.0; used = 0; uid = 0; trip_id = None
+    helper = None                                   # user 27 Nov: madad wala BUY 0.01 (main ki disha) - gehrai o
     prevD = s
     last_mid = mid0
     t0 = bars[start][0]
@@ -77,7 +80,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
 
     def setR(h, D):
         if c["reentry"] and D > lv(h["n"]):
-            R[h["n"]] = min(D, lv(h["n"]) + 0.5 * GAP)
+            R[h["n"]] = min(D, lv(h["n"]) + 0.5 * G)
 
     def floor(h):
         if c["trail1"]:                              # user 27 Nov: +$3 par $2, phir $1 peeche (neeche $1 @ +$1.20)
@@ -108,16 +111,30 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 H.sort(key=lambda h: h["o"])                 # deepest last
                 hpl = [D - h["o"] - s for h in H]
                 mainPL = -2 * D
-                tot = mainPL + sum(hpl)
+                # ---- madad wala BUY: +$1 par band (sirf profit), ek samay ek; start par phir har step gehra ----
+                if c["help_start"] is not None:
+                    if helper is not None and (helper - D - s) >= c["help_tp"]:
+                        banked += helper - D - s; helper = None
+                    elif helper is None and D > prevD and D >= c["help_start"]:
+                        k = int((D - c["help_start"]) // c["help_step"])
+                        Lh = c["help_start"] + k * c["help_step"]
+                        if prevD < Lh <= D:
+                            helper = Lh
+                helpPL = (helper - D - s) if helper is not None else 0.0
+                tot = mainPL + sum(hpl) + helpPL
                 if tot < minf:
                     minf = tot
                 dur = bar[0] - t0
                 # ---- close rules (EA order) ----
+                if banked + tot < minnet:
+                    minnet = banked + tot
+                if c["recdd"] is not None and minnet <= -c["recdd"] and banked + tot >= c["rectgt"]:   # recovery mode
+                    return ("REC", banked + tot, minf, dur, used)
                 if banked + tot >= 6:
                     return ("NET6", banked + tot, minf, dur, used)
                 if not H:
                     if mainPL >= 6:
-                        return ("TP", banked + mainPL, minf, dur, used)
+                        return ("TP", banked + mainPL + helpPL, minf, dur, used)
                 else:
                     if not c["onlynet"] and (banked + tot if c["netrules"] else tot) >= (3 if mainPL >= 0 else 5):
                         return ("CYC3" if mainPL >= 0 else "BSK5", banked + tot, minf, dur, used)
@@ -158,6 +175,12 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
                         elif c["pairsl"] is not None and pair_id != b["id"] and cb <= -c["pairsl"]:
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
+                        elif c["triple"] and len(H) >= 3 and pair_id != b["id"]:      # user: jodi se na bane to gehre 3 milake +$1
+                            z = H[-3]; c3 = hpl[-3] + cb
+                            if c3 > c["pair_arm"]:
+                                trip_id = b["id"]
+                            if trip_id == b["id"] and c3 <= c["lock"]:
+                                banked += c3; H.pop(); H.pop(); H.pop(); setR(b, D); setR(a, D); setR(z, D); trip_id = None; closed = True
                 # ---- overlap ("close minus by plus"): sabse ghate wala hedge + profit wale hedge saath, kul >= +$0.5 ----
                 if c["overlap"] and not closed and len(H) >= 1:
                     pl = {id(h): D - h["o"] - s for h in H}
@@ -182,7 +205,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 # ---- pending fills (STOP: depth crosses the trigger going deeper) ----
                 if not closed and D > prevD:
                     occ = {h["n"] for h in H}
-                    nmax = int((D + c["off"]) / GAP) + 2
+                    nmax = int((D + c["off"]) / G) + 2
                     for n in range(1, nmax + 1):
                         if n in occ:
                             continue
@@ -207,7 +230,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 # ---- user 27 Nov: khali level par LIMIT bhi (bhaav main ki taraf laut kar level chhue to wahin) ----
                 if c["limit"] and not closed and D < prevD:
                     occ = {h["n"] for h in H}
-                    for n in range(1, int((prevD + c["off"]) / GAP) + 2):
+                    for n in range(1, int((prevD + c["off"]) / G) + 2):
                         if n in occ:
                             continue
                         L = lv(n)
@@ -220,7 +243,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 prevD = D
             last_mid = target
     D = s - d * (last_mid - mid0)
-    tot = -2 * D + sum(D - h["o"] - s for h in H)
+    tot = -2 * D + sum(D - h["o"] - s for h in H) + ((helper - D - s) if helper is not None else 0.0)
     return ("OPEN", banked + tot, minf, bars[min(len(bars) - 1, bi)][0] - t0, used)
 
 
@@ -243,11 +266,15 @@ def summarize(name, rows):
 SIMPLE = dict(nolifo=True, reentry=False, onlynet=True, pairfill=None)
 V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
 USER = dict(nolifo=True, reentry=False, deeponly=True, resetnh=True, jointtp=1.0, pairfill=None)
+V92 = dict(pairsl=2.0, arm=1.2)
+V92 = dict(pairsl=2.0, arm=1.2)
+NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 single/jodi/tikdi, -$2 kat nahi, reset
 VARS = [
-    ("v9.2 (Final)", dict(pairsl=2.0, arm=1.2)),
-    ("v9.2, cycle/basket pakka+khule par", dict(pairsl=2.0, arm=1.2, netrules=True)),
-    ("v9.2 jodi -$2 OFF", dict(arm=1.2)),
-    ("jodi OFF, cycle/basket pakka+khule", dict(arm=1.2, netrules=True)),
+    ("v9.2 (Final)", dict(V92)),
+    ("v9.2 + madad BUY $10, har $2", dict(V92, help_start=10, help_step=2)),
+    ("v9.2 + madad BUY $10, har $3", dict(V92, help_start=10, help_step=3)),
+    ("v9.2 + madad BUY $6, har $2", dict(V92, help_start=6, help_step=2)),
+    ("v9.2 + madad BUY $15, har $2", dict(V92, help_start=15, help_step=2)),
 ]
 
 

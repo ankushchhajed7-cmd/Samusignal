@@ -4,6 +4,64 @@
 
 ---
 
+## 0. ताज़ा फ़ैसला (27 Nov शाम): v9.2 छोड़ा, v9.0 वाले नियमों पर वापसी
+- User को v9.2 demo पर पसंद नहीं आया: sideways बाज़ार (3670–3681) में "जोड़ी −$2" कटों से balance 208 → ~200।
+- User का अच्छा profit (200 → 245) **रात v8.7** और **सुबह v8.9 / v9.0** पर आया (उस समय तक −$2 कट और +$1.20 lock नहीं थे)।
+- Version का समय (IST):
+
+| version | समय |
+|---|---|
+| v8.6 | 26 Nov 20:58 |
+| **v8.7** | **26 Nov 22:16 (रात भर यही चला)** |
+| v8.8 | 27 Nov 08:31 |
+| v8.9 | 27 Nov 08:44 |
+| **v9.0** | **27 Nov 08:54** |
+| v9.1 / v9.2 | दिन में |
+
+- रात / सुबह के cycles:
+  - 26 Nov 22:57 TP +$6
+  - 23:34 → 05:31 CYCLE +$3.09
+  - 07:38 CYCLE +$3.11
+  - 09:02–10:59: +$12.91, +$6, +$6, +$6, +$6, +$6
+  - (07:54 SELL 3613 cycle v8.7 bugs के कारण −$11.27 हाथ से, DD −$67 — v8.8 / v8.9 में ठीक)
+
+### v9.0 के trade नियम (= v8.9; सिर्फ़ app का CHECK data जुड़ा)
+उदाहरण main BUY 0.02 @ 4000, SELL 0.01 हर 3 point:
+
+1. **Main:** हाथ का trade। अकेला हो तो TP **+$6** (4003)। Hedge खुलते ही TP हटता है।
+2. **Hedge levels:** 3997, 3994, 3991… (हर $3 / 0.01)।
+3. **Pending:** आगे के **5** खाली levels पर STOP। खुले hedge से **1.5 point** के अंदर नहीं।
+4. **4b:** बंद hedge अपने बंद भाव पर दोबारा (level से 1.5 point तक)। भाव level के पार लौटे तो ठीक level।
+5. **Lock:** hedge **+$2** पार करे → lock, **+$1** पर बंद। **सबसे दूर वाला पहले** (LIFO)।
+6. **जोड़ी:** सबसे दूर वाले का lock न हो तो आखिरी 2 मिलकर +$1 पार करें, फिर **+$1** पर दोनों बंद। v8.8 से: नया hedge भरते ही जोड़ी > +$1 हो तो उसी पल चालू।
+7. **कोई घाटे वाला कट नहीं** (जोड़ी −$2 v9.1 में आया था, v9.0 में नहीं)।
+8. **Cycle बंद:**
+   1. पक्का + खुले ≥ **+$6**
+   2. main profit में और खुले ≥ **+$3**
+   3. main घाटे में और खुले ≥ **+$5**
+   4. खुले ≤ **−$60** (सीधा $, lot से गुणा नहीं — v8.9 से)
+9. **Inputs (v9.0):**
+   - Strategy = 6
+   - `S6_LockArmUsd` = **2.0**, `S6_LockUsd` = 1
+   - `S6_PendingAhead` = 5
+   - `S6_CycleNetUsd` = 6, `S6_CycleTP_Usd` = 3, `S6_BasketTP_Usd` = 5
+   - `S6_BasketSL_Usd` = 60
+   - `S6_LiveOn` = true, `S6_LiveKey` = s6, `S6_LivePushSec` = 5
+   - FirebaseAuth (सिर्फ़ MT5 में)
+10. v9.0 में v9.2 वाले bug fixes **नहीं** हैं:
+    - pending लगाते समय ताज़ा भाव / reject इलाज
+    - पहले pending हटाना
+    - सिर्फ़ इसी cycle का पक्का
+    - hedge न हो तब भी SL
+
+### दो रास्ते (user ने अभी चुनना है)
+1. **`PERSONAL FX v9.0 - GRID.mq5`** chart पर लगाओ (रात / सुबह वाले नियम ज्यों के त्यों)।
+2. **`PERSONAL FX v9.2 - GRID.mq5`** रखो, बस inputs **`S6_PairLossUsd = 0`** और **`S6_LockArmUsd = 2.0`** = v9.0 के trade नियम + v9.2 bug fixes। (मेरी सलाह)
+
+- App S6 LIVE v2.4.0 का CHECK अभी lock 1.2 और ploss 2 को "सही" मानता है। v9.0 नियम पर 🔴 दिखाएगा। चाहें तो app के `WANT` में arm 2 / ploss 0 करना (छोटा बदलाव)।
+
+---
+
 ## 1. काम करने का तरीका (user की पसंद)
 1. जवाब **हिंदी (देवनागरी)** में दो, Hinglish भी चलता है। कुछ पूछना हो तो **नंबर वाले format (1, 2, 3…)** में।
 2. समझाते समय **trade नंबर** (1 नंबर, 2 नंबर…) और असली भाव के उदाहरण दो, जैसे "BUY 0.02 @ 4000 → 1 नंबर SELL 3997"।
@@ -22,7 +80,8 @@
 ## 2. Repos और files
 | चीज़ | जगह |
 |---|---|
-| EA (अभी का Final) | `Samusignal/vps-ea/PERSONAL FX v9.2 - GRID.mq5` |
+| EA — **user की पसंद अब v9.0 वाले नियम** (देखो section 0) | `Samusignal/vps-ea/PERSONAL FX v9.0 - GRID.mq5` (या v9.2 file, 2 inputs बदलकर) |
+| EA v9.2 (user ने छोड़ा) | `Samusignal/vps-ea/PERSONAL FX v9.2 - GRID.mq5` |
 | EA v9.3 (v9.2 + `S6_NextOnlyDeeper`, test के लिए) | `Samusignal/vps-ea/PERSONAL FX v9.3 - GRID.mq5` |
 | इतिहास / हर version का कारण | `Samusignal/STATE.md` |
 | Backtest simulator | `Samusignal/research/s6_bt2.py` + workflow `.github/workflows/s6-research.yml` (branch `ccr-de58b3c2-9qoj0z` पर push होते ही असली gold GC=F 1m 7 दिन + 5m 60 दिन पर चलता है; local: `python3 research/s6_bt2.py --synthetic 1500`) |
@@ -32,7 +91,7 @@
 
 ---
 
-## 3. v9.2 के नियम (Final, demo पर चल रहा)
+## 3. v9.2 के नियम (27 Nov दोपहर का Final — शाम को user ने छोड़ा, section 0)
 उदाहरण: **main BUY 0.02 @ 4000** (हाथ से), gold Exness XAUUSDm (0.01 lot = $1/point, spread ~$0.20)।
 
 1. **Main:** pair पर सबसे पुराना हाथ वाला trade। अकेला हो तो TP **+$6** (4003)।
