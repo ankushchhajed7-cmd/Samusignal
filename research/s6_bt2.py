@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -80,6 +80,8 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
             R[h["n"]] = min(D, lv(h["n"]) + 0.5 * GAP)
 
     def floor(h):
+        if c["trail1"]:                              # user 27 Nov: +$3 par $2, phir $1 peeche (neeche $1 @ +$1.20)
+            return max(c["lock"], h["peak"] - 1.0) if h["peak"] >= 3.0 else c["lock"]
         if c["tier"]:                                # user 27 Nov: 1 no. $3, 2 no. $2, baaki $1 lock, phir $0.20 peeche
             t = 3.0 if h["n"] == 1 else 2.0 if h["n"] == 2 else 1.0
             if h["peak"] >= t + 0.2:
@@ -221,10 +223,9 @@ V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
 VARS = [
     ("v9.2", dict(pairsl=2.0, arm=1.2)),
     ("v9.3 (abhi)", dict(V93)),
-    ("v9.3 + tier, door wala pehle", dict(V93, tier=True)),
-    ("v9.3 + tier, har hedge khud", dict(V93, tier=True, nolifo=True, indpair=True)),
-    ("v9.2 + tier, door wala pehle", dict(pairsl=2.0, arm=1.2, tier=True)),
-    ("v9.2 + tier, har hedge khud", dict(pairsl=2.0, arm=1.2, tier=True, nolifo=True, indpair=True)),
+    ("v9.2 + $3->$2, $1 peeche", dict(pairsl=2.0, arm=1.2, trail1=True)),
+    ("v9.3 + $3->$2, $1 peeche", dict(V93, trail1=True)),
+    ("v9.2 + $3->$2, khud band", dict(pairsl=2.0, arm=1.2, trail1=True, nolifo=True, indpair=True)),
 ]
 
 
