@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False, gap=3.0, recdd=None, rectgt=1.0)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False, gap=3.0, recdd=None, rectgt=1.0, triple=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -71,7 +71,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
     minnet = 0.0
     H = []                      # {n, o, armed, peak, id}
     R = {}
-    banked = 0.0; pair_id = None; minf = 0.0; used = 0; uid = 0
+    banked = 0.0; pair_id = None; minf = 0.0; used = 0; uid = 0; trip_id = None
     prevD = s
     last_mid = mid0
     t0 = bars[start][0]
@@ -164,6 +164,12 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
                         elif c["pairsl"] is not None and pair_id != b["id"] and cb <= -c["pairsl"]:
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
+                        elif c["triple"] and len(H) >= 3 and pair_id != b["id"]:      # user: jodi se na bane to gehre 3 milake +$1
+                            z = H[-3]; c3 = hpl[-3] + cb
+                            if c3 > c["pair_arm"]:
+                                trip_id = b["id"]
+                            if trip_id == b["id"] and c3 <= c["lock"]:
+                                banked += c3; H.pop(); H.pop(); H.pop(); setR(b, D); setR(a, D); setR(z, D); trip_id = None; closed = True
                 # ---- overlap ("close minus by plus"): sabse ghate wala hedge + profit wale hedge saath, kul >= +$0.5 ----
                 if c["overlap"] and not closed and len(H) >= 1:
                     pl = {id(h): D - h["o"] - s for h in H}
@@ -250,14 +256,14 @@ SIMPLE = dict(nolifo=True, reentry=False, onlynet=True, pairfill=None)
 V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
 USER = dict(nolifo=True, reentry=False, deeponly=True, resetnh=True, jointtp=1.0, pairfill=None)
 V92 = dict(pairsl=2.0, arm=1.2)
+V92 = dict(pairsl=2.0, arm=1.2)
+NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 single/jodi/tikdi, -$2 kat nahi, reset
 VARS = [
     ("v9.2 (Final)", dict(V92)),
-    ("v9.2 + recovery -15 -> +$1", dict(V92, recdd=15, rectgt=1.0)),
-    ("v9.2 + recovery -10 -> +$1", dict(V92, recdd=10, rectgt=1.0)),
-    ("v9.2 + recovery -20 -> $0", dict(V92, recdd=20, rectgt=0.0)),
-    ("v9.2 gap $4", dict(V92, gap=4.0)),
-    ("v9.2 gap $5", dict(V92, gap=5.0)),
-    ("v9.2 gap $4 + recovery -15", dict(V92, gap=4.0, recdd=15, rectgt=1.0)),
+    ("NAYA: 1/2/3 +$1, -$2 nahi, reset", dict(NEWP)),
+    ("NAYA bina reset", dict(arm=1.2, triple=True)),
+    ("NAYA + -$2 kat", dict(NEWP, pairsl=2.0)),
+    ("v9.2 bina -$2 (sirf 1/2)", dict(arm=1.2)),
 ]
 
 
