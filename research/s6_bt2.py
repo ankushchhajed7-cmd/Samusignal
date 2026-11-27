@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -154,6 +154,8 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                         elif c["pairsl"] is not None and pair_id != b["id"] and cb <= -c["pairsl"]:
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
                 # ---- re-entry back to exact level ----
+                if c["resetnh"] and not H:                  # user 27 Nov: koi hedge khula nahi -> sab pending theek $3 level par
+                    R.clear()
                 for n in list(R.keys()):
                     if D < lv(n):
                         R.pop(n)
@@ -222,10 +224,9 @@ SIMPLE = dict(nolifo=True, reentry=False, onlynet=True, pairfill=None)
 V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
 VARS = [
     ("v9.2", dict(pairsl=2.0, arm=1.2)),
-    ("v9.3 (abhi)", dict(V93)),
-    ("v9.2 + $3->$2, $1 peeche", dict(pairsl=2.0, arm=1.2, trail1=True)),
-    ("v9.3 + $3->$2, $1 peeche", dict(V93, trail1=True)),
-    ("v9.2 + $3->$2, khud band", dict(pairsl=2.0, arm=1.2, trail1=True, nolifo=True, indpair=True)),
+    ("v9.2 + hedge nahi -> theek level", dict(pairsl=2.0, arm=1.2, resetnh=True)),
+    ("v9.3", dict(V93)),
+    ("v9.3 + hedge nahi -> theek level", dict(V93, resetnh=True)),
 ]
 
 
