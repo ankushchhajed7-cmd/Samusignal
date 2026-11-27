@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -130,7 +130,12 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     if not h["armed"] and (p >= c["arm"] if c["trail"] is not None else p > c["arm"]):
                         h["armed"] = True
                 closed = False
-                if c["nolifo"]:                              # SEEDHA: har hedge apne aap (koi kram / jodi nahi)
+                if c["jointtp"] is not None and len(H) >= 2 and hpl[-1] >= c["jointtp"]:   # user: naya (gehra) +$1 -> sab hedge band
+                    banked += sum(hpl)
+                    for h in list(H):
+                        H.remove(h); setR(h, D)
+                    closed = True; pair_id = None
+                elif c["nolifo"]:                              # SEEDHA: har hedge apne aap (koi kram / jodi nahi)
                     for h, p in list(zip(H, hpl)):
                         if (c["hedgetp"] is not None and p >= c["hedgetp"]) or (c["hedgetp"] is None and h["armed"] and p <= floor(h)):
                             banked += p; H.remove(h); setR(h, D); closed = True
@@ -237,13 +242,12 @@ def summarize(name, rows):
 
 SIMPLE = dict(nolifo=True, reentry=False, onlynet=True, pairfill=None)
 V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
+USER = dict(nolifo=True, reentry=False, deeponly=True, resetnh=True, jointtp=1.0, pairfill=None)
 VARS = [
-    ("v9.2 (jodi -$2)", dict(pairsl=2.0, arm=1.2)),
-    ("L12 (jodi -$2 nahi)", dict(arm=1.2)),
-    ("L12 + overlap", dict(arm=1.2, overlap=True)),
-    ("L12 + overlap + pakka se", dict(arm=1.2, overlap=True, ovbank=True)),
-    ("v9.2 + overlap", dict(pairsl=2.0, arm=1.2, overlap=True)),
-    ("v9.2 + overlap + pakka se", dict(pairsl=2.0, arm=1.2, overlap=True, ovbank=True)),
+    ("v9.2 (Final)", dict(pairsl=2.0, arm=1.2)),
+    ("USER: lock 1.2->1, 2 no. +$1 par dono band", dict(USER, arm=1.2)),
+    ("USER: lock 1.05->1 (turant)", dict(USER, arm=1.05)),
+    ("USER + jodi -$2", dict(USER, arm=1.2, indpair=True, pairsl=2.0)),
 ]
 
 
