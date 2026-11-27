@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -80,6 +80,11 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
             R[h["n"]] = min(D, lv(h["n"]) + 0.5 * GAP)
 
     def floor(h):
+        if c["tier"]:                                # user 27 Nov: 1 no. $3, 2 no. $2, baaki $1 lock, phir $0.20 peeche
+            t = 3.0 if h["n"] == 1 else 2.0 if h["n"] == 2 else 1.0
+            if h["peak"] >= t + 0.2:
+                return max(t, h["peak"] - 0.2)
+            return c["lock"]
         if c["trail"] is None:
             return c["lock"]
         return max(c["lock"], h["peak"] - c["trail"])
@@ -127,6 +132,12 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     for h, p in list(zip(H, hpl)):
                         if (c["hedgetp"] is not None and p >= c["hedgetp"]) or (c["hedgetp"] is None and h["armed"] and p <= floor(h)):
                             banked += p; H.remove(h); setR(h, D); closed = True
+                    if not closed and c.get("indpair") and len(H) >= 2 and not H[-1]["armed"]:   # khud-band + gehri jodi niyam
+                        b = H[-1]; a = H[-2]; cb = (D - a["o"] - s) + (D - b["o"] - s)
+                        if cb > c["pair_arm"]:
+                            pair_id = b["id"]
+                        if (pair_id == b["id"] and cb <= c["lock"]) or (c["pairsl"] is not None and pair_id != b["id"] and cb <= -c["pairsl"]):
+                            banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
                 elif H:
                     b = H[-1]; pb = hpl[-1]
                     if b["armed"]:
@@ -138,7 +149,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                             pair_id = b["id"]
                         if pair_id == b["id"] and cb <= c["lock"]:
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
-                        elif c["pairsl"] is not None and cb <= -c["pairsl"]:
+                        elif c["pairsl"] is not None and pair_id != b["id"] and cb <= -c["pairsl"]:
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
                 # ---- re-entry back to exact level ----
                 for n in list(R.keys()):
@@ -206,13 +217,14 @@ def summarize(name, rows):
 
 
 SIMPLE = dict(nolifo=True, reentry=False, onlynet=True, pairfill=None)
+V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
 VARS = [
-    ("V0  v9.0", dict()),
-    ("v9.2 (abhi)", dict(pairsl=2.0, arm=1.2)),
-    ("S1 seedha: har hedge TP +$1", dict(SIMPLE, hedgetp=1.0)),
-    ("S2 seedha: lock 1.2 -> +$1", dict(SIMPLE, arm=1.2)),
-    ("S1 + cycle/basket niyam", dict(SIMPLE, hedgetp=1.0, onlynet=False)),
-    ("S2 + cycle/basket niyam", dict(SIMPLE, arm=1.2, onlynet=False)),
+    ("v9.2", dict(pairsl=2.0, arm=1.2)),
+    ("v9.3 (abhi)", dict(V93)),
+    ("v9.3 + tier, door wala pehle", dict(V93, tier=True)),
+    ("v9.3 + tier, har hedge khud", dict(V93, tier=True, nolifo=True, indpair=True)),
+    ("v9.2 + tier, door wala pehle", dict(pairsl=2.0, arm=1.2, tier=True)),
+    ("v9.2 + tier, har hedge khud", dict(pairsl=2.0, arm=1.2, tier=True, nolifo=True, indpair=True)),
 ]
 
 
