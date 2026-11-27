@@ -1,0 +1,124 @@
+# PERSONAL FX — Strategy 6 (Hedge Ladder): पूरा हाल (27 Nov 2026)
+
+नए Claude session / account के लिए handover। पहले ये file पढ़ो, फिर `STATE.md` (repo का पूरा इतिहास)।
+
+---
+
+## 1. काम करने का तरीका (user की पसंद)
+1. जवाब **हिंदी (देवनागरी)** में दो, Hinglish भी चलता है। कुछ पूछना हो तो **नंबर वाले format (1, 2, 3…)** में।
+2. समझाते समय **trade नंबर** (1 नंबर, 2 नंबर…) और असली भाव के उदाहरण दो, जैसे "BUY 0.02 @ 4000 → 1 नंबर SELL 3997"।
+3. **पहले सुझाव दो, बनाओ सिर्फ़ "Final" बोलने पर।** नियम बदलने से पहले **backtest** करो, फिर Final।
+4. हर बदलाव पर version बढ़ाओ। Flow:
+   - branch `ccr-de58b3c2-9qoj0z` पर commit
+   - PR खोलो
+   - squash-merge खुद करो
+   - branch को main पर reset करो
+5. सच बोलो। गलत नंबर मत दो। Real पैसे के जोखिम से पहले चेतावनी दो।
+6. **Secrets कभी chat या commit में नहीं:** FirebaseAuth, TwelveData key, Telegram token, Gemini key। Public GitHub Actions log (INVESTOR-ID) में balance, login या server मत छापो।
+7. SAMUSIGNAL-PRO (paid repo) को मत छूना।
+
+---
+
+## 2. Repos और files
+| चीज़ | जगह |
+|---|---|
+| EA (अभी का Final) | `Samusignal/vps-ea/PERSONAL FX v9.2 - GRID.mq5` |
+| EA v9.3 (v9.2 + `S6_NextOnlyDeeper`, test के लिए) | `Samusignal/vps-ea/PERSONAL FX v9.3 - GRID.mq5` |
+| इतिहास / हर version का कारण | `Samusignal/STATE.md` |
+| Backtest simulator | `Samusignal/research/s6_bt2.py` + workflow `.github/workflows/s6-research.yml` (branch `ccr-de58b3c2-9qoj0z` पर push होते ही असली gold GC=F 1m 7 दिन + 5m 60 दिन पर चलता है; local: `python3 research/s6_bt2.py --synthetic 1500`) |
+| App **S6 LIVE** (PWA) v2.4.0 | repo `GRID-STARTAGY-2/index.html` (tabs: LIVE · LADDER · RISK · HISTORY · 🩺 CHECK · SETUP; `?demo=1`) |
+| Live data जाँच (public log) | repo `INVESTOR-ID/.github/workflows/feed-check.yml` → `S6_HB / S6_DIAG / S6_ERR / S6_HAAL / S6_LIVE / S6_HEDGES / S6_PEND / S6_EV / S6_CY / S6_NOTE` |
+| Firebase | `/personalfx/s6live/<S6_LiveKey=s6>/` → `hb`, `live/<pair>`, `events`, `cycles`, `notes` (सुधार सूची) |
+
+---
+
+## 3. v9.2 के नियम (Final, demo पर चल रहा)
+उदाहरण: **main BUY 0.02 @ 4000** (हाथ से), gold Exness XAUUSDm (0.01 lot = $1/point, spread ~$0.20)।
+
+1. **Main:** pair पर सबसे पुराना हाथ वाला trade। अकेला हो तो TP **+$6** (4003)।
+2. **Hedge levels:** हर **3 point** पर उल्टा **0.01**: 1 नंबर 3997, 2 नंबर 3994, 3 नंबर 3991…
+3. **Pending:** भाव के आगे के **5** खाली levels पर SELL STOP। किसी खुले hedge से **1.5 point** के अंदर नहीं। भाव से कम से कम 2× spread दूर। Broker reject करे तो उस level पर 10 sec रुकना।
+4. **4b दोबारा खुलना:** बंद हुआ hedge अपने बंद भाव पर दोबारा खुलता है (level से 1.5 point तक गहरा)। भाव level के पार लौटे तो ठीक level पर।
+5. पहला hedge खुलते ही **main का TP हट जाता है।**
+6. **Lock:** hedge **+$1.20** पार करे → lock, **+$1** पर बंद। सिर्फ़ **सबसे दूर वाला पहले** बंद होता है (LIFO)।
+7. **जोड़ी नियम** (सबसे दूर वाले का lock चालू न हो): आखिरी 2 मिलकर **+$1** → दोनों बंद। मिलकर **−$2** → दोनों घाटे में बंद (`S6_PairLossUsd` = 2)।
+8. **Cycle बंद होने के नियम:**
+   1. पक्का + खुले ≥ **+$6** (net)
+   2. main profit में और खुले ≥ **+$3** (cycle)
+   3. main घाटे में और खुले ≥ **+$5** (basket)
+   4. खुले ≤ **−$60** (Basket SL, 0 = बंद; hedge न हो तब भी)
+9. **बंद करते समय:** पहले pending हटते हैं, फिर trades। कोई trade बंद न हो तो हर second दोबारा कोशिश।
+10. **Inputs:**
+    - Strategy = 6
+    - `S6_LockArmUsd` = 1.2, `S6_LockUsd` = 1
+    - `S6_PairLossUsd` = 2
+    - `S6_BasketSL_Usd` = 60
+    - `S6_PendingAhead` = 5
+    - `S6_CycleNetUsd` = 6, `S6_CycleTP_Usd` = 3, `S6_BasketTP_Usd` = 5
+    - `S6_LiveOn` = true, `S6_LiveKey` = s6
+    - FirebaseAuth भरा हुआ (सिर्फ़ MT5 में)
+
+**सीधी गिरावट का पक्का हिसाब** (spread $0.20): 5 SELL खुलने के बाद, main से **17.0 point** नीचे (4000 → bid 3983.000), basket +$5 पर cycle बंद होता है।
+- main −$34
+- SELLs +13.8 +10.8 +7.8 +4.8 +1.8
+- कुल = **+$5.00**
+
+---
+
+## 4. Version इतिहास (छोटा)
+| version | बदलाव |
+|---|---|
+| v8.6 | market re-open हटाया, 1.5 point दूरी, Basket SL 60 |
+| v8.7 | S6 LIVE app data |
+| v8.8 | जोड़ी lock भरते ही |
+| v8.9 | app upload EA नहीं रोकता, Basket SL सीधा $ |
+| v9.0 | app का CHECK tab data (algo, ping, margin, गलतियाँ, HAAL) |
+| v9.1 | जोड़ी −$2 पर बंद (G), lock +$1.20 (L12), pending reject इलाज |
+| v9.2 | पूरे code review के bug fix: ताज़ा भाव, पहले pending हटाना, सिर्फ़ इस cycle का पक्का, hedge न हो तब भी SL, slot नंबर |
+| v9.3 | `S6_NextOnlyDeeper` (नया hedge सिर्फ़ सबसे गहरे से आगे)। **User ने v9.2 Final रखा।** |
+
+---
+
+## 5. Backtest से क्या सीखा (असली gold, SL $60, प्रति cycle औसत)
+| | 1m | 5m |
+|---|---|---|
+| **v9.2** | **$5.50**, SL 2 बार | **$5.76**, SL 0 बार |
+| v9.0 | $4.27 | $5.29 |
+
+v9.2 से **कमज़ोर** निकले, इसलिए नहीं जोड़े:
+1. Trailing lock (सारे रूप):
+   - $0.20 पीछे
+   - $1 पीछे
+   - 3/2/1 वाला
+2. "हर hedge अपने lock पर खुद बंद" (सबसे दूर वाला पहले की जगह)।
+3. "नया hedge तभी जब पहले वाले profit में हों" (v9.3): 1m $4.47, 5m बराबर।
+4. STOP + LIMIT से ठीक level पर दोबारा खोलना: बहुत बुरा ($1.22)।
+5. "hedge न हो तो pending ठीक $3 level पर": $4.65।
+6. सीधा version (हर hedge +$1 TP): घाटे में (−$0.36)।
+7. User का 2-hedge तरीका (2 नंबर +$1 → दोनों बंद): $0.82, SL 70 बार।
+8. Overlap close ("close minus by plus", पक्के profit से चुकाना): लगभग बराबर ($5.47), SL थोड़ा ज़्यादा।
+9. Cycle/basket को "पक्का + खुले" पर गिनना: cycle घाटे में बंद नहीं होता, पर औसत कम ($5.22)।
+
+**चेतावनी:** random (synthetic) data पर v9.1/v9.2 कमज़ोर निकला। फ़ायदा gold के पलटने वाले स्वभाव पर टिका है।
+
+---
+
+## 6. Demo का असली हाल (27 Nov)
+1. सुबह के cycles: कई +$6 / +$3 वाले cycle बंद हुए।
+2. Cycle **BUY 3658.505** (v9.0/9.1): 46 hedge, DD −$75, user ने हाथ से −$0.45 पर बंद किया।
+3. अभी का cycle **BUY 3680.342** (v9.2):
+   - भाव 3670–3681 में ~1.5 घंटे ऊपर-नीचे हुआ।
+   - जोड़ी −$2 से 4 कट (−$14.23), +$1 lock 7 बार (+$6.71)।
+   - Balance 208 → ~200, **net −$9.67**।
+   - Sideways बाज़ार इस strategy के लिए सबसे बुरा है। कोई test किया नियम इसे पूरा नहीं रोकता।
+4. **Real account पर अभी नहीं।** पहले demo पर कई दिन net plus दिखना चाहिए।
+
+---
+
+## 7. बाकी काम / खुले सवाल
+1. **News नियम:** high-impact news के ±30 min नया main trade न लेना। पूरा block करना है या सिर्फ़ चेतावनी? User का जवाब बाकी।
+2. **Sideways / chop से बचाव:** main trade कब लें (समय या हालात)। पहले के test में ADX/ATR filter से फ़ायदा नहीं मिला। नया सोचना है।
+3. **VPS Helper report ~55 दिन पुरानी (v1.02):** Helper / Bridge EA चालू करना है, ताकि compile नतीजा app CHECK में दिखे।
+4. Demo पर v9.2 के 2–3 दिन के नतीजे app HISTORY से देखकर तय करना है।
+5. App की सुधार सूची (Firebase `notes`) में बाकी points हैं: net DD दिखाना, Friday close का नियम, SL 0 पर "test mode" वगैरह।
+6. पुराने pending काम: AI AUTO v1.14, "top up small pack", XM real status।
