@@ -260,10 +260,8 @@ V92 = dict(pairsl=2.0, arm=1.2)
 NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 single/jodi/tikdi, -$2 kat nahi, reset
 VARS = [
     ("v9.2 (Final)", dict(V92)),
-    ("NAYA: 1/2/3 +$1, -$2 nahi, reset", dict(NEWP)),
-    ("NAYA bina reset", dict(arm=1.2, triple=True)),
-    ("NAYA + -$2 kat", dict(NEWP, pairsl=2.0)),
-    ("v9.2 bina -$2 (sirf 1/2)", dict(arm=1.2)),
+    ("v9.2 + tikdi", dict(V92, triple=True)),
+    ("tikdi, -$2 kat nahi", dict(arm=1.2, triple=True)),
 ]
 
 
