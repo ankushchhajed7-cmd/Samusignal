@@ -58,7 +58,8 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False, gap=3.0, recdd=None, rectgt=1.0, triple=False, help_start=None, help_step=2.0, help_tp=1.0)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False, gap=3.0, recdd=None, rectgt=1.0, triple=False, help_start=None, help_step=2.0, help_tp=1.0,
+            mainlot=2.0, keep1=False, tnet=6.0, tcyc=3.0, tbsk=5.0, ttp=None, b2=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -73,6 +74,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
     R = {}
     banked = 0.0; pair_id = None; minf = 0.0; used = 0; uid = 0; trip_id = None
     helper = None                                   # user 27 Nov: madad wala BUY 0.01 (main ki disha) - gehrai o
+    b2 = None                                       # user 27 Nov shaam: main ke bhaav par lautne par doosra BUY 0.01
     prevD = s
     last_mid = mid0
     t0 = bars[start][0]
@@ -110,7 +112,10 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 D = s - d * (mid - mid0)
                 H.sort(key=lambda h: h["o"])                 # deepest last
                 hpl = [D - h["o"] - s for h in H]
-                mainPL = -2 * D
+                mainPL = -c["mainlot"] * D
+                if c["b2"] and b2 is None and H and prevD > s and D <= s:
+                    b2 = D
+                b2PL = (b2 - D - s) if b2 is not None else 0.0
                 # ---- madad wala BUY: +$1 par band (sirf profit), ek samay ek; start par phir har step gehra ----
                 if c["help_start"] is not None:
                     if helper is not None and (helper - D - s) >= c["help_tp"]:
@@ -121,7 +126,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                         if prevD < Lh <= D:
                             helper = Lh
                 helpPL = (helper - D - s) if helper is not None else 0.0
-                tot = mainPL + sum(hpl) + helpPL
+                tot = mainPL + sum(hpl) + helpPL + b2PL
                 if tot < minf:
                     minf = tot
                 dur = bar[0] - t0
@@ -130,13 +135,13 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     minnet = banked + tot
                 if c["recdd"] is not None and minnet <= -c["recdd"] and banked + tot >= c["rectgt"]:   # recovery mode
                     return ("REC", banked + tot, minf, dur, used)
-                if banked + tot >= 6:
+                if banked + tot >= c["tnet"]:
                     return ("NET6", banked + tot, minf, dur, used)
                 if not H:
-                    if mainPL >= 6:
-                        return ("TP", banked + mainPL + helpPL, minf, dur, used)
+                    if mainPL + b2PL >= (c["ttp"] if c["ttp"] is not None else 3.0 * c["mainlot"]):
+                        return ("TP", banked + mainPL + helpPL + b2PL, minf, dur, used)
                 else:
-                    if not c["onlynet"] and (banked + tot if c["netrules"] else tot) >= (3 if mainPL >= 0 else 5):
+                    if not c["onlynet"] and (banked + tot if c["netrules"] else tot) >= (c["tcyc"] if mainPL >= 0 else c["tbsk"]):
                         return ("CYC3" if mainPL >= 0 else "BSK5", banked + tot, minf, dur, used)
                     if bsl and tot <= -bsl:
                         return ("BSL", banked + tot, minf, dur, used)
@@ -164,10 +169,13 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                             banked += cb; H.pop(); H.pop(); setR(b, D); setR(a, D); pair_id = None; closed = True
                 elif H:
                     b = H[-1]; pb = hpl[-1]
-                    if b["armed"]:
+                    keepb = c["keep1"] and b["n"] == 1             # user: 1 number SELL sirf cycle par
+                    if keepb:
+                        pass
+                    elif b["armed"]:
                         if pb <= floor(b):
                             banked += pb; H.pop(); setR(b, D); closed = True
-                    elif len(H) >= 2:
+                    elif len(H) >= 2 and not (c["keep1"] and H[-2]["n"] == 1):
                         a = H[-2]; cb = hpl[-2] + pb
                         if cb > c["pair_arm"]:
                             pair_id = b["id"]
@@ -243,7 +251,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 prevD = D
             last_mid = target
     D = s - d * (last_mid - mid0)
-    tot = -2 * D + sum(D - h["o"] - s for h in H) + ((helper - D - s) if helper is not None else 0.0)
+    tot = -c["mainlot"] * D + sum(D - h["o"] - s for h in H) + ((helper - D - s) if helper is not None else 0.0) + ((b2 - D - s) if b2 is not None else 0.0)
     return ("OPEN", banked + tot, minf, bars[min(len(bars) - 1, bi)][0] - t0, used)
 
 
@@ -259,7 +267,8 @@ def summarize(name, rows):
     dur = statistics.median(r["dur"] for r in rows) / 60
     print(f"  {name:<30} n={len(rows):4d} win={100*wins/len(rows):5.1f}% avg=${statistics.mean(pl):6.2f} "
           f"total=${sum(pl):8.1f} worst=${min(pl):8.1f} DDworst=${min(dd):7.1f} DDp90=${sorted(dd)[len(dd)//10]:6.1f} "
-          f"BSL/OPEN={bad:3d} hedges/cyc={statistics.mean(r['used'] for r in rows):5.1f} medDur={dur:5.0f}m  "
+          f"BSL/OPEN={bad:3d} hedges/cyc={statistics.mean(r['used'] for r in rows):5.1f} medDur={dur:5.0f}m "
+          f"$/hr={sum(pl) / max(1e-9, sum(r['dur'] for r in rows) / 3600):6.2f}  "
           + " ".join(f"{k}:{v}" for k, v in sorted(kinds.items())))
 
 
@@ -269,12 +278,12 @@ USER = dict(nolifo=True, reentry=False, deeponly=True, resetnh=True, jointtp=1.0
 V92 = dict(pairsl=2.0, arm=1.2)
 V92 = dict(pairsl=2.0, arm=1.2)
 NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 single/jodi/tikdi, -$2 kat nahi, reset
+V90 = dict(pairsl=None, arm=2.0)                       # v9.0 niyam (lock +2 -> +1, jodi +1, -$2 kat nahi)
+NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 VARS = [
-    ("v9.2 (Final)", dict(V92)),
-    ("v9.2 + madad BUY $10, har $2", dict(V92, help_start=10, help_step=2)),
-    ("v9.2 + madad BUY $10, har $3", dict(V92, help_start=10, help_step=3)),
-    ("v9.2 + madad BUY $6, har $2", dict(V92, help_start=6, help_step=2)),
-    ("v9.2 + madad BUY $15, har $2", dict(V92, help_start=15, help_step=2)),
+    ("v9.0 (abhi)", dict(V90)),
+    ("NAYA (A): 1 no. SELL sirf cycle par", dict(NEW1, keep1=True)),
+    ("NAYA (B): 1 no. SELL bhi $1 niyam", dict(NEW1, keep1=False)),
 ]
 
 
