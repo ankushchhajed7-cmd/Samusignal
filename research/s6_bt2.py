@@ -392,8 +392,12 @@ V90 = dict(pairsl=None, arm=2.0)                       # v9.0 niyam (lock +2 -> 
 NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 E103 = dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)
 V104 = dict(NEW1, keep1=False, triple=True, allprofit=0.0, b2any=True)   # user 27 Nov raat: neeche se + jodi + tikdi + naya SELL sirf jab upar wale profit me
+T1 = dict(tnet=1.0, tcyc=1.0, tbsk=1.0, ttp=1.0)        # user 27 Nov raat: TP / basket / cycle (aur net) sab $1
 VARS = [
-    ("v10.5 (abhi ka EA)", dict(V104)),
+    ("v10.5 (abhi: target $2, gap $3)", dict(V104)),
+    ("sirf target $1 (gap $3)", dict(V104, **T1)),
+    ("sirf gap $2 (target $2)", dict(V104, gap=2.0)),
+    ("USER: target $1 + gap $2", dict(V104, gap=2.0, **T1)),
 ]
 
 
