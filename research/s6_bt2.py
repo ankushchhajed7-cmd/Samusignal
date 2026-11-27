@@ -75,6 +75,53 @@ def trend_arr(bars, f, sl):
     return _TCACHE[k]
 
 
+_SCACHE = {}
+def sig_arr(bars, rule):
+    k = (id(bars), rule)
+    if k in _SCACHE:
+        return _SCACHE[k]
+    C = [b[4] for b in bars]; Hh = [b[2] for b in bars]; Ll = [b[3] for b in bars]; n = len(C)
+    def ema(src, m):
+        a = 2.0 / (m + 1); out = []; e = src[0]
+        for x in src: e = x * a + e * (1 - a); out.append(e)
+        return out
+    kind = rule[0]; out = [0] * n
+    if kind == "ema":
+        f, sl = rule[1], rule[2]; ef, es = ema(C, f), ema(C, sl)
+        out = [1 if x > y else -1 for x, y in zip(ef, es)]
+    elif kind == "mom":
+        N = rule[1]; out = [0 if i < N else (1 if C[i] > C[i - N] else -1) for i in range(n)]
+    elif kind == "rsi":
+        N, lo = 14, rule[1]; g = l = 0.0; r = [50.0] * n
+        for i in range(1, n):
+            ch = C[i] - C[i - 1]; up, dn = max(ch, 0), max(-ch, 0)
+            if i <= N: g += up / N; l += dn / N
+            else: g = (g * (N - 1) + up) / N; l = (l * (N - 1) + dn) / N
+            r[i] = 100.0 if l == 0 else 100 - 100 / (1 + g / l)
+        out = [1 if x > 100 - lo else (-1 if x < lo else 0) for x in r]
+    elif kind == "adx":
+        N, th = 14, rule[1]; tr = pdm = ndm = 0.0; ax = 0.0; out = [0] * n
+        for i in range(1, n):
+            up, dn = Hh[i] - Hh[i - 1], Ll[i - 1] - Ll[i]
+            p_ = up if up > dn and up > 0 else 0; m_ = dn if dn > up and dn > 0 else 0
+            t = max(Hh[i] - Ll[i], abs(Hh[i] - C[i - 1]), abs(Ll[i] - C[i - 1]))
+            tr = tr - tr / N + t; pdm = pdm - pdm / N + p_; ndm = ndm - ndm / N + m_
+            pdi = pdm / tr * 100 if tr else 0; ndi = ndm / tr * 100 if tr else 0
+            dx = abs(pdi - ndi) / (pdi + ndi) * 100 if pdi + ndi else 0
+            ax = ax + (dx - ax) / N
+            out[i] = (1 if pdi > ndi else -1) if ax > th else 0
+    elif kind == "don":
+        N = rule[1]; out = [0] * n
+        for i in range(N, n):
+            if C[i] >= max(Hh[i - N:i]): out[i] = 1
+            elif C[i] <= min(Ll[i - N:i]): out[i] = -1
+    elif kind == "htf":
+        f, sl, m = rule[1], rule[2], rule[3]; ef, es = ema(C, f * m), ema(C, sl * m)
+        out = [1 if x > y else -1 for x, y in zip(ef, es)]
+    _SCACHE[k] = out
+    return out
+
+
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
     c = dict(BASE); c.update(kw)
     s = SPREAD
@@ -113,6 +160,20 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
 
     la = c.get("lockai")
     tr = trend_arr(bars, *c.get("lockema", (20, 50))) if la == "ema" else None
+    sg = sig_arr(bars, c["lockrule"]) if la == "rule" else None
+    def keep_one(h, bi_, D_):
+        # sirf us pal jab sabse neeche wala lock +$1 par band hone wala ho: band karo ya chalne do?
+        if la == "rule":
+            return bi_ > start and d * sg[bi_ - 1] < 0                     # pichhli BAND candle ka signal hedge ki disha me
+        if la == "oracle2":                                                # aage dekho: chalne dena sach me behtar tha?
+            for k2 in range(bi_ + 1, min(len(bars), bi_ + c.get("lookahead", 60))):
+                hb, lb = bars[k2][2], bars[k2][3]
+                worst = s - d * ((hb if d > 0 else lb) - mid0) - h["o"] - s
+                best = s - d * ((lb if d > 0 else hb) - mid0) - h["o"] - s
+                if worst <= 0.0: return False                             # pehle ghate me jaata -> band karna sahi
+                if best >= h["peak"] + 1.0: return True                   # pehle naya upar -> chalne dena sahi
+            return False
+        return False
     for bi in range(start, len(bars)):
         bar = bars[bi]
         # user 27 Nov raat: AI faisla - hedge ki disha me chaal jaari (pullback) -> lock band nahi (hedge chalne do); palta -> lock chalu
@@ -208,13 +269,13 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                                 trip_id = b["id"]
                             if trip_id == b["id"] and c3 <= c["lock"]:
                                 banked += c3; H.pop(); H.pop(); H.pop(); setR(b, D); setR(a, D); setR(z, D); trip_id = None; closed = True
-                elif H and not keep:
+                elif H:
                     b = H[-1]; pb = hpl[-1]
                     keepb = c["keep1"] and b["n"] == 1             # user: 1 number SELL sirf cycle par
                     if keepb:
                         pass
                     elif b["armed"]:
-                        if pb <= floor(b):
+                        if pb <= floor(b) and not (la in ("rule", "oracle2") and keep_one(b, bi, D)):
                             banked += pb; H.pop(); setR(b, D); closed = True
                     elif len(H) >= 2 and not (c["keep1"] and H[-2]["n"] == 1):
                         a = H[-2]; cb = hpl[-2] + pb
@@ -325,10 +386,28 @@ E103 = dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)
 V104 = dict(NEW1, keep1=False, triple=True, allprofit=0.0, b2any=True)   # user 27 Nov raat: neeche se + jodi + tikdi + naya SELL sirf jab upar wale profit me
 VARS = [
     ("v10.5 (abhi: lock hamesha)", dict(V104)),
-    ("AI-sasta: 1m/5m EMA20/50 hedge ki taraf -> lock ruko", dict(V104, lockai="ema", lockema=(20, 50))),
-    ("AI-sasta tez: EMA9/21", dict(V104, lockai="ema", lockema=(9, 21))),
-    ("Lock kabhi nahi (sirf cycle target)", dict(V104, lockai="never")),
-    ("BHAVISHYA-gyani (oracle, asli me namumkin)", dict(V104, lockai="oracle")),
+    ("niyam ('ema', 5, 13)", dict(V104, lockai="rule", lockrule=('ema', 5, 13))),
+    ("niyam ('ema', 9, 21)", dict(V104, lockai="rule", lockrule=('ema', 9, 21))),
+    ("niyam ('ema', 20, 50)", dict(V104, lockai="rule", lockrule=('ema', 20, 50))),
+    ("niyam ('ema', 50, 200)", dict(V104, lockai="rule", lockrule=('ema', 50, 200))),
+    ("niyam ('mom', 3)", dict(V104, lockai="rule", lockrule=('mom', 3))),
+    ("niyam ('mom', 5)", dict(V104, lockai="rule", lockrule=('mom', 5))),
+    ("niyam ('mom', 10)", dict(V104, lockai="rule", lockrule=('mom', 10))),
+    ("niyam ('mom', 20)", dict(V104, lockai="rule", lockrule=('mom', 20))),
+    ("niyam ('rsi', 40)", dict(V104, lockai="rule", lockrule=('rsi', 40))),
+    ("niyam ('rsi', 35)", dict(V104, lockai="rule", lockrule=('rsi', 35))),
+    ("niyam ('rsi', 30)", dict(V104, lockai="rule", lockrule=('rsi', 30))),
+    ("niyam ('adx', 20)", dict(V104, lockai="rule", lockrule=('adx', 20))),
+    ("niyam ('adx', 25)", dict(V104, lockai="rule", lockrule=('adx', 25))),
+    ("niyam ('adx', 30)", dict(V104, lockai="rule", lockrule=('adx', 30))),
+    ("niyam ('don', 10)", dict(V104, lockai="rule", lockrule=('don', 10))),
+    ("niyam ('don', 20)", dict(V104, lockai="rule", lockrule=('don', 20))),
+    ("niyam ('don', 50)", dict(V104, lockai="rule", lockrule=('don', 50))),
+    ("niyam ('htf', 9, 21, 5)", dict(V104, lockai="rule", lockrule=('htf', 9, 21, 5))),
+    ("niyam ('htf', 20, 50, 5)", dict(V104, lockai="rule", lockrule=('htf', 20, 50, 5))),
+    ("niyam ('htf', 9, 21, 15)", dict(V104, lockai="rule", lockrule=('htf', 9, 21, 15))),
+    ("niyam ('htf', 20, 50, 15)", dict(V104, lockai="rule", lockrule=('htf', 20, 50, 15))),
+    ("ORACLE2 (sabse sahi bhavishya, namumkin)", dict(V104, lockai="oracle2")),
 ]
 
 
