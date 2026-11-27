@@ -293,6 +293,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
 
+## S6 — user ne v9.2 chhoda, v9.0 wale niyam par wapas (27 Nov 2026 shaam)
+- Demo v9.2 (BUY 3680.342): sideways 3670–3681 me "jodi −$2" ke 4 kat −$14.23, lock +$6.71, balance 208 → ~200 → user: "9.2 pasand nahi, chhod do".
+- Raat v8.7 (26 Nov 22:16 IST) aur subah v8.9/v9.0 (27 Nov 08:44/08:54 IST) par profit aaya (200 → 245). Raasta: `PERSONAL FX v9.0 - GRID.mq5`, ya v9.2 file + `S6_PairLossUsd = 0`, `S6_LockArmUsd = 2.0` (v9.0 niyam + v9.2 bug fix). Poora `S6_HANDOVER.md` section 0 me.
+- Backtest round 13–16 (recovery mode, gap $4/$5, tikdi + reset, v9.2 + tikdi, madad wala BUY 0.01): koi v9.2 se behtar nahi; reset aur madad BUY 1m par nuksaan.
+
 ## S6 — user Final: v9.2 chalegi (27 Nov 2026)
 - Backtest round 7 / 8 (`research/s6_bt2.py`): lock 3/2/1 + $0.20 trailing aur "$3 par $2, phir $1 peeche" (dono "door wala pehle" aur "har hedge khud") - koi bhi v9.2 (lock +$1.20 → +$1, bina trailing) se behtar nahi: SL $60 par 1m $4.53 vs $5.50, 5m $5.52 vs $5.76; SL 2 → 28, 0 → 14. "Har hedge khud" har baar kamzor.
 - User: "9.2 Final". Chart par `PERSONAL FX v9.2 - GRID.mq5` (v9.3 rakhi hai; usme `S6_NextOnlyDeeper = false` = v9.2 jaisa).
