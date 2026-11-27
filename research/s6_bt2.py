@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False, gap=3.0, recdd=None, rectgt=1.0)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -66,7 +66,9 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
     s = SPREAD
     mid0 = bars[start][1]
     end_t = bars[start][0] + max_hours * 3600
-    lv = lambda n: n * GAP - c["off"]
+    G = c["gap"]
+    lv = lambda n: n * G - c["off"]
+    minnet = 0.0
     H = []                      # {n, o, armed, peak, id}
     R = {}
     banked = 0.0; pair_id = None; minf = 0.0; used = 0; uid = 0
@@ -77,7 +79,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
 
     def setR(h, D):
         if c["reentry"] and D > lv(h["n"]):
-            R[h["n"]] = min(D, lv(h["n"]) + 0.5 * GAP)
+            R[h["n"]] = min(D, lv(h["n"]) + 0.5 * G)
 
     def floor(h):
         if c["trail1"]:                              # user 27 Nov: +$3 par $2, phir $1 peeche (neeche $1 @ +$1.20)
@@ -113,6 +115,10 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     minf = tot
                 dur = bar[0] - t0
                 # ---- close rules (EA order) ----
+                if banked + tot < minnet:
+                    minnet = banked + tot
+                if c["recdd"] is not None and minnet <= -c["recdd"] and banked + tot >= c["rectgt"]:   # recovery mode
+                    return ("REC", banked + tot, minf, dur, used)
                 if banked + tot >= 6:
                     return ("NET6", banked + tot, minf, dur, used)
                 if not H:
@@ -182,7 +188,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 # ---- pending fills (STOP: depth crosses the trigger going deeper) ----
                 if not closed and D > prevD:
                     occ = {h["n"] for h in H}
-                    nmax = int((D + c["off"]) / GAP) + 2
+                    nmax = int((D + c["off"]) / G) + 2
                     for n in range(1, nmax + 1):
                         if n in occ:
                             continue
@@ -207,7 +213,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 # ---- user 27 Nov: khali level par LIMIT bhi (bhaav main ki taraf laut kar level chhue to wahin) ----
                 if c["limit"] and not closed and D < prevD:
                     occ = {h["n"] for h in H}
-                    for n in range(1, int((prevD + c["off"]) / GAP) + 2):
+                    for n in range(1, int((prevD + c["off"]) / G) + 2):
                         if n in occ:
                             continue
                         L = lv(n)
@@ -243,11 +249,15 @@ def summarize(name, rows):
 SIMPLE = dict(nolifo=True, reentry=False, onlynet=True, pairfill=None)
 V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
 USER = dict(nolifo=True, reentry=False, deeponly=True, resetnh=True, jointtp=1.0, pairfill=None)
+V92 = dict(pairsl=2.0, arm=1.2)
 VARS = [
-    ("v9.2 (Final)", dict(pairsl=2.0, arm=1.2)),
-    ("v9.2, cycle/basket pakka+khule par", dict(pairsl=2.0, arm=1.2, netrules=True)),
-    ("v9.2 jodi -$2 OFF", dict(arm=1.2)),
-    ("jodi OFF, cycle/basket pakka+khule", dict(arm=1.2, netrules=True)),
+    ("v9.2 (Final)", dict(V92)),
+    ("v9.2 + recovery -15 -> +$1", dict(V92, recdd=15, rectgt=1.0)),
+    ("v9.2 + recovery -10 -> +$1", dict(V92, recdd=10, rectgt=1.0)),
+    ("v9.2 + recovery -20 -> $0", dict(V92, recdd=20, rectgt=0.0)),
+    ("v9.2 gap $4", dict(V92, gap=4.0)),
+    ("v9.2 gap $5", dict(V92, gap=5.0)),
+    ("v9.2 gap $4 + recovery -15", dict(V92, gap=4.0, recdd=15, rectgt=1.0)),
 ]
 
 
