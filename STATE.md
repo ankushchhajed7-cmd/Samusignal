@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **9.0** | `vps-ea/PERSONAL FX v9.0 - GRID.mq5` |
+| PERSONAL FX EA | **9.1** | `vps-ea/PERSONAL FX v9.1 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,12 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v9.1 — S6 jodi −$2 par band + lock +$1.20 + pending reject (27 Nov 2026, user Final)
+- Demo v9.0 (BUY 3658.505): bhaav 3640–3649 me upar-neeche; 44 hedge lage, pakka sirf +$5.57; 4 / 5 / 6 number 1.5 point ke guchhe me khule (4b gehra re-entry) aur 4–10 sec me jodi +$0.5…0.96 par band (churn); upar ke hedge (3 / 4) neeche wale ghate me hote hue khule; 12 pending broker ne mana kiye ([10006] rejected / [10015] invalid price); aakhir me 3 hedge ghate me atke (−$14).
+- Backtest `research/s6_bt2.py` (GitHub Actions `s6-research.yml`, asli gold GC=F 1m 7 din + 5m 60 din, shor test bhi): v9.0 vs A (theek level), B (jodi bharte +$2), E (neeche ghate → upar nahi), offset 0.5 / 1.0, G (jodi −$1/−$2/−$3 par band), trailing (arm 1.2/1.5/2.0, dist 0.2/0.5/1.0), L12 (arm 1.2). Sabse achha G+L12: SL $60 par avg/cycle $4.27 → $5.53 (1m), $5.31 → $5.76 (5m), shor me $3.17 → $4.98 / $5.23 → $5.69; SL lage 14 → 2, 8 → 0; bina SL sabse bura DD −$818 → −$62 (1m), −$736 → −$42 (5m). Trailing, A, B, E, offset akele fayda nahi. Chetavni: random-walk (synthetic) data par G+L12 v9.0 se bura - fayda gold ke palatne wale swabhav par tika hai.
+- EA: `S6_PairLossUsd` = 2.0 (naya): sabse neeche ki jodi (lock chalu nahi) milake ≤ −$2 → dono band (push "JODI GHATE ME BAND"). `S6_LockArmUsd` 2.0 → 1.2. Pending: bhaav se kam se kam 2× spread door; broker mana kare to us level par 10 sec ruko. hb cfg me `ploss`.
+- Chalte cycle par v9.1 lagaya to ghate wali neeche ki jodi turant band hogi - naya EA cycle khatam hone ke baad lagana.
 
 ## PERSONAL FX v9.0 — S6 LIVE app ka 🩺 CHECK tab (27 Nov 2026, user "Yes")
 - User: "jo bhi problem ho wo sab check karne ka option G2 app me — MT5 / page kholne ki zaroorat na pade".
