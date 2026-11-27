@@ -62,6 +62,19 @@ BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=
             mainlot=2.0, keep1=False, tnet=6.0, tcyc=3.0, tbsk=5.0, ttp=None, b2=False, pxreset=False)
 
 
+_TCACHE = {}
+def trend_arr(bars, f, sl):
+    k = (id(bars), f, sl)
+    if k not in _TCACHE:
+        def ema(n):
+            a = 2.0 / (n + 1); out = []; e = bars[0][4]
+            for b in bars: e = b[4] * a + e * (1 - a); out.append(e)
+            return out
+        ef, es = ema(f), ema(sl)
+        _TCACHE[k] = [1 if x > y else -1 for x, y in zip(ef, es)]
+    return _TCACHE[k]
+
+
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
     c = dict(BASE); c.update(kw)
     s = SPREAD
@@ -98,8 +111,19 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
             return c["lock"]
         return max(c["lock"], h["peak"] - c["trail"])
 
+    la = c.get("lockai")
+    tr = trend_arr(bars, *c.get("lockema", (20, 50))) if la == "ema" else None
     for bi in range(start, len(bars)):
         bar = bars[bi]
+        # user 27 Nov raat: AI faisla - hedge ki disha me chaal jaari (pullback) -> lock band nahi (hedge chalne do); palta -> lock chalu
+        keep = False
+        if la == "never":
+            keep = True
+        elif la == "ema":
+            keep = (d * tr[bi - 1] < 0) if bi > start else False          # pichhli band candle ka trend hedge ki taraf
+        elif la == "oracle":
+            k2 = min(len(bars) - 1, bi + c.get("lookahead", 30))
+            keep = d * (bars[k2][4] - bars[bi][4]) < 0                    # BHAVISHYA: aage bhaav hedge ki taraf (sirf upper seema dekhne ke liye)
         if bar[0] > end_t:
             break
         pts = path_points(bar) if bi > start else [bar[1]] + path_points(bar)[1:]
@@ -184,7 +208,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                                 trip_id = b["id"]
                             if trip_id == b["id"] and c3 <= c["lock"]:
                                 banked += c3; H.pop(); H.pop(); H.pop(); setR(b, D); setR(a, D); setR(z, D); trip_id = None; closed = True
-                elif H:
+                elif H and not keep:
                     b = H[-1]; pb = hpl[-1]
                     keepb = c["keep1"] and b["n"] == 1             # user: 1 number SELL sirf cycle par
                     if keepb:
@@ -300,12 +324,11 @@ NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 E103 = dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)
 V104 = dict(NEW1, keep1=False, triple=True, allprofit=0.0, b2any=True)   # user 27 Nov raat: neeche se + jodi + tikdi + naya SELL sirf jab upar wale profit me
 VARS = [
-    ("v10.5 (abhi)", dict(V104)),
-    ("B: doosra BUY band", dict(V104, b2=False)),
-    ("C: 1 ghante baad net $0 par band", dict(V104, be_after=1.0, be_tgt=0.0)),
-    ("D: 2 ghante baad net $0.5 par band", dict(V104, be_after=2.0, be_tgt=0.5)),
-    ("E: lock +$1.5 par chalu (2 ki jagah)", dict(V104, arm=1.5)),
-    ("F: B + C (doosra BUY band + 1 ghanta $0)", dict(V104, b2=False, be_after=1.0, be_tgt=0.0)),
+    ("v10.5 (abhi: lock hamesha)", dict(V104)),
+    ("AI-sasta: 1m/5m EMA20/50 hedge ki taraf -> lock ruko", dict(V104, lockai="ema", lockema=(20, 50))),
+    ("AI-sasta tez: EMA9/21", dict(V104, lockai="ema", lockema=(9, 21))),
+    ("Lock kabhi nahi (sirf cycle target)", dict(V104, lockai="never")),
+    ("BHAVISHYA-gyani (oracle, asli me namumkin)", dict(V104, lockai="oracle")),
 ]
 
 
