@@ -27,6 +27,8 @@ Variants (user 27 Nov):
 import json, sys, time, urllib.request, statistics, random
 
 SPREAD = 0.25
+import os as _os
+SPREAD = float(_os.environ.get("S6_SPREAD", SPREAD))   # user 27 Nov raat: EURUSD par 1 pip = 0.1 (scaled)
 GAP = 3.0
 TICK = 0.1
 

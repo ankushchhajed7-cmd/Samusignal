@@ -15,3 +15,6 @@ jobs:
       - name: Same rules on BTC (Yahoo BTC-USD, 0.01 lot = $0.01 per $1 -> scaled x0.01)
         env: {S6_SYM: BTC-USD, S6_SCALE: "0.01", S6_LABEL: BTC}
         run: python3 -u research/s6_bt2.py
+      - name: Same rules on EURUSD (Yahoo EURUSD=X, 0.01 lot = $1 per 0.001 -> scaled x1000, spread 1 pip)
+        env: {S6_SYM: "EURUSD=X", S6_SCALE: "1000", S6_LABEL: EURUSD, S6_SPREAD: "0.1"}
+        run: python3 -u research/s6_bt2.py
