@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -119,7 +119,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     if mainPL >= 6:
                         return ("TP", banked + mainPL, minf, dur, used)
                 else:
-                    if not c["onlynet"] and tot >= (3 if mainPL >= 0 else 5):
+                    if not c["onlynet"] and (banked + tot if c["netrules"] else tot) >= (3 if mainPL >= 0 else 5):
                         return ("CYC3" if mainPL >= 0 else "BSK5", banked + tot, minf, dur, used)
                     if bsl and tot <= -bsl:
                         return ("BSL", banked + tot, minf, dur, used)
@@ -245,9 +245,9 @@ V93 = dict(pairsl=2.0, arm=1.2, deeponly=True)
 USER = dict(nolifo=True, reentry=False, deeponly=True, resetnh=True, jointtp=1.0, pairfill=None)
 VARS = [
     ("v9.2 (Final)", dict(pairsl=2.0, arm=1.2)),
-    ("USER: lock 1.2->1, 2 no. +$1 par dono band", dict(USER, arm=1.2)),
-    ("USER: lock 1.05->1 (turant)", dict(USER, arm=1.05)),
-    ("USER + jodi -$2", dict(USER, arm=1.2, indpair=True, pairsl=2.0)),
+    ("v9.2, cycle/basket pakka+khule par", dict(pairsl=2.0, arm=1.2, netrules=True)),
+    ("v9.2 jodi -$2 OFF", dict(arm=1.2)),
+    ("jodi OFF, cycle/basket pakka+khule", dict(arm=1.2, netrules=True)),
 ]
 
 
