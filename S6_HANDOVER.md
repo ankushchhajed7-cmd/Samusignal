@@ -115,7 +115,50 @@ v9.2 से **कमज़ोर** निकले, इसलिए नहीं
 
 ---
 
-## 7. बाकी काम / खुले सवाल
+## 7. VPS Helper: नया EA VPS पर कैसे पहुँचता है
+**File:** `Samusignal/vps-helper/SamuVpsHelper.ps1` (v1.07)। Install script: `vps-helper/install.ps1`।
+
+**Install (VPS पर एक बार):** VPS पर PowerShell खोलकर ये एक line चलाओ:
+```
+[Net.ServicePointManager]::SecurityProtocol='Tls12';iex(iwr https://raw.githubusercontent.com/ankushchhajed7-cmd/samusignal/main/vps-helper/install.ps1 -UseBasicParsing).Content
+```
+ये तीन काम करता है:
+- `C:\SamuVpsHelper` में helper रखता है।
+- Windows Task Scheduler में **"SamuVpsHelper"** task बनाता है (हर 2 min, छुपा हुआ)।
+- एक बार तुरंत चलाकर नतीजा दिखाता है।
+
+**ये हर 2 min में क्या करता है:**
+1. GitHub repo `samusignal` की **main** branch पर नया commit आया? तो `vps-ea/` और `copytrade-ea/` की हर `.mq5` file VPS के **हर MT5 terminal** के `MQL5\Experts` में copy करता है।
+2. हर terminal के **MetaEditor से compile** करता है और errors पढ़ता है। `.ex5` files सीधे copy होती हैं, compile नहीं।
+3. `vps-files/*.json` → हर terminal के `MQL5\Files` में।
+4. Report बनाता है (compile नतीजा, Experts log की आखिरी lines, RAM): `<Common>\Files\SamuCopy\vps.json`।
+5. ये report **CopyTrade Bridge EA (v1.02+)** Firebase `/copytrade/vps` पर भेजता है। App में दिखता है:
+   - S6 LIVE → 🩺 CHECK → "VPS Helper · compile"
+   - पुराने app में COPY tab → "VPS Helper" card
+6. अपना नया version भी GitHub से खुद ले लेता है।
+
+**नया EA version VPS पर भेजने का तरीका (हर बार):**
+1. नई file `vps-ea/PERSONAL FX v9.x - GRID.mq5` repo में commit → PR → **main में merge**।
+2. ~2 min में Helper उसे हर terminal के `MQL5\Experts` में डालकर compile कर देगा।
+3. **Chart पर लगाना user का काम है।** Helper कभी trade नहीं करता, chart पर EA नहीं लगाता या हटाता, MT5 restart नहीं करता।
+   - MT5 में Navigator → Expert Advisors → नया version chart पर लगाओ (inputs जाँचकर)।
+4. Compile OK हुआ या नहीं: app CHECK में देखो, या VPS पर `C:\SamuVpsHelper\helper.log`।
+
+**अभी की समस्या:** app में VPS Helper report ~55 दिन पुरानी (v1.02) दिख रही है। मतलब Helper task नहीं चल रहा, या Bridge EA किसी chart पर नहीं लगा।
+
+ठीक करने के लिए:
+1. VPS पर Task Scheduler में "SamuVpsHelper" है और चालू है, ये जाँचो। नहीं है तो ऊपर वाली install line दोबारा चलाओ।
+2. CopyTrade Bridge EA (v1.02+) किसी chart पर लगाओ। ये report Firebase तक भेजता है।
+3. तब तक नया EA हाथ से डालना होगा: file download → `MQL5\Experts` में रखो → MetaEditor में F7 (compile)।
+
+**Helper हटाना हो तो** (PowerShell में):
+```
+Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
+```
+
+---
+
+## 8. बाकी काम / खुले सवाल
 1. **News नियम:** high-impact news के ±30 min नया main trade न लेना। पूरा block करना है या सिर्फ़ चेतावनी? User का जवाब बाकी।
 2. **Sideways / chop से बचाव:** main trade कब लें (समय या हालात)। पहले के test में ADX/ATR filter से फ़ायदा नहीं मिला। नया सोचना है।
 3. **VPS Helper report ~55 दिन पुरानी (v1.02):** Helper / Bridge EA चालू करना है, ताकि compile नतीजा app CHECK में दिखे।
