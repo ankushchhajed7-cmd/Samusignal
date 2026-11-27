@@ -92,7 +92,7 @@
    - वजह: SELL न हों और दूसरा BUY खुला हो तो EA $2 जाँचकर हर बार लौट जाता था, pending वाला हिस्सा चलता ही नहीं था।
    - Fix: लौटना सिर्फ़ बंद करने पर। दूसरा BUY खुला हो तो main अकेला TP पर बंद नहीं होता और broker TP नहीं लगता।
    - Backtest simulator में ये bug नहीं था, यानी round 17 का (B) = v10.2।
-12. **User का विचार (B), backtest चल रहा (round 18), EA में नहीं:** कोई SELL खुला न हो तो ladder अभी के भाव से $3 (3645.09 → 3642.09, 3639.09…), भाव main की तरफ़ आए तो ladder साथ ऊपर। Research में `pxreset=True`।
+12. **User का विचार (B), round 18 में कमज़ोर (SL 5m 2 → 11), EA में नहीं** (`S6_NEW_PLAN.md`): कोई SELL खुला न हो तो ladder अभी के भाव से $3 (3645.09 → 3642.09, 3639.09…), भाव main की तरफ़ आए तो ladder साथ ऊपर। Research में `pxreset=True`।
 
 ---
 
