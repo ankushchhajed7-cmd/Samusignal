@@ -122,7 +122,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 H.sort(key=lambda h: h["o"])                 # deepest last
                 hpl = [D - h["o"] - s for h in H]
                 mainPL = -c["mainlot"] * D
-                if c["b2"] and b2 is None and H and prevD > s and D <= s:
+                if c["b2"] and b2 is None and (H or (c.get("b2any") and used > 0)) and prevD > s and D <= s:
                     b2 = D
                 b2PL = (b2 - D - s) if b2 is not None else 0.0
                 # ---- madad wala BUY: +$1 par band (sirf profit), ek samay ek; start par phir har step gehra ----
@@ -296,10 +296,12 @@ NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 sing
 V90 = dict(pairsl=None, arm=2.0)                       # v9.0 niyam (lock +2 -> +1, jodi +1, -$2 kat nahi)
 NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 E103 = dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)
+V104 = dict(NEW1, keep1=False, triple=True, allprofit=0.0, b2any=True)   # user 27 Nov raat: neeche se + jodi + tikdi + naya SELL sirf jab upar wale profit me
 VARS = [
-    ("v10.3 (abhi)", dict(E103)),
-    ("F: naya SELL sirf jab saare khule profit me", dict(E103, allprofit=0.0)),
-    ("G: naya SELL sirf jab neeche wale ghate me na ho", dict(E103, guard=True)),
+    ("v10.3 (abhi: koi kram nahi)", dict(E103)),
+    ("v10.4: neeche se+jodi+tikdi+F+doosra BUY hamesha", dict(V104)),
+    ("v10.4 + har SELL $3 door (space 3)", dict(V104, space=3.0)),
+    ("v10.4 par doosra BUY sirf SELL khule hon", dict(V104, b2any=False)),
 ]
 
 
