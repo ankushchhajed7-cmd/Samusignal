@@ -2040,13 +2040,13 @@ body.ds-gold .brand .brandWord{height:24px}
       <button class="btn ghost sm" style="width:auto;padding:0 12px" onclick="go('Signals', document.querySelector('nav button[data-pg=&quot;Signals&quot;]'))">← Signals</button>
     </div>
     <p class="ttl">🎯 BUY YA SELL? <span class="sp">scalp $1 / $2</span></p>
-    <p class="hint" style="margin:0 0 10px">5 AI agent (Trend · Momentum · Level · News · Risk) apni raay dete hain, ek doosre se behes karte hain, phir ⚖️ Judge ek faisla deta hai. Timeframe: 1H mahaul · 15m disha · 5m setup · 1m trigger. Analysis hai, guarantee nahi.</p>
+    <p class="hint" style="margin:0 0 10px">7 AI agent (Trend · Momentum · Level · News · Structure · Alignment · Risk) apni raay dete hain, ek doosre se behes karte hain, phir ⚖️ Judge ek faisla deta hai. Timeframe: 1H mahaul · 15m disha · 5m setup · 1m trigger. Analysis hai, guarantee nahi.</p>
     <div class="grid2" style="margin-bottom:10px">
       <div><label>Pair</label><select id="dcPair"></select></div>
       <div><label>Target (0.01 lot)</label><select id="dcTgt"><option value="1">+$1</option><option value="2">+$2</option></select></div>
     </div>
     <button class="btn gold" id="dcBtn" onclick="dcRun()">🧠 ANALYZE — abhi BUY ya SELL?</button>
-    <p class="hint mono" id="dcStat" style="margin-top:8px">Gemini key (Settings) chahiye · ek analysis = 7 AI sawaal</p>
+    <p class="hint mono" id="dcStat" style="margin-top:8px">Gemini key (Settings) chahiye · ek analysis = 9 AI sawaal</p>
   </div>
   <div class="card" id="dcOut"></div>
   <div class="card" id="dcHist"></div>
@@ -2378,7 +2378,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.10.1';
+const VERSION = '10.11.0';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -13790,6 +13790,8 @@ const DC_AGENTS = [
   {k:'mom', ic:'⚡', n:'Momentum agent', job:'Tum MOMENTUM expert ho. 5m aur 1m par RSI, MACD histogram (badh raha / ghat raha), ADX + DI, pichhli kuch candles ki raftaar dekho. Abhi kis taraf zor hai, aur kya zor khatam ho raha hai (RSI extreme)?'},
   {k:'lvl', ic:'🧱', n:'Level agent', job:'Tum PRICE ACTION / LEVEL expert ho. 5m aur 15m ke swing high/low (hh20/ll20), bhaav range me kahan hai (0% = neeche, 100% = upar), aakhri candles ke wick. $1–2 ke scalp ke liye: kis taraf saaf jagah hai aur kis taraf deewar (support/resistance) paas hai?'},
   {k:'news', ic:'📰', n:'News agent', job:'Tum NEWS / MACRO expert ho. Google Search se ABHI ki is pair (gold ho to gold + USD + Fed + yields + geopolitics) ki taaza khabar dekho, aur diye gaye MT5 calendar me agle 60 min ki High impact news. Khabar kis disha ko dhakel rahi hai? High news 30 min ke andar ho to saaf chetavni do.', search:true},
+  {k:'struct', ic:'🏔', n:'Structure agent', job:'Tum MARKET STRUCTURE (trend) expert ho. 15m aur 5m (aur 1m) ka structure dekho: swingHighs / swingLows se Higher High + Higher Low (UP) ya Lower High + Lower Low (DOWN), aur bos (Break of Structure: aakhri swing toota?). Kaunsa swing toota to trend palta maana jaayega — bhaav ke saath batao.'},
+  {k:'align', ic:'🧭', n:'Alignment agent', job:'Tum TREND ALIGNMENT expert ho. Har timeframe (1H, 15m, 5m, 1m) par ema20Slope, ema50Slope, above200, supertrend/bias dekho — 4 me se kitne ek disha me? Trend THAKA to nahi: distEma20Atr bahut zyada (> 2 ATR = khincha hua), rsiDiv (divergence), lastCandle me lambi ulti wick. Saaf bolo: sab ek disha / banta hua / thaka hua.'},
   {k:'risk', ic:'🛡', n:'Risk agent', job:'Tum RISK expert ho. Dekho bazaar saaf chal raha hai ya sideways/chop (ADX < 20, Efficiency Ratio < 0.25 = chop), spread $ me, ATR 1m/5m $ me ($1 target kitni jaldi aa sakta hai), session (Asia dheema, London/NY tez). Kis disha me ulta jhatka (SL) ka khatra kam hai? Grid/hedge EA ke liye chop sabse bura hai.'}
 ];
 let DC = {last: null, busy: false, hist: LS.get('dcHist', []), sent: LS.get('dcSent', [])};
@@ -13809,7 +13811,7 @@ const dcSess = () => { const h = new Date().getUTCHours();
   return h >= 22 || h < 7 ? 'Asia (dheema)' : h < 12 ? 'London' : h < 16 ? 'London + New York (sabse tez)' : h < 21 ? 'New York' : 'NY band hone ke paas (dheema)' };
 function dcEr(c, n){ if(c.length <= n) return 0; let s = 0; for(let i = c.length - n; i < c.length; i++) s += Math.abs(c[i] - c[i-1]);
   return s ? +(Math.abs(last(c) - c[c.length - 1 - n]) / s).toFixed(2) : 0 }
-function dcTf(b, usdU){
+function dcTf(b, usdU, d){
   const c = b.map(x => x.c), r = rsi(c, 14), h = macdH(c), st = supertrend(b, 10, 3), a = atr(b, 14), ad = adx(b, 14);
   const e9 = last(ema(c, 9)), e21 = last(ema(c, 21)), e50 = last(ema(c, 50)), px = last(c);
   const H20 = hh(b, 20), L20 = ll(b, 20), bias = tfBias(b).bias;
@@ -13817,8 +13819,36 @@ function dcTf(b, usdU){
     supertrend: last(st.dir) === 1 ? 'UP' : 'DOWN', rsi: +last(r).toFixed(1), macdHist: +last(h).toFixed(6), macdPrev: +h[h.length-2].toFixed(6),
     adx: +ad.adx.toFixed(1), diPlus: +ad.pdi.toFixed(1), diMinus: +ad.ndi.toFixed(1), atrUsd: +(last(a) * usdU).toFixed(2),
     effRatio20: dcEr(c, 20), hh20: H20, ll20: L20, rangePos: H20 > L20 ? Math.round((px - L20) / (H20 - L20) * 100) : 50,
-    move5barsUsd: +((px - c[c.length - 6]) * usdU).toFixed(2)};
+    move5barsUsd: +((px - c[c.length - 6]) * usdU).toFixed(2), ...dcExtra(b, d == null ? 2 : d, r, last(a))};
 }
+/* v10.11.0: 🏔 structure + 🧭 alignment (SAMUSIGNAL AI v1.40.0 jaisa) */
+function dcSwing(b, k){ k = k || 2; const H = [], L = [];
+  for(let i = k; i < b.length - k; i++){ let hi = true, lo = true;
+    for(let j = 1; j <= k; j++){ if(b[i].h <= b[i-j].h || b[i].h < b[i+j].h) hi = false; if(b[i].l >= b[i-j].l || b[i].l > b[i+j].l) lo = false }
+    if(hi) H.push({p: b[i].h, i}); if(lo) L.push({p: b[i].l, i}) }
+  return {H, L} }
+function dcStruct(b, d){
+  const {H, L} = dcSwing(b, 2), h = H.slice(-3), l = L.slice(-3), n = b.length - 1, c = b[n].c;
+  let st = 'MIXED';
+  if(h.length >= 2 && l.length >= 2){ const up1 = h[h.length-1].p > h[h.length-2].p, up2 = l[l.length-1].p > l[l.length-2].p; st = up1 && up2 ? 'UP (HH + HL)' : !up1 && !up2 ? 'DOWN (LH + LL)' : 'MIXED' }
+  const lh = h.length ? h[h.length-1].p : null, lw = l.length ? l[l.length-1].p : null;
+  const bos = lh !== null && c > lh ? 'BOS UP (aakhri swing high ' + (+lh).toFixed(d) + ' toota)' : lw !== null && c < lw ? 'BOS DOWN (aakhri swing low ' + (+lw).toFixed(d) + ' toota)' : 'none';
+  return {structure: st, bos, swingHighs: h.map(x => (+x.p).toFixed(d) + ' (' + (n - x.i) + ' candle pehle)'), swingLows: l.map(x => (+x.p).toFixed(d) + ' (' + (n - x.i) + ' candle pehle)'), hs: h, ls: l} }
+function dcShape(x){ const r = (x.h - x.l) || 1e-9;
+  return {dir: x.c >= x.o ? 'green' : 'red', bodyPct: Math.round(Math.abs(x.c - x.o) / r * 100),
+    upperWickPct: Math.round((x.h - Math.max(x.o, x.c)) / r * 100), lowerWickPct: Math.round((Math.min(x.o, x.c) - x.l) / r * 100)} }
+function dcAlign(b, sx, rArr, a){
+  const c = b.map(x => x.c), L = c.length - 1, e20 = ema(c, 20), e50 = ema(c, 50), e200 = ema(c, Math.min(200, Math.max(20, L)));
+  const H = sx.hs, Lw = sx.ls; let div = 'none';
+  if(H.length >= 2 && H[H.length-1].p > H[H.length-2].p && rArr[H[H.length-1].i] < rArr[H[H.length-2].i]) div = 'bearish (bhaav HH, RSI kam)';
+  else if(Lw.length >= 2 && Lw[Lw.length-1].p < Lw[Lw.length-2].p && rArr[Lw[Lw.length-1].i] > rArr[Lw[Lw.length-2].i]) div = 'bullish (bhaav LL, RSI zyada)';
+  return {ema20Slope: e20[L] > e20[Math.max(0, L-5)] ? 'UP' : 'DOWN', ema50Slope: e50[L] > e50[Math.max(0, L-10)] ? 'UP' : 'DOWN',
+    above200: c[L] > e200[L], distEma20Atr: a ? +((c[L] - e20[L]) / a).toFixed(2) : 0, rsiDiv: div} }
+function dcExtra(b, d, rArr, a){
+  const sx = dcStruct(b, d);
+  return Object.assign({structure: sx.structure, bos: sx.bos, swingHighs: sx.swingHighs, swingLows: sx.swingLows}, dcAlign(b, sx, rArr, a),
+    {lastCandle: dcShape(b[b.length-1]), prevCandle: dcShape(b[b.length-2])}) }
+const dcSplit = r1 => { const ok = r1.filter(x => !x.err), nb = ok.filter(x => x.vote === 'BUY').length; return Math.abs(nb - (ok.length - nb)) <= 1 };
 const dcCandles = (b, n, d) => b.slice(-n).map(x => [x.o, x.h, x.l, x.c].map(v => +(+v).toFixed(d)).join(',')).join(' ');
 
 /* Gemini — har agent ka alag sawaal. JSON chahiye; News agent Google Search ke saath (tab JSON mime nahi chalta). */
@@ -13866,13 +13896,13 @@ async function dcRun(){
   try{
     dcStep('<span class="spin"></span> 1/4 · candles (1m · 5m · 15m · 1H) aa rahi hain…');
     try{ await feedCheck(true) }catch(e){}                 /* v10.10.1: pehle feed ki haalat — 4 saath-saath call me race se TwelveData credit na jaayein */
-    const [b1, b5, b15, b60] = await Promise.all(['1min', '5min', '15min', '1h'].map(tf => getSeries(sym, tf, 120)));
+    const [b1, b5, b15, b60] = await Promise.all(['1min', '5min', '15min', '1h'].map(tf => getSeries(sym, tf, 200)));
     if(!b1 || !b5 || !b15 || !b60 || b15.length < 60) throw new Error('Candles poori nahi mili');
     let live = await getPrice(sym); if(!(live > 0)) live = last(b1).c;
     let spread = null; try{ const q = await feedQuotes([sym]); if(q[sym] && q[sym].sp > 0) spread = q[sym].sp }catch(e){}
     const usdU = usdPerPoint(sym, live, 0.01);               /* 0.01 lot par 1.0 bhaav = kitne $ */
     const src = b15.src === 'mt5' ? 'MT5 feed (Exness)' : 'TwelveData';
-    const tf = {'1H': dcTf(b60, usdU), '15m': dcTf(b15, usdU), '5m': dcTf(b5, usdU), '1m': dcTf(b1, usdU)};
+    const tf = {'1H': dcTf(b60, usdU, sp.d), '15m': dcTf(b15, usdU, sp.d), '5m': dcTf(b5, usdU, sp.d), '1m': dcTf(b1, usdU, sp.d)};
     const htf = {}; if(tf['1H'].bias) htf['1h'] = tf['1H'].bias === 'NEUTRAL' ? 'HOLD' : tf['1H'].bias;
     let v20 = null; try{ v20 = vote20(runAgents(completedBars(b15, '15min'), htf, live), b15, live) }catch(e){}
     let cal = ''; try{ const r = await fetch(feedUrl('news/cal'), {cache: 'no-store'}); if(r.ok) cal = JSON.stringify(await r.json()).slice(0, 1800) }catch(e){}
@@ -13884,7 +13914,7 @@ async function dcRun(){
     const base = `Tum ek trading team ke agent ho. Data (asli, abhi ka):\n${JSON.stringify(ctx)}\n\n`;
     const fmtQ = `\n\nSirf JSON do: {"vote":"BUY" ya "SELL","conf":50-95 (kitna pakka),"why":"1-2 chhoti line simple Hinglish me, numbers ke saath","watch":"ek line: kis baat se tumhari raay galat ho sakti hai"}`;
 
-    dcStep('<span class="spin"></span> 2/4 · 5 agent apni raay de rahe hain…');
+    dcStep('<span class="spin"></span> 2/4 · 7 agent apni raay de rahe hain…');
     const r1 = await Promise.all(DC_AGENTS.map(a => dcAsk(base + a.job + (a.k === 'news' ? `\nMT5 calendar (raw): ${cal || 'nahi mila'}` : '') + fmtQ, a.search)
       .then(o => ({k: a.k, vote: /SELL/i.test(o.vote) ? 'SELL' : 'BUY', conf: Math.max(50, Math.min(95, Math.round(+o.conf || 60))), why: String(o.why || '').slice(0, 300), watch: String(o.watch || '').slice(0, 200), search: o._search}))
       .catch(e => ({k: a.k, err: e.message}))));
@@ -13903,17 +13933,19 @@ async function dcRun(){
     const jd = await dcAsk(base + `Tum JUDGE ho (head trader). Round 1:\n${round1}\n\nBehes ke baad:\n${round2}\n\n` +
       `20 rule-based agent (15m): ${v20 ? v20.buy + ' BUY / ' + v20.sell + ' SELL / ' + v20.hold + ' HOLD' : 'nahi'}.\n` +
       `Ab ek hi faisla do: ABHI MARKET par +$${tgt} ke scalp ke liye BUY ya SELL — jisme pehle +$${tgt} aane ki sambhavna zyada ho (pehle −$${tgt} aane se). ` +
+      `Scalp ke liye 1m (aur 5m) ki TAAZA rejection / palatne wali candle (lambi ulti wick, BOS, divergence) ko PURANE trend se ZYADA wazan do — purana trend ulta ho aur 1m palat raha ho to us disha me mat jao, ya waitBetter true. ` +
+      `Agents bante hon (jaise 4-3) ya saaf na ho to prob 50-58 aur waitBetter true. ` +
       `Sach bolo: bazaar saaf na ho to prob kam (50-58) rakho. prob = tumhara andaza ki pehle +$${tgt} aayega (50-85).\n` +
       `Sirf JSON: {"verdict":"BUY|SELL","prob":50-85,"why":"2-3 line Hinglish, sabse mazboot tark + numbers","against":"1 line: ulta kya ho sakta hai","waitBetter":true/false (abhi ruk jaana behtar? jaise High news paas, bahut chop),"minutes":"andaza, target me kitne min (jaise 3-10)"}`, false);
     const verdict = /SELL/i.test(jd.verdict) ? 'SELL' : 'BUY';
     const prob = Math.max(50, Math.min(85, Math.round(+jd.prob || 55)));
     DC.last = {at: Date.now(), sym, tgt, live, usdU, src, spread, tf, v20: v20 ? {buy: v20.buy, sell: v20.sell, hold: v20.hold, verdict: v20.verdict} : null,
       r1, r2: r2 && r2.agents ? r2.agents : null, r2err: r2 && r2.err, verdict, prob,
-      why: String(jd.why || '').slice(0, 500), against: String(jd.against || '').slice(0, 250), wait: !!jd.waitBetter, minutes: String(jd.minutes || '').slice(0, 30)};
+      why: String(jd.why || '').slice(0, 500), against: String(jd.against || '').slice(0, 250), wait: !!jd.waitBetter, minutes: String(jd.minutes || '').slice(0, 30), split: dcSplit(r1)};
     DC.hist.unshift({at: DC.last.at, sym, tgt, dir: verdict, prob, px: live, usdU, ag: ok1.filter(x => x.vote === verdict).length + '/' + ok1.length,
-      v20: v20 ? v20.verdict : null, wait: DC.last.wait});
+      v20: v20 ? v20.verdict : null, wait: DC.last.wait || DC.last.split});
     DC.hist = DC.hist.slice(0, 150); LS.set('dcHist', DC.hist);
-    dcStep(`✓ ${t12(DC.last.at)} · ${escH(src)} · 7 AI sawaal`);
+    dcStep(`✓ ${t12(DC.last.at)} · ${escH(src)} · 9 AI sawaal`);
   }catch(e){
     dcStep(`<span style="color:var(--dn)">❌ ${escH(e.message || String(e))}</span>`);
   }finally{
@@ -13927,20 +13959,22 @@ function dcRender(){
   if(!d){ box.innerHTML = '<p class="hint" style="margin:0">Abhi koi faisla nahi. Upar pair + target chun kar 🧠 ANALYZE dabao.</p>'; return }
   const sp = SPECS[d.sym], up = d.verdict === 'BUY', col = up ? 'var(--up)' : 'var(--dn)';
   const old = Date.now() - d.at > DC_MAX_MS;
+  const hold = d.prob < 60 || d.wait || d.split;                 /* v10.11.0: kamzor / bante agent / Judge "ruko" -> ⏸ */
   const vs = x => `<b style="color:${x === 'SELL' ? 'var(--dn)' : 'var(--up)'}">${x}</b>`;
   const t = d.tf, f = x => x == null ? '—' : x;
   box.innerHTML = `
-    <div style="text-align:center;padding:6px 0 4px">
+    ${hold ? `<div style="text-align:center;border:2px solid var(--gold);border-radius:12px;padding:10px;margin-bottom:8px"><div style="font-size:24px;font-weight:900;color:var(--gold);letter-spacing:1px">⏸ ABHI MAT LO</div>
+      <small style="color:var(--gold)">${[d.split ? 'agents bante hue' : '', d.prob < 60 ? 'sambhavna 60% se kam' : '', d.wait ? 'Judge: rukna behtar' : ''].filter(Boolean).join(' · ')}</small></div>` : ''}
+    <div style="text-align:center;padding:6px 0 4px;${hold ? 'opacity:.55' : ''}">
       <small style="color:var(--mut);letter-spacing:1px">${escH(sp.n)} · +$${d.tgt} SCALP · ${t12(d.at)}</small>
       <div style="font-size:34px;font-weight:900;letter-spacing:3px;color:${col};margin:4px 0">${up ? '🟢 BUY' : '🔴 SELL'}</div>
       <b style="font-size:20px;color:${col}">${d.prob}% sambhavna</b>
       <small style="display:block;color:var(--mut);margin-top:2px">pehle +$${d.tgt} aayega (−$${d.tgt} se pehle) · ${escH(d.minutes || '')} min</small>
     </div>
-    ${d.prob < 60 || d.wait ? `<p style="border:1px solid var(--gold);border-radius:8px;padding:7px 10px;color:var(--gold);font-weight:700;margin:8px 0">⚠ ${d.wait ? 'Judge: abhi rukna behtar.' : ''} ${d.prob < 60 ? 'Kamzor (60% se kam) — trade na lo to behtar.' : ''}</p>` : ''}
     <p style="margin:8px 0 4px"><b>⚖️ Judge:</b> ${escH(d.why)}</p>
     <p class="hint" style="margin:0 0 10px">↩ Ulta: ${escH(d.against)}</p>
     <button class="btn ${up ? 'gold' : ''}" id="dcSendBtn" style="${up ? 'background:var(--up);border-color:var(--up)' : 'background:var(--dn);border-color:var(--dn)'};color:#000;font-weight:900;font-size:16px" ${old ? 'disabled' : ''} onclick="dcSend()">
-      ${old ? '⏱ 5 min purana — dobara ANALYZE karo' : `🚀 MT5 pe ${d.verdict} lagao (MARKET)`}</button>
+      ${old ? '⏱ 5 min purana — dobara ANALYZE karo' : `🚀 ${hold ? 'phir bhi ' : ''}MT5 pe ${d.verdict} lagao (MARKET)`}</button>
     <p class="hint" style="margin:6px 0 0">Lot = PERSONAL FX ka FixedLot (0.01) · baaki niyam EA ke (Strategy 6 = SELL/BUY hedge, $2 cycle).</p>
     <div id="dcSendSt" style="margin-top:8px"></div>
     <p class="ttl" style="margin-top:14px">🗣 Round 1 — har agent</p>
@@ -13955,8 +13989,8 @@ function dcRender(){
     <p class="ttl" style="margin-top:12px">📊 Data jo agents ne dekha <span class="sp">${escH(d.src)}</span></p>
     <table class="mono" style="width:100%;font-size:11px;border-collapse:collapse">
       <tr style="color:var(--mut)"><td></td><td>1H</td><td>15m</td><td>5m</td><td>1m</td></tr>
-      ${[['Disha', 'bias'], ['RSI', 'rsi'], ['ADX', 'adx'], ['Saaf chaal (ER)', 'effRatio20'], ['ATR $', 'atrUsd'], ['Range %', 'rangePos']].map(([l, k]) =>
-        `<tr><td style="color:var(--mut)">${l}</td>${['1H', '15m', '5m', '1m'].map(z => `<td>${escH(String(f(t[z][k])))}</td>`).join('')}</tr>`).join('')}
+      ${[['Disha', 'bias'], ['Structure', 'structure'], ['EMA20 dhalaan', 'ema20Slope'], ['RSI', 'rsi'], ['ADX', 'adx'], ['Saaf chaal (ER)', 'effRatio20'], ['ATR $', 'atrUsd'], ['Range %', 'rangePos']].map(([l, k]) =>
+        `<tr><td style="color:var(--mut)">${l}</td>${['1H', '15m', '5m', '1m'].map(z => `<td>${escH(String(f(t[z][k])).replace(/ \(.*\)/, ''))}</td>`).join('')}</tr>`).join('')}
     </table>
     <p class="hint" style="margin:6px 0 0">Live ${fmt(d.sym, d.live)} · spread ${d.spread != null ? '$' + (d.spread * d.usdU).toFixed(2) : '—'} · 20 rule agents (15m): ${d.v20 ? `${d.v20.buy} BUY / ${d.v20.sell} SELL / ${d.v20.hold} HOLD` : '—'}</p>`;
 }
@@ -13974,7 +14008,7 @@ async function dcSend(){
   const msg = `🎯 ${pair} ${dir} MARKET\nAI faisla: ${dir} ${d.prob}% (+$${d.tgt} scalp)\nLive ${fmt(sym, live)}\n` + (pfxAcctTxt(acc) ? pfxAcctTxt(acc) + '\n' : '') +
     (acc.length ? '\nAccount: ' + acc.map(pfxAcctName).join(', ') : '') +
     (real ? '\n\n🔴🔴 REAL ACCOUNT — asli paisa! Pakka?' : '') +
-    (d.prob < 60 ? '\n\n⚠ Sambhavna 60% se kam hai.' : '') + (d.wait ? '\n⚠ Judge ne rukne ko kaha tha.' : '') +
+    (d.prob < 60 ? '\n\n⚠ Sambhavna 60% se kam hai.' : '') + (d.wait ? '\n⚠ Judge ne rukne ko kaha tha.' : '') + (d.split ? '\n⚠ Agents bante hue the (⏸ ABHI MAT LO).' : '') +
     '\n\nLot, TP, hedge: PERSONAL FX ke niyam (EA us pair pe pehle se trade ho to SKIP karega).\n\nMT5 pe bhejein?';
   if(!confirm(msg)) return;
   const now = Date.now(), batch = 'B' + now.toString(36), keys = [];
