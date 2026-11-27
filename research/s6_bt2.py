@@ -59,7 +59,7 @@ def path_points(bar):
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
             arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False, gap=3.0, recdd=None, rectgt=1.0, triple=False, help_start=None, help_step=2.0, help_tp=1.0,
-            mainlot=2.0, keep1=False, tnet=6.0, tcyc=3.0, tbsk=5.0, ttp=None, b2=False)
+            mainlot=2.0, keep1=False, tnet=6.0, tcyc=3.0, tbsk=5.0, ttp=None, b2=False, pxreset=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -68,7 +68,9 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
     mid0 = bars[start][1]
     end_t = bars[start][0] + max_hours * 3600
     G = c["gap"]
-    lv = lambda n: n * G - c["off"]
+    anc = [0.0]                                     # user 27 Nov raat (B): koi SELL khula nahi -> ladder abhi ke bhaav se $3
+    lv = lambda n: anc[0] + n * G - c["off"]
+    wasH = False
     minnet = 0.0
     H = []                      # {n, o, armed, peak, id}
     R = {}
@@ -110,6 +112,13 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 if rng:                                     # stress: tick noise inside the bar
                     mid += rng.gauss(0, c["noise"])
                 D = s - d * (mid - mid0)
+                if c["pxreset"]:
+                    if not H:
+                        if wasH:
+                            anc[0] = max(0.0, D)              # aakhri SELL band hua -> yahin se naya ladder
+                        anc[0] = min(anc[0], max(0.0, D))    # bhaav main ki taraf aaye -> ladder bhi saath upar
+                        R.clear()
+                    wasH = bool(H)
                 H.sort(key=lambda h: h["o"])                 # deepest last
                 hpl = [D - h["o"] - s for h in H]
                 mainPL = -c["mainlot"] * D
@@ -213,7 +222,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                 # ---- pending fills (STOP: depth crosses the trigger going deeper) ----
                 if not closed and D > prevD:
                     occ = {h["n"] for h in H}
-                    nmax = int((D + c["off"]) / G) + 2
+                    nmax = int((D - anc[0] + c["off"]) / G) + 2
                     for n in range(1, nmax + 1):
                         if n in occ:
                             continue
@@ -281,9 +290,9 @@ NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 sing
 V90 = dict(pairsl=None, arm=2.0)                       # v9.0 niyam (lock +2 -> +1, jodi +1, -$2 kat nahi)
 NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 VARS = [
-    ("v9.0 (abhi)", dict(V90)),
-    ("NAYA (A): 1 no. SELL sirf cycle par", dict(NEW1, keep1=True)),
-    ("NAYA (B): 1 no. SELL bhi $1 niyam", dict(NEW1, keep1=False)),
+    ("v10.2 (A: sirf bug fix, theek $3 level)", dict(NEW1, keep1=False)),
+    ("v10.2 + B (SELL na ho to bhaav se $3)", dict(NEW1, keep1=False, pxreset=True)),
+    ("v9.0 (purana, tulna)", dict(V90)),
 ]
 
 

@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **10.1** (27 Nov raat: S6 naya plan — main 0.01, sab target $2, doosra BUY main ke bhaav par; v9.0 backup) | `vps-ea/PERSONAL FX v10.1 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
+| PERSONAL FX EA | **10.2** (27 Nov raat: v10.1 + bug fix — SELL sab band + doosra BUY khula ho to bhi pending theek level par; v9.0 backup) | `vps-ea/PERSONAL FX v10.2 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,13 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v10.2 — bug fix: doosra BUY khula + SELL sab band -> pending ruk jaate the (27 Nov 2026 raat, user "A Final")
+- Live (demo, v10.1): main BUY 0.01 + doosra BUY 0.01 @ 3650.273, 19:21 par aakhri 2 SELL lock se band, bid ~3645. Pending sirf 3641.27–3629.27 (level 3–7); **level 2 = 3644.273 nahi laga**.
+- Wajah: `hn==0` branch me doosra trade ho to $2 jaanch ke baad hamesha `return` -> pending wala hissa chalta hi nahi tha.
+- Fix: `return` sirf band karne par. Saath me: doosra trade khula ho to main akela TP par band nahi aur broker TP nahi (pehle return ki wajah se ye code tak pahunchta hi nahi tha).
+- Backtest simulator me ye bug kabhi tha hi nahi -> round 17 ke (B) nateeje = v10.2 ka bartaav.
+- User "B backtest": SELL na ho to ladder abhi ke bhaav se $3 (3645.09 -> 3642.09…) — `pxreset` research me (round 18), abhi EA me nahi.
 
 ## PERSONAL FX v10.1 — S6 naya plan (B): main 0.01, sab target $2, doosra BUY (27 Nov 2026 raat, user Final)
 - User: "9.1 abhi Final karna; agar 9.1 wala file pehle VPS pe bheja ho to 10.1 se start karna". Purani v9.1 VPS par ho sakti hai -> naam **10.1** (agla 10.2).
