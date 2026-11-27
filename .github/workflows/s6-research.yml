@@ -12,3 +12,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: S6 v9.0 vs suggested changes on real gold (Yahoo GC=F 1m 7d + 5m 60d)
         run: python3 -u research/s6_bt2.py
+      - name: Same rules on BTC (Yahoo BTC-USD, 0.01 lot = $0.01 per $1 -> scaled x0.01)
+        env: {S6_SYM: BTC-USD, S6_SCALE: "0.01", S6_LABEL: BTC}
+        run: python3 -u research/s6_bt2.py

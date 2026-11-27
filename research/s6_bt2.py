@@ -31,8 +31,14 @@ GAP = 3.0
 TICK = 0.1
 
 
+import os
+SYM = os.environ.get("S6_SYM", "GC=F")                       # user 27 Nov raat: BTC bhi (BTC-USD)
+SCALE = float(os.environ.get("S6_SCALE", "1"))               # 0.01 lot par $ per point: gold 1, BTC 0.01 -> bhaav x SCALE = "gold jaisa point"
+LABEL = os.environ.get("S6_LABEL", "GOLD")
+
+
 def fetch(interval, rng):
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval={interval}&range={rng}"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{SYM}?interval={interval}&range={rng}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     for i in range(5):
         try:
@@ -44,7 +50,7 @@ def fetch(interval, rng):
             for t, o, h, l, c in zip(res["timestamp"], q["open"], q["high"], q["low"], q["close"]):
                 if None in (o, h, l, c) or h < l:
                     continue
-                bars.append((t, o, h, l, c))
+                bars.append((t, o * SCALE, h * SCALE, l * SCALE, c * SCALE))
             return bars
         except Exception as e:
             print("fetch retry", interval, e, file=sys.stderr)
@@ -385,29 +391,7 @@ NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 E103 = dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)
 V104 = dict(NEW1, keep1=False, triple=True, allprofit=0.0, b2any=True)   # user 27 Nov raat: neeche se + jodi + tikdi + naya SELL sirf jab upar wale profit me
 VARS = [
-    ("v10.5 (abhi: lock hamesha)", dict(V104)),
-    ("niyam ('ema', 5, 13)", dict(V104, lockai="rule", lockrule=('ema', 5, 13))),
-    ("niyam ('ema', 9, 21)", dict(V104, lockai="rule", lockrule=('ema', 9, 21))),
-    ("niyam ('ema', 20, 50)", dict(V104, lockai="rule", lockrule=('ema', 20, 50))),
-    ("niyam ('ema', 50, 200)", dict(V104, lockai="rule", lockrule=('ema', 50, 200))),
-    ("niyam ('mom', 3)", dict(V104, lockai="rule", lockrule=('mom', 3))),
-    ("niyam ('mom', 5)", dict(V104, lockai="rule", lockrule=('mom', 5))),
-    ("niyam ('mom', 10)", dict(V104, lockai="rule", lockrule=('mom', 10))),
-    ("niyam ('mom', 20)", dict(V104, lockai="rule", lockrule=('mom', 20))),
-    ("niyam ('rsi', 40)", dict(V104, lockai="rule", lockrule=('rsi', 40))),
-    ("niyam ('rsi', 35)", dict(V104, lockai="rule", lockrule=('rsi', 35))),
-    ("niyam ('rsi', 30)", dict(V104, lockai="rule", lockrule=('rsi', 30))),
-    ("niyam ('adx', 20)", dict(V104, lockai="rule", lockrule=('adx', 20))),
-    ("niyam ('adx', 25)", dict(V104, lockai="rule", lockrule=('adx', 25))),
-    ("niyam ('adx', 30)", dict(V104, lockai="rule", lockrule=('adx', 30))),
-    ("niyam ('don', 10)", dict(V104, lockai="rule", lockrule=('don', 10))),
-    ("niyam ('don', 20)", dict(V104, lockai="rule", lockrule=('don', 20))),
-    ("niyam ('don', 50)", dict(V104, lockai="rule", lockrule=('don', 50))),
-    ("niyam ('htf', 9, 21, 5)", dict(V104, lockai="rule", lockrule=('htf', 9, 21, 5))),
-    ("niyam ('htf', 20, 50, 5)", dict(V104, lockai="rule", lockrule=('htf', 20, 50, 5))),
-    ("niyam ('htf', 9, 21, 15)", dict(V104, lockai="rule", lockrule=('htf', 9, 21, 15))),
-    ("niyam ('htf', 20, 50, 15)", dict(V104, lockai="rule", lockrule=('htf', 20, 50, 15))),
-    ("ORACLE2 (sabse sahi bhavishya, namumkin)", dict(V104, lockai="oracle2")),
+    ("v10.5 (abhi ka EA)", dict(V104)),
 ]
 
 
@@ -463,12 +447,12 @@ def main():
         return
     b1 = fetch("1m", "7d")
     if b1:
-        study("GOLD 1m (7 days), start every 30 min, max 48h", b1, 30, 48)
+        study(f"{LABEL} 1m (7 days), start every 30 min, max 48h", b1, 30, 48)
     else:
         print("1m data not available")
     b5 = fetch("5m", "60d")
     if b5:
-        study("GOLD 5m (60 days), start every 2h, max 72h", b5, 120, 72)
+        study(f"{LABEL} 5m (60 days), start every 2h, max 72h", b5, 120, 72)
     else:
         print("5m data not available")
 
