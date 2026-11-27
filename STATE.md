@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **9.2** (user Final; v9.3 = v9.2 + S6_NextOnlyDeeper, test ke liye) | `vps-ea/PERSONAL FX v9.2 - GRID.mq5` |
+| PERSONAL FX EA | **9.0** (27 Nov shaam: user ne v9.1–v9.3 hataye, yahin se nayi shuruaat) | `vps-ea/PERSONAL FX v9.0 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## S6 — v9.0 se nayi shuruaat: v9.1 / v9.2 / v9.3 hataye (27 Nov 2026 shaam, user)
+- User: "9.0 tak ke saare badlav rakhna, uske aage ke saare changes remove kar dena sab jagah se - yahan se naye start karunga".
+- Repo se `vps-ea/PERSONAL FX v9.1/v9.2/v9.3 - GRID.mq5` hataye (VPS par pehle copy hui files Experts me reh sakti hain - inhe use nahi karna). App S6 LIVE v2.3.1 = v2.3.0 (v2.4.0 ke v9.1 wale CHECK badlav wapas: arm 2, ploss nahi). `S6_HANDOVER.md` v9.0 ko nayi shuruaat bana kar dobara likha.
+- Neeche ke v9.1–v9.3 / backtest wale section sirf itihaas ke liye. Agla naya version **v9.1** naam se naye sire se.
 
 ## S6 — user ne v9.2 chhoda, v9.0 wale niyam par wapas (27 Nov 2026 shaam)
 - Demo v9.2 (BUY 3680.342): sideways 3670–3681 me "jodi −$2" ke 4 kat −$14.23, lock +$6.71, balance 208 → ~200 → user: "9.2 pasand nahi, chhod do".
