@@ -38,7 +38,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 
 | Cheez | Version | File |
 |---|---|---|
-| SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
+| SamuSignal app (PWA) | **10.10.0** (🎯 BUY ya SELL? page) | `index.html`, `sw.js` |
 | PERSONAL FX EA | **10.2** (27 Nov raat: v10.1 + bug fix — SELL sab band + doosra BUY khula ho to bhi pending theek level par; v9.0 backup) | `vps-ea/PERSONAL FX v10.2 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
@@ -292,6 +292,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## SamuSignal app v10.10.0 — 🎯 BUY YA SELL? page (27 Nov 2026 raat, user Final)
+- User: SamuSignal app (AI app nahi) me optional page — trade se pehle analysis, 5-6 AI agent aapas me baat karke batayein abhi BUY ya SELL (high probability), scalping $1–2; MT5 button.
+- Header me naya button "🎯 BUY YA SELL? · 5 AI AGENT" -> page `pgDecide` (nav me nahi, Chart page jaisa). Pair (XAUUSD default) + target $1 / $2.
+- Timeframe (scalp $1–2, 0.01 lot): 1H mahaul · 15m disha · 5m setup · 1m trigger. 4H / Daily nahi (us waqt $5–10 ulta jhatka). Data MT5 feed (1min/5min/15min/1h), na mile to TwelveData.
+- 7 Gemini sawaal: 5 agent (📈 Trend, ⚡ Momentum, 🧱 Level, 📰 News + Google Search + MT5 calendar `/feed/news/cal`, 🛡 Risk/chop) -> 💬 behes (har agent doosron ko jawab, raay badal sakta) -> ⚖️ Judge: BUY/SELL + % (pehle +$T, −$T se pehle) + ulta khatra + "rukna behtar?". Saath me 20 rule-based agent vote (15m). Har agent ko asli numbers (EMA, RSI, MACD, ADX/DI, ATR $, ER, range %, aakhri candles).
+- 🚀 MT5: `/personalfx/orders/<-SD…>` {type BUY/SELLMARKET, src "… DECIDE"} — ⚡ ABHI jaisa; account chunna (REAL par 🔴 chetavni); faisla 5 min tak; EA status (PLACED / SKIP / FAILED) page par.
+- 📒 Record (`samu_dcHist`): 1-min feed candles se 60 min me pehle +$1/−$1 aur +$2/−$2 (ek candle me dono = haar); Judge jeet %, 60%+ wale, 20-vote saath wale.
+- Jaancha: Playwright (nakli feed + Gemini + Firebase): 7 call, faisla, MT5 PUT + PLACED, record ✓/✗, 390px side-scroll nahi, JS error nahi. `kavach.js` pehle se toota (lastV20 ReferenceError, is badlav se pehle bhi).
 
 ## PERSONAL FX v10.2 — bug fix: doosra BUY khula + SELL sab band -> pending ruk jaate the (27 Nov 2026 raat, user "A Final")
 - Live (demo, v10.1): main BUY 0.01 + doosra BUY 0.01 @ 3650.273, 19:21 par aakhri 2 SELL lock se band, bid ~3645. Pending sirf 3641.27–3629.27 (level 3–7); **level 2 = 3644.273 nahi laga**.
