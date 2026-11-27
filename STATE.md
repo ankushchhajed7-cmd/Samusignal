@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **8.8** | `vps-ea/PERSONAL FX v8.8 - GRID.mq5` |
+| PERSONAL FX EA | **8.9** | `vps-ea/PERSONAL FX v8.9 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v8.9 — S6 app data EA ko nahi rokta + Basket SL seedha $ (27 Nov 2026, user Final)
+- Demo (v8.7, app data se — feed-check `S6_*` lines): SELL main 3613.63, 29 hedge, user ne cycle profit (pakka ~$8 + khule ~+$1) dekha par +$6 net par band nahi hua; 08:32:53 ek jodi −$1.57 par band; DD −$67.39 par Basket SL nahi laga.
+- Wajah: (1) har hedge / lock / 3 sec par S6 LIVE WebRequest (synchronous) EA ko rokta tha; (2) Basket SL `x lot/0.01` tha → 0.02 par −$120.
+- Fix: S6 LIVE likhna sirf queue (`S6LvPut` / `S6LvEvent`), `S6LvFlush()` OnTimer ke aakhir me — ek request, trade action (`g_S6ActAt`, `S6Push`) ke 1.5 sec baad; events 10 sec me ek PATCH (`e<ms>_<n>` keys); cycles `cycles/c<ms>`; live har 5 sec (`S6_LivePushSec` 3 → 5). OnTimer me `ManageMartingaleGrids()` sabse pehle (app poll se pehle). Basket SL = `-S6_BasketSL_Usd` seedha. Experts: har 10 sec `PERSONAL FX S6 HAAL … khule / pakka / net`.
 
 ## PERSONAL FX v8.8 — S6 jodi lock bharte hi (27 Nov 2026, user Final)
 - Demo (v8.7): SELL main 3613.63, BUY hedge 3621.24 … 3635.79; aakhri hedge chot par bhara, bhaav 1 sec me 1+ point gira → jodi (3633.13 + 3635.79) ka `comb > +$1` kabhi dekha nahi → `gvP` set nahi → jodi atki; LIFO ne upar ke armed hedge (3630, 3627 …) bhi roke → 11 point girne par bhi koi band nahi (−$44.40).
