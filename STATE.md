@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.11.0** (🎯 BUY ya SELL? page, 7 agent; SAMUSIGNAL AI v1.40.0 me bhi) | `index.html`, `sw.js` |
-| PERSONAL FX EA | **10.4** (27 Nov raat, user ke poore niyam: neeche se band + jodi + tikdi, naya SELL sirf jab upar wale profit me, doosra BUY; v9.0 backup) | `vps-ea/PERSONAL FX v10.4 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
+| PERSONAL FX EA | **10.5** (27 Nov raat: v10.4 niyam + baari wale hedge par S/L = +$1 bhaav, phone par dikhe; v9.0 backup) | `vps-ea/PERSONAL FX v10.5 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,12 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v10.5 — phone par lock dikhe: baari wale hedge par S/L (27 Nov 2026 raat, user "1")
+- User: "profit lock kahan se chalu hua, kaun sa kat raha — MT5 (phone ke Trade tab) par dikhe". Phone par EA ka panel / line nahi dikhti, sirf S/L, T/P, comment.
+- Sirf sabse NEECHE wala hedge jiska lock chalu (+$2 paar) hai: asli S/L = open − $1 (SELL hedge) / open + $1 (BUY hedge) per 0.01 (`S6_LockUsd/(k*0.01)`). Upar wale hedge par S/L nahi (aur pehle laga ho to hatta) — neeche se ka kram nahi toota. Broker ki doori (stops level) na ho to S/L nahi, EA khud +$1 par band.
+- Broker S/L se band -> agle tick EA dekhta hai (GV `PFX6SL_<main>` = ticket, `PFX6SO_<ticket>` = open) -> S6SlotFree (wahi bhaav par dobara) + push "S/L (+$1) par band". EA khud band kare (akela / jodi / tikdi) to GV saaf.
+- Trade ke niyam v10.4 jaise. Jodi / tikdi ka S/L nahi (do-teen trade ka saanjha bhaav ek S/L me nahi aata).
 
 ## PERSONAL FX v10.4 — user ke poore niyam (27 Nov 2026 raat, user Final)
 - User ne poori strategy dobara batayi (S6_HANDOVER.md 3.14 me 19 niyam). v10.3 ka "koi kram nahi" galat tha — SELL NEECHE SE band hone hain.

@@ -1,11 +1,11 @@
-# PERSONAL FX — Strategy 6 (Hedge Ladder): पूरा हाल — **अभी का EA v10.4** (27 Nov 2026 रात)
+# PERSONAL FX — Strategy 6 (Hedge Ladder): पूरा हाल — **अभी का EA v10.5** (27 Nov 2026 रात)
 
 नए Claude session / account के लिए handover। पहले ये file पढ़ो, फिर `STATE.md` (repo का पूरा इतिहास)।
 
 > **27 Nov शाम:** user ने कहा "v9.0 तक का सब रखो, उसके बाद के सारे बदलाव हटाओ"। v9.1 / v9.2 / v9.3 हटाए गए।
 > **27 Nov रात:** user का नया प्लान backtest (round 17) के बाद **Final** → **EA v10.1** बना।
 > नाम 10.1 क्यों: पुरानी v9.1 file पहले VPS पर जा चुकी हो सकती है। उसी नाम से नई file भेजें तो गड़बड़ होती, इसलिए 10.1 से नई गिनती।
-> **27 Nov रात:** v10.1 में bug मिला → **v10.2** (नीचे 3.11)। फिर SELL अटकने की वजह मिली → **v10.3** (नीचे 3.13)। फिर user ने पूरे नियम दोबारा बताए → **v10.4** (नीचे 3.14, यही असली नियम)। **अगला version: v10.5**।
+> **27 Nov रात:** v10.1 में bug मिला → **v10.2** (नीचे 3.11)। फिर SELL अटकने की वजह मिली → **v10.3** (नीचे 3.13)। फिर user ने पूरे नियम दोबारा बताए → **v10.4** (नीचे 3.14, यही असली नियम)। **v10.5** = वही नियम + बारी वाले hedge पर S/L (phone पर दिखे)। **अगला version: v10.6**।
 
 ---
 
@@ -29,7 +29,7 @@
 ## 2. Repos और files
 | चीज़ | जगह |
 |---|---|
-| **EA (अभी का, आखिरी)** | `Samusignal/vps-ea/PERSONAL FX v10.4 - GRID.mq5` (user के पूरे नियम — नीचे 3.14) |
+| **EA (अभी का, आखिरी)** | `Samusignal/vps-ea/PERSONAL FX v10.5 - GRID.mq5` (v10.4 नियम — नीचे 3.14 — + बारी वाले hedge पर S/L) |
 | EA पिछला (backup, पुराने नियम) | `Samusignal/vps-ea/PERSONAL FX v9.0 - GRID.mq5` |
 | नए प्लान की बातचीत + backtest table | `Samusignal/S6_NEW_PLAN.md` |
 | इतिहास / हर version का कारण | `Samusignal/STATE.md` |
@@ -92,6 +92,7 @@
    - वजह: SELL न हों और दूसरा BUY खुला हो तो EA $2 जाँचकर हर बार लौट जाता था, pending वाला हिस्सा चलता ही नहीं था।
    - Fix: लौटना सिर्फ़ बंद करने पर। दूसरा BUY खुला हो तो main अकेला TP पर बंद नहीं होता और broker TP नहीं लगता।
    - Backtest simulator में ये bug नहीं था, यानी round 17 का (B) = v10.2।
+15. **v10.5** (user "1"): सिर्फ़ सबसे नीचे वाला hedge जिसका lock चालू है, उस पर असली **S/L = +$1 वाला भाव** (phone के Trade tab में दिखे)। ऊपर वालों पर S/L नहीं (क्रम न टूटे)। Broker S/L से बंद हो तो EA slot free करता है (वहीं दोबारा) + push। जोड़ी / तिकड़ी पर S/L नहीं।
 14. **v10.4 = user के असली नियम (27 Nov रात, Final)** — उदाहरण main BUY 0.01 @ 4000:
    - **A. Main:** (1) BUY 0.01 हाथ से, EA खुद नहीं खोलता। (2) SELL न खुला हो → +$2 (4002) पर बंद।
    - **B. SELL खुलना:** (3) पहला 3997। (4) हर $3: 3994, 3991…। (5) **नया SELL तभी जब ऊपर वाले सारे खुले SELL उस भाव पर profit में** (2 नंबर तब जब 1 profit में; 3 तब जब 1+2…)। (6) एक जगह दो SELL नहीं — कम से कम 1.5 point दूरी।
@@ -207,7 +208,7 @@ Backtest (research) में ये भी कमज़ोर निकले:
 6. अपना नया version भी GitHub से खुद ले लेता है।
 
 **नया EA version VPS पर भेजने का तरीका (हर बार):**
-1. नई file `vps-ea/PERSONAL FX v10.x - GRID.mq5` (अगला: v10.5) repo में commit → PR → **main में merge**।
+1. नई file `vps-ea/PERSONAL FX v10.x - GRID.mq5` (अगला: v10.6) repo में commit → PR → **main में merge**।
 2. ~2 min में Helper उसे हर terminal के `MQL5\Experts` में डालकर compile कर देगा।
 3. **Chart पर लगाना user का काम है।** Helper कभी trade नहीं करता, chart पर EA नहीं लगाता या हटाता, MT5 restart नहीं करता।
    - MT5 में Navigator → Expert Advisors → नया version chart पर लगाओ (inputs जाँचकर)।
@@ -228,8 +229,8 @@ Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 ---
 
 ## 7. बाकी काम / खुले सवाल
-1. **v10.4 chart पर लगाना** (user; v10.3 27 Nov रात demo पर चल रहा था):
-   - v10.3 हटाओ, v10.4 लगाओ (खुले trades वैसे ही रहते हैं)। `S6_SecondBuyOn` = **true**।
+1. **v10.5 chart पर लगाना** (user; v10.4 27 Nov रात):
+   - पुराना हटाओ, v10.5 लगाओ (खुले trades वैसे ही रहते हैं)। `S6_SecondBuyOn` = **true**।
    - Inputs जाँचो (ऊपर 3.7)।
    - Main 0.01 हाथ से।
    - चलता cycle (0.02 main वाला) पहले बंद होने दो, फिर बदलो।
