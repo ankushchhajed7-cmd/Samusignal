@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **9.1** | `vps-ea/PERSONAL FX v9.1 - GRID.mq5` |
+| PERSONAL FX EA | **9.2** | `vps-ea/PERSONAL FX v9.2 - GRID.mq5` |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,11 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v9.2 — S6 poore code ki jaanch, bug fix (27 Nov 2026, user "saare bug ek saath")
+- Alag reviewer agent + khud code se pakka: (1) pending lagate waqt purana bid (har order se pehle taaza nahi) → SELL STOP bhaav ke upar → broker [10015] invalid price / [10006]; ab har order se pehle `SymbolInfoTick`, tick size par gol, us level ka hedge pehle se khula ho to nahi. (2) cycle band me pehle trade band, baad me pending hatate the (beech me pending bhar sakta tha) aur adhura band dobara nahi hota tha → ab pehle `S6DeletePendings`, adhura ho to GV `PFX6C_<magic>_<sym>` = main ticket aur har pass bache trade band. (3) pakka profit ka samay main khulne se −5 sec - doosra haath ka trade main ban jaye to pichhle cycle ka pakka gina jaata → ab GV `PFX6M` (main ticket) / `PFX6B` (cycle shuru), main badle to shuru = abhi. (4) koi hedge na ho to Basket SL nahi lagta tha → ab main akela bhi. (5) `S6Slot`: broker comment hata de to `PosComment()` (order ka), `MathFloor(dist/gap + 0.25)`. (6) hatae pending ke `PFX6N_` GV saaf. (7) har pending fail app ki galti list me (bid ke saath), Print alag 60 sec.
+- Niyam ka nateeja (bug nahi): bhaav main ki taraf lautte hue har chhote utaar par upar ka SELL bharna (khali levels bhaav ke neeche "aage" hain). "Sirf sabse gehre se aage naya hedge" (N) backtest: 1m par v9.1 se bura ($4.47 vs $5.53, shor me $3.35 vs $4.69, SL 36 vs 8), 5m barabar → nahi joda.
+- Baaki (chhote, nahi badle): AppHttp WebRequest timeout 4 sec (ek request / pass); GV naam me account nahi; `CloseAllOurTrades` (daily target) pending baad me (S6CleanPendings 1 sec me hatata hai).
 
 ## PERSONAL FX v9.1 — S6 jodi −$2 par band + lock +$1.20 + pending reject (27 Nov 2026, user Final)
 - Demo v9.0 (BUY 3658.505): bhaav 3640–3649 me upar-neeche; 44 hedge lage, pakka sirf +$5.57; 4 / 5 / 6 number 1.5 point ke guchhe me khule (4b gehra re-entry) aur 4–10 sec me jodi +$0.5…0.96 par band (churn); upar ke hedge (3 / 4) neeche wale ghate me hote hue khule; 12 pending broker ne mana kiye ([10006] rejected / [10015] invalid price); aakhir me 3 hedge ghate me atke (−$14).
