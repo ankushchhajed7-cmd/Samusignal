@@ -146,6 +146,8 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     return ("REC", banked + tot, minf, dur, used)
                 if banked + tot >= c["tnet"]:
                     return ("NET6", banked + tot, minf, dur, used)
+                if c.get("be_after") is not None and dur >= c["be_after"] * 3600 and banked + tot >= c.get("be_tgt", 0.0):   # user 27 Nov raat: sideways me der ho to chhota target
+                    return ("BE", banked + tot, minf, dur, used)
                 if not H:
                     if mainPL + b2PL >= (c["ttp"] if c["ttp"] is not None else 3.0 * c["mainlot"]):
                         return ("TP", banked + mainPL + helpPL + b2PL, minf, dur, used)
@@ -298,10 +300,12 @@ NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 E103 = dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)
 V104 = dict(NEW1, keep1=False, triple=True, allprofit=0.0, b2any=True)   # user 27 Nov raat: neeche se + jodi + tikdi + naya SELL sirf jab upar wale profit me
 VARS = [
-    ("v10.3 (abhi: koi kram nahi)", dict(E103)),
-    ("v10.4: neeche se+jodi+tikdi+F+doosra BUY hamesha", dict(V104)),
-    ("v10.4 + har SELL $3 door (space 3)", dict(V104, space=3.0)),
-    ("v10.4 par doosra BUY sirf SELL khule hon", dict(V104, b2any=False)),
+    ("v10.5 (abhi)", dict(V104)),
+    ("B: doosra BUY band", dict(V104, b2=False)),
+    ("C: 1 ghante baad net $0 par band", dict(V104, be_after=1.0, be_tgt=0.0)),
+    ("D: 2 ghante baad net $0.5 par band", dict(V104, be_after=2.0, be_tgt=0.5)),
+    ("E: lock +$1.5 par chalu (2 ki jagah)", dict(V104, arm=1.5)),
+    ("F: B + C (doosra BUY band + 1 ghanta $0)", dict(V104, b2=False, be_after=1.0, be_tgt=0.0)),
 ]
 
 
