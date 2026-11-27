@@ -2378,7 +2378,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.10.0';
+const VERSION = '10.10.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -13865,6 +13865,7 @@ async function dcRun(){
   DC.busy = true; $('dcBtn').disabled = true;
   try{
     dcStep('<span class="spin"></span> 1/4 · candles (1m · 5m · 15m · 1H) aa rahi hain…');
+    try{ await feedCheck(true) }catch(e){}                 /* v10.10.1: pehle feed ki haalat — 4 saath-saath call me race se TwelveData credit na jaayein */
     const [b1, b5, b15, b60] = await Promise.all(['1min', '5min', '15min', '1h'].map(tf => getSeries(sym, tf, 120)));
     if(!b1 || !b5 || !b15 || !b60 || b15.length < 60) throw new Error('Candles poori nahi mili');
     let live = await getPrice(sym); if(!(live > 0)) live = last(b1).c;

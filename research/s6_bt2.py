@@ -295,11 +295,11 @@ V92 = dict(pairsl=2.0, arm=1.2)
 NEWP = dict(arm=1.2, triple=True, resetnh=True)          # user 27 Nov: +$1 single/jodi/tikdi, -$2 kat nahi, reset
 V90 = dict(pairsl=None, arm=2.0)                       # v9.0 niyam (lock +2 -> +1, jodi +1, -$2 kat nahi)
 NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
+E103 = dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)
 VARS = [
-    ("v10.2 (abhi: sirf sabse gehra akela)", dict(NEW1, keep1=False)),
-    ("C: har SELL khud +$1 + jodi", dict(NEW1, keep1=False, nolifo=True, indpair=True)),
-    ("E: har SELL khud +$1 + jodi + tikdi", dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)),
-    ("v10.2 + tikdi", dict(NEW1, keep1=False, triple=True)),
+    ("v10.3 (abhi)", dict(E103)),
+    ("F: naya SELL sirf jab saare khule profit me", dict(E103, allprofit=0.0)),
+    ("G: naya SELL sirf jab neeche wale ghate me na ho", dict(E103, guard=True)),
 ]
 
 
