@@ -58,7 +58,7 @@ def path_points(bar):
 
 
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
-            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False)
+            arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False)
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -112,7 +112,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     if mainPL >= 6:
                         return ("TP", banked + mainPL, minf, dur, used)
                 else:
-                    if tot >= (3 if mainPL >= 0 else 5):
+                    if not c["onlynet"] and tot >= (3 if mainPL >= 0 else 5):
                         return ("CYC3" if mainPL >= 0 else "BSK5", banked + tot, minf, dur, used)
                     if bsl and tot <= -bsl:
                         return ("BSL", banked + tot, minf, dur, used)
@@ -123,7 +123,11 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     if not h["armed"] and (p >= c["arm"] if c["trail"] is not None else p > c["arm"]):
                         h["armed"] = True
                 closed = False
-                if H:
+                if c["nolifo"]:                              # SEEDHA: har hedge apne aap (koi kram / jodi nahi)
+                    for h, p in list(zip(H, hpl)):
+                        if (c["hedgetp"] is not None and p >= c["hedgetp"]) or (c["hedgetp"] is None and h["armed"] and p <= floor(h)):
+                            banked += p; H.remove(h); setR(h, D); closed = True
+                elif H:
                     b = H[-1]; pb = hpl[-1]
                     if b["armed"]:
                         if pb <= floor(b):
@@ -155,6 +159,8 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                         if c["guard"] and any(h["o"] > trig and (D - h["o"] - s) <= 0 for h in H):
                             continue
                         if c["deeponly"] and H and trig <= max(h["o"] for h in H):   # N: sirf sabse gehre se aage
+                            continue
+                        if c["allprofit"] is not None and any((D - h["o"] - s) < c["allprofit"] for h in H):   # P: saare khule profit me
                             continue
                         deepest_before = max((h["o"] for h in H), default=None)
                         uid += 1; used += 1
@@ -199,13 +205,14 @@ def summarize(name, rows):
           + " ".join(f"{k}:{v}" for k, v in sorted(kinds.items())))
 
 
+SIMPLE = dict(nolifo=True, reentry=False, onlynet=True, pairfill=None)
 VARS = [
-    ("V0  v9.0 (abhi)", dict()),
-    ("v9.1 = G+L12", dict(pairsl=2.0, arm=1.2)),
-    ("N   sirf gehre se aage", dict(deeponly=True)),
-    ("N+L12", dict(deeponly=True, arm=1.2)),
-    ("v9.1 + N", dict(pairsl=2.0, arm=1.2, deeponly=True)),
-    ("v9.1 + E", dict(pairsl=2.0, arm=1.2, guard=True)),
+    ("V0  v9.0", dict()),
+    ("v9.2 (abhi)", dict(pairsl=2.0, arm=1.2)),
+    ("S1 seedha: har hedge TP +$1", dict(SIMPLE, hedgetp=1.0)),
+    ("S2 seedha: lock 1.2 -> +$1", dict(SIMPLE, arm=1.2)),
+    ("S1 + cycle/basket niyam", dict(SIMPLE, hedgetp=1.0, onlynet=False)),
+    ("S2 + cycle/basket niyam", dict(SIMPLE, arm=1.2, onlynet=False)),
 ]
 
 
