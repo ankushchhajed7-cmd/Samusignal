@@ -186,29 +186,22 @@ def summarize(name, rows):
 
 VARS = [
     ("V0  v9.0 (abhi)", dict()),
-    ("A   level par hi dobara", dict(reentry=False)),
-    ("B   jodi bharte +$2", dict(pairfill=2.0)),
-    ("E   neeche ghate -> upar nahi", dict(guard=True)),
-    ("O05 pending 0.5 pehle", dict(off=0.5)),
-    ("O10 pending 1.0 pehle", dict(off=1.0)),
     ("G   jodi -$2 par band", dict(pairsl=2.0)),
-    ("T1  trail arm1.2 dist0.2", dict(arm=1.2, trail=0.2)),
-    ("T2  trail arm1.5 dist0.5", dict(arm=1.5, trail=0.5)),
-    ("T3  trail arm2.0 dist1.0", dict(arm=2.0, trail=1.0)),
+    ("G1  jodi -$1 par band", dict(pairsl=1.0)),
+    ("G3  jodi -$3 par band", dict(pairsl=3.0)),
     ("L12 arm 1.2 (trail nahi)", dict(arm=1.2)),
-    ("A+T1", dict(reentry=False, arm=1.2, trail=0.2)),
-    ("A+T2", dict(reentry=False, arm=1.5, trail=0.5)),
-    ("AB", dict(reentry=False, pairfill=2.0)),
-    ("ABE", dict(reentry=False, pairfill=2.0, guard=True)),
-    ("ABE+T1", dict(reentry=False, pairfill=2.0, guard=True, arm=1.2, trail=0.2)),
-    ("ABE+T3", dict(reentry=False, pairfill=2.0, guard=True, arm=2.0, trail=1.0)),
-    ("ABE+O05", dict(reentry=False, pairfill=2.0, guard=True, off=0.5)),
-    ("ABE+O05+T1", dict(reentry=False, pairfill=2.0, guard=True, off=0.5, arm=1.2, trail=0.2)),
+    ("T1  trail arm1.2 dist0.2", dict(arm=1.2, trail=0.2)),
+    ("E   neeche ghate -> upar nahi", dict(guard=True)),
+    ("O10 pending 1.0 pehle", dict(off=1.0)),
+    ("G+L12", dict(pairsl=2.0, arm=1.2)),
+    ("G+E", dict(pairsl=2.0, guard=True)),
+    ("G+O10", dict(pairsl=2.0, off=1.0)),
+    ("G+L12+E", dict(pairsl=2.0, arm=1.2, guard=True)),
+    ("G+L12+O10", dict(pairsl=2.0, arm=1.2, off=1.0)),
 ]
 
 
-NOISY = ["V0  v9.0 (abhi)", "A   level par hi dobara", "L12 arm 1.2 (trail nahi)", "T1  trail arm1.2 dist0.2",
-         "T2  trail arm1.5 dist0.5", "T3  trail arm2.0 dist1.0", "A+T1", "A+T2", "ABE+T1"]
+NOISY = [v[0] for v in VARS]
 
 
 def study(label, bars, start_min, max_hours):
