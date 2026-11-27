@@ -232,11 +232,12 @@ Unregister-ScheduledTask -TaskName SamuVpsHelper -Confirm:$false
 
 ## 8. SamuSignal app (पुराना मुख्य app)
 - Repo **`ankushchhajed7-cmd/Samusignal`** (public), GitHub Pages से चलता है (main branch की root)।
-- Files: `index.html` (पूरा app, ~800 KB), `sw.js` (`VERSION = '10.9.3'`, cache `samusignal-v10-9-3`), `manifest.json`, `kavach.js` (tests)
+- Files: `index.html` (पूरा app, ~800 KB), `sw.js` (`VERSION = '10.10.0'`, cache `samusignal-v10-10-0`), `manifest.json`, `kavach.js` (tests)
 - Version बदलना: `index.html` का `VERSION` + `sw.js` का `VERSION` दोनों एक जैसे।
 - काम:
   - forex / crypto signal (ADX, 4H / Daily confluence), Trade tracker, Alerts, Trading Gyaan
   - COPY tab (VPS Helper card), MT5 order भेजना (Firebase `/personalfx/orders`, `/personalfx/accounts`)
+  - **🎯 BUY YA SELL? (v10.10.0):** header button → 5 AI agent + behes + Judge (scalp $1/$2; 1H/15m/5m/1m) → BUY/SELL % → 🚀 MT5 MARKET (`/personalfx/orders`, src DECIDE) + 📒 record (pehle +$1/−$1)
   - Settings: TwelveData key, Gemini key (AI Analysis), Data source (MT5 feed / TwelveData)
   - **"🔑 SAMUSIGNAL AI (naya app) ke liye keys"**: सारी keys एक code में (`SAI1:` + base64 JSON) → नए app में paste। Chat / WhatsApp में मत भेजना।
 - इसी repo में सारे EA (`vps-ea/`), VPS Helper (`vps-helper/`), VPS scanner (`vps-scanner/scanner.mjs` v1.13), `STATE.md` (सब versions की table "Abhi ka version")।
