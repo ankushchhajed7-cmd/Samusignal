@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.5.1** | `index.html`, `sw.js` |
-| PERSONAL FX EA | **9.0** (27 Nov shaam: user ne v9.1–v9.3 hataye, yahin se nayi shuruaat) | `vps-ea/PERSONAL FX v9.0 - GRID.mq5` |
+| PERSONAL FX EA | **10.1** (27 Nov raat: S6 naya plan — main 0.01, sab target $2, doosra BUY main ke bhaav par; v9.0 backup) | `vps-ea/PERSONAL FX v10.1 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,15 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v10.1 — S6 naya plan (B): main 0.01, sab target $2, doosra BUY (27 Nov 2026 raat, user Final)
+- User: "9.1 abhi Final karna; agar 9.1 wala file pehle VPS pe bheja ho to 10.1 se start karna". Purani v9.1 VPS par ho sakti hai -> naam **10.1** (agla 10.2).
+- v9.0 se bana. Main BUY 0.01 haath se. SELL 0.01 har $3, har SELL (1 number bhi) v9.0 ka $1 niyam (+$2 lock -> +$1 band, LIFO, jodi).
+- Sab target $2: `S6_TP_Usd` 3 -> 2 (per 0.01), `S6_CycleNetUsd` 6 -> 2, `S6_CycleTP_Usd` 3 -> 2, `S6_BasketTP_Usd` 5 -> 2. Basket SL 60, LockArm 2.
+- NAYA `S6_SecondBuyOn` (true): hedge khule hon aur bhaav main ke bhaav par laute -> doosra trade main ki disha (S6_HedgeLot), STOP comment "PFX6HB" main ke bhaav par. Ek cycle me ek (GV `PFX6B2_<main>`). Sirf cycle ke saath band; hedge sab band -> main + doosra milake $2 TP / −$60 SL. Hedge sab band aur doosra na bhara -> pending hatta.
+- "PFX6HB" "PFX6H" se shuru -> OCO skip / S6DeletePendings / S6CleanPendings apne aap. Hedge pending loop + app pend list use chhodte hain. hb cfg me `b2`. Backtest round 17 (S6_NEW_PLAN.md): (B) 1m $1.62/ghanta SL 5, 5m $1.77/ghanta SL 2 (v9.0: 2.25 / 2.64, SL 17 / 8).
+- App S6 LIVE v2.5.0: WANT tp/net/basket/cycle = 2, main lot = 1× hedge lot, version hint v10.1. Doosra BUY ladder me alag row nahi (total me shamil).
+- Yahan compile nahi hua (MetaEditor nahi) — VPS par compile nateeja dekhna. Pehle demo.
 
 ## S6 — v9.0 se nayi shuruaat: v9.1 / v9.2 / v9.3 hataye (27 Nov 2026 shaam, user)
 - User: "9.0 tak ke saare badlav rakhna, uske aage ke saare changes remove kar dena sab jagah se - yahan se naye start karunga".
