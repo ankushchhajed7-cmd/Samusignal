@@ -39,7 +39,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 | Cheez | Version | File |
 |---|---|---|
 | SamuSignal app (PWA) | **10.10.1** (🎯 BUY ya SELL? page; SAMUSIGNAL AI v1.39.0 me bhi) | `index.html`, `sw.js` |
-| PERSONAL FX EA | **10.3** (27 Nov raat: har SELL apna lock +$1 + jodi + tikdi; v9.0 backup) | `vps-ea/PERSONAL FX v10.3 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
+| PERSONAL FX EA | **10.4** (27 Nov raat, user ke poore niyam: neeche se band + jodi + tikdi, naya SELL sirf jab upar wale profit me, doosra BUY; v9.0 backup) | `vps-ea/PERSONAL FX v10.4 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
 | BTC EA (Buster clone) | **1.18** | `vps-ea/BTC EA v1.18.mq5` |
@@ -292,6 +292,14 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - Bug (user: Candle page 4 min se same, BTCUSD Shanivar): v1.0 nayi band candle sirf pehle symbol (EURUSD) ke `iTime(...,1)` se pehchanta tha. Weekend pe EURUSD band -> 1min bars sirf `ResendMin` (5 min) me ek baar.
 - Fix: har TF ke liye saare symbols ki aakhri band candle ka sabse naya time — koi bhi pair (jaise BTC) nayi candle band kare to turant (1.5 sec ruk kar) bhejo. Baaki sab v1.0 jaisa; meta ver "1.01".
 - VPS: chart par v1.0 hata kar v1.01 lagana (inputs wahi). Compile yahan nahi hota — VPS Helper card dekhna.
+
+## PERSONAL FX v10.4 — user ke poore niyam (27 Nov 2026 raat, user Final)
+- User ne poori strategy dobara batayi (S6_HANDOVER.md 3.14 me 19 niyam). v10.3 ka "koi kram nahi" galat tha — SELL NEECHE SE band hone hain.
+- (1) Lock: sirf SABSE NEECHE wala hedge akela (+$2 lock -> +$1). Na bane to jodi (aakhri 2) +$1, phir tikdi (aakhri 3) +$1. (v10.2 jaisa + tikdi.)
+- (2) Naya hedge tabhi jab us bhaav par SAARE khule hedge profit me (spread ke baad): pending candidate T ko chhodo agar kisi khule hedge ke liye (BUY main) T > hOpen − spread. Kam se kam doori 1.5 (user). Isse "upar wale level dobara khule jab neeche wale ghate me" (27 Nov 3637/3634) band.
+- (3) Doosra trade (main ki disha, main ke bhaav par STOP, cycle me ek): ab tab bhi jab is cycle me hedge khula tha par sab band ho chuke (GV `PFX6B1_<main>`). `S6_SecondBuyOn` = true rakhna.
+- Main SELL ho to sab ulta (BUY hedge, doosra trade SELL).
+- Backtest round 22 (real gold, SL $60): 1m $4.22/ghanta (v10.3 1.74), 1m noise SL 9 -> 3, 5m 60 din SL 0 ($2.25/ghanta), 5m noise SL 4 -> 3. Kam se kam doori $3 karne par kharab (5m SL 0 -> 2) — isliye 1.5.
 
 ## PERSONAL FX v10.3 — S6 har SELL apna lock + jodi + tikdi (27 Nov 2026 raat, user "E Final")
 - Live (demo v10.2): main + doosra BUY @ 3640.09, SELL 3637.09 / 3634.09 / 3629.49 / 3626.54. Bhaav 3644 tak gaya -> chaaron ghate me (−$41). 20:39 par 1 / 2 number +$6.71 / +$3.71 lock chalu, par band nahi ho sakte the: v8.4 se sirf SABSE NEECHE wala akela band hota tha (upar wale ruko).
