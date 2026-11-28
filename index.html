@@ -2378,7 +2378,7 @@ body.ds-gold .brand .brandWord{height:24px}
 /* ==================================================================
    SamuSignal v2.0
    ================================================================== */
-const VERSION = '10.11.0';
+const VERSION = '10.11.1';
 /* v10.0.1: Settings — Firebase auth secret dikhao / copy (password box se phone copy nahi karne deta) */
 function fbAuthShow(b){
   const el = $('setFbAuth'); if(!el) return;
@@ -13854,8 +13854,8 @@ const dcCandles = (b, n, d) => b.slice(-n).map(x => [x.o, x.h, x.l, x.c].map(v =
 /* Gemini — har agent ka alag sawaal. JSON chahiye; News agent Google Search ke saath (tab JSON mime nahi chalta). */
 async function dcAsk(prompt, search){
   if(!S.gKey) throw new Error('Settings me Gemini API key daalo');
-  const models = (await gCandidates()).slice(0, 4);
-  let err = null;
+  const models = (await gCandidates()).slice(0, 5);
+  const errs = [];                                            /* v10.11.1: sabse kaam ki galti dikhao (limit > vyast > band) */
   for(const useSearch of search ? [true, false] : [false]){
     for(const m of models){
       const cfg = {temperature: 0.4, maxOutputTokens: 1500};
@@ -13870,20 +13870,29 @@ async function dcAsk(prompt, search){
         if(!r.ok){
           let msg = ''; try{ msg = ((await r.json()).error || {}).message || '' }catch(e){}
           if(th && r.status === 400 && /think/i.test(msg)) gNoThinkMark(m);
-          else if(r.status === 404 || /no longer available|deprecat|not found|limit:\s*0/i.test(msg)) gMarkBad(m);
-          err = new Error(r.status === 429 ? 'Gemini quota/limit (429) — thodi der baad' : (msg || 'HTTP ' + r.status).slice(0, 140));
+          else if(r.status === 404 || /no longer available|deprecat|not found|update your code|limit:\s*0/i.test(msg)){ gMarkBad(m); errs.push({k: 3, m: m + ' band'}) }
+          else if(r.status === 429 || /quota|exhaust|rate/i.test(msg)) errs.push({k: 1, m: 'Gemini ki limit poori (free key) — 1-2 min baad dobara, ya kal'});
+          else if(r.status >= 500 || /high demand|overload|unavailable/i.test(msg)) errs.push({k: 2, m: 'Gemini abhi vyast hai — thodi der baad dobara'});
+          else errs.push({k: 4, m: (msg || 'HTTP ' + r.status).slice(0, 140)});
           continue;
         }
         const j = await r.json(), cand = (j.candidates || [])[0] || {};
         const txt = ((cand.content && cand.content.parts) || []).map(x => x.text || '').join('');
         const out = jsonRescue(txt);
         if(out){ out._model = m; out._search = useSearch; return out }
-        err = new Error('Jawab samajh nahi aaya');
-      }catch(e){ err = new Error(e && e.name === 'AbortError' ? m + ' ne der kar di' : (e && e.message) || 'network') }
+        errs.push({k: 4, m: 'Jawab samajh nahi aaya'});
+      }catch(e){ errs.push({k: 2, m: e && e.name === 'AbortError' ? m + ' ne der kar di' : (e && e.message) || 'network'}) }
       finally{ clearTimeout(tmr) }
     }
   }
-  throw err || new Error('Gemini nahi chala');
+  errs.sort((a, b) => a.k - b.k);
+  throw new Error(errs.length ? errs[0].m : 'Gemini nahi chala');
+}
+/* ek saath max n kaam (Gemini per-minute limit) */
+async function dcPool(items, n, fn){
+  const out = new Array(items.length); let i = 0;
+  await Promise.all(Array.from({length: Math.min(n, items.length)}, async () => { while(i < items.length){ const k = i++; out[k] = await fn(items[k], k) } }));
+  return out;
 }
 function dcStep(t){ const el = $('dcStat'); if(el) el.innerHTML = t }
 
@@ -13915,9 +13924,9 @@ async function dcRun(){
     const fmtQ = `\n\nSirf JSON do: {"vote":"BUY" ya "SELL","conf":50-95 (kitna pakka),"why":"1-2 chhoti line simple Hinglish me, numbers ke saath","watch":"ek line: kis baat se tumhari raay galat ho sakti hai"}`;
 
     dcStep('<span class="spin"></span> 2/4 · 7 agent apni raay de rahe hain…');
-    const r1 = await Promise.all(DC_AGENTS.map(a => dcAsk(base + a.job + (a.k === 'news' ? `\nMT5 calendar (raw): ${cal || 'nahi mila'}` : '') + fmtQ, a.search)
+    const r1 = await dcPool(DC_AGENTS, 3, a => dcAsk(base + a.job + (a.k === 'news' ? `\nMT5 calendar (raw): ${cal || 'nahi mila'}` : '') + fmtQ, a.search)
       .then(o => ({k: a.k, vote: /SELL/i.test(o.vote) ? 'SELL' : 'BUY', conf: Math.max(50, Math.min(95, Math.round(+o.conf || 60))), why: String(o.why || '').slice(0, 300), watch: String(o.watch || '').slice(0, 200), search: o._search}))
-      .catch(e => ({k: a.k, err: e.message}))));
+      .catch(e => ({k: a.k, err: e.message})));
     const ok1 = r1.filter(x => !x.err);
     if(ok1.length < 3) throw new Error('Sirf ' + ok1.length + ' agent ne jawab diya — ' + ((r1.find(x => x.err) || {}).err || ''));
     const nm = k => DC_AGENTS.find(a => a.k === k).n;
