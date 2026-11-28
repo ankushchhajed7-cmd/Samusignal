@@ -38,7 +38,7 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 
 | Cheez | Version | File |
 |---|---|---|
-| SamuSignal app (PWA) | **10.11.0** (🎯 BUY ya SELL? page, 7 agent; SAMUSIGNAL AI v1.40.0 me bhi) | `index.html`, `sw.js` |
+| SamuSignal app (PWA) | **10.11.1** (🎯 BUY ya SELL? page, 7 agent; SAMUSIGNAL AI v1.41.1 me bhi + paper trade) | `index.html`, `sw.js` |
 | PERSONAL FX EA | **10.5** (27 Nov raat: v10.4 niyam + baari wale hedge par S/L = +$1 bhaav, phone par dikhe; v9.0 backup) | `vps-ea/PERSONAL FX v10.5 - GRID.mq5` (backup `PERSONAL FX v9.0 - GRID.mq5`) |
 | SamuSignal Data Feed (broker candles + live -> Firebase `/feed`; SAMUSIGNAL AI Scan / Candle page; koi trade nahi) | **1.01** | `vps-ea/SamuSignal Data Feed v1.01.mq5` |
 | Tithi Gold EA | **2.06** | `vps-ea/Tithi Gold v2.06.mq5` |
@@ -312,6 +312,8 @@ Har push ke saath ye file update hoti hai: kaun sa version, settings, faisle, au
 - User: "koi niyam nahi hataya — jodi, tikdi, jo bhi zaroori, sab us waqt allow".
 - v10.3: (1) HAR hedge +$2 paar -> lock, +$1 par band (koi kram nahi). (2) Jodi wahi: sabse neeche wala khud +$2 na pahunche to aakhri 2 milake +$1 -> +$1 par band. (3) NAYA TIKDI: jodi chalu na ho to aakhri 3 milake +$1 paar -> +$1 par teeno (GV `PFX6Q_<magic>_<sym>`). Ek tick me ek kaam, phir agla tick.
 - Backtest round 19–20 (real gold, SL $60): E (ye) 1m $1.89/cycle SL 1 (v10.2: $1.67, SL 3), 5m $1.88/ghanta (1.76), 5m noise SL 4 (5); SL band karke 5m sabse bura −$7.6 (v10.2 −$229). "Har SELL khud, jodi bhi nahi" (D) bahut bura — jodi zaroori.
+
+## SamuSignal app v10.11.1 — BUY ya SELL: Gemini galti saaf (limit > vyast > band), band model yaad, ek saath max 3 agent (28 Nov)
 
 ## SamuSignal app v10.11.0 — BUY ya SELL: + 🏔 Structure + 🧭 Alignment agent, Judge 1m rejection, ⏸ ABHI MAT LO (27 Nov raat, user Final)
 - SAMUSIGNAL AI v1.40.0 jaisa hi: 7 agent (swing HH/HL vs LH/LL + BOS; EMA20/50 dhalaan, EMA200, EMA20 se doori ATR, RSI divergence, candle wick), Judge taaza 1m rejection ko zyada wazan, bante agent / <60% / Judge ruko -> bada ⏸. 9 Gemini sawaal, candles 200.

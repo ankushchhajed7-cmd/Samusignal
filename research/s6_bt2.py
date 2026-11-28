@@ -27,12 +27,20 @@ Variants (user 27 Nov):
 import json, sys, time, urllib.request, statistics, random
 
 SPREAD = 0.25
+import os as _os
+SPREAD = float(_os.environ.get("S6_SPREAD", SPREAD))   # user 27 Nov raat: EURUSD par 1 pip = 0.1 (scaled)
 GAP = 3.0
 TICK = 0.1
 
 
+import os
+SYM = os.environ.get("S6_SYM", "GC=F")                       # user 27 Nov raat: BTC bhi (BTC-USD)
+SCALE = float(os.environ.get("S6_SCALE", "1"))               # 0.01 lot par $ per point: gold 1, BTC 0.01 -> bhaav x SCALE = "gold jaisa point"
+LABEL = os.environ.get("S6_LABEL", "GOLD")
+
+
 def fetch(interval, rng):
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval={interval}&range={rng}"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{SYM}?interval={interval}&range={rng}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     for i in range(5):
         try:
@@ -44,7 +52,7 @@ def fetch(interval, rng):
             for t, o, h, l, c in zip(res["timestamp"], q["open"], q["high"], q["low"], q["close"]):
                 if None in (o, h, l, c) or h < l:
                     continue
-                bars.append((t, o, h, l, c))
+                bars.append((t, o * SCALE, h * SCALE, l * SCALE, c * SCALE))
             return bars
         except Exception as e:
             print("fetch retry", interval, e, file=sys.stderr)
@@ -60,6 +68,66 @@ def path_points(bar):
 BASE = dict(reentry=True, space=1.5, pairfill=1.0, guard=False, off=0.0, pairsl=None,
             arm=2.0, trail=None, lock=1.0, pair_arm=1.0, noise=0.0, limit=False, deeponly=False, allprofit=None, nolifo=False, hedgetp=None, onlynet=False, tier=False, trail1=False, resetnh=False, overlap=False, ovbank=False, ovmin=1.0, jointtp=None, netrules=False, gap=3.0, recdd=None, rectgt=1.0, triple=False, help_start=None, help_step=2.0, help_tp=1.0,
             mainlot=2.0, keep1=False, tnet=6.0, tcyc=3.0, tbsk=5.0, ttp=None, b2=False, pxreset=False)
+
+
+_TCACHE = {}
+def trend_arr(bars, f, sl):
+    k = (id(bars), f, sl)
+    if k not in _TCACHE:
+        def ema(n):
+            a = 2.0 / (n + 1); out = []; e = bars[0][4]
+            for b in bars: e = b[4] * a + e * (1 - a); out.append(e)
+            return out
+        ef, es = ema(f), ema(sl)
+        _TCACHE[k] = [1 if x > y else -1 for x, y in zip(ef, es)]
+    return _TCACHE[k]
+
+
+_SCACHE = {}
+def sig_arr(bars, rule):
+    k = (id(bars), rule)
+    if k in _SCACHE:
+        return _SCACHE[k]
+    C = [b[4] for b in bars]; Hh = [b[2] for b in bars]; Ll = [b[3] for b in bars]; n = len(C)
+    def ema(src, m):
+        a = 2.0 / (m + 1); out = []; e = src[0]
+        for x in src: e = x * a + e * (1 - a); out.append(e)
+        return out
+    kind = rule[0]; out = [0] * n
+    if kind == "ema":
+        f, sl = rule[1], rule[2]; ef, es = ema(C, f), ema(C, sl)
+        out = [1 if x > y else -1 for x, y in zip(ef, es)]
+    elif kind == "mom":
+        N = rule[1]; out = [0 if i < N else (1 if C[i] > C[i - N] else -1) for i in range(n)]
+    elif kind == "rsi":
+        N, lo = 14, rule[1]; g = l = 0.0; r = [50.0] * n
+        for i in range(1, n):
+            ch = C[i] - C[i - 1]; up, dn = max(ch, 0), max(-ch, 0)
+            if i <= N: g += up / N; l += dn / N
+            else: g = (g * (N - 1) + up) / N; l = (l * (N - 1) + dn) / N
+            r[i] = 100.0 if l == 0 else 100 - 100 / (1 + g / l)
+        out = [1 if x > 100 - lo else (-1 if x < lo else 0) for x in r]
+    elif kind == "adx":
+        N, th = 14, rule[1]; tr = pdm = ndm = 0.0; ax = 0.0; out = [0] * n
+        for i in range(1, n):
+            up, dn = Hh[i] - Hh[i - 1], Ll[i - 1] - Ll[i]
+            p_ = up if up > dn and up > 0 else 0; m_ = dn if dn > up and dn > 0 else 0
+            t = max(Hh[i] - Ll[i], abs(Hh[i] - C[i - 1]), abs(Ll[i] - C[i - 1]))
+            tr = tr - tr / N + t; pdm = pdm - pdm / N + p_; ndm = ndm - ndm / N + m_
+            pdi = pdm / tr * 100 if tr else 0; ndi = ndm / tr * 100 if tr else 0
+            dx = abs(pdi - ndi) / (pdi + ndi) * 100 if pdi + ndi else 0
+            ax = ax + (dx - ax) / N
+            out[i] = (1 if pdi > ndi else -1) if ax > th else 0
+    elif kind == "don":
+        N = rule[1]; out = [0] * n
+        for i in range(N, n):
+            if C[i] >= max(Hh[i - N:i]): out[i] = 1
+            elif C[i] <= min(Ll[i - N:i]): out[i] = -1
+    elif kind == "htf":
+        f, sl, m = rule[1], rule[2], rule[3]; ef, es = ema(C, f * m), ema(C, sl * m)
+        out = [1 if x > y else -1 for x, y in zip(ef, es)]
+    _SCACHE[k] = out
+    return out
 
 
 def run_cycle(bars, start, d, bsl, max_hours, **kw):
@@ -98,8 +166,33 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
             return c["lock"]
         return max(c["lock"], h["peak"] - c["trail"])
 
+    la = c.get("lockai")
+    tr = trend_arr(bars, *c.get("lockema", (20, 50))) if la == "ema" else None
+    sg = sig_arr(bars, c["lockrule"]) if la == "rule" else None
+    def keep_one(h, bi_, D_):
+        # sirf us pal jab sabse neeche wala lock +$1 par band hone wala ho: band karo ya chalne do?
+        if la == "rule":
+            return bi_ > start and d * sg[bi_ - 1] < 0                     # pichhli BAND candle ka signal hedge ki disha me
+        if la == "oracle2":                                                # aage dekho: chalne dena sach me behtar tha?
+            for k2 in range(bi_ + 1, min(len(bars), bi_ + c.get("lookahead", 60))):
+                hb, lb = bars[k2][2], bars[k2][3]
+                worst = s - d * ((hb if d > 0 else lb) - mid0) - h["o"] - s
+                best = s - d * ((lb if d > 0 else hb) - mid0) - h["o"] - s
+                if worst <= 0.0: return False                             # pehle ghate me jaata -> band karna sahi
+                if best >= h["peak"] + 1.0: return True                   # pehle naya upar -> chalne dena sahi
+            return False
+        return False
     for bi in range(start, len(bars)):
         bar = bars[bi]
+        # user 27 Nov raat: AI faisla - hedge ki disha me chaal jaari (pullback) -> lock band nahi (hedge chalne do); palta -> lock chalu
+        keep = False
+        if la == "never":
+            keep = True
+        elif la == "ema":
+            keep = (d * tr[bi - 1] < 0) if bi > start else False          # pichhli band candle ka trend hedge ki taraf
+        elif la == "oracle":
+            k2 = min(len(bars) - 1, bi + c.get("lookahead", 30))
+            keep = d * (bars[k2][4] - bars[bi][4]) < 0                    # BHAVISHYA: aage bhaav hedge ki taraf (sirf upper seema dekhne ke liye)
         if bar[0] > end_t:
             break
         pts = path_points(bar) if bi > start else [bar[1]] + path_points(bar)[1:]
@@ -146,6 +239,8 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     return ("REC", banked + tot, minf, dur, used)
                 if banked + tot >= c["tnet"]:
                     return ("NET6", banked + tot, minf, dur, used)
+                if c.get("be_after") is not None and dur >= c["be_after"] * 3600 and banked + tot >= c.get("be_tgt", 0.0):   # user 27 Nov raat: sideways me der ho to chhota target
+                    return ("BE", banked + tot, minf, dur, used)
                 if not H:
                     if mainPL + b2PL >= (c["ttp"] if c["ttp"] is not None else 3.0 * c["mainlot"]):
                         return ("TP", banked + mainPL + helpPL + b2PL, minf, dur, used)
@@ -188,7 +283,7 @@ def run_cycle(bars, start, d, bsl, max_hours, **kw):
                     if keepb:
                         pass
                     elif b["armed"]:
-                        if pb <= floor(b):
+                        if pb <= floor(b) and not (la in ("rule", "oracle2") and keep_one(b, bi, D)):
                             banked += pb; H.pop(); setR(b, D); closed = True
                     elif len(H) >= 2 and not (c["keep1"] and H[-2]["n"] == 1):
                         a = H[-2]; cb = hpl[-2] + pb
@@ -297,11 +392,12 @@ V90 = dict(pairsl=None, arm=2.0)                       # v9.0 niyam (lock +2 -> 
 NEW1 = dict(V90, mainlot=1.0, tnet=2.0, tcyc=2.0, tbsk=2.0, ttp=2.0, b2=True)
 E103 = dict(NEW1, keep1=False, nolifo=True, indpair=True, triple=True)
 V104 = dict(NEW1, keep1=False, triple=True, allprofit=0.0, b2any=True)   # user 27 Nov raat: neeche se + jodi + tikdi + naya SELL sirf jab upar wale profit me
+T1 = dict(tnet=1.0, tcyc=1.0, tbsk=1.0, ttp=1.0)        # user 27 Nov raat: TP / basket / cycle (aur net) sab $1
 VARS = [
-    ("v10.3 (abhi: koi kram nahi)", dict(E103)),
-    ("v10.4: neeche se+jodi+tikdi+F+doosra BUY hamesha", dict(V104)),
-    ("v10.4 + har SELL $3 door (space 3)", dict(V104, space=3.0)),
-    ("v10.4 par doosra BUY sirf SELL khule hon", dict(V104, b2any=False)),
+    ("v10.5 (abhi: target $2, gap $3)", dict(V104)),
+    ("sirf target $1 (gap $3)", dict(V104, **T1)),
+    ("sirf gap $2 (target $2)", dict(V104, gap=2.0)),
+    ("USER: target $1 + gap $2", dict(V104, gap=2.0, **T1)),
 ]
 
 
@@ -357,12 +453,12 @@ def main():
         return
     b1 = fetch("1m", "7d")
     if b1:
-        study("GOLD 1m (7 days), start every 30 min, max 48h", b1, 30, 48)
+        study(f"{LABEL} 1m (7 days), start every 30 min, max 48h", b1, 30, 48)
     else:
         print("1m data not available")
     b5 = fetch("5m", "60d")
     if b5:
-        study("GOLD 5m (60 days), start every 2h, max 72h", b5, 120, 72)
+        study(f"{LABEL} 5m (60 days), start every 2h, max 72h", b5, 120, 72)
     else:
         print("5m data not available")
 
